@@ -5,7 +5,7 @@
 A point prediction is a lossy summary. This folder builds the machinery for distributions: conjugate posteriors, Gaussian processes, state-space filters and the two workhorse approximations (variational inference, MCMC).
 
 <!-- catalog:begin -->
-**15 atoms · 87 variants · 9 implemented**
+**15 atoms · 87 variants · 10 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -18,7 +18,7 @@ A point prediction is a lossy summary. This folder builds the machinery for dist
 | ✓ Kalman filter | [`kalman.py`](kalman.py) | 2 | 6 | Optimal filtering for linear-Gaussian state space models. |
 | ✓ Particle filter | [`particle_filter.py`](particle_filter.py) | 2 | 6 | Sequential Monte Carlo for nonlinear, non-Gaussian state. |
 | ✓ Hierarchical Bayes | [`hierarchical_bayes.py`](hierarchical_bayes.py) | 2 | 5 | Partial pooling, shrinkage and empirical Bayes. |
-| · Graphical models | [`pgm.py`](pgm.py) | 2 | 6 | Factor graphs, variable elimination and belief propagation. |
+| ✓ Graphical models | [`pgm.py`](pgm.py) | 2 | 6 | Factor graphs, variable elimination and belief propagation. |
 | · GP classification | [`gp_classification.py`](gp_classification.py) | 3 | 5 | Gaussian processes with non-Gaussian likelihoods. |
 | · Dirichlet process | [`dirichlet_process.py`](dirichlet_process.py) | 3 | 5 | Nonparametric priors that grow the model with the data. |
 | · Laplace approximation | [`laplace_approximation.py`](laplace_approximation.py) | 3 | 4 | Gaussian around the mode: predictive uncertainty from the Hessian. |
