@@ -5,16 +5,16 @@
 Gradient-boosted trees remain the default answer for tabular data. This folder builds the tree from scratch, then the four boosters worth knowing, then the ensembling meta-algorithms that generalise all of it.
 
 <!-- catalog:begin -->
-**14 atoms · 81 variants · 0 implemented**
+**14 atoms · 81 variants · 6 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
-| · CART | [`cart.py`](cart.py) | 1 | 7 | Split search, impurity criteria and cost-complexity pruning. |
-| · Random forest | [`random_forest.py`](random_forest.py) | 1 | 6 | Bagging plus feature subsampling, with out-of-bag error. |
-| · Gradient boosting | [`gradient_boosting.py`](gradient_boosting.py) | 1 | 7 | Functional gradient descent with shrinkage and subsampling. |
-| · XGBoost | [`xgboost.py`](xgboost.py) | 1 | 9 | Second-order gain, regularised leaves and sparsity-aware splits. |
-| · LightGBM | [`lightgbm.py`](lightgbm.py) | 1 | 7 | Histogram binning, GOSS, EFB and leaf-wise growth. |
-| · AdaBoost | [`adaboost.py`](adaboost.py) | 1 | 6 | Exponential loss, reweighting and the margin interpretation. |
+| ✓ CART | [`cart.py`](cart.py) | 1 | 7 | Split search, impurity criteria and cost-complexity pruning. |
+| ✓ Random forest | [`random_forest.py`](random_forest.py) | 1 | 6 | Bagging plus feature subsampling, with out-of-bag error. |
+| ✓ Gradient boosting | [`gradient_boosting.py`](gradient_boosting.py) | 1 | 7 | Functional gradient descent with shrinkage and subsampling. |
+| ✓ XGBoost | [`xgboost.py`](xgboost.py) | 1 | 9 | Second-order gain, regularised leaves and sparsity-aware splits. |
+| ✓ LightGBM | [`lightgbm.py`](lightgbm.py) | 1 | 7 | Histogram binning, GOSS, EFB and leaf-wise growth. |
+| ✓ AdaBoost | [`adaboost.py`](adaboost.py) | 1 | 6 | Exponential loss, reweighting and the margin interpretation. |
 | · C4.5 | [`c45.py`](c45.py) | 2 | 5 | Entropy, information gain, gain ratio and missing-value handling. |
 | · Extremely randomised trees | [`extra_trees.py`](extra_trees.py) | 2 | 4 | Randomised split thresholds for extra variance reduction. |
 | · CatBoost | [`catboost.py`](catboost.py) | 2 | 5 | Ordered boosting and target statistics for categorical features. |
