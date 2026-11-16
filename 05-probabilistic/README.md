@@ -5,7 +5,7 @@
 A point prediction is a lossy summary. This folder builds the machinery for distributions: conjugate posteriors, Gaussian processes, state-space filters and the two workhorse approximations (variational inference, MCMC).
 
 <!-- catalog:begin -->
-**15 atoms · 87 variants · 4 implemented**
+**15 atoms · 87 variants · 5 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -13,7 +13,7 @@ A point prediction is a lossy summary. This folder builds the machinery for dist
 | ✓ Discriminant analysis | [`discriminant_analysis.py`](discriminant_analysis.py) | 1 | 6 | LDA, QDA, shrinkage and regularised discriminant analysis. |
 | ✓ Gaussian process regression | [`gaussian_process.py`](gaussian_process.py) | 1 | 9 | Kernels, posterior mean/variance and marginal likelihood by Cholesky. |
 | ✓ Bayesian inference | [`bayesian_inference.py`](bayesian_inference.py) | 1 | 7 | MLE, MAP, conjugate priors and credible intervals. |
-| · MCMC | [`mcmc.py`](mcmc.py) | 2 | 7 | Sampling the posterior when algebra fails. |
+| ✓ MCMC | [`mcmc.py`](mcmc.py) | 2 | 7 | Sampling the posterior when algebra fails. |
 | · Variational inference | [`variational_inference.py`](variational_inference.py) | 2 | 5 | Turn integration into optimisation. |
 | · Kalman filter | [`kalman.py`](kalman.py) | 2 | 6 | Optimal filtering for linear-Gaussian state space models. |
 | · Particle filter | [`particle_filter.py`](particle_filter.py) | 2 | 6 | Sequential Monte Carlo for nonlinear, non-Gaussian state. |
