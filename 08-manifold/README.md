@@ -5,14 +5,14 @@
 Real data lies near a low-dimensional surface. These methods recover it — for plots (t-SNE, UMAP), for distances (Isomap, diffusion maps) or for features (autoencoders, random projections).
 
 <!-- catalog:begin -->
-**12 atoms · 47 variants · 1 implemented**
+**12 atoms · 47 variants · 2 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
 | · t-SNE | [`tsne.py`](tsne.py) | 1 | 5 | Student-t affinities, perplexity and early exaggeration. |
 | · UMAP | [`umap.py`](umap.py) | 1 | 5 | Fuzzy simplicial sets, negative sampling and cross-entropy. |
 | · Isomap | [`isomap.py`](isomap.py) | 1 | 4 | Geodesic distances from a neighbour graph, then classical MDS. |
-| · Random projection | [`random_projection.py`](random_projection.py) | 1 | 4 | Johnson-Lindenstrauss embeddings that fit nothing. |
+| ✓ Random projection | [`random_projection.py`](random_projection.py) | 1 | 4 | Johnson-Lindenstrauss embeddings that fit nothing. |
 | · PaCMAP | [`pacmap.py`](pacmap.py) | 2 | 4 | Three-term objective balancing local, mid-range and global structure. |
 | · Locally linear embedding | [`lle.py`](lle.py) | 2 | 4 | Local linear reconstruction weights and their eigenvectors. |
 | · Laplacian eigenmaps | [`laplacian_eigenmaps.py`](laplacian_eigenmaps.py) | 2 | 3 | Graph Laplacian spectrum as a smooth embedding. |
