@@ -5,16 +5,16 @@
 Clustering has no single objective, which is why there are a dozen algorithms and no winner. Each file here states the objective it optimises so you can pick the one that matches your notion of a cluster.
 
 <!-- catalog:begin -->
-**16 atoms · 76 variants · 0 implemented**
+**16 atoms · 76 variants · 6 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
-| · k-means | [`kmeans.py`](kmeans.py) | 1 | 7 | Lloyd's algorithm and the details that decide whether it works. |
-| · Gaussian mixture | [`gmm.py`](gmm.py) | 1 | 7 | Soft assignments with a likelihood you can compare across k. |
-| · DBSCAN | [`dbscan.py`](dbscan.py) | 1 | 4 | Density reachability, border points and the eps/minPts trade-off. |
-| · HDBSCAN | [`hdbscan.py`](hdbscan.py) | 1 | 5 | Mutual reachability, the condensed tree and cluster stability. |
-| · Spectral clustering | [`spectral_clustering.py`](spectral_clustering.py) | 1 | 5 | Clusters as cuts in a similarity graph. |
-| · Hierarchical clustering | [`agglomerative.py`](agglomerative.py) | 1 | 8 | Linkage criteria, dendrograms and cutting strategies. |
+| ✓ k-means | [`kmeans.py`](kmeans.py) | 1 | 7 | Lloyd's algorithm and the details that decide whether it works. |
+| ✓ Gaussian mixture | [`gmm.py`](gmm.py) | 1 | 7 | Soft assignments with a likelihood you can compare across k. |
+| ✓ DBSCAN | [`dbscan.py`](dbscan.py) | 1 | 4 | Density reachability, border points and the eps/minPts trade-off. |
+| ✓ HDBSCAN | [`hdbscan.py`](hdbscan.py) | 1 | 5 | Mutual reachability, the condensed tree and cluster stability. |
+| ✓ Spectral clustering | [`spectral_clustering.py`](spectral_clustering.py) | 1 | 5 | Clusters as cuts in a similarity graph. |
+| ✓ Hierarchical clustering | [`agglomerative.py`](agglomerative.py) | 1 | 8 | Linkage criteria, dendrograms and cutting strategies. |
 | · k-medoids | [`kmedoids.py`](kmedoids.py) | 2 | 5 | Medoids instead of means, so any distance works. |
 | · OPTICS | [`optics.py`](optics.py) | 2 | 3 | Reachability plots for clusters of varying density. |
 | · Mean shift | [`mean_shift.py`](mean_shift.py) | 2 | 4 | Mode seeking with a bandwidth-defined kernel. |
