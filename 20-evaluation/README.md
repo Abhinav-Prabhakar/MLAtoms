@@ -5,14 +5,14 @@
 A model is only as good as the evidence behind it. This folder covers honest resampling, calibrated probabilities, conformal guarantees, drift monitoring and the statistical tests that stop you shipping noise.
 
 <!-- catalog:begin -->
-**11 atoms · 68 variants · 0 implemented**
+**11 atoms · 68 variants · 4 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
-| · Resampling | [`resampling.py`](resampling.py) | 1 | 8 | Holdout, k-fold, stratified/group/time-series and nested CV. |
-| · Bootstrap | [`bootstrap.py`](bootstrap.py) | 1 | 5 | Percentile, BCa and paired bootstrap intervals. |
-| · Calibration | [`calibration.py`](calibration.py) | 1 | 6 | Platt, isotonic and temperature scaling; reliability diagrams. |
-| · Interpretability | [`interpretability.py`](interpretability.py) | 1 | 9 | Permutation importance, SHAP, PDP/ICE and integrated gradients. |
+| ✓ Resampling | [`resampling.py`](resampling.py) | 1 | 8 | Holdout, k-fold, stratified/group/time-series and nested CV. |
+| ✓ Bootstrap | [`bootstrap.py`](bootstrap.py) | 1 | 5 | Percentile, BCa and paired bootstrap intervals. |
+| ✓ Calibration | [`calibration.py`](calibration.py) | 1 | 6 | Platt, isotonic and temperature scaling; reliability diagrams. |
+| ✓ Interpretability | [`interpretability.py`](interpretability.py) | 1 | 9 | Permutation importance, SHAP, PDP/ICE and integrated gradients. |
 | · Conformal prediction | [`conformal.py`](conformal.py) | 2 | 7 | Split, Jackknife+ and Mondrian sets with coverage guarantees. |
 | · Uncertainty estimation | [`uncertainty.py`](uncertainty.py) | 2 | 6 | MC dropout, deep ensembles and epistemic/aleatoric decomposition. |
 | · Drift detection | [`drift_detection.py`](drift_detection.py) | 2 | 7 | ADWIN, DDM, KS and PSI monitors for production. |
