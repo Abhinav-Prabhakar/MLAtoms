@@ -5,7 +5,7 @@
 A point prediction is a lossy summary. This folder builds the machinery for distributions: conjugate posteriors, Gaussian processes, state-space filters and the two workhorse approximations (variational inference, MCMC).
 
 <!-- catalog:begin -->
-**15 atoms · 87 variants · 14 implemented**
+**15 atoms · 87 variants · 15 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -23,7 +23,7 @@ A point prediction is a lossy summary. This folder builds the machinery for dist
 | ✓ Dirichlet process | [`dirichlet_process.py`](dirichlet_process.py) | 3 | 5 | Nonparametric priors that grow the model with the data. |
 | ✓ Laplace approximation | [`laplace_approximation.py`](laplace_approximation.py) | 3 | 4 | Gaussian around the mode: predictive uncertainty from the Hessian. |
 | ✓ Expectation propagation | [`expectation_propagation.py`](expectation_propagation.py) | 3 | 3 | Moment matching to approximate intractable posteriors. |
-| · Copulas | [`copula.py`](copula.py) | 3 | 6 | Dependence beyond correlation, with correct margins. |
+| ✓ Copulas | [`copula.py`](copula.py) | 3 | 6 | Dependence beyond correlation, with correct margins. |
 
 **Variant map** — every variant below is implemented in its atom's file and derived in its companion `.md`.
 
