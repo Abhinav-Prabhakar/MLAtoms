@@ -5,7 +5,7 @@
 A point prediction is a lossy summary. This folder builds the machinery for distributions: conjugate posteriors, Gaussian processes, state-space filters and the two workhorse approximations (variational inference, MCMC).
 
 <!-- catalog:begin -->
-**15 atoms · 87 variants · 7 implemented**
+**15 atoms · 87 variants · 8 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -16,7 +16,7 @@ A point prediction is a lossy summary. This folder builds the machinery for dist
 | ✓ MCMC | [`mcmc.py`](mcmc.py) | 2 | 7 | Sampling the posterior when algebra fails. |
 | ✓ Variational inference | [`variational_inference.py`](variational_inference.py) | 2 | 5 | Turn integration into optimisation. |
 | ✓ Kalman filter | [`kalman.py`](kalman.py) | 2 | 6 | Optimal filtering for linear-Gaussian state space models. |
-| · Particle filter | [`particle_filter.py`](particle_filter.py) | 2 | 6 | Sequential Monte Carlo for nonlinear, non-Gaussian state. |
+| ✓ Particle filter | [`particle_filter.py`](particle_filter.py) | 2 | 6 | Sequential Monte Carlo for nonlinear, non-Gaussian state. |
 | · Hierarchical Bayes | [`hierarchical_bayes.py`](hierarchical_bayes.py) | 2 | 5 | Partial pooling, shrinkage and empirical Bayes. |
 | · Graphical models | [`pgm.py`](pgm.py) | 2 | 6 | Factor graphs, variable elimination and belief propagation. |
 | · GP classification | [`gp_classification.py`](gp_classification.py) | 3 | 5 | Gaussian processes with non-Gaussian likelihoods. |
