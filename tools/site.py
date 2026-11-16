@@ -17,6 +17,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import posixpath
@@ -55,6 +56,21 @@ SITE = {
 }
 
 MATHJAX = "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"
+
+
+def asset_version() -> str:
+    """A short content hash, so a deploy never serves yesterday's stylesheet.
+
+    Pages caches assets for ten minutes; a changing query string makes the new
+    URL unknown to the cache and leaves the old one harmless.
+    """
+    digest = hashlib.sha1()
+    for name in ("style.css", "site.js"):
+        digest.update((ASSETS / name).read_bytes())
+    return digest.hexdigest()[:8]
+
+
+ASSET_V = asset_version()
 
 
 # --------------------------------------------------------------------------- #
@@ -413,7 +429,7 @@ def head(page: Page, og_type: str, extra: str = "") -> str:
 <meta name="twitter:image" content="{og_image}">
 <meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
 <script type="application/ld+json">{json.dumps(jsonld)}</script>
-<link rel="stylesheet" href="{root}assets/style.css">
+<link rel="stylesheet" href="{root}assets/style.css?v={ASSET_V}">
 <script>
   try {{
     var t = localStorage.getItem("mlatoms-theme");
@@ -686,7 +702,7 @@ def render_page(page: Page, pages: list[Page]) -> str:
 {content}
 </main>
 {footer(page)}
-<script src="{root}assets/site.js" defer></script>
+<script src="{root}assets/site.js?v={ASSET_V}" defer></script>
 </body>
 </html>
 """
