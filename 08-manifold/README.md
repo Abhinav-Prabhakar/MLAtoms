@@ -5,7 +5,7 @@
 Real data lies near a low-dimensional surface. These methods recover it — for plots (t-SNE, UMAP), for distances (Isomap, diffusion maps) or for features (autoencoders, random projections).
 
 <!-- catalog:begin -->
-**12 atoms · 47 variants · 0 implemented**
+**12 atoms · 47 variants · 1 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -16,7 +16,7 @@ Real data lies near a low-dimensional surface. These methods recover it — for 
 | · PaCMAP | [`pacmap.py`](pacmap.py) | 2 | 4 | Three-term objective balancing local, mid-range and global structure. |
 | · Locally linear embedding | [`lle.py`](lle.py) | 2 | 4 | Local linear reconstruction weights and their eigenvectors. |
 | · Laplacian eigenmaps | [`laplacian_eigenmaps.py`](laplacian_eigenmaps.py) | 2 | 3 | Graph Laplacian spectrum as a smooth embedding. |
-| · Classical MDS | [`mds.py`](mds.py) | 2 | 5 | Distance-preserving embeddings by stress minimisation. |
+| ✓ Classical MDS | [`mds.py`](mds.py) | 2 | 5 | Distance-preserving embeddings by stress minimisation. |
 | · Autoencoder embedding | [`autoencoder_dr.py`](autoencoder_dr.py) | 2 | 4 | Bottleneck autoencoders as learned nonlinear projections. |
 | · TriMap | [`trimap.py`](trimap.py) | 3 | 3 | Triplet constraints that preserve global geometry. |
 | · Diffusion maps | [`diffusion_maps.py`](diffusion_maps.py) | 3 | 3 | Markov-chain diffusion distances and spectral embeddings. |
