@@ -5,7 +5,7 @@
 Most high-dimensional data is low-dimensional in disguise. This folder is about finding that structure: linear projections, independent components, non-negative parts, sparse codes and topic mixtures.
 
 <!-- catalog:begin -->
-**12 atoms · 58 variants · 4 implemented**
+**12 atoms · 58 variants · 5 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -13,7 +13,7 @@ Most high-dimensional data is low-dimensional in disguise. This folder is about 
 | ✓ Non-negative matrix factorisation | [`nmf.py`](nmf.py) | 1 | 7 | Parts-based factorisation with two divergence choices. |
 | ✓ Probabilistic PCA | [`probabilistic_pca.py`](probabilistic_pca.py) | 2 | 4 | PCA as a latent-variable model, with missing data and noise. |
 | ✓ Factor analysis | [`factor_analysis.py`](factor_analysis.py) | 2 | 5 | Unique variances, rotation and interpretable factors. |
-| · Independent component analysis | [`ica.py`](ica.py) | 2 | 6 | Unmixing sources that are statistically independent. |
+| ✓ Independent component analysis | [`ica.py`](ica.py) | 2 | 6 | Unmixing sources that are statistically independent. |
 | · Latent semantic analysis | [`lsa.py`](lsa.py) | 2 | 4 | Truncated SVD of term-document matrices. |
 | · Latent Dirichlet allocation | [`lda_topic.py`](lda_topic.py) | 2 | 4 | Topic models by collapsed Gibbs sampling. |
 | · Canonical correlation | [`cca.py`](cca.py) | 2 | 5 | Shared structure between two views. |
