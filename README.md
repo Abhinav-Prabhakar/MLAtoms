@@ -6,6 +6,8 @@
 
 One algorithm per file. Every variant of it. A derivation that fits on a page.
 
+[Read it as a site →](https://abhinav-prabhakar.github.io/MLAtoms/)
+
 </div>
 
 ---
