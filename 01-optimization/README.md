@@ -5,15 +5,15 @@
 Optimisation is where most practical failures hide. This folder walks the ladder from SGD to matrix-orthogonalised updates, then covers the classical machinery (Newton, EM, proximal methods) that modern deep learning quietly reuses.
 
 <!-- catalog:begin -->
-**16 atoms · 97 variants · 0 implemented**
+**16 atoms · 97 variants · 5 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
-| · SGD | [`sgd.py`](sgd.py) | 1 | 8 | The base update and the three ideas that made it work. |
-| · Adam / AdamW | [`adam.py`](adam.py) | 1 | 8 | Bias-corrected moments with decoupled weight decay. |
-| · Adaptive methods | [`adaptive.py`](adaptive.py) | 1 | 7 | Per-coordinate step sizes and their pathologies. |
-| · Schedules | [`schedules.py`](schedules.py) | 1 | 13 | Where to spend the learning rate over a training run. |
-| · EM / MM | [`em.py`](em.py) | 1 | 6 | The monotone algorithm hiding inside k-means, GMMs, HMMs and VAEs. |
+| ✓ SGD | [`sgd.py`](sgd.py) | 1 | 8 | The base update and the three ideas that made it work. |
+| ✓ Adam / AdamW | [`adam.py`](adam.py) | 1 | 8 | Bias-corrected moments with decoupled weight decay. |
+| ✓ Adaptive methods | [`adaptive.py`](adaptive.py) | 1 | 7 | Per-coordinate step sizes and their pathologies. |
+| ✓ Schedules | [`schedules.py`](schedules.py) | 1 | 13 | Where to spend the learning rate over a training run. |
+| ✓ EM / MM | [`em.py`](em.py) | 1 | 6 | The monotone algorithm hiding inside k-means, GMMs, HMMs and VAEs. |
 | · Second-order | [`second_order.py`](second_order.py) | 2 | 8 | Curvature, quasi-Newton and trust regions. |
 | · Proximal methods | [`proximal.py`](proximal.py) | 2 | 8 | Optimisation when the objective has a nonsmooth part. |
 | · Weight averaging | [`weight_averaging.py`](weight_averaging.py) | 2 | 7 | Free accuracy by averaging the trajectory instead of the gradients. |
