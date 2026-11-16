@@ -49,7 +49,8 @@ def chapter_dir(ch: dict) -> Path:
 def is_implemented(ch: dict, entry: dict) -> bool:
     """An atom exists once both its implementation and its companion doc exist."""
     d = chapter_dir(ch)
-    return (d / entry["file"]).is_file() and (d / entry["file"][:-3] + ".md").is_file()
+    stem = entry["file"][:-3]  # strip ".py"
+    return (d / entry["file"]).is_file() and (d / f"{stem}.md").is_file()
 
 
 def count_variants(ch: dict) -> int:

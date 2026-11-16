@@ -5,18 +5,18 @@
 Nothing here is a model. These are the atoms models are made of: activations, objectives, evaluation scores, initialisation, normalisation and the linear algebra that makes everything else a few lines long. Read this folder first; the rest of the repository assumes it.
 
 <!-- catalog:begin -->
-**12 atoms · 142 variants · 0 implemented**
+**12 atoms · 142 variants · 8 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
-| · Activations | [`activations.py`](activations.py) | 1 | 17 | Pointwise nonlinearities with stable forward and exact backward passes. |
-| · Losses | [`losses.py`](losses.py) | 1 | 20 | Regression, classification, ranking and contrastive objectives in one place. |
-| · Metrics | [`metrics.py`](metrics.py) | 1 | 18 | Thresholded and threshold-free scores, including ranking and clustering. |
-| · Initialisation | [`init.py`](init.py) | 1 | 10 | Variance-preserving starts that decide whether deep nets train at all. |
-| · Normalisation | [`normalization.py`](normalization.py) | 1 | 8 | Batch, layer, group, instance and RMS normalisation plus weight standardisation. |
-| · Distances | [`distances.py`](distances.py) | 1 | 13 | Metric and non-metric dissimilarities used across the repository. |
-| · Linear algebra | [`linalg.py`](linalg.py) | 1 | 11 | The factorisations every other file is secretly using. |
-| · Sampling | [`sampling.py`](sampling.py) | 1 | 10 | Reservoir, alias, stratified, weighted and Gumbel-top-k sampling. |
+| ✓ Activations | [`activations.py`](activations.py) | 1 | 17 | Pointwise nonlinearities with stable forward and exact backward passes. |
+| ✓ Losses | [`losses.py`](losses.py) | 1 | 20 | Regression, classification, ranking and contrastive objectives in one place. |
+| ✓ Metrics | [`metrics.py`](metrics.py) | 1 | 18 | Thresholded and threshold-free scores, including ranking and clustering. |
+| ✓ Initialisation | [`init.py`](init.py) | 1 | 10 | Variance-preserving starts that decide whether deep nets train at all. |
+| ✓ Normalisation | [`normalization.py`](normalization.py) | 1 | 8 | Batch, layer, group, instance and RMS normalisation plus weight standardisation. |
+| ✓ Distances | [`distances.py`](distances.py) | 1 | 13 | Metric and non-metric dissimilarities used across the repository. |
+| ✓ Linear algebra | [`linalg.py`](linalg.py) | 1 | 11 | The factorisations every other file is secretly using. |
+| ✓ Sampling | [`sampling.py`](sampling.py) | 1 | 10 | Reservoir, alias, stratified, weighted and Gumbel-top-k sampling. |
 | · Tensor ops | [`tensor_ops.py`](tensor_ops.py) | 2 | 10 | einsum patterns, im2col, gather/scatter, segment sums, log-sum-exp. |
 | · Embedding encodings | [`embeddings.py`](embeddings.py) | 2 | 9 | Discrete-to-vector encodings, from one-hot to rotary positions. |
 | · Similarity graphs | [`similarity_graphs.py`](similarity_graphs.py) | 2 | 8 | Turning points into edges — the first step of every graph and manifold method. |
