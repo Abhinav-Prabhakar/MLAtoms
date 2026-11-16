@@ -797,9 +797,39 @@ def _mark(size: int, bg: str = "#0d0e10", fg: str = "#ff8f63", dot: str = "#f6f4
     return img.resize((size, size), Image.LANCZOS)
 
 
+SERIF_FONTS = (
+    "/System/Library/Fonts/Supplemental/Georgia.ttf",
+    "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+)
+SANS_FONTS = (
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+)
+
+
+def _font(size: int, *, serif: bool = False):
+    """A real typeface when the machine has one; Pillow's default otherwise.
+
+    The social card is built in CI, so it prefers fonts every runner has rather
+    than whatever the author's laptop happens to ship.
+    """
+    from PIL import ImageFont
+
+    for candidate in SERIF_FONTS if serif else SANS_FONTS:
+        if Path(candidate).is_file():
+            try:
+                return ImageFont.truetype(candidate, size)
+            except OSError:
+                continue
+    return ImageFont.load_default(size=size)
+
+
 def write_assets(out: Path) -> list[str]:
     """Copy the stylesheet and script, draw the raster icons and the OG card."""
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image, ImageDraw
 
     dest = out / "assets"
     dest.mkdir(parents=True, exist_ok=True)
@@ -822,9 +852,9 @@ def write_assets(out: Path) -> list[str]:
         d.line([(0, y), (W, y)], fill=(13 + int(6 * t), 14 + int(6 * t), 16 + int(8 * t)))
     mark = _mark(96)
     card.paste(mark, (72, 64), mark)
-    big = ImageFont.load_default(size=88)
-    mid = ImageFont.load_default(size=33)
-    small = ImageFont.load_default(size=22)
+    big = _font(88, serif=True)
+    mid = _font(33)
+    small = _font(22)
     d.text((72, 198), "MLAtoms", font=big, fill="#ffffff")
     d.line([(72, 322), (W - 72, 322)], fill="#2a2e34", width=2)
     d.text((72, 356), "One algorithm per file. Every variant of it.", font=mid, fill="#b9bcc4")
