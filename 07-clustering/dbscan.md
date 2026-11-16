@@ -101,7 +101,7 @@ d_c(x) = \min_{a \in C_c} \|x - a\|,
 \mu_c(x) =
 \begin{cases}
 1 & x \in C_c \\[2pt]
-\operatorname{clip}\!\left(\dfrac{\epsilon_2 - d_c(x)}{\epsilon_2 - \epsilon},\,0,\,1\right) & \text{otherwise}
+\mathrm{clip}\!\left(\dfrac{\epsilon_2 - d_c(x)}{\epsilon_2 - \epsilon},\,0,\,1\right) & \text{otherwise}
 \end{cases}
 $$
 

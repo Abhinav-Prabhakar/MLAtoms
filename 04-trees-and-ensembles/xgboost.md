@@ -59,7 +59,7 @@ $$
 For a leaf containing rows `S`, the optimal value is
 
 $$
-w_S = -\frac{\operatorname{soft}(G_S,\alpha)}{H_S+\lambda},
+w_S = -\frac{\mathrm{soft}(G_S,\alpha)}{H_S+\lambda},
 \qquad
 G_S=\sum_{i\in S}g_i,\quad H_S=\sum_{i\in S}h_i
 $$
@@ -72,9 +72,9 @@ where `soft(G,α) = sign(G)·max(|G|−α, 0)`. The `L1` case is the proximal op
 
 $$
 \text{gain} = \frac12\left[
-\frac{\operatorname{soft}(G_L)^2}{H_L+\lambda}
-+ \frac{\operatorname{soft}(G_R)^2}{H_R+\lambda}
-- \frac{\operatorname{soft}(G)^2}{H+\lambda}
+\frac{\mathrm{soft}(G_L)^2}{H_L+\lambda}
++ \frac{\mathrm{soft}(G_R)^2}{H_R+\lambda}
+- \frac{\mathrm{soft}(G)^2}{H+\lambda}
 \right] - \gamma
 $$
 

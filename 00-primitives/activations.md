@@ -40,7 +40,7 @@ SiLU, Mish), or let the gate modulate a separate value branch (GLU family).
 **GELU.** Multiply the input by the probability that a standard normal is below it:
 
 $$
-\text{GELU}(x) = x\,\Phi(x) = x \cdot \tfrac12\left(1 + \operatorname{erf}\!\left(\frac{x}{\sqrt2}\right)\right)
+\text{GELU}(x) = x\,\Phi(x) = x \cdot \tfrac12\left(1 + \mathrm{erf}\!\left(\frac{x}{\sqrt2}\right)\right)
 $$
 
 The derivative uses $\Phi'(x) = \phi(x) = e^{-x^2/2}/\sqrt{2\pi}$:

@@ -153,7 +153,7 @@ has a standard error of about `0.3`.
 **Temperature scaling.** For logits `z` with `p = softmax(z)`, fit the single scalar `T`:
 
 $$
-p_T = \operatorname{softmax}\!\left(\frac{z}{T}\right),
+p_T = \mathrm{softmax}\!\left(\frac{z}{T}\right),
 \qquad
 T^\star = \arg\min_T \; -\sum_i \log p_T(y_i \mid x_i)
 $$
@@ -167,7 +167,7 @@ which is exactly the regime where the calibration set is small.
 **Beta calibration.** With `s = log p` and `t = log(1−p)`, fit
 
 $$
-\operatorname{logit}(\hat p) = a\,s + b\,t + c
+\mathrm{logit}(\hat p) = a\,s + b\,t + c
 $$
 
 Kull et al. motivate it from the Beta family: if the score density is `Beta(α, β)` and the
@@ -179,7 +179,7 @@ boundary values correctly — `p → 0` gives `−∞` whatever the coefficients
 **Dirichlet calibration.** Let `z = log p` and fit
 
 $$
-\hat p = \operatorname{softmax}\bigl(W z + b\bigr), \qquad W \in \mathbb{R}^{k\times k}
+\hat p = \mathrm{softmax}\bigl(W z + b\bigr), \qquad W \in \mathbb{R}^{k\times k}
 $$
 
 This is multinomial logistic regression with the log-probabilities as features. It contains

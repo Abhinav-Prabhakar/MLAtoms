@@ -31,10 +31,10 @@ training happens*.
 independent zero-mean weights:
 
 $$
-\operatorname{Var}(y_j) = d_{in}\,\operatorname{Var}(w)\,\operatorname{Var}(x)
-\;\overset{!}{=}\;\operatorname{Var}(x)
+\mathrm{Var}(y_j) = d_{in}\,\mathrm{Var}(w)\,\mathrm{Var}(x)
+\;\overset{!}{=}\;\mathrm{Var}(x)
 \quad\Longrightarrow\quad
-\operatorname{Var}(w) = \frac{1}{d_{in}}
+\mathrm{Var}(w) = \frac{1}{d_{in}}
 $$
 
 The backward pass imposes the symmetric condition `Var(w) = 1/d_out`. Averaging
@@ -44,7 +44,7 @@ the two gives `2/(d_in + d_out)`, which is the published Xavier variance.
 To keep the second moment equal, the weights must be twice as large:
 
 $$
-\operatorname{Var}(w) = \frac{2}{d_{in}}
+\mathrm{Var}(w) = \frac{2}{d_{in}}
 $$
 
 This is also why He init does *not* preserve variance after ReLU — ReLU output has

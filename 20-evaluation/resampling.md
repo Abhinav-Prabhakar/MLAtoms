@@ -156,7 +156,7 @@ random. If a repeat has variance `σ²`, then averaging `R` independent repeats 
 `σ²/R`, so the standard error falls by `√R`:
 
 $$
-\operatorname{se}\bigl(\hat R^{(R)}\bigr) = \frac{\sigma}{\sqrt{kR}}
+\mathrm{se}\bigl(\hat R^{(R)}\bigr) = \frac{\sigma}{\sqrt{kR}}
 $$
 
 Two distinct 10-repeat estimates should therefore agree about three times more closely

@@ -102,7 +102,7 @@ stronger test than checking that the loss decreased. Since `Z_t ≤ 1`, the trai
 error obeys
 
 $$
-\frac1n\#\{y_i \ne \operatorname{sign}F(x_i)\} \le \prod_t Z_t
+\frac1n\#\{y_i \ne \mathrm{sign}F(x_i)\} \le \prod_t Z_t
 = \exp\!\Big(-2\sum_t \gamma_t^2\Big),
 \qquad \gamma_t = \tfrac12 - \text{err}_t
 $$

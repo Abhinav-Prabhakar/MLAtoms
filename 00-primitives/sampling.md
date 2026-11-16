@@ -105,7 +105,7 @@ estimate is noise.
 `n_i` from each. The variance decomposition
 
 $$
-\operatorname{Var}(\bar X) = \underbrace{\sum_i \frac{\sigma_i^2}{n_i}}_{\text{within}} + \underbrace{\frac{1}{n^2}\sum_i (\mu_i - \mu)^2}_{\text{between}}
+\mathrm{Var}(\bar X) = \underbrace{\sum_i \frac{\sigma_i^2}{n_i}}_{\text{within}} + \underbrace{\frac{1}{n^2}\sum_i (\mu_i - \mu)^2}_{\text{between}}
 $$
 
 shows the gain: stratification removes the between-stratum term entirely. With

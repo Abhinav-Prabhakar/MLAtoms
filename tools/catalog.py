@@ -178,6 +178,28 @@ def render(verbose: bool = True) -> None:
 # --------------------------------------------------------------------------- #
 # Validation
 # --------------------------------------------------------------------------- #
+def math_problems() -> list[str]:
+    r"""Every Markdown expression must survive GitHub's MathJax subset.
+
+    GitHub replaces the whole formula with "The following macros are not
+    allowed: …" when it meets a macro it refuses, so a single `\operatorname`
+    silently destroys a derivation on the rendered page.
+    """
+    tools = str(Path(__file__).resolve().parent)
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    from mdmath import markdown_files, scan
+
+    out: list[str] = []
+    for path in markdown_files():
+        for lineno, name in scan(path.read_text()):
+            out.append(
+                f"{path.relative_to(ROOT)}:{lineno}: \\{name} does not render on "
+                f"GitHub (run `python tools/mdmath.py fix`)"
+            )
+    return out
+
+
 def check() -> int:
     data = load()
     problems: list[str] = []
@@ -231,6 +253,8 @@ def check() -> int:
                     f"{ch['dir']}/{e['file']}: atom needs both {e['file']} and "
                     f"{md.name} (found py={py.is_file()}, md={md.is_file()})"
                 )
+
+    problems.extend(math_problems())
 
     if problems:
         print(f"{len(problems)} problem(s):")

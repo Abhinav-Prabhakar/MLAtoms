@@ -11,7 +11,7 @@ keeps the first and generalises the second:
 $$
 \mathbb{E}[y] = \mu = g^{-1}(x^\top\beta + \text{offset}),
 \qquad
-\operatorname{Var}[y] = \phi\,V(\mu)
+\mathrm{Var}[y] = \phi\,V(\mu)
 $$
 
 The **link** `g` says how the mean depends on the linear predictor; the **variance
@@ -93,8 +93,8 @@ as in OLS. The demo checks this identity for Poisson and binomial, and the analo
 $$
 \mathcal{I}(\beta) = \frac{1}{\phi}X^\top W X,
 \qquad
-W = \operatorname{diag}\!\left(\frac{(d\mu_i/d\eta_i)^2}{V(\mu_i)}\right)
-= \operatorname{diag}\!\left(\frac{1}{V(\mu_i)\,g'(\mu_i)^2}\right)
+W = \mathrm{diag}\!\left(\frac{(d\mu_i/d\eta_i)^2}{V(\mu_i)}\right)
+= \mathrm{diag}\!\left(\frac{1}{V(\mu_i)\,g'(\mu_i)^2}\right)
 $$
 
 **IRLS.** Fisher scoring is `β ← β + I⁻¹∇ℓ`, which rearranges into a weighted least
@@ -133,7 +133,7 @@ which gives the four formulas in the code:
 **Dispersion.** When `φ` is unknown, the Pearson estimator is
 
 $$
-\hat\phi = \frac{1}{n-\operatorname{rank}(X)}\sum_i \frac{(y_i-\mu_i)^2}{V(\mu_i)}
+\hat\phi = \frac{1}{n-\mathrm{rank}(X)}\sum_i \frac{(y_i-\mu_i)^2}{V(\mu_i)}
 $$
 
 and `Cov(β̂) = φ̂ (XᵀWX)⁻¹`. Poisson and binomial fix `φ=1`; the `dispersion`

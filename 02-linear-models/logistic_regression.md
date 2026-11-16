@@ -49,7 +49,7 @@ the same coefficients to `1e-6`, only with different iteration counts.
 
 $$
 \ell(\beta) = -\sum_i \left[y_i z_i - \log(1+e^{z_i})\right]
-= \sum_i \left[\operatorname{softplus}(z_i) - y_i z_i\right]
+= \sum_i \left[\mathrm{softplus}(z_i) - y_i z_i\right]
 $$
 
 The gradient and Hessian are
@@ -57,7 +57,7 @@ The gradient and Hessian are
 $$
 \nabla = X^\top(\sigma(z) - y),
 \qquad
-\nabla^2 = X^\top \operatorname{diag}\!\big(\sigma(z)(1-\sigma(z))\big) X
+\nabla^2 = X^\top \mathrm{diag}\!\big(\sigma(z)(1-\sigma(z))\big) X
 $$
 
 The Hessian is positive semidefinite, so the problem is convex; it is positive
@@ -68,7 +68,7 @@ degenerates and the MLE runs off to infinity.
 
 $$
 \left(X^\top W X + \lambda D\right)\Delta = X^\top(\sigma(z) - y),
-\qquad W = \operatorname{diag}(p(1-p))
+\qquad W = \mathrm{diag}(p(1-p))
 $$
 
 and take a damped step `β ← β − tΔ`. Because `W` is recomputed each iteration, IRLS
@@ -104,7 +104,7 @@ with the conventions `P(y ≤ −1) = 0` and `P(y ≤ K−1) = 1`. To keep the t
 ordered by construction, the code parameterises
 
 $$
-\theta_0 = c,\qquad \theta_k = \theta_{k-1} + \operatorname{softplus}(\delta_k)
+\theta_0 = c,\qquad \theta_k = \theta_{k-1} + \mathrm{softplus}(\delta_k)
 $$
 
 so `δ ∈ ℝ^{K−2}` is unconstrained and `θ` is strictly increasing. This is the

@@ -44,7 +44,7 @@ sampled or how it is inspected, and the demo measures each one.
 pairwise correlation `ρ`,
 
 $$
-\operatorname{Var}\!\left(\frac1B\sum_{b=1}^B T_b\right)
+\mathrm{Var}\!\left(\frac1B\sum_{b=1}^B T_b\right)
 = \rho\sigma^2 + \frac{1-\rho}{B}\sigma^2
 $$
 

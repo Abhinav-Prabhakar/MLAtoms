@@ -101,6 +101,33 @@ Rules of style:
 - **Say the failure out loud.** The value of this repository is the honest
   section, not the derivation everyone already has.
 
+## Math
+
+GitHub renders `$…$` and `$$…$$` with a sandboxed MathJax: any macro that it
+defines internally with `\newcommand` is refused, and the whole formula is
+replaced by "The following macros are not allowed: …". `\operatorname` is the
+trap that bites — it is a `\newcommand` in disguise, so an entire derivation
+disappears behind a red box.
+
+Rules:
+
+- **`\mathrm{name}` for multi-letter operators**, never `\operatorname`:
+  `\mathrm{Var}`, `\mathrm{diag}`, `\mathrm{softmax}`, `\mathrm{rank}`.
+- **No definition or reference macros**: `\newcommand`, `\renewcommand`, `\def`,
+  `\DeclareMathOperator`, `\label`, `\tag`, `\ref`, `\eqref`. Number equations
+  by hand when the text refers back to them.
+- **No HTML hooks**: `\href`, `\class`, `\style`, `\unicode`, `\enclose`.
+- **Blackboard bold is spelled out**: `\mathbb{R}`, not `\R`.
+- **Environments**: `cases`, `aligned`, `array`, `matrix` and friends inside a
+  `$$` block. Never `align`/`equation`, which GitHub does not put in display
+  mode for you.
+- A forbidden macro may be *discussed* as long as it is quoted in backticks or a
+  fenced block — the linter skips code.
+
+`uv run python tools/mdmath.py check` lints every `.md`; `… fix` rewrites the
+mechanical cases. `tools/catalog.py check` runs the same scan, so CI fails on a
+macro that would not render.
+
 ## The demo
 
 Every `.py` ends with `if __name__ == "__main__": main()`. The demo:
