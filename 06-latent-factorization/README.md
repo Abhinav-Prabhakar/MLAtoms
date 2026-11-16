@@ -5,11 +5,11 @@
 Most high-dimensional data is low-dimensional in disguise. This folder is about finding that structure: linear projections, independent components, non-negative parts, sparse codes and topic mixtures.
 
 <!-- catalog:begin -->
-**12 atoms · 58 variants · 0 implemented**
+**12 atoms · 58 variants · 1 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
-| · PCA | [`pca.py`](pca.py) | 1 | 7 | Six ways to compute the same projection. |
+| ✓ PCA | [`pca.py`](pca.py) | 1 | 7 | Six ways to compute the same projection. |
 | · Non-negative matrix factorisation | [`nmf.py`](nmf.py) | 1 | 7 | Parts-based factorisation with two divergence choices. |
 | · Probabilistic PCA | [`probabilistic_pca.py`](probabilistic_pca.py) | 2 | 4 | PCA as a latent-variable model, with missing data and noise. |
 | · Factor analysis | [`factor_analysis.py`](factor_analysis.py) | 2 | 5 | Unique variances, rotation and interpretable factors. |
