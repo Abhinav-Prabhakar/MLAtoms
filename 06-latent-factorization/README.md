@@ -5,7 +5,7 @@
 Most high-dimensional data is low-dimensional in disguise. This folder is about finding that structure: linear projections, independent components, non-negative parts, sparse codes and topic mixtures.
 
 <!-- catalog:begin -->
-**12 atoms · 58 variants · 11 implemented**
+**12 atoms · 58 variants · 12 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -20,7 +20,7 @@ Most high-dimensional data is low-dimensional in disguise. This folder is about 
 | ✓ Sparse coding | [`sparse_coding.py`](sparse_coding.py) | 3 | 4 | L1-regularised codes over an overcomplete dictionary. |
 | ✓ Dictionary learning | [`dictionary_learning.py`](dictionary_learning.py) | 3 | 4 | Learning the basis instead of assuming it. |
 | ✓ Tensor decomposition | [`tensor_decomposition.py`](tensor_decomposition.py) | 3 | 5 | Low-rank structure in more than two modes. |
-| · Probabilistic LSA | [`plsa.py`](plsa.py) | 3 | 3 | Aspect model fitted by EM; LDA's non-Bayesian ancestor. |
+| ✓ Probabilistic LSA | [`plsa.py`](plsa.py) | 3 | 3 | Aspect model fitted by EM; LDA's non-Bayesian ancestor. |
 
 **Variant map** — every variant below is implemented in its atom's file and derived in its companion `.md`.
 
