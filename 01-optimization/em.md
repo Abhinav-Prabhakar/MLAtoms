@@ -102,6 +102,175 @@ running averages. The cost per observation is `O(k)` instead of `O(nk)` per
 iteration, and it converges to the same fixed point under a step-size schedule that
 satisfies the Robbins–Monro conditions (`Σγ_t = ∞`, `Σγ_t² < ∞`).
 
+## Code walkthrough
+
+`run_em` is the template in twelve lines; the models are callbacks:
+
+```python
+def run_em(estep, mstep, init, iters: int = 200, tol: float = 1e-10, loglik=None):
+    params = init
+    hist = []
+    for _ in range(iters):
+        resp = estep(params)
+        params = mstep(resp, params)
+        if loglik is not None:
+            hist.append(loglik(params))
+        if len(hist) > 1 and abs(hist[-1] - hist[-2]) < tol:
+            break
+    return params, hist
+```
+
+The likelihood is recorded **after** the M-step, so `hist[0]` is the first updated
+iterate, not the initialisation. That matters for the monotonicity assertions: they
+compare successive `hist` entries, and a version that logged before the update would
+show `hist[0]` as the (usually worse) starting point and appear to violate the
+guarantee. The `len(hist) > 1` guard exists because `hist[-2]` is invalid on the
+first pass, and the tolerance is on the *change*, not on the gradient.
+
+`bernoulli_em` shows why the E-step is a matrix operation:
+
+```python
+        return (np.log(pi)
+                + X @ np.log(theta).T
+                + (1.0 - X) @ np.log1p(-theta).T)
+```
+
+For `X` of shape `(n,d)` and `theta` of shape `(k,d)`, this is `(n,k)` in two
+matmuls — no `(n,k,d)` tensor. `log1p(-theta)` rather than `log(1-theta)` keeps
+precision when `theta` is near zero; `theta` is clipped to `[1e-12, 1-1e-12]` first
+because a component can drive a feature probability to exactly 0 or 1, and both logs
+are then infinite. The E-step subtracts the row max before exponentiating:
+
+```python
+        lp -= lp.max(axis=1, keepdims=True)
+        r = np.exp(lp)
+        return r / r.sum(axis=1, keepdims=True)
+```
+
+This is `softmax` up to the normalisation constant, which cancels in the ratio. The
+M-step is the complete-data MLE with `r` in place of one-hot labels:
+
+```python
+        nk = r.sum(axis=0)
+        ...
+            theta = (r.T @ X + 1e-12) / (nk[:, None] + 1e-12)
+```
+
+`r.T @ X` sums each feature weighted by responsibility; dividing by the component's
+soft count `nk` gives the weighted frequency. The `1e-12` in both numerator and
+denominator is the smallest possible smoothing: without it, an empty component gives
+`0/0`. With a prior, the same lines become pseudo-counts:
+
+```python
+            pi = (nk + a - 1.0) / (n + a + b - 2.0)
+            theta = (r.T @ X + c - 1.0) / (nk[:, None] + c + e - 2.0)
+```
+
+`a−1` and `c−1` are the Beta pseudo-counts; the denominator adds the total prior mass
+minus 2 so that `a=b=1` (uniform prior) reduces exactly to the MLE. Using `a` instead
+of `a−1` is a one-off that looks harmless and shifts every weight.
+
+`student_t_mm` is the smallest complete MM example:
+
+```python
+        r2 = (x - mu) ** 2
+        w = (nu + 1.0) / (nu + r2)
+        mu_new = float((w * x).sum() / w.sum())
+        hist.append(0.5 * (nu + 1.0) * float(np.log1p(r2 / nu).sum()))
+        if abs(mu_new - mu) < 1e-12:
+            break
+        mu = mu_new
+```
+
+`w_i = (ν+1)/(ν+r_i²)` is the tangent majoriser's weight; a point at `r=0` gets
+weight `(ν+1)/ν`, a point at `r=10` gets `(ν+1)/(ν+100)` — the down-weighting is
+automatic. The convergence test uses `mu_new − mu` but does **not** assign on the
+final iteration; that is harmless for the output (`mu` and `mu_new` differ by
+`<1e-12`) and keeps `hist` aligned with the iterates actually visited. `log1p(r²/ν)`
+is the Student-t NLL up to an additive constant — dropping the constant is fine for
+monotonicity but means the printed value is not comparable across `ν`.
+
+`_log_gaussian` is the numerically important helper:
+
+```python
+    L = np.linalg.cholesky(cov)
+    diff = X - mu
+    sol = np.linalg.solve(L, diff.T).T
+    logdet = 2.0 * np.log(np.diag(L)).sum()
+    return -0.5 * (d * np.log(2 * np.pi) + logdet + (sol * sol).sum(axis=1))
+```
+
+The quadratic form is `‖L⁻¹(x−μ)‖²`, computed by a triangular solve, not
+`diff @ inv(cov) @ diff.T`. The inverse is `O(d³)` *and* loses precision when the
+covariance is ill-conditioned; the Cholesky factor is already needed for the
+log-determinant, so the solve is free. `logdet = 2Σ log L_ii` avoids `slogdet`'s sign
+bookkeeping and is exact for a PD matrix.
+
+`gmm_em`'s E-step handles the shared-covariance case by shape:
+
+```python
+        if covs.ndim == 2:  # shared spherical covariance
+            lp = np.column_stack([_log_gaussian(X, means[j], covs) for j in range(k)])
+        else:
+            lp = np.column_stack([_log_gaussian(X, means[j], covs[j]) for j in range(k)])
+```
+
+A shared covariance is a single `(d,d)` matrix; per-component covariances are
+`(k,d,d)`. The `ndim` check is what lets `cov="spherical"` reuse the same code path
+with one matrix, rather than carrying `k` copies of the same array. The hard
+assignment is a one-hot built by indexing the identity:
+
+```python
+        if hard:
+            r = np.eye(k)[r.argmax(axis=1)]
+```
+
+This is both the assignment and a valid responsibility matrix, so the M-step below is
+unchanged — which is exactly the statement that hard EM is the same loop with a
+different E-step.
+
+The M-step is weighted moments, with `reg` added *after* the normalisation:
+
+```python
+        nk = r.sum(axis=0) + 1e-12
+        pi = nk / n
+        means = (r.T @ X) / nk[:, None]
+        ...
+                covs[j] = (r[:, j, None] * diff).T @ diff / nk[j] + reg * np.eye(d)
+```
+
+`(r[:,j,None]*diff).T @ diff` is `Σ_i r_ij (x_i−μ_j)(x_i−μ_j)ᵀ`, the weighted scatter.
+Adding `reg·I` after dividing keeps the result PD even when a component collapses
+onto one point — adding it before dividing would scale the regulariser by `nk` and
+make it vanish for small components, which is the opposite of what is needed. The
+spherical branch pools the variance over all coordinates:
+
+```python
+            var = float((r * ((X[:, None, :] - means[None]) ** 2).sum(-1)).sum()
+                        / (n * d))
+            covs = np.eye(d) * max(var, reg)
+```
+
+`max(var, reg)` is a floor on the *variance*, not on the matrix; with `var` exactly
+zero, `_log_gaussian` would still fail on a singular Cholesky.
+
+`incremental_em` is the only loop without a full E-step:
+
+```python
+            gamma = 1.0 / max(t / k, 1.0)
+            nk = (1 - gamma) * nk + gamma * r
+            sx = (1 - gamma) * sx + gamma * r * x[i]
+            means = sx / np.maximum(nk, 1e-12)
+            pi = nk / nk.sum()
+```
+
+`t` counts observations, not epochs, so `t/k` is "observations per component"; the
+`max(·, 1)` makes the first `k` updates fully replace the statistics (`gamma=1`)
+instead of averaging against zeros. After that, `gamma = k/t` decays like `1/t`,
+satisfying Robbins–Monro. `sx` is the weighted sum, `nk` the soft count, and the mean
+is their ratio — exactly the batch M-step, applied to running statistics. Dividing by
+`max(nk, 1e-12)` again handles a component that no observation has touched.
+
 ## Complexity
 
 For a GMM with `n` points, `k` components, `d` dimensions, one EM iteration is

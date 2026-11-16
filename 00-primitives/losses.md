@@ -97,6 +97,166 @@ then back through the normalisation with `(I − aaᵀ)/‖z‖`. The `1/2` and 
 `/τ` are where hand-written implementations usually go wrong; the demo
 gradient-checks both.
 
+## Code walkthrough
+
+Every function returns `(value, grad)`: `value` is a scalar **mean** over the batch,
+`grad` has the shape of the prediction. That single convention is why every
+gradient in the file ends in `/ y.size`, `/ n` or `/ r.size` — the mean's `1/n` is
+propagated by hand rather than by a wrapper, because three functions (triplet,
+contrastive, infonce) return a tuple of gradients and cannot share a wrapper.
+
+The four logit-based losses never see probabilities. Binary cross-entropy is
+written as `log(1+e^z) − yz` instead of `−y log σ(z)`:
+
+```python
+def bce(y: np.ndarray, logits: np.ndarray) -> tuple[float, np.ndarray]:
+    """Binary cross-entropy from logits: log(1+e^z) - y z, stable."""
+    loss = np.logaddexp(0.0, logits) - y * logits
+    p = 0.5 * (1.0 + np.tanh(0.5 * logits))
+    return float(np.mean(loss)), (p - y) / y.size
+```
+
+`σ(z)` underflows to exactly `0` for `z < −745`, and `log(0)` is `−inf`; the loss is
+then `inf` and the gradient `nan`, even though the true loss at `z = −800, y = 0` is
+`0`. `logaddexp` keeps it at `8e-348`. The gradient is `σ(z) − y` *without* the
+`σ'(z)` factor — that cancellation is the entire reason to fuse the sigmoid into the
+loss.
+
+`cross_entropy` uses the same cancellation for `K` classes, and avoids one-hot:
+
+```python
+    logp = z - lse
+    n = z.shape[0]
+    loss = -(logp[np.arange(n), labels]).mean()
+    p = np.exp(logp)
+    p[np.arange(n), labels] -= 1.0
+    return float(loss), p / n
+```
+
+`p` starts as the softmax and then `−1` is subtracted *only at the true class*, so the
+returned gradient is `softmax(z) − onehot(y)` in place. Building the one-hot and
+subtracting costs an `n×K` temporary for no reason; on a 50k-vocab LM head that
+temporary is the whole activation budget.
+
+`focal` is the loss where a plausible-looking implementation is subtly wrong:
+
+```python
+    log_pt = y * -np.logaddexp(0.0, -logits) + (1.0 - y) * -np.logaddexp(0.0, logits)
+    pt = np.exp(log_pt)
+    loss = -((1.0 - pt) ** gamma) * log_pt
+    sign = 2.0 * y - 1.0  # d(pt)/d(logit) has this factor on top of pt(1-pt)
+    grad = sign * (gamma * pt * (1.0 - pt) ** gamma * log_pt - (1.0 - pt) ** (gamma + 1.0))
+```
+
+`pt` is the probability of the *true* class, so for `y=0` it is `σ(−z)` and
+`dpt/dz = −pt(1−pt)`. The `(2y−1)` factor carries that sign flip; omit it and the
+loss is still correct, the gradient check on `y=1` still passes, and only the
+negative class trains backwards. `log_pt` is computed from logits in both directions
+rather than as `log(pt)`, for the same underflow reason as `bce`.
+
+Dice and Tversky are whole-mask functions, so their gradients look nothing like the
+elementwise ones:
+
+```python
+    a = float((p * y).sum())
+    b = float(p.sum() + y.sum())
+    loss = 1.0 - (2.0 * a + eps) / (b + eps)
+    grad = -(2.0 * y * (b + eps) - (2.0 * a + eps)) / (b + eps) ** 2
+```
+
+Quotient rule: `d/dp_i [1 − (2a+ε)/(b+ε)] = −[2y_i(b+ε) − (2a+ε)]/(b+ε)²`. Note the
+`y_i` and the absence of any `1/p.size`: this gradient is the derivative of a
+*ratio of sums*, so every pixel feels the whole mask. Dividing by `p.size` — the
+reflex for a "mean loss" — scales the gradient by `1/(HW)` and quietly turns Dice
+into a very slow loss. The demo checks this against finite differences on a 2×3 map,
+which is small enough that the error is obvious if the normalisation is wrong.
+
+`triplet` is the cleanest place to see why the three gradients are not independent:
+
+```python
+    ga = 2.0 * (neg - pos) * active[:, None] / n
+    gp = -2.0 * (a - pos) * active[:, None] / n
+    gn = 2.0 * (a - neg) * active[:, None] / n
+```
+
+With `m = ‖a−p‖² − ‖a−n‖² + margin`, `∂m/∂a = 2(a−p) − 2(a−n) = 2(n−p)`: the anchor
+gradient is the *difference* of the two other directions. Writing `2(a−p)` there is
+the standard bug — it is the gradient of a loss that only pulls positives together.
+
+`infonce` factorises the symmetric loss into one helper applied twice:
+
+```python
+    def rows(logit):
+        z = logit - logit.max(axis=1, keepdims=True)
+        logp = z - np.log(np.exp(z).sum(axis=1, keepdims=True))
+        loss = -np.mean(np.diag(logp))
+        return loss, (np.exp(logp) - eye) / n
+
+    l1, g1 = rows(logits)
+    l2, g2 = rows(logits.T)
+    da = 0.5 * (g1 @ b + g2.T @ b) / tau
+```
+
+`rows` is ordinary cross-entropy with labels `0..n−1`, so its gradient is
+`softmax(S) − I`, already divided by `n`. The second call transposes the similarity
+matrix, so its gradient arrives transposed — hence `g2.T @ b`. And because
+`logits = a bᵀ/τ`, each `@ b` carries the `/τ`. The `0.5` averages the two
+directions. The final step is the chain rule through `a = z/‖z‖`:
+
+```python
+    gz1 = (da - a * (a * da).sum(axis=1, keepdims=True)) / na
+```
+
+`(I − aaᵀ)/‖z‖` applied to `da`, expanded. Skipping the projection term gives a
+gradient that is correct on the sphere and wrong off it — the loss still falls,
+because the radial component is not the one that matters, but the encoder drifts
+in norm.
+
+The divergences have one trap each. `kl` returns the gradient with respect to `q`,
+the *parameterised* distribution, and `q` is clipped before the log but not before
+the divide:
+
+```python
+    q = np.clip(q, eps, None)
+    loss = float((p * np.log(np.clip(p, eps, None) / q)).sum(axis=-1).mean())
+    return loss, -p / (q * p.shape[0])
+```
+
+The gradient of `p log(p/q)` in `q` is `−p/q` — no `log` survives. In `js` the
+mixture `m` also depends on `q`, which adds a second term:
+
+```python
+    grad = 0.5 * np.log(q / m) + 0.5 * (1.0 - q / m)
+```
+
+`d/dq [½ q log(q/m)] = ½ log(q/m) + ½`, and `d/dq [½ p log(p/m)] = −½ p/m`; the two
+combine to `½ log(q/m) + ½(1 − q/m)`. Keeping only the first term is the usual
+mistake, and it still points downhill, so only a gradient check catches it.
+
+`wasserstein` honestly returns `None` for its gradient: the 1-D closed form is a
+sort, and `np.sort` is piecewise linear with a permutation derivative that is not
+worth encoding. It is in the file as a *metric* to monitor, not a training loss.
+
+Finally, `_numgrad` is the file's own test harness and worth understanding because it
+explains why every loss takes its input as an argument rather than closing over it:
+
+```python
+    it = np.nditer(x, flags=["multi_index"])
+    for _ in it:
+        i = it.multi_index
+        old = x[i]
+        x[i] = old + h
+        fp = val()
+        x[i] = old - h
+        fm = val()
+        x[i] = old
+        g[i] = (fp - fm) / (2 * h)
+```
+
+It perturbs `x` **in place**, so the closure inside `val()` must read `x` at call
+time. Every check in `main` is written as `lambda: fn(...)` for exactly this reason;
+writing `lambda: fn(y, p.copy())` would gradient-check a constant and pass trivially.
+
 ## Complexity
 
 All are `O(n)` elementwise except InfoNCE, which builds an `n×n` similarity

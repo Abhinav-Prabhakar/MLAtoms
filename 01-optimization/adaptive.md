@@ -84,6 +84,130 @@ the minimum is still an upper bound — a valid, slightly conservative denominat
 The memory saving is the whole point: a `10⁶ × 10³` embedding table goes from
 `10⁹` floats to `10⁶+10³`.
 
+## Code walkthrough
+
+One class, seven branches inside `step`. Nothing is shared except the parameter
+list and the optional momentum buffer, because the methods disagree about *what
+state* is needed — that is the point of the file.
+
+The simplest branch is SignSGD:
+
+```python
+            if self.variant == "signsgd":
+                d = np.sign(g)
+```
+
+`d` is the *direction* that the rest of the method multiplies by `lr`. Every branch
+computes a `d`, and `p -= self.lr * d` at the bottom is common; keeping that shape
+makes the differences comparable line by line. Note `np.sign(0) = 0`, so a
+coordinate with a zero gradient freezes rather than dithering.
+
+Adagrad accumulates, RMSProp forgets:
+
+```python
+            elif self.variant == "adagrad":
+                self.acc[i] += g * g
+                d = g / (np.sqrt(self.acc[i]) + self.eps)
+```
+
+```python
+            elif self.variant == "rmsprop":
+                self.acc[i] = self.beta * self.acc[i] + (1 - self.beta) * g * g
+                d = g / (np.sqrt(self.acc[i]) + self.eps)
+```
+
+The `+=` is what makes Adagrad's rate `η/√t` under a constant gradient and what
+makes it stall eventually; the EMA is what makes RMSProp stationary. They differ by
+one operator, and the demo's `2√T + ζ(½)` check is what distinguishes them
+quantitatively rather than by eye.
+
+Adadelta's ordering is the algorithm:
+
+```python
+                self.acc[i] = self.rho * self.acc[i] + (1 - self.rho) * g * g
+                rms_d = np.sqrt(self.delta[i] + self.eps)
+                rms_g = np.sqrt(self.acc[i] + self.eps)
+                d = (rms_d / rms_g) * g
+                self.delta[i] = self.rho * self.delta[i] + (1 - self.rho) * d * d
+```
+
+`rms_d` is read from the *previous* `delta`, before this step's `d` is known. That
+is not a bug or a lag: the method is defined with the previous update RMS, which is
+what makes it implicit and removes the learning rate. Updating `delta` before
+computing `d` (the "obvious" reordering) gives a different, unstable method.
+
+Centred RMSProp subtracts the squared mean and needs the clamp:
+
+```python
+                var = np.maximum(self.acc[i] - self.acc2[i] ** 2, 0.0)
+                d = g / (np.sqrt(var) + self.eps)
+```
+
+`E[g²] − E[g]²` is non-negative in exact arithmetic but can be `−1e-17` after two
+EMAs, and `sqrt` of that is `nan`. The `maximum(·, 0)` is not defensive programming;
+it is required for the method to run at all. When the gradient is constant, `var → 0`
+and `d ≈ g/ε`, which is the 35× overshoot the doc describes — a real property, not a
+numerical artefact.
+
+Yogi's update is written in the `sign` form, which is the part people misread:
+
+```python
+                self.acc[i] += (1 - self.beta2) * np.sign(g * g - self.acc[i]) * g * g
+```
+
+If `g² > v`, this adds `(1−β)g²`; if `g² < v`, it *subtracts* `(1−β)g²`. It is not
+`(1−β)(g² − v)` — that would be an EMA and would decay geometrically. The additive
+form is what keeps `v` near the largest recent scale instead of collapsing to the
+latest quiet one. The first moment is a separate EMA and *is* bias-corrected:
+
+```python
+                mhat = self.acc2[i] / (1 - self.beta ** self.t)
+                vhat = self.acc[i] / (1 - self.beta2 ** self.t)
+                d = mhat / (np.sqrt(vhat) + self.eps)
+```
+
+`acc2` is reused from the centred-RMSProp branch; the two variants are mutually
+exclusive, so one buffer serves both.
+
+SM3 is the only branch that does not have a full-size accumulator:
+
+```python
+        accs = self.sm3[i]
+        for k, acc in enumerate(accs):
+            axes = tuple(ax for ax in range(g.ndim) if ax != k)
+            acc += (g * g).sum(axis=axes)
+        v = None
+        for k, acc in enumerate(accs):
+            shape = [1] * g.ndim
+            shape[k] = g.shape[k]
+            shaped = acc.reshape(shape)
+            v = shaped if v is None else np.minimum(v, shaped)
+```
+
+For a matrix, mode 0 accumulates over rows into a `(cols,)` vector and mode 1 into a
+`(rows,)` vector. Reducing over `ax != k` is the non-obvious indexing: it keeps the
+`k`-th dimension and sums everything else, so `acc` has length `g.shape[k]`. The
+broadcast then reshapes `acc` to `(1, cols)` or `(rows, 1)` and takes the elementwise
+minimum. Since `row_i = Σ_j g_ij² ≥ g_ij²`, the min is still an upper bound on the
+true second moment — conservative, never optimistic. The memory is `Σ dᵢ` instead of
+`Π dᵢ`, which is the entire reason the method exists; for a `2×3` tensor the demo
+checks `5 < 6`, and the ratio improves with every added dimension.
+
+Finally, momentum acts on the *normalised* direction, not on the raw gradient:
+
+```python
+            if self.momentum:
+                self.vel[i] = self.momentum * self.vel[i] + d
+                d = self.vel[i]
+            p -= self.lr * d
+```
+
+For Adam-family methods this is the correct place (momentum of the adaptive update),
+and moving it above the branch — `v ← μv + g` — changes the method to one with two
+coupled scales. The demo does not use momentum, so this line is only exercised by a
+reader who passes the flag; it is still the one that decides whether "Adam with
+momentum" means what they think.
+
 ## Complexity
 
 | Variant | Extra memory | Time per step |

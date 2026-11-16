@@ -5,16 +5,16 @@
 Linear models are the control group of machine learning and, on small tabular problems, frequently the winner. This folder covers the algebra (QR, SVD, coordinate descent), the statistics (standard errors, effective degrees of freedom) and the extensions that make them flexible (splines, GLMs, quantiles).
 
 <!-- catalog:begin -->
-**15 atoms · 90 variants · 0 implemented**
+**15 atoms · 90 variants · 6 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
-| · Ordinary least squares | [`ols.py`](ols.py) | 1 | 7 | Four ways to solve the same normal equations, with standard errors. |
-| · Ridge | [`ridge.py`](ridge.py) | 1 | 6 | L2 shrinkage solved by SVD: effective degrees of freedom and generalised cross-validation. |
-| · Lasso | [`lasso.py`](lasso.py) | 1 | 6 | L1 sparsity via coordinate descent and soft-thresholding, plus the full path. |
-| · Elastic net | [`elastic_net.py`](elastic_net.py) | 1 | 4 | L1 + L2: sparse selection that keeps correlated features together. |
-| · Logistic regression | [`logistic_regression.py`](logistic_regression.py) | 1 | 8 | IRLS/Newton fitting, multinomial extension, separability handling. |
-| · Generalised linear models | [`glm.py`](glm.py) | 1 | 9 | Exponential families, link functions and IRLS. |
+| ✓ Ordinary least squares | [`ols.py`](ols.py) | 1 | 7 | Four ways to solve the same normal equations, with standard errors. |
+| ✓ Ridge | [`ridge.py`](ridge.py) | 1 | 6 | L2 shrinkage solved by SVD: effective degrees of freedom and generalised cross-validation. |
+| ✓ Lasso | [`lasso.py`](lasso.py) | 1 | 6 | L1 sparsity via coordinate descent and soft-thresholding, plus the full path. |
+| ✓ Elastic net | [`elastic_net.py`](elastic_net.py) | 1 | 4 | L1 + L2: sparse selection that keeps correlated features together. |
+| ✓ Logistic regression | [`logistic_regression.py`](logistic_regression.py) | 1 | 8 | IRLS/Newton fitting, multinomial extension, separability handling. |
+| ✓ Generalised linear models | [`glm.py`](glm.py) | 1 | 9 | Exponential families, link functions and IRLS. |
 | · Robust regression | [`robust_regression.py`](robust_regression.py) | 2 | 6 | When a handful of points would otherwise own the fit. |
 | · Quantile regression | [`quantile_regression.py`](quantile_regression.py) | 2 | 6 | Predict conditional quantiles, not just the mean. |
 | · Splines | [`splines.py`](splines.py) | 2 | 7 | Piecewise polynomials that turn a linear model into a flexible one. |

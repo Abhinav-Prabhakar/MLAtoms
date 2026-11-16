@@ -71,6 +71,157 @@ $$
 The `arcsin` form is numerically stable for small distances where the spherical law
 of cosines loses precision.
 
+## Code walkthrough
+
+`cdist` is one dispatch over a `VECTOR` whitelist, so a sequence metric such as
+`"dtw"` fails loudly instead of falling through to a Euclidean branch. The
+Euclidean case uses the expanded identity:
+
+```python
+        d2 = (X * X).sum(1)[:, None] + (Y * Y).sum(1)[None, :] - 2.0 * X @ Y.T
+        d2 = np.maximum(d2, 0.0)
+        if metric == "squared_euclidean":
+            return d2
+        np.fill_diagonal(d2, 0.0) if X is Y else None
+        return np.sqrt(d2)
+```
+
+`‖x−y‖² = ‖x‖² + ‖y‖² − 2x·y` turns `n·m·d` work into one `n×d` by `d×m` matmul.
+Floating point cancellation can make a true zero come out as `−1e-16`, and
+`np.sqrt` of that is `nan`; the `maximum(..., 0)` is mandatory, not cosmetic. The
+diagonal is then forced to exactly zero **only when `Y is X`** — an identity check,
+not an equality check. Forcing it in the general case would silently zero legitimate
+distances between duplicate rows in different arrays, which is a real bug in several
+widely used implementations.
+
+The non-Gram metrics materialise the full `n×m×d` difference tensor:
+
+```python
+    if metric == "manhattan":
+        return np.abs(X[:, None, :] - Y[None, :, :]).sum(-1)
+```
+
+Correct and readable, but the memory is `n·m·d` floats — at `n=m=10⁴, d=768` that is
+600 GB. The doc says "demo-scale only" for a reason; the production form is a blocked
+loop over rows of `X`.
+
+Cosine and correlation share a branch because they differ by one preprocessing step:
+
+```python
+        if metric == "correlation":
+            X = X - X.mean(1, keepdims=True)
+            Y = Y - Y.mean(1, keepdims=True)
+        nx = np.linalg.norm(X, axis=1)[:, None]
+        ny = np.linalg.norm(Y, axis=1)[None, :]
+        sim = X @ Y.T / np.maximum(nx * ny, 1e-12)
+        return np.clip(1.0 - sim, 0.0, 2.0)
+```
+
+Centring *is* the whole difference: `x = [1,2,3]` and `y = x + 10` have cosine
+distance `> 0` but correlation distance `0`. The `np.maximum(..., 1e-12)` handles the
+zero vector, and the clip handles the `1e-16` overshoot that makes a self-distance
+`-2e-16`. Note that correlation still returns a distance, so a constant vector has
+distance `1` to everything, including itself — mathematically the correlation is
+undefined there, and the clip quietly picks a convention.
+
+Mahalanobis is the only branch that needs a second argument:
+
+```python
+        cov = kwargs.get("cov")
+        if cov is None:
+            cov = np.cov(np.vstack([X, Y]).T)
+        vi = np.linalg.pinv(cov)
+        diff = X[:, None, :] - Y[None, :, :]
+        return np.sqrt(np.maximum(np.einsum("ijk,kl,ijl->ij", diff, vi, diff), 0.0))
+```
+
+The default covariance pools `X` and `Y`, which is right for "distance within one
+dataset" and wrong if the two arrays come from different populations — pass `cov`
+explicitly then. `pinv` rather than `inv` is what makes `n < d` (singular covariance)
+return a number instead of raising. The einsum is `diff @ vi @ diffᵀ` per pair, and
+the `maximum` is again guarding the `sqrt` of a numerical zero.
+
+Jaccard and Dice look like they share a numerator but their denominators differ:
+
+```python
+        num = np.minimum(X[:, None, :], Y[None, :, :]).sum(-1)
+        den = np.maximum(X[:, None, :], Y[None, :, :]).sum(-1)
+        if metric == "jaccard":
+            return 1.0 - num / np.maximum(den, 1e-12)
+        return 1.0 - 2.0 * num / np.maximum(X.sum(1)[:, None] + Y.sum(1)[None, :], 1e-12)
+```
+
+For binary rows, `sum(min)` is `|A∩B|` and `sum(max)` is `|A∪B|`; Dice instead divides
+by `|A|+|B|`, which is why it does not reuse `den`. Both formulae extend to
+non-negative weights but stop meaning "set overlap" there — with counts, `min/max` is
+the *generalised* Jaccard and Dice is its fuzzy counterpart. The demo uses a `[1,1,0]`
+vs `[1,0,0]` pair precisely because Jaccard `0.5` and Dice `1/3` differ and a shared
+denominator would give one of them wrong.
+
+`hamming` returns a *fraction*, not a count:
+
+```python
+        return (X[:, None, :] != Y[None, :, :]).mean(-1)
+```
+
+`mean` over the feature axis. Returning the count is the intuitive reading of "Hamming
+distance" but makes the number incomparable across vectors of different length; the
+demo asserts `1/3` on a length-3 pair, which pins the convention.
+
+`levenshtein` keeps two rows instead of the full table:
+
+```python
+    prev = np.arange(len(b) + 1, dtype=float)
+    for i, ca in enumerate(a, start=1):
+        cur = np.empty_like(prev)
+        cur[0] = i
+        for j, cb in enumerate(b, start=1):
+            cur[j] = min(
+                prev[j] + 1.0,                      # delete
+                cur[j - 1] + 1.0,                   # insert
+                prev[j - 1] + (0.0 if ca == cb else substitute),
+            )
+```
+
+`prev[j]` is the row above (delete `a[i-1]`), `cur[j-1]` is the cell to the left
+(insert `b[j-1]`), and `prev[j-1]` is the diagonal (match or substitute). The
+initial `prev = arange` encodes "turn the empty prefix into `b[:j]`", and `cur[0] = i`
+the reverse. Swapping `prev[j]` and `cur[j-1]` — an easy copy-paste — still produces a
+symmetric-looking distance for many pairs but fails on `"ab"` vs `"ba"`, where the
+correct answer is `2` and the transposed recurrence gives `1`.
+
+`dtw` is the same DP with a different predecessor set, and the band is the subtle part:
+
+```python
+    D = np.full((n + 1, m + 1), inf)
+    D[0, 0] = 0.0
+    for i in range(1, n + 1):
+        j0, j1 = 1, m + 1
+        if band is not None:
+            j0 = max(1, i - band)
+            j1 = min(m, i + band) + 1
+```
+
+The borders are `inf`, not `0`: a cell outside the band must be unreachable, and
+initialising the first row/column to zero (the usual DTW shortcut) lets every path
+start anywhere and understates the cost. `D[0,0] = 0` is the only zero. `j0..j1` is
+*inclusive* of `i ± band`, hence the `+1` on the right; getting that off by one
+narrows the band by one cell per row and, for a series that only fits at exactly
+`|i−j| = band`, returns `inf` — which the demo asserts rather than hides.
+
+`haversine` is the only stateless scalar function:
+
+```python
+    h = np.sin(dp / 2.0) ** 2 + np.cos(p1) * np.cos(p2) * np.sin(dl / 2.0) ** 2
+    return 2.0 * r * np.arcsin(np.sqrt(np.clip(h, 0.0, 1.0)))
+```
+
+The `arcsin` form avoids the precision loss of `arccos` near zero, and
+`np.clip(h, 0, 1)` is needed because at antipodal points the computed `h` can be
+`1 + 2e-16`, where `arcsin(sqrt(·))` is `nan`. `r = 6371.0088` km is the mean Earth
+radius; using 6378 (equatorial) is a 0.1% error that matters for city-scale distances
+and not for country-scale ones.
+
 ## Complexity
 
 `euclidean`/`squared` via the Gram matrix: `O(nmd)` time, `O(nm)` memory — the

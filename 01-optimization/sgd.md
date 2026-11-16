@@ -77,6 +77,95 @@ increases, the velocity is pointing uphill; zeroing it reverts to a fresh descen
 step. This is the simplest instance of the restart schedules that make accelerated
 methods work on non-convex objectives.
 
+## Code walkthrough
+
+The class stores `params`, one velocity buffer per parameter, and a variant name;
+every variant is the same loop with a few flags switched on in `__init__`:
+
+```python
+        self.momentum = 0.0 if variant == "vanilla" else momentum
+        ...
+        self.nesterov = nesterov or variant in ("nesterov", "nesterov_restart")
+```
+
+That is why `vanilla` ignores a `momentum=0.9` argument silently: the variant, not
+the flag, decides. It also means `SGD(params, variant="nesterov")` works without
+passing `nesterov=True`, which is the ergonomic point of having variants at all.
+
+`_clip` computes one norm over the concatenation of every parameter's gradient:
+
+```python
+        norm = np.sqrt(sum(float((g * g).sum()) for g in grads))
+        if norm <= self.clip_norm:
+            return grads
+        scale = self.clip_norm / (norm + 1e-12)
+        return [g * scale for g in grads]
+```
+
+Global-norm clipping, not per-tensor: the same `scale` multiplies *every* gradient,
+so the direction of the stacked vector is preserved. Per-tensor clipping changes the
+relative sizes of the layers' updates and is a different algorithm. The `+ 1e-12`
+only guards the division when `norm` is exactly zero, which cannot reach this branch
+because `norm <= clip_norm` would have returned.
+
+`step` applies the restart *before* touching the velocity:
+
+```python
+        if self.variant == "nesterov_restart" and loss is not None:
+            if loss > self.best_loss:
+                restart = True
+                self.buf = [np.zeros_like(b) for b in self.buf]
+            self.best_loss = min(self.best_loss, loss)
+```
+
+`best_loss` starts at `inf`, so the first step never restarts. The comparison is
+strict (`>`), so a flat loss does not trigger a restart every step. Note that the
+buffer is replaced with fresh zeros rather than multiplied by zero: aliasing bugs in
+optimiser state are usually about *who else holds a reference* to the array, and a
+rebind is the safe form.
+
+The per-parameter body is five lines and the order matters:
+
+```python
+            if self.weight_decay and self.variant != "decoupled_wd":
+                g = g + self.weight_decay * p
+
+            if self.momentum:
+                v *= self.momentum
+                v += (1.0 - self.dampening) * g
+                g = v.copy() if (not self.nesterov or restart) else g + self.momentum * v
+            p -= self.lr * g
+
+            if self.weight_decay and self.variant == "decoupled_wd":
+                p -= self.lr * self.weight_decay * p
+```
+
+The decay is added **before** the momentum update, so it enters `v` and accumulates
+over steps — the doc's `ηλ/(1−μ)` effect. If the `g = g + wd*p` line were moved below
+the momentum block, `weight_decay_l2` would silently become decoupled and the demo's
+`l2 < dw` assertion would flip. Decoupled decay is applied after the parameter step,
+directly to `p`, so it is a true multiplicative shrinkage `p ← p(1 − ηλ)`.
+
+`v *= self.momentum` mutates the buffer in place, which is why `self.buf` can be
+created with `np.zeros_like` and never reallocated. `(1−dampening)` multiplies the
+*new* gradient only, not the accumulated velocity — that is PyTorch's convention and
+the reason the demo's first step is exactly `(1−d)·g`.
+
+The Nesterov line is the one that differs between the three published forms:
+
+```python
+                g = v.copy() if (not self.nesterov or restart) else g + self.momentum * v
+```
+
+The `else` branch is the "gradient + momentum" form: `g_eff = g + μv`, with `v`
+already updated to include `g`. Substituting gives `g_eff = (1+μ)g + μ²v_old`, which
+is algebraically the same first step as `∇f(θ − ημv_old)` to `O(η²)`. The `if` branch
+covers both non-Nesterov momentum (use `v` directly) *and* the restart step. On a
+restart, `v` has just been set to `(1−d)g`; using `g + μv` there would add `μ(1−d)g`
+on top of `g` and take a step `(1+μ)` times too large at exactly the moment the
+optimiser is trying to recover. That `restart` term inside the conditional is the
+non-obvious part of the file and the demo (`restarted < 0.1 * plain`) is what pins it.
+
 ## Complexity
 
 `O(P)` time and `O(P)` extra memory per step for every variant (`P` = parameter

@@ -63,6 +63,108 @@ Because `act` is not linear, one step is not enough; the implementation iterates
 This beats closed-form init when the activation is unusual or the inputs are not
 standardised.
 
+## Code walkthrough
+
+`initialize` is one dispatch on `(fan_out, fan_in)` — never `(fan_in, fan_out)`.
+That convention is stated in the signature docstring because every rule below is
+asymmetric in the two and the wrong order produces a plausible-looking matrix that
+is silently mis-scaled.
+
+The uniform variants derive their bound from `Var[U(−a,a)] = a²/3`:
+
+```python
+    if variant == "xavier_uniform":
+        a = gain * np.sqrt(6.0 / (fan_in + fan_out))
+        return rng.uniform(-a, a, size=shape)
+    ...
+    if variant == "he_uniform":
+        a = gain * np.sqrt(6.0 / fan_in)
+        return rng.uniform(-a, a, size=shape)
+```
+
+Setting `a²/3 = 2/(fan_in+fan_out)` gives `a = √(6/(fan_in+fan_out))`; setting
+`a²/3 = 2/fan_in` gives `√(6/fan_in)`. The `6` is not a fudge — it is `3 × 2`, and
+an implementation that copies `√(2/fan_in)` into the uniform branch (a very common
+copy-paste) has one third of the intended variance. When porting between frameworks
+check the distribution, not just the name: PyTorch's `kaiming_uniform_` uses the
+same `6` and its `a` parameter is a *negative slope*, not a scale.
+
+The orthogonal path builds a tall matrix first, then transposes:
+
+```python
+    a = rng.normal(size=(max(fan_out, fan_in), min(fan_out, fan_in)))
+    q, r = np.linalg.qr(a)
+    q = q * np.sign(np.diag(r))
+    if fan_out < fan_in:
+        q = q.T
+    return gain * q[:fan_out, :fan_in]
+```
+
+`np.linalg.qr` on a tall `m×n` matrix gives `Q` of shape `m×n` with orthonormal
+columns, i.e. `QᵀQ = I`. When `fan_out ≥ fan_in` that is exactly the shape we need
+and `WᵀW = I`; when `fan_out < fan_in` the slice must come from `Qᵀ`, so that
+`WWᵀ = I`. The sign fix `sign(diag(r))` is what makes the distribution uniform over
+the orthogonal group: without it, QR biases the first column toward the positive
+orthant. Note `sign` is applied to the *columns* via broadcasting, matching `diag(r)`
+against the columns of `q`.
+
+LSUV is the variant that cannot be written as a closed form:
+
+```python
+    q = _orthogonalize(W)
+    for _ in range(iters):
+        y = x @ q.T
+        if activation is not None:
+            y = activation(y)
+        q = q * (target / max(float(np.std(y)), 1e-12))
+```
+
+One rescale is not enough because `act(cWx) ≠ c·act(Wx)` for a nonlinearity: after
+scaling, the ReLU threshold moves relative to the data and the output std is no
+longer `c` times the old one. The loop converges in a handful of iterations. The
+`max(..., 1e-12)` guards a dead layer whose activation is exactly zero — otherwise
+the scale is `inf` and the next multiply produces `nan` that survives training
+forever. `_orthogonalize` is separate from `_orthogonal` because LSUV starts from a
+*provided* weight matrix and must not draw a new one.
+
+The two depth-aware schemes are one line each and the line is the whole idea:
+
+```python
+        scale = 1.0 / np.sqrt(max(depth - 1, 1))
+        return rng.normal(0.0, gain * np.sqrt(1.0 / fan_in), size=shape) * scale
+```
+
+Fixup's residual branch is scaled by `1/√(depth−1)` so that `depth` branches add in
+quadrature to unit variance — the sum grows *linearly* in variance, which is what
+lets a bias-free, BN-free residual net reach depth 10k. Removing the scale gives
+exponential blow-up; using `depth` instead of `depth−1` is a small, systematic
+under-scale that costs accuracy but never crashes, which is why it survives review
+in real codebases.
+
+`truncated_normal` clips rather than resamples:
+
+```python
+        w = rng.normal(0.0, sd, size=shape)
+        return np.clip(w, -2.0 * sd, 2.0 * sd)
+```
+
+Clipping leaves a point mass at `±2σ` instead of the smooth truncated density, so
+the realised variance is slightly *below* `2/fan_in` — the demo allows 12%. The
+alternative (rejection sampling) is exact but has an unbounded loop; in a weight
+initialiser the point mass is harmless and the vectorisation is worth it. This is
+worth knowing because the same shortcut in a *sampler* is not harmless.
+
+`scaled_variance` is deliberately `1/fan_in`, not `2/fan_in`:
+
+```python
+        return rng.normal(0.0, 1.0, size=shape) / np.sqrt(fan_in)
+```
+
+It is paired with a residual stream that already has LayerNorm, so the missing
+factor of two is absorbed downstream. Reading it as "He init with a bug" is the
+usual mistake; the invariant being targeted is `E[‖Wx‖²] = ‖x‖²` for `x` with unit
+per-coordinate variance, and LN re-establishes that at the next block anyway.
+
 ## Complexity
 
 `O(d_in·d_out)` for all schemes. `orthogonal` costs `O(d³)` for the QR of a square

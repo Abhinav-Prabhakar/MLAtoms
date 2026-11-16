@@ -76,10 +76,17 @@ Sections, in order, each as long as it needs to be and no longer:
 | Intuition | What is the one idea? Why does it work? |
 | Variants | What changes per variant, and when to pick it. |
 | Derivation | The objective and the update, enough to re-derive the code. |
+| Code walkthrough | How the file is actually built: the real snippets, in reading order, and the one non-obvious line in each. |
 | Complexity | Time/memory in `n, d, k, T`; what dominates. |
 | Failure modes | Three ways it breaks and the diagnostic for each. |
 | Applications | Where it is the right tool; where it is a trap. |
 | References | Primary source, plus the one survey worth reading. |
+
+The **Code walkthrough** is not a summary of the derivation — it is the map from
+mathematics to the lines on disk. Quote the actual code (trimmed with `...` where
+a block is long), name the entry point, and say which line is the one that would
+be wrong in a naive implementation. A reader should be able to open the `.py` and
+find each snippet verbatim.
 
 Rules of style:
 

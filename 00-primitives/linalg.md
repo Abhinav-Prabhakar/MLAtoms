@@ -79,6 +79,157 @@ The inner inverse is `k×k`, so a rank-3 update to a `10⁵×10⁵` matrix costs
 `O(n²k)`, not `O(n³)`. Sherman-Morrison is the `k=1` case; LoRA training is the
 same identity applied to the Hessian/preconditioner.
 
+## Code walkthrough
+
+The module is deliberately split: `svd`, `eigh` and `condition_number` are thin
+wrappers over LAPACK, while LU, QR, Cholesky, power iteration and Woodbury are
+written out because their *structure* is the thing being taught. The docstring says
+this so that a reader does not mistake `qr` for production code.
+
+LU is Doolittle elimination with partial pivoting, and the pivot swap is the part
+that is easy to get wrong:
+
+```python
+    for k in range(n - 1):
+        p = k + np.argmax(np.abs(A[k:, k]))
+        if abs(A[p, k]) < 1e-14:
+            raise ValueError("matrix is singular to working precision")
+        if p != k:
+            A[[k, p]] = A[[p, k]]
+            P[[k, p]] = P[[p, k]]
+            L[[k, p], :k] = L[[p, k], :k]
+```
+
+`p = k + argmax(...)` because `argmax` is relative to the slice. Swapping rows of
+`A` and `P` is expected; swapping the *first `k` columns* of `L` is the subtle one.
+Those entries were computed in earlier steps and belong to the old row order, so if
+they are not swapped the product `PᵀLU` no longer reconstructs `A`. A version that
+forgets this line passes for matrices that need no pivoting (symmetric PD, diagonally
+dominant) and fails on random ones — exactly the demo's matrix.
+
+The elimination itself is a rank-1 update:
+
+```python
+        L[k + 1 :, k] = A[k + 1 :, k] / A[k, k]
+        A[k + 1 :, k:] -= np.outer(L[k + 1 :, k], A[k, k:])
+```
+
+One `outer` replaces the double loop, and it is the same operation as a Schur
+complement step. `np.triu(A)` at the end is not cosmetic: the lower triangle now
+holds the multipliers, which have already been copied into `L`.
+
+QR is Householder, and the sign convention is the numerical point:
+
+```python
+        x = A[k:, k]
+        e = np.zeros_like(x)
+        e[0] = np.sign(x[0]) if x[0] != 0 else 1.0
+        v = x + e * np.linalg.norm(x)
+        v = v / np.linalg.norm(v)
+```
+
+The reflector is `I − 2vvᵀ` with `v = x + sign(x₀)‖x‖e₁`. Choosing `+sign(x₀)`
+(rather than always `+`) makes `v` point *away* from `x`, so `‖v‖` is large and the
+subtraction `x − 2v(vᵀx)` does not cancel. Always using `+` is unstable exactly when
+`x₀ > 0`, which is half the time — and it still produces an orthogonal `Q`, so tests
+that only check `QᵀQ = I` never catch it. The `else 1.0` handles `x[0] == 0`, where
+`sign` would be zero and `v` would be zero.
+
+The reflectors are applied on both sides:
+
+```python
+        A[k:, k:] -= 2.0 * np.outer(v, v @ A[k:, k:])
+        Q[:, k:] -= 2.0 * np.outer(Q[:, k:] @ v, v)
+```
+
+`A ← H A` on the trailing block, and `Q ← Q H` accumulated from the right, starting
+from `I`. Applying the same reflector to the whole of `A` would be correct but
+quadratic in the wrong dimension; the trailing-block slice is what makes it `2mn²`.
+`Q[:, :n]` at the end truncates the thin `Q` for `m > n`.
+
+Cholesky is the one factorisation that doubles as a definiteness test:
+
+```python
+        s = A[j, j] - L[j, :j] @ L[j, :j]
+        if s <= 0:
+            raise ValueError("matrix is not positive definite")
+        L[j, j] = np.sqrt(s)
+        L[j + 1 :, j] = (A[j + 1 :, j] - L[j + 1 :, :j] @ L[j, :j]) / L[j, j]
+```
+
+`s` is the Schur complement of the leading `j×j` block; if `A` is SPD it is strictly
+positive, and if it is not, `sqrt` of a negative would be `nan` and every downstream
+solve would silently return `nan`. Raising here is why GP code can trust it. The
+`<=` (not `< 0`) also rejects a semidefinite matrix at the exact boundary, where the
+factor exists but is singular.
+
+`randomized_svd` is the range finder in four lines of linear algebra:
+
+```python
+    Q = rng.normal(size=(n, p))
+    Y = A @ Q
+    for _ in range(iters):
+        Q, _ = np.linalg.qr(Y)
+        Z, _ = np.linalg.qr(A.T @ Q)
+        Y = A @ Z
+    Q, _ = np.linalg.qr(Y)
+```
+
+`p = k + oversample` (not `k`) is what makes the range contain the top `k` singular
+directions with high probability: the sketch has to be wider than the target rank,
+or the estimate is biased low, not just noisy. Each loop iteration is one power step
+`Y ← A Aᵀ Y` with reorthonormalisation, and reorthonormalising *inside* the loop
+matters — without it the columns of `Y` collapse onto the dominant direction and the
+extra iterations buy nothing. The final small SVD is of `B = QᵀA`, which is `p×n`;
+`Q @ Ub[:, :k]` lifts the left singular vectors back.
+
+`power_iteration` checks both signs when testing convergence:
+
+```python
+        v_new = w / nw
+        if min(np.linalg.norm(v_new - v), np.linalg.norm(v_new + v)) < tol:
+            v = v_new
+            break
+```
+
+An eigenvector is defined up to sign, so `v` and `−v` are the same answer. Testing
+only `v_new − v` makes the loop run the full `iters` whenever the iterates settle on
+the negative sign — correct output, 10× the work. The returned eigenvalue is the
+Rayleigh quotient `vᵀAv`, which is accurate to `O(ε)` even when `v` is only accurate
+to `√ε`.
+
+Woodbury is written with `inv` for readability, and the docstring is honest about
+what it buys:
+
+```python
+    Ainv = np.linalg.inv(A)
+    k = C.shape[0]
+    inner = np.linalg.inv(np.linalg.inv(C) + V @ Ainv @ U) if k else np.zeros((0, 0))
+    return Ainv - Ainv @ U @ inner @ V @ Ainv
+```
+
+The `k×k` inner inverse is the cheap part; the expensive part is `Ainv`, which is
+`O(n³)` if computed here. The identity pays off when `A⁻¹` is *already known* — a
+Kalman filter carrying `P`, an optimizer carrying a preconditioner, LoRA adapting a
+frozen base — not when it has to be computed for the update. Calling this function in
+a loop with a fresh `A` is slower than one `solve`. The `if k else` branch keeps the
+zero-rank update exact instead of producing a `0×0` matmul error.
+
+`solve_triangular` is the `O(n²)` kernel that every factorisation feeds:
+
+```python
+    idx = range(n) if lower else range(n - 1, -1, -1)
+    for i in idx:
+        s = b[i] - (L[i, :i] @ x[:i] if lower else L[i, i + 1 :] @ x[i + 1 :])
+        x[i] = s / L[i, i]
+```
+
+Forward substitution reads `x[:i]` (already computed); backward substitution reads
+`x[i+1:]`. The two slices are the entire difference, and swapping them produces a
+result that is correct only for diagonal matrices — while still running to completion.
+Note this indexes `L[i, i+1:]` but uses `x[i+1:]`; an off-by-one in either slice is
+silent for the first few `i`.
+
 ## Complexity
 
 | Operation | Time | Memory |

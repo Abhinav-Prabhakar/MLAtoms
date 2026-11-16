@@ -82,6 +82,130 @@ and multiplies by `γ` after `patience` evaluations without improvement. It cann
 be precomputed, it depends on the metric's noise level, and it is the right choice
 when you do not know `T` — which is the normal case for small-data problems.
 
+## Code walkthrough
+
+`lr_multiplier` is a pure function of the step; `Plateau` is a small state machine.
+The pure part begins with the composition rule that every implementation has to get
+right:
+
+```python
+    if warmup_steps and step < warmup_steps:
+        return (step + 1) / warmup_steps
+    t = max(step - warmup_steps, 0)
+    T = max(total_steps - warmup_steps, 1)
+```
+
+Warmup is a **prefix**, not an alternative shape: the selected schedule is evaluated
+on the remaining `T = total − warmup` steps via the shifted `t`. Two details carry
+the meaning. The `(step + 1)/warmup_steps` makes step 0 return `1/warmup_steps`
+instead of exactly zero — a zero first LR wastes a step and breaks optimisers that
+divide by it. And `T` is recomputed after the shift; a cosine over `total_steps`
+instead of `total_steps − warmup_steps` would finish its half-cosine early and then
+sit at the floor for the warmup duration.
+
+The discrete schedules index the **global** step, not the shifted `t`:
+
+```python
+    if variant == "step":
+        return gamma ** (step // step_size)
+    if variant == "multistep":
+        return gamma ** sum(1 for m in milestones if step >= m)
+```
+
+That is deliberate: milestones are absolute step numbers in every published recipe
+("drop at 30/60/90 epochs"), so shifting them by the warmup would silently move the
+drops. The continuous, budget-based schedules below use `t/T`, because their shape
+depends on how much budget remains, not on an absolute calendar.
+
+Cosine is written with a clamp on the ratio:
+
+```python
+        return min_ratio + (1.0 - min_ratio) * 0.5 * (1.0 + np.cos(np.pi * min(t / T, 1.0)))
+```
+
+Without `min(t/T, 1.0)`, evaluating past the budget lets `cos` turn around and the
+LR starts *increasing* again — which happens whenever a run is extended past its
+planned `total_steps`. The clamp makes "past the end" mean "stay at the floor".
+`min_ratio` is what keeps the final LR non-zero; the demo checks the endpoints at
+`1.0` and `0.0` for the default `min_ratio=0`.
+
+`cosine_restarts` is the same formula on `t mod period`:
+
+```python
+        period = cycle_steps or T
+        t_cur = t % period
+        return min_ratio + (1.0 - min_ratio) * 0.5 * (1.0 + np.cos(np.pi * t_cur / period))
+```
+
+Every cycle has the same length here; SGDR's doubling (`T_i = T_0·2^i`) is a
+one-line change to `period`, and the demo asserts the simple version returns to
+exactly 1.0 at each multiple of `cycle_steps`.
+
+`wsd` is the LLM schedule and the shape is entirely in the branch point:
+
+```python
+        decay_start = int(T * 0.8)
+        if t < decay_start:
+            return 1.0
+        frac = (t - decay_start) / max(T - decay_start, 1)
+        return max(1.0 - np.sqrt(frac), 0.0)
+```
+
+Flat for 80%, then `1 − √frac`. The `max(·, 0)` is needed because `frac` can exceed 1
+by one step when `T` is not divisible; without it the multiplier goes negative and
+the optimiser climbs. The demo counts strictly decreasing steps and expects roughly
+20% of `T` — that is the invariant the schedule is sold on.
+
+`cyclical` is a triangle, and the period is `2·cycle_steps`, not `cycle_steps`:
+
+```python
+        s = cycle_steps or max(step_size, 1)
+        phase = (t % (2 * s)) / s
+        tri = 1.0 - abs(phase - 1.0)
+```
+
+At `t=0`, `phase=0`, `tri=0` → `min_ratio`; at `t=s`, `phase=1`, `tri=1` → peak; at
+`t=2s` it wraps. Using `t % s` instead gives a sawtooth that jumps from the peak
+straight back to the floor, which is a different (and much worse) schedule.
+
+`one_cycle` is two pieces joined at `pct_start`:
+
+```python
+        up = int(T * pct_start)
+        if t < up:
+            return start + (peak - start) * (t / max(up, 1))
+        frac = (t - up) / max(T - up, 1)
+        return end + (peak - end) * 0.5 * (1.0 + np.cos(np.pi * frac))
+```
+
+`start = 1/div_factor`, `end = 1/final_div_factor`. The first piece is linear from
+`1/25` to `1`; the second is cosine from `1` to `1e-4`. The `max(up, 1)` and
+`max(T − up, 1)` guard degenerate budgets (`pct_start=0`, or `T=1`), which is the
+kind of input a unit test uses and a real run never does.
+
+`Plateau` is the only stateful schedule:
+
+```python
+    def step(self, metric: float) -> float:
+        if metric < self.best - self.threshold:
+            self.best = metric
+            self.bad = 0
+        else:
+            self.bad += 1
+            if self.bad >= self.patience:
+                self.lr = max(self.lr * self.factor, self.min_lr)
+                self.bad = 0
+                self.reductions += 1
+        return self.lr
+```
+
+The strict `< best − threshold` means an improvement smaller than `threshold` counts
+as a stall — that is the noise filter, and setting `threshold=0` makes it fire on
+every wobble. `bad` resets to zero *after* a reduction, so the schedule needs another
+full `patience` window before dropping again; without that reset it would collapse to
+`min_lr` in `patience` consecutive bad evaluations. `min_lr` is a floor on the
+multiplied value, not on the factor, so `factor=0.1` can never take it below it.
+
 ## Complexity
 
 `O(1)` time and memory per step: every schedule is a closed-form function of the

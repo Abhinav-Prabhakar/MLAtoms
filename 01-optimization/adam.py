@@ -83,7 +83,6 @@ class Adam:
             m += (1.0 - self.b1) * g
             if self.variant == "adamax":
                 self.u[i] = np.maximum(self.b2 * self.u[i], np.abs(g))
-                mhat = m / (1.0 - self.b1**t)
                 p -= (self.lr / (1.0 - self.b1**t)) * m / (self.u[i] + self.eps)
                 continue
 
@@ -115,12 +114,7 @@ class Adam:
             vhat = v / (1.0 - self.b2**t)
             if self.variant == "amsgrad":
                 self.vmax[i] = np.maximum(self.vmax[i], vhat)
-                denom = np.sqrt(self.vmax[i]) + self.eps
-            elif self.variant == "eps_inside_sqrt":
-                denom = np.sqrt(vhat + self.eps)
-            else:
-                denom = np.sqrt(vhat) + self.eps
-            p -= self.lr * mhat / denom
+            p -= self.lr * mhat / self._denom(vhat, self.vmax[i], self.eps)
 
     def _adan_step(self, p, g, i, t) -> None:
         """Adan (Xie et al., 2022): Nesterov-style, with the *gradient difference*

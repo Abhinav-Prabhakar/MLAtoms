@@ -155,7 +155,7 @@ def gmm_em(
             r = np.eye(k)[r.argmax(axis=1)]
         return r
 
-    def loglik(means, covs, pi, r):
+    def loglik(means, covs, pi):
         if covs.ndim == 2:
             lp = np.column_stack([_log_gaussian(X, means[j], covs) for j in range(k)])
         else:
@@ -179,7 +179,7 @@ def gmm_em(
             for j in range(k):
                 diff = X - means[j]
                 covs[j] = (r[:, j, None] * diff).T @ diff / nk[j] + reg * np.eye(d)
-        hist.append(loglik(means, covs, pi, r))
+        hist.append(loglik(means, covs, pi))
         if len(hist) > 1 and abs(hist[-1] - hist[-2]) < 1e-8:
             break
     return {"means": means, "covs": covs, "pi": pi, "resp": r, "hist": hist}

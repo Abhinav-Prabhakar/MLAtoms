@@ -33,7 +33,8 @@ def alias_table(weights: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     costs O(1) regardless of k.
 
     prob[i] is the probability of keeping i; otherwise the draw is alias[i].
-    Invariant: sum(prob) == k.
+    The invariant is not sum(prob) == k (it generally is not): it is that the
+    implied distribution, prob[i]/k plus the remainders routed to i, equals w.
     """
     w = np.asarray(weights, dtype=float)
     if np.any(w < 0):

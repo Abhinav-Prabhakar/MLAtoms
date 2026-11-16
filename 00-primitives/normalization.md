@@ -71,6 +71,111 @@ $$
 The clip bounds how much a single odd batch can move the activations, which is what
 lets BN survive small or non-i.i.d. batches.
 
+## Code walkthrough
+
+The file is five near-identical forwards, one helper that decides *which axes* each
+of them reduces, and `_affine`. The helper is where the bugs live:
+
+```python
+def _stats_axes(x: np.ndarray, mode: str) -> tuple[int, ...]:
+    if x.ndim == 2:
+        ...
+            return (0,) if mode == "batch" else (1,)
+    if x.ndim == 4:
+        if mode == "batch":
+            return (0, 2, 3)
+        if mode == "layer":
+            return (1, 2, 3)
+        if mode == "instance":
+            return (2, 3)
+```
+
+Batch norm reduces over the batch *and* the spatial axes but keeps channels, so
+`(0,2,3)` on `(N,C,H,W)`. Layer norm keeps only the batch axis. Instance norm keeps
+both batch and channel. The 2-D branch collapses all three per-sample modes to
+`(1,)`, which is why the demo can assert `group_norm(img, 1) == layer_norm(img)` and
+`group_norm(img, 6) == instance_norm(img)` on 4-D but the same identities on matrices
+are trivial. Writing `axis=1` by hand instead of calling this helper is the classic
+shape bug: it normalises channels in one layout and pixels in another, still trains,
+and just scores worse.
+
+Every forward then follows the same three lines:
+
+```python
+    mu = x.mean(axis=axes, keepdims=True)
+    var = x.var(axis=axes, keepdims=True)
+    y = (x - mu) / np.sqrt(var + eps)
+```
+
+`keepdims=True` is what makes the broadcast back onto `x` legal, and `x.var` uses
+the **biased** (`1/n`) estimator — the right one here, because the normalised output
+must have exactly unit second moment on the same data. Using `ddof=1` makes the
+output variance `n/(n−1)` and, worse, divides by zero at `n=1`.
+
+`group_norm` is the only one that reshapes:
+
+```python
+    shape = (n, groups, c // groups) + x.shape[2:]
+    xg = x.reshape(shape)
+    axes = tuple(range(2, xg.ndim))  # everything except batch and group index
+```
+
+The axes start at **2**, not 1: after the reshape the layout is `(N, G, C/G, H, W)`,
+so axis 1 is the group index and must be kept. Reducing over `(1, ...)` normalises
+across groups and turns the layer into instance norm plus a permutation — a silent
+error, because the output shape is still right and the statistics still look
+plausible. `G=1` and `G=C` are the two cases that catch it, which is why the demo
+asserts both.
+
+`rms_norm` differs from the others in three deliberate ways:
+
+```python
+    rms = np.sqrt(np.mean(x * x, axis=-1, keepdims=True) + eps)
+    return _affine(x / rms, gamma, None)
+```
+
+No mean subtraction, `eps` *inside* the square root (adding it after would not
+bound the reciprocal), and no `beta`. The `axis=-1` is right for the transformer
+layout `(B, T, D)`; it is *not* interchangeable with `_stats_axes`, and that is
+intentional — RMS norm is only ever used over the feature axis.
+
+`_affine` exists so that `gamma`/`beta` can be passed as `(d,)` for any layout:
+
+```python
+        g = np.asarray(gamma).reshape((1, -1) + (1,) * (y.ndim - 2)) if y.ndim > 2 else gamma
+```
+
+A `(C,)` vector must broadcast against `(N,C,H,W)` as `(1,C,1,1)`. NumPy will
+happily broadcast `(C,)` against the *last* axis instead, so a missing reshape gives
+a per-pixel affine transform that runs fine. This three-token expression is the
+difference between channel affine and pixel affine.
+
+`batch_renorm` is the only forward with a state argument, and the clip is the point:
+
+```python
+    r = np.clip(np.sqrt(var + eps) / np.sqrt(rv + eps), 1.0 / rmax, rmax)
+    d = np.clip((mu - rm) / np.sqrt(rv + eps), -dmax, dmax)
+    return (x - mu) / np.sqrt(var + eps) * r + d
+```
+
+With `rm, rv` equal to the batch statistics, `r = 1` and `d = 0`, so it reduces
+exactly to batch norm — the demo asserts that identity. When a batch drifts, `r`
+shrinks the *variance* correction and `d` bounds the *mean* shift, so no single batch
+can move the activations by more than `dmax` standard deviations. Note the bias
+correction in Ioffe's paper uses the unbiased running variance; the code uses
+whatever the caller passes, which keeps the identity with `batch_norm` exact.
+
+`power_norm` normalises to a radius, not to one:
+
+```python
+    return x / (norm + eps) * x.shape[-1] ** (1.0 / p)
+```
+
+The target is `‖y‖_p = d^{1/p}`, so that a vector with all entries equal to 1 maps
+to itself. Normalising to radius 1 instead would shrink activations by `√d` per
+layer at `p=2` — a depth-dependent scale error that looks exactly like a bad
+initialisation. The demo's `p=2, d=9` case expects norm `3`.
+
 ## Complexity
 
 All are `O(n·d)` — the same order as the layer they follow, with one extra pass over

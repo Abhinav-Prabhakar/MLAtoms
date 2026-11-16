@@ -103,6 +103,128 @@ consistent curvature. The flip side, visible in the demo, is that the stationary
 error scales with `η`: `n` vanishes like `d²` while `m` vanishes like `d`, so the
 step does not go to zero. Adan wants a decaying LR at the end.
 
+## Code walkthrough
+
+All eight variants share one `step`; the variant decides which statistics are
+updated and which denominator is used. The denominator is isolated because that is
+where the numerical bugs live:
+
+```python
+    def _denom(self, v, vmax, eps):
+        if self.variant == "eps_inside_sqrt":
+            return np.sqrt(v + eps)
+        if self.variant == "amsgrad":
+            return np.sqrt(np.maximum(vmax, v)) + eps
+        return np.sqrt(v) + eps
+```
+
+`sqrt(v) + eps` is the original form; `sqrt(v + eps)` is the fp16/BF16 fix. The
+difference is not cosmetic: when `v` underflows to zero, the first gives `1/eps`
+(`1e8`) and the second gives `1/sqrt(eps)` (`1e4`) — a four-orders-of-magnitude
+difference in the step. The `amsgrad` branch takes `max(vmax, v)`; `vmax` is already
+the running max of `vhat`, so the extra `maximum` only matters on the first step,
+where `vmax` is zero and `v` is not.
+
+The main loop keeps the moments in place:
+
+```python
+            m, v = self.m[i], self.v[i]
+            m *= self.b1
+            m += (1.0 - self.b1) * g
+```
+
+In-place `*=` then `+=` is one pass over memory, and `m`/`v` are aliases into
+`self.m[i]`, so the buffers update without a rebind. The weights are Adam's
+convention: old history gets `β₁`, the new gradient gets `1−β₁`. Adan swaps them
+(below), which is easy to miss.
+
+Adamax replaces the second moment with a running max:
+
+```python
+            if self.variant == "adamax":
+                self.u[i] = np.maximum(self.b2 * self.u[i], np.abs(g))
+                p -= (self.lr / (1.0 - self.b1**t)) * m / (self.u[i] + self.eps)
+                continue
+```
+
+`u` tracks `max(β₂u, |g|)`, the weighted `∞`-norm, so the denominator is bounded by
+the largest gradient ever seen rather than by its RMS. The bias correction is folded
+into the outer factor `lr/(1−β₁ᵗ)` instead of being applied to `m` — algebraically
+identical, and it keeps the `u` update free of the `t`-dependent scale.
+
+RAdam has two regimes and the boundary is `ρ_t = 4`:
+
+```python
+                rho_inf = 2.0 / (1.0 - self.b2) - 1.0
+                rho_t = rho_inf - 2.0 * t * self.b2**t / (1.0 - self.b2**t)
+                if rho_t > 4.0:
+                    r = np.sqrt(
+                        ((rho_t - 4.0) * (rho_t - 2.0) * rho_inf)
+                        / ((rho_inf - 4.0) * (rho_inf - 2.0) * rho_t)
+                    )
+                    l_t = np.sqrt(1.0 - self.b2**t) / (np.sqrt(v) + self.eps)
+                    p -= self.lr * r * l_t * m / (1.0 - self.b1**t)
+                else:
+                    p -= self.lr * mhat
+```
+
+`ρ_t` is the effective sample size behind `v̂`: at `t=1` with `β₂=0.999` it is `1`,
+far below 4, so the first step is the plain momentum step `lr·mhat` — no adaptive
+denominator at all. That is why `radam` and `adam` agree exactly on step one (the
+demo asserts `0.99` for both) and diverge later. `r` is a smooth ramp from 0 to 1,
+so RAdam is "Adam with an automatic warmup", not a different optimiser.
+
+Nadam folds the lookahead into the numerator:
+
+```python
+                g_eff = self.b1 * mhat + (1.0 - self.b1) * g / (1.0 - self.b1**t)
+                vhat = v / (1.0 - self.b2**t)
+                p -= self.lr * g_eff / (np.sqrt(vhat) + self.eps)
+```
+
+`β₁·mhat + (1−β₁)·g/(1−β₁ᵗ)` is the bias-corrected version of `β₁m + (1−β₁)g`,
+i.e. the gradient evaluated one momentum step ahead. The `/(1−β₁ᵗ)` on the *second*
+term is the part that is usually dropped when copying the formula; without it the
+first step is smaller than `lr` and the "Nesterov" variant is just Adam.
+
+`adamw` is one line, applied before the gradient path:
+
+```python
+            if self.variant == "adamw" and self.wd:
+                p -= self.lr * self.wd * p  # decoupled: no gradient term
+```
+
+and the coupled branch is explicitly excluded afterwards:
+
+```python
+            if self.wd and self.variant != "adamw":
+                g = g + self.wd * p
+```
+
+That `!= "adamw"` is what stops the decay from being applied twice. With a zero
+gradient the difference is stark: coupled Adam divides the decay by `√v`, which
+after a few zero-gradient steps is tiny, so it barely shrinks; AdamW multiplies by
+`(1−ηλ)` every step regardless. The demo's `0.508` vs `0.774` after five steps is
+that divergence.
+
+Adan is a separate method because its state is different:
+
+```python
+        self.m[i] = (1.0 - self.b1) * self.m[i] + self.b1 * g
+        d = g - self.g_prev[i]
+        self.v[i] = (1.0 - self.b2) * self.v[i] + self.b2 * d
+        self.n[i] = (1.0 - self.b3) * self.n[i] + self.b3 * d * d
+        self.g_prev[i] = g
+```
+
+Note the coefficient order: `(1−β)·old + β·new`, the reverse of Adam. This is Adan's
+paper convention, and mixing it with Adam's convention changes the effective horizon
+from `1/(1−β)` to `1/β`. `g_prev` starts at zero, so the first difference is the full
+gradient; from the second step on, a constant gradient gives `d = 0`, `n` decays
+geometrically, and the step becomes `m/√ε`-dominated. The demo checks exactly that
+decay (`9.9e-1 → 9.9e-7`) because it is the property that forces Adan to use a
+decaying LR.
+
 ## Complexity
 
 Time `O(P)` per step. Memory `3P` for Adam (`θ, m, v`), `4P` for AMSGrad

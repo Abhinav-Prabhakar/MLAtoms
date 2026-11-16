@@ -71,6 +71,115 @@ $$
 
 with $\tau$ again fixed by $\sum_i p_i = 1$, found here by bisection. `α = 1` recovers softmax, `α = 2` recovers sparsemax.
 
+## Code walkthrough
+
+The file is three dispatch functions and a handful of shared kernels. `activation`
+and `activation_grad` are deliberately parallel `if`-chains: every variant appears
+in both, in the same order, so a new activation is added by writing two adjacent
+branches and nothing else. `POINTWISE`, `SIMPLEX` and `GATED` are sets used by the
+demo to iterate over every variant, not by the call path.
+
+Everything starts from two overflow-safe kernels:
+
+```python
+def _sigmoid(x: np.ndarray) -> np.ndarray:
+    return 0.5 * (1.0 + np.tanh(0.5 * x))  # overflow-free
+```
+
+`1/(1+exp(-x))` overflows to `inf` at `x ≈ -710`, and `inf` in the denominator
+gives `0`, which happens to be right — but the gradient path later multiplies
+`s*(1-s)` and a `0 * inf` there yields `nan`. The tanh identity is exact and never
+saturates the intermediate. Same trick for softplus:
+
+```python
+def _softplus(x: np.ndarray) -> np.ndarray:
+    return np.logaddexp(0.0, x)
+```
+
+`np.log(1 + np.exp(x))` is the formula; `logaddexp` is the implementation, because
+it factors out the larger term internally.
+
+The negative branch of `elu` and `selu` is where a naive version breaks:
+
+```python
+    if variant == "elu":
+        return np.where(x > 0.0, x, alpha * (np.expm1(np.minimum(x, 0.0))))
+```
+
+`np.where` evaluates *both* branches on the whole array. Without the
+`np.minimum(x, 0.0)`, positive inputs still go through `np.exp` and a pre-activation
+of 800 returns `inf` — which then poisons the backward pass even though the forward
+value looked correct. `expm1` is the other half: `exp(x) - 1` loses all precision for
+`x → 0⁻`, where `elu` must match `relu` to first order.
+
+Gradients are hand-derived per variant; `gelu_tanh` is the one worth reading because
+it is a chain rule through a cubic:
+
+```python
+    if variant == "gelu_tanh":
+        t = np.tanh(GELU_C * (x + GELU_K * x**3))
+        du = GELU_C * (1.0 + 3.0 * GELU_K * x**2)
+        return 0.5 * (1.0 + t) + 0.5 * x * (1.0 - t**2) * du
+```
+
+`0.5*(1+t)` is `Φ(x)` in the tanh approximation, `0.5*x*(1-t²)` is `x·φ(x)`, and `du`
+is the derivative of the *inner* argument `√(2/π)(x + 0.044715x³)`. Forgetting `du`
+is the classic bug: the loss still decreases, just to the wrong place, so it never
+shows up as a crash. Every gradient in the file is checked against central
+differences in `main`, which is what catches that class of error.
+
+The simplex family switches from elementwise maps to projections, and `sparsemax`
+is the sort-and-threshold form of the derivation:
+
+```python
+    zs = -np.sort(-z, axis=axis)
+    css = np.cumsum(zs, axis=axis) - 1.0
+    ...
+    support = zs - css / k > 0
+    k_z = support.sum(axis=axis, keepdims=True)
+    tau = np.take_along_axis(css, (k_z - 1).astype(int), axis=axis) / k_z
+    return np.maximum(z - tau, 0.0)
+```
+
+`css` is the running sum *minus the unit mass of the simplex* — that `- 1.0` is the
+entire constraint `Σp = 1` folded into a prefix sum, and dropping it produces a
+projection onto `{p ≥ 0}` that does not sum to one. The support test is the
+paper's condition `z₍ₖ₎ > cssₖ/k`, and `k_z ≥ 1` always holds because the largest
+coordinate beats its own mean.
+
+`entmax15` cannot vectorise the threshold, because each row has its own `τ`, so it
+loops rows and bisects:
+
+```python
+        lo = zz.max() / 2.0 - 1.0
+        hi = zz.max() / 2.0
+        for _ in range(iters):
+            mid = 0.5 * (lo + hi)
+            p = np.maximum(zz / 2.0 - mid, 0.0) ** 2
+            if p.sum() > 1.0:      # tau too small: masses still too large
+                lo = mid
+            else:
+                hi = mid
+```
+
+The bracket is not arbitrary: at `τ = max(z)/2` every term is zero (sum 0), and at
+`τ = max(z)/2 − 1` the largest term alone contributes 1. The direction of the
+update is the line that is easy to invert — mass is *decreasing* in `τ`, so too
+much mass means move `lo` up. Getting it backwards still converges, to a bracket
+that contains no root, and the output is silently wrong by a factor.
+
+Finally the gated units fix a convention that is a recurring source of shape bugs:
+
+```python
+def gated(a: np.ndarray, b: np.ndarray, variant: str = "swiglu") -> np.ndarray:
+    """Gated linear unit. a is the value branch, b is the gate branch."""
+```
+
+`swiglu` is `SiLU(a)·b`, not `a·σ(b)` — Shazeer's paper writes the gate first, many
+implementations call the *first* half the gate. The demo asserts the identity
+`gated(a, b, "swiglu") == silu(a) * b` so the convention is pinned by a test rather
+than by a comment.
+
 ## Complexity
 
 All pointwise variants are `O(n)` time and memory, one elementwise op. `sparsemax` is `O(n log n)` per row from the sort. `entmax15` as implemented is `O(n · iters)` per row with 40 bisection steps — fine for attention over a few thousand keys, not for million-way softmax. Gated variants double the parameter count of the layer (`2·d·d_ff` instead of `d·d_ff`).
