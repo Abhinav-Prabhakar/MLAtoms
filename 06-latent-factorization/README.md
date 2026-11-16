@@ -5,7 +5,7 @@
 Most high-dimensional data is low-dimensional in disguise. This folder is about finding that structure: linear projections, independent components, non-negative parts, sparse codes and topic mixtures.
 
 <!-- catalog:begin -->
-**12 atoms · 58 variants · 8 implemented**
+**12 atoms · 58 variants · 10 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -17,8 +17,8 @@ Most high-dimensional data is low-dimensional in disguise. This folder is about 
 | ✓ Latent semantic analysis | [`lsa.py`](lsa.py) | 2 | 4 | Truncated SVD of weighted term-document matrices. |
 | ✓ Latent Dirichlet allocation | [`lda_topic.py`](lda_topic.py) | 2 | 4 | Topic mixtures: Gibbs, variational Bayes, streaming and seeds. |
 | ✓ Canonical correlation | [`cca.py`](cca.py) | 2 | 5 | Shared structure between two views. |
-| · Sparse coding | [`sparse_coding.py`](sparse_coding.py) | 3 | 4 | L1-regularised codes over an overcomplete dictionary. |
-| · Dictionary learning | [`dictionary_learning.py`](dictionary_learning.py) | 3 | 4 | Learning the basis instead of assuming it. |
+| ✓ Sparse coding | [`sparse_coding.py`](sparse_coding.py) | 3 | 4 | L1-regularised codes over an overcomplete dictionary. |
+| ✓ Dictionary learning | [`dictionary_learning.py`](dictionary_learning.py) | 3 | 4 | Learning the basis instead of assuming it. |
 | · Tensor decomposition | [`tensor_decomposition.py`](tensor_decomposition.py) | 3 | 5 | Low-rank structure in more than two modes. |
 | · Probabilistic LSA | [`plsa.py`](plsa.py) | 3 | 3 | Aspect model fitted by EM; LDA's non-Bayesian ancestor. |
 
