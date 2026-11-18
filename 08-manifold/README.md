@@ -5,7 +5,7 @@
 Real data lies near a low-dimensional surface. These methods recover it — for plots (t-SNE, UMAP), for distances (Isomap, diffusion maps) or for features (autoencoders, random projections).
 
 <!-- catalog:begin -->
-**12 atoms · 47 variants · 11 implemented**
+**12 atoms · 47 variants · 12 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -20,7 +20,7 @@ Real data lies near a low-dimensional surface. These methods recover it — for 
 | ✓ Autoencoder embedding | [`autoencoder_dr.py`](autoencoder_dr.py) | 2 | 4 | Bottleneck autoencoders as learned nonlinear projections. |
 | ✓ TriMap | [`trimap.py`](trimap.py) | 3 | 3 | Triplet constraints that preserve global geometry. |
 | ✓ Diffusion maps | [`diffusion_maps.py`](diffusion_maps.py) | 3 | 3 | Markov-chain diffusion distances and spectral embeddings. |
-| · PHATE | [`phate.py`](phate.py) | 3 | 3 | Potential distances and information-geometric visualisation. |
+| ✓ PHATE | [`phate.py`](phate.py) | 3 | 3 | Potential distances and information-geometric visualisation. |
 
 **Variant map** — every variant below is implemented in its atom's file and derived in its companion `.md`.
 
