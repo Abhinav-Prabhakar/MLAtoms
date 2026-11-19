@@ -5,12 +5,12 @@
 Anomaly detection is density estimation with a threshold. This folder gives you the estimators (KDE, copulas, extreme-value tails) and the practical scorers (LOF, isolation forest, Mahalanobis, reconstruction error) that industry actually deploys.
 
 <!-- catalog:begin -->
-**11 atoms · 49 variants · 1 implemented**
+**11 atoms · 49 variants · 2 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
 | ✓ Kernel density estimation | [`kde.py`](kde.py) | 1 | 8 | Kernels, bandwidth rules and tree acceleration. |
-| · Isolation forest | [`isolation_forest.py`](isolation_forest.py) | 1 | 4 | Anomalies are isolated in fewer random splits. |
+| ✓ Isolation forest | [`isolation_forest.py`](isolation_forest.py) | 1 | 4 | Anomalies are isolated in fewer random splits. |
 | · Local outlier factor | [`lof.py`](lof.py) | 1 | 4 | Local reachability density ratios: density-relative outliers. |
 | · Histogram density | [`histogram_density.py`](histogram_density.py) | 2 | 4 | Binning rules and the bias-variance of histogram estimates. |
 | · Mahalanobis / MCD | [`mahalanobis.py`](mahalanobis.py) | 2 | 4 | Hotelling T-squared and robust covariance for multivariate outliers. |
