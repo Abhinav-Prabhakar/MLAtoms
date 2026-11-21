@@ -5,7 +5,7 @@
 Between a model definition and a working product sits training. These files are the procedures rather than the models: autodiff, distillation, adapters, pruning, quantisation, active learning, imbalance handling.
 
 <!-- catalog:begin -->
-**18 atoms · 126 variants · 11 implemented**
+**18 atoms · 126 variants · 12 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -20,7 +20,7 @@ Between a model definition and a working product sits training. These files are 
 | ✓ Hyperparameter search | [`hyperparameter_search.py`](hyperparameter_search.py) | 2 | 8 | Random, TPE, BOHB and successive halving. |
 | ✓ Active learning | [`active_learning.py`](active_learning.py) | 2 | 8 | Label the points that teach the most. |
 | ✓ Semi-supervised learning | [`semi_supervised.py`](semi_supervised.py) | 2 | 7 | Self-training, pseudo-labels and consistency regularisation. |
-| · Class imbalance | [`class_imbalance.py`](class_imbalance.py) | 2 | 8 | SMOTE, ADASYN, focal loss and threshold moving. |
+| ✓ Class imbalance | [`class_imbalance.py`](class_imbalance.py) | 2 | 8 | SMOTE, ADASYN, focal loss and threshold moving. |
 | · Neural architecture search | [`nas.py`](nas.py) | 3 | 6 | Searching the architecture instead of hand-designing it. |
 | · Meta-learning | [`meta_learning.py`](meta_learning.py) | 3 | 7 | Learning to learn from a handful of examples. |
 | · Continual learning | [`continual_learning.py`](continual_learning.py) | 3 | 8 | New tasks without forgetting the old ones. |
