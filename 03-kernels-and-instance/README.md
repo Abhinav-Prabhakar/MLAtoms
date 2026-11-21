@@ -5,7 +5,7 @@
 Kernel methods turn inner products into hypothesis spaces, and instance-based methods turn the training set into the model. Together they explain why deep learning works (neural tangent kernels) and give you baselines that are hard to beat on small data.
 
 <!-- catalog:begin -->
-**13 atoms · 74 variants · 12 implemented**
+**13 atoms · 74 variants · 13 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -21,7 +21,7 @@ Kernel methods turn inner products into hypothesis spaces, and instance-based me
 | ✓ Metric learning | [`metric_learning.py`](metric_learning.py) | 3 | 5 | Learn the distance instead of assuming it. |
 | ✓ Multiple kernel learning | [`multiple_kernel.py`](multiple_kernel.py) | 3 | 4 | Combine kernels and learn the weights. |
 | ✓ MMD & HSIC | [`mmd.py`](mmd.py) | 3 | 5 | Kernel two-sample and independence tests with permutation calibration. |
-| · Learning vector quantisation | [`lvq.py`](lvq.py) | 3 | 5 | Prototype-based classifiers with attraction/repulsion updates. |
+| ✓ Learning vector quantisation | [`lvq.py`](lvq.py) | 3 | 5 | Prototype-based classifiers with attraction/repulsion updates. |
 
 **Variant map** — every variant below is implemented in its atom's file and derived in its companion `.md`.
 
