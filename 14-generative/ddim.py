@@ -66,7 +66,8 @@ def make_schedule(steps: int = STEPS) -> tuple:
     f = np.cos((t + COSINE_S) / (1.0 + COSINE_S) * np.pi / 2.0) ** 2
     abar = f / f[0]
     beta = np.clip(1.0 - abar[1:] / abar[:-1], 1e-5, 0.999)
-    return beta, 1.0 - beta, abar
+    alpha = 1.0 - beta
+    return beta, alpha, np.concatenate([[1.0], np.cumprod(alpha)])
 
 
 def _sig(x: np.ndarray) -> np.ndarray:
