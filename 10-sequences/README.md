@@ -5,7 +5,7 @@
 Everything that reads left to right lives here: the classical probabilistic machinery (Markov chains, HMMs, CRFs, CTC), the distance notion for time series (DTW) and the neural sequence blocks (RNN, TCN, attention, SSMs).
 
 <!-- catalog:begin -->
-**12 atoms · 78 variants · 11 implemented**
+**12 atoms · 78 variants · 12 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -20,7 +20,7 @@ Everything that reads left to right lives here: the classical probabilistic mach
 | ✓ Temporal convnets | [`tcn.py`](tcn.py) | 2 | 4 | Dilated causal convolutions and receptive-field arithmetic. |
 | ✓ Beam search | [`beam_search.py`](beam_search.py) | 2 | 7 | Beam, greedy, top-k and nucleus decoding. |
 | ✓ N-gram language models | [`ngram_lm.py`](ngram_lm.py) | 2 | 8 | Counting, smoothing and the curse of dimensionality. |
-| · State-space models | [`ssm.py`](ssm.py) | 3 | 7 | Linear recurrences that parallelise like convolutions. |
+| ✓ State-space models | [`ssm.py`](ssm.py) | 3 | 7 | Linear recurrences that parallelise like convolutions. |
 
 **Variant map** — every variant below is implemented in its atom's file and derived in its companion `.md`.
 
