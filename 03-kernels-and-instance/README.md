@@ -5,7 +5,7 @@
 Kernel methods turn inner products into hypothesis spaces, and instance-based methods turn the training set into the model. Together they explain why deep learning works (neural tangent kernels) and give you baselines that are hard to beat on small data.
 
 <!-- catalog:begin -->
-**13 atoms · 74 variants · 4 implemented**
+**13 atoms · 74 variants · 5 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -13,7 +13,7 @@ Kernel methods turn inner products into hypothesis spaces, and instance-based me
 | ✓ Kernel ridge | [`kernel_ridge.py`](kernel_ridge.py) | 1 | 6 | Representer theorem in closed form: the kernel least-squares solution. |
 | ✓ k-nearest neighbours | [`knn.py`](knn.py) | 1 | 9 | Voting and regression with trees, weights and dimensionality caveats. |
 | ✓ Support vector regression | [`svr.py`](svr.py) | 2 | 5 | Epsilon-insensitive support vector regression. |
-| · RBF networks | [`rbf_network.py`](rbf_network.py) | 2 | 5 | Radial basis units with k-means centres and least-squares readout. |
+| ✓ RBF networks | [`rbf_network.py`](rbf_network.py) | 2 | 5 | Radial basis units with k-means centres and least-squares readout. |
 | · Random features | [`random_features.py`](random_features.py) | 2 | 6 | Random kitchen sinks: Monte Carlo kernel approximation at scale. |
 | · One-class models | [`one_class.py`](one_class.py) | 2 | 4 | One-class SVM and SVDD: a boundary around normal data. |
 | · Nearest centroid | [`nearest_centroid.py`](nearest_centroid.py) | 2 | 4 | Shrunken centroids and prototypes as a strong, fast baseline. |
