@@ -5,7 +5,7 @@
 Forecasting is a separate discipline because the data breaks i.i.d. assumptions. This folder spans the classical state-space methods, the decomposition toolbox, and the modern neural forecasters — each with the baseline it must beat.
 
 <!-- catalog:begin -->
-**16 atoms · 77 variants · 8 implemented**
+**16 atoms · 77 variants · 9 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -17,7 +17,7 @@ Forecasting is a separate discipline because the data breaks i.i.d. assumptions.
 | ✓ STL decomposition | [`stl.py`](stl.py) | 2 | 4 | LOESS seasonal-trend decomposition and robust variants. |
 | ✓ Spectral analysis | [`spectral_analysis.py`](spectral_analysis.py) | 2 | 5 | Periodograms, Welch averaging and spectral features. |
 | ✓ DLinear | [`dlinear.py`](dlinear.py) | 2 | 4 | Decomposition plus a linear layer: the transformer sanity check. |
-| · Theta method | [`theta.py`](theta.py) | 3 | 4 | Theta lines: a simple method that beat far fancier ones. |
+| ✓ Theta method | [`theta.py`](theta.py) | 3 | 4 | Theta lines: a simple method that beat far fancier ones. |
 | · Croston's method | [`croston.py`](croston.py) | 3 | 4 | Intermittent demand by separating occurrence and size. |
 | · N-BEATS | [`nbeats.py`](nbeats.py) | 3 | 4 | Basis-expansion blocks with doubly residual stacking. |
 | · N-HiTS | [`nhits.py`](nhits.py) | 3 | 3 | Multi-rate sampling and hierarchical interpolation. |
