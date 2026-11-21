@@ -5,7 +5,7 @@
 Forecasting is a separate discipline because the data breaks i.i.d. assumptions. This folder spans the classical state-space methods, the decomposition toolbox, and the modern neural forecasters — each with the baseline it must beat.
 
 <!-- catalog:begin -->
-**16 atoms · 77 variants · 14 implemented**
+**16 atoms · 77 variants · 15 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -23,7 +23,7 @@ Forecasting is a separate discipline because the data breaks i.i.d. assumptions.
 | ✓ N-HiTS | [`nhits.py`](nhits.py) | 3 | 3 | Multi-rate sampling and hierarchical interpolation. |
 | ✓ PatchTST | [`patchtst.py`](patchtst.py) | 3 | 4 | Patch tokens with channel independence. |
 | ✓ TSMixer | [`tsmixer.py`](tsmixer.py) | 3 | 4 | All-MLP token and channel mixing. |
-| · DeepAR | [`deepar.py`](deepar.py) | 3 | 5 | Probabilistic autoregressive RNN forecasting with likelihoods. |
+| ✓ DeepAR | [`deepar.py`](deepar.py) | 3 | 5 | Probabilistic autoregressive RNN forecasting with likelihoods. |
 | · Temporal fusion transformer | [`tft.py`](tft.py) | 3 | 4 | Variable selection networks and interpretable attention. |
 
 **Variant map** — every variant below is implemented in its atom's file and derived in its companion `.md`.
