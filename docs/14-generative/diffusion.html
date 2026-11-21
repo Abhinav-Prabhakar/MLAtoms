@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diffusion (DDPM) · MLAtoms</title>
+<meta name="description" content="Forward/reverse processes, noise schedules and the ELBO. A diffusion model is a denoiser run backwards. The forward process is not learned: it adds Gaussian…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/diffusion.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Diffusion (DDPM)">
+<meta property="og:description" content="Forward/reverse processes, noise schedules and the ELBO. A diffusion model is a denoiser run backwards. The forward process is not learned: it adds Gaussian…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/diffusion.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Diffusion (DDPM)">
+<meta name="twitter:description" content="Forward/reverse processes, noise schedules and the ELBO. A diffusion model is a denoiser run backwards. The forward process is not learned: it adds Gaussian…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Diffusion (DDPM)", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/14-generative/diffusion.html", "description": "Forward/reverse processes, noise schedules and the ELBO. A diffusion model is a denoiser run backwards. The forward process is not learned: it adds Gaussian\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">14 · Generative models</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="diffusion.py.html">source</a></p><h1>Diffusion models — a fixed noising process and a learned reverse</h1>
+<p>A diffusion model is a denoiser run backwards. The forward process is not
+learned: it adds Gaussian noise on a fixed schedule until the data is
+indistinguishable from a standard normal. The reverse is learned, one small
+denoising step at a time, and sampling is that loop run from noise. There is no
+adversary, no encoder and no likelihood network — only regression on noise,
+which is why diffusion trains more reliably than a GAN and samples more slowly
+than a VAE. This file runs the process on eight Gaussians whose circle is
+isometrically embedded in eight dimensions, so that the difference between the
+ambient space and the data's own two-dimensional plane can be measured rather
+than asserted.</p>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Fix a schedule <span class="math inline">\(\beta_1,\dots,\beta_T\)</span> with <span class="math inline">\(\beta_t\)</span> small. One forward step
+shrinks the data by <span class="math inline">\(\sqrt{1-\beta_t}\)</span> and adds noise of variance <span class="math inline">\(\beta_t\)</span>:</p>
+<pre class="mermaid-source"><code class="language-mermaid">flowchart LR
+    X0[&quot;x0 (data)&quot;] --&gt;|&quot;add noise&quot;| X1[&quot;x1&quot;] --&gt;|&quot;...&quot;| XT[&quot;xT ~ N(0, I)&quot;]
+    XT --&gt;|&quot;denoise&quot;| XT1[&quot;xT-1&quot;] --&gt;|&quot;...&quot;| X0b[&quot;x0 (sample)&quot;]
+</code></pre>
+<p>The forward chain has a closed form: after <span class="math inline">\(t\)</span> steps the point is
+<span class="math inline">\(\sqrt{\bar\alpha_t}\,x_0+\sqrt{1-\bar\alpha_t}\,\epsilon\)</span> with
+<span class="math inline">\(\bar\alpha_t=\prod_{s\le t}(1-\beta_s)\)</span>. At <span class="math inline">\(t=T\)</span> the signal fraction
+<span class="math inline">\(\bar\alpha_T\)</span> is tiny — <span class="math inline">\(4\times10^{-5}\)</span> for the 1000-step schedule here — so
+<span class="math inline">\(x_T\)</span> is essentially noise and can be replaced by a standard normal draw without
+measurable loss.</p>
+<p>The reverse step is the hard direction, and it is learned. The model is shown
+<span class="math inline">\((x_t,t)\)</span> and asked to predict the noise <span class="math inline">\(\epsilon\)</span> that was added. That target
+is available for free during training — draw a clean point, draw a noise level,
+draw the noise, and the label is the noise you drew. The model never has to
+imagine a distribution; it has to regress a vector the training loop can see.</p>
+<p>Everything else follows from that. Sampling starts at <span class="math inline">\(x_T\sim\mathcal N(0,I)\)</span>
+and applies the model's estimate of <span class="math inline">\(\epsilon\)</span> at each step, subtracting a
+fraction of it and adding a smaller amount of fresh noise. Each step is a
+denoising; the composition is a sampler. Two consequences are worth stating at
+the start:</p>
+<ul>
+<li><strong>The model must be told <span class="math inline">\(t\)</span>.</strong> One network is asked to denoise at every noise
+level from nearly clean to nearly pure noise. Without a time embedding it can
+only learn the average, which is a blur.</li>
+<li><strong>The chain is sequential.</strong> Sampling costs <span class="math inline">\(T\)</span> forward passes and cannot be
+parallelised across steps. That is the price of the reliability; DDIM and
+distillation are the ways to pay less.</li>
+</ul>
+<p>The three axes this file varies are the schedule (where the noise is placed),
+the target (<span class="math inline">\(\epsilon\)</span> or the velocity <span class="math inline">\(v\)</span>), and the space (ambient or a learned
+latent). They are independent, and the demo arranges the six variants as three
+controlled pairs so each axis is isolated.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:right">T</th>
+<th style="text-align:left">schedule</th>
+<th style="text-align:left">target</th>
+<th style="text-align:left">space</th>
+<th style="text-align:right">distance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ddpm</code></td>
+<td style="text-align:right">1000</td>
+<td style="text-align:left">linear <span class="math inline">\(10^{-4}\)</span>–<span class="math inline">\(0.02\)</span></td>
+<td style="text-align:left"><span class="math inline">\(\epsilon\)</span></td>
+<td style="text-align:left">ambient</td>
+<td style="text-align:right">0.308</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>linear_schedule</code></td>
+<td style="text-align:right">200</td>
+<td style="text-align:left">linear <span class="math inline">\(10^{-3}\)</span>–<span class="math inline">\(0.05\)</span></td>
+<td style="text-align:left"><span class="math inline">\(\epsilon\)</span></td>
+<td style="text-align:left">ambient</td>
+<td style="text-align:right">0.280</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cosine_schedule</code></td>
+<td style="text-align:right">200</td>
+<td style="text-align:left">cosine</td>
+<td style="text-align:left"><span class="math inline">\(\epsilon\)</span></td>
+<td style="text-align:left">ambient</td>
+<td style="text-align:right">0.254</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>epsilon_prediction</code></td>
+<td style="text-align:right">100</td>
+<td style="text-align:left">cosine</td>
+<td style="text-align:left"><span class="math inline">\(\epsilon\)</span></td>
+<td style="text-align:left">ambient</td>
+<td style="text-align:right">0.241</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>v_prediction</code></td>
+<td style="text-align:right">100</td>
+<td style="text-align:left">cosine</td>
+<td style="text-align:left"><span class="math inline">\(v\)</span></td>
+<td style="text-align:left">ambient</td>
+<td style="text-align:right">0.334</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>latent_diffusion</code></td>
+<td style="text-align:right">100</td>
+<td style="text-align:left">cosine</td>
+<td style="text-align:left"><span class="math inline">\(v\)</span></td>
+<td style="text-align:left">2-D latent</td>
+<td style="text-align:right">0.175</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>ddpm</code></strong> — the reference configuration (Ho, Jain &amp; Abbeel 2020): 1000 steps,
+the linear <span class="math inline">\(\beta\)</span> schedule from <span class="math inline">\(10^{-4}\)</span> to <span class="math inline">\(0.02\)</span>, <span class="math inline">\(\epsilon\)</span>-prediction, the
+ancestral sampler. It has the best per-step denoising in the table (0.0019 mean
+squared error at <span class="math inline">\(t=10\)</span>) because a thousand rungs make each step tiny, and the
+worst sample distance (0.308) because those thousand steps also compound a
+thousand small errors — and 3000 updates is a thin budget for a thousand-rung
+chain.</p>
+<p><strong><code>linear_schedule</code></strong> — the same schedule rescaled to 200 steps, from <span class="math inline">\(10^{-3}\)</span>
+to <span class="math inline">\(0.05\)</span>. The rescaling is the point: the paper's numbers assume 1000 steps, and
+using them with 200 leaves <span class="math inline">\(\bar\alpha_T=0.13\)</span>, so <span class="math inline">\(x_T\)</span> still contains an
+eighth of the data's signal and the sampler starts from the wrong
+distribution. With the rescaled schedule <span class="math inline">\(\bar\alpha_T=5.6\times10^{-3}\)</span> and the
+distance improves from 0.308 to 0.280.</p>
+<p><strong><code>cosine_schedule</code></strong> — the cosine schedule of Nichol &amp; Dhariwal (2021), which
+places <span class="math inline">\(\bar\alpha_t\)</span> on a cosine curve instead of letting it decay linearly in
+<span class="math inline">\(t\)</span>. It keeps more signal in the early steps and destroys it faster at the end:
+<span class="math inline">\(\bar\alpha_T=6.1\times10^{-8}\)</span> against <span class="math inline">\(5.6\times10^{-3}\)</span>, and the midpoint
+<span class="math inline">\(\bar\alpha_t=0.5\)</span> lands exactly at <span class="math inline">\(t=T/2\)</span> by construction, against <span class="math inline">\(t=72\)</span> of
+200 for the linear one. Same cost, same sampler, distance 0.254.</p>
+<p><strong><code>epsilon_prediction</code></strong> — <span class="math inline">\(\epsilon\)</span>-prediction at 100 steps on the cosine
+schedule. It is the bridge between the schedule ladder and the target ladder: it
+is the 200-step cosine model with half the steps, and it has the best ambient
+sample distance (0.241). Fewer steps does not hurt here, because 100 updates per
+sample is already generous for a two-dimensional manifold.</p>
+<p><strong><code>v_prediction</code></strong> — the same 100 steps and schedule, predicting the velocity
+<span class="math inline">\(v=\sqrt{\bar\alpha}\,\epsilon-\sqrt{1-\bar\alpha}\,x_0\)</span> instead of the noise
+(Salimans &amp; Ho 2022). Its samples are slightly worse (0.334), and its point is
+not sample quality: at the last rung its implied clean point has error 0.340,
+against 78,097 for <span class="math inline">\(\epsilon\)</span>-prediction, because <span class="math inline">\(v\)</span> never divides by
+<span class="math inline">\(\sqrt{\bar\alpha_T}\)</span>. Anything that needs <span class="math inline">\(\hat x_0\)</span> — clipping, guidance,
+deterministic samplers — inherits that difference.</p>
+<p><strong><code>latent_diffusion</code></strong> — <span class="math inline">\(v\)</span>-prediction at 100 steps in the two-dimensional code
+<span class="math inline">\(z=xB^{\mathsf T}\)</span>, decoded by <span class="math inline">\(zB\)</span> (Rombach et al. 2022). The embedding is
+isometric, so the round trip is exact (<span class="math inline">\(1.3\times10^{-33}\)</span>) and the encoder costs
+nothing; the model is 4738 parameters against 5512, and its samples land 0.175
+from the nearest centre against 0.334. The ambient model has to spend part of
+every step re-learning which six directions carry no signal; the latent model
+never sees them.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-forward-process">The forward process <a class="header-anchor" href="#the-forward-process">#</a></h3>
+<p>One step is a Gaussian kernel that shrinks and noises:</p>
+<div class="math block">
+\[q(x_t\mid x_{t-1})=\mathcal N\bigl(\sqrt{1-\beta_t}\,x_{t-1},\,\beta_t I\bigr).
+\qquad (1)\]
+</div>
+<p>Composing <span class="math inline">\(t\)</span> of them gives the closed form used in training:</p>
+<div class="math block">
+\[q(x_t\mid x_0)=\mathcal N\bigl(\sqrt{\bar\alpha_t}\,x_0,\,
+(1-\bar\alpha_t)I\bigr),
+\qquad
+x_t=\sqrt{\bar\alpha_t}\,x_0+\sqrt{1-\bar\alpha_t}\,\epsilon,
+\qquad (2)\]
+</div>
+<p>with <span class="math inline">\(\alpha_t=1-\beta_t\)</span> and <span class="math inline">\(\bar\alpha_t=\prod_{s\le t}\alpha_s\)</span>. The
+composition is exact because a sum of independent Gaussians is Gaussian; no
+approximation is involved in the forward direction at all.</p>
+<h3 id="the-reverse-is-gaussian-too-given-the-clean-point">The reverse is Gaussian too, given the clean point <a class="header-anchor" href="#the-reverse-is-gaussian-too-given-the-clean-point">#</a></h3>
+<p>The true reverse <span class="math inline">\(q(x_{t-1}\mid x_t)\)</span> is not Gaussian. But conditioned on
+<span class="math inline">\(x_0\)</span> it is, by Bayes' rule for Gaussians:</p>
+<div class="math block">
+\[q(x_{t-1}\mid x_t,x_0)=\mathcal N\bigl(\tilde\mu_t(x_t,x_0),\,
+\tilde\beta_t I\bigr),
+\qquad
+\tilde\beta_t=\frac{1-\bar\alpha_{t-1}}{1-\bar\alpha_t}\beta_t,
+\qquad (3)\]
+</div>
+<div class="math block">
+\[\tilde\mu_t=\frac{\sqrt{\bar\alpha_{t-1}}\,\beta_t}{1-\bar\alpha_t}\,x_0
++\frac{\sqrt{\alpha_t}\,(1-\bar\alpha_{t-1})}{1-\bar\alpha_t}\,x_t .\]
+</div>
+<p>This is the quantity the network is asked to imitate. Since the mean is affine
+in <span class="math inline">\(x_0\)</span>, and <span class="math inline">\(x_0\)</span> can be written in terms of <span class="math inline">\(x_t\)</span> and <span class="math inline">\(\epsilon\)</span> by (2),
+predicting <span class="math inline">\(\epsilon\)</span> is the same as predicting the posterior mean: the two
+differ by a fixed affine map at each <span class="math inline">\(t\)</span>.</p>
+<h3 id="the-elbo">The ELBO <a class="header-anchor" href="#the-elbo">#</a></h3>
+<p>Maximise a variational bound on the data likelihood, with the forward chain as
+the variational distribution:</p>
+<div class="math block">
+\[\mathcal L=\mathbb E_q\Bigl[-\log p(x_T)
+-\sum_{t=1}^{T}\log\frac{p_\theta(x_{t-1}\mid x_t)}{q(x_t\mid x_{t-1})}\Bigr].
+\qquad (4)\]
+</div>
+<p>Rearranging into a prior term, a sum of per-step KLs and a decoder term:</p>
+<div class="math block">
+\[\mathcal L=\mathcal L_T+\sum_{t=2}^{T}\mathcal L_{t-1}+\mathcal L_0,
+\qquad
+\mathcal L_{t-1}=\mathrm{KL}\bigl(q(x_{t-1}\mid x_t,x_0)\,\|\,
+p_\theta(x_{t-1}\mid x_t)\bigr).
+\qquad (5)\]
+</div>
+<p><span class="math inline">\(\mathcal L_T\)</span> has no parameters — the forward chain is fixed and <span class="math inline">\(p(x_T)\)</span> is
+standard normal. Take <span class="math inline">\(p_\theta\)</span> to be Gaussian with the posterior variance
+<span class="math inline">\(\tilde\beta_t\)</span> and the network's mean, and the KL becomes a scaled squared
+error. Substituting the network's <span class="math inline">\(\epsilon\)</span>-prediction for its mean:</p>
+<div class="math block">
+\[\mathcal L_{t-1}=\mathbb E\Bigl[
+\frac{\beta_t}{2\alpha_t(1-\bar\alpha_{t-1})}
+\bigl\|\epsilon-\epsilon_\theta(x_t,t)\bigr\|^2\Bigr]+C .
+\qquad (6)\]
+</div>
+<p>For the 1000-step linear schedule the coefficient runs from 0.600 at <span class="math inline">\(t=2\)</span> down
+to 0.0102 at <span class="math inline">\(t=T\)</span>: the bound weights the near-clean steps sixty times more
+heavily than the noisiest one. That is statistically correct — a small error at
+low noise is very visible — and it is not what produces good samples.</p>
+<h3 id="the-simplified-objective">The simplified objective <a class="header-anchor" href="#the-simplified-objective">#</a></h3>
+<p>DDPM drops the coefficient:</p>
+<div class="math block">
+\[\mathcal L_{\mathrm{simple}}=\mathbb E_{t,x_0,\epsilon}\Bigl[
+\bigl\|\epsilon-\epsilon_\theta\bigl(
+\sqrt{\bar\alpha_t}\,x_0+\sqrt{1-\bar\alpha_t}\,\epsilon,\,t\bigr)\bigr\|^2
+\Bigr],
+\qquad (7)\]
+</div>
+<p>with <span class="math inline">\(t\)</span> uniform over <span class="math inline">\(1,\dots,T\)</span>. This is the objective every implementation
+actually minimises, and it is a <em>reweighting</em> of the bound toward high noise, not
+an approximation to it. The demo trains on (7) everywhere; the difference from
+the bound is why the reported loss is a mean squared error and not a
+log-likelihood.</p>
+<h3 id="velocity-prediction">Velocity prediction <a class="header-anchor" href="#velocity-prediction">#</a></h3>
+<p>The <span class="math inline">\(\epsilon\)</span>-target is nearly the input at high noise: <span class="math inline">\(x_t\)</span> is dominated by
+<span class="math inline">\(\epsilon\)</span>, so predicting <span class="math inline">\(\epsilon\)</span> means &quot;copy <span class="math inline">\(x_t\)</span> and correct a little&quot;.
+The velocity target rotates the problem so that both components stay order one:</p>
+<div class="math block">
+\[v=\sqrt{\bar\alpha_t}\,\epsilon-\sqrt{1-\bar\alpha_t}\,x_0,
+\qquad (8)\]
+</div>
+<p>and, inverting (2) and (8),</p>
+<div class="math block">
+\[x_0=\sqrt{\bar\alpha_t}\,x_t-\sqrt{1-\bar\alpha_t}\,v,
+\qquad
+\epsilon=\sqrt{\bar\alpha_t}\,v+\sqrt{1-\bar\alpha_t}\,x_t .
+\qquad (9)\]
+</div>
+<p>The reason to care is conditioning. Recovering the clean point from an
+<span class="math inline">\(\epsilon\)</span>-prediction divides by the signal fraction:</p>
+<div class="math block">
+\[\frac{\partial\hat x_0}{\partial\hat\epsilon}
+=-\frac{\sqrt{1-\bar\alpha_t}}{\sqrt{\bar\alpha_t}},\qquad
+\bigl\|\delta\hat x_0\bigr\|=
+\sqrt{\frac{1-\bar\alpha_t}{\bar\alpha_t}}\;\|\delta\epsilon\|.
+\qquad (10)\]
+</div>
+<p>For the cosine schedule at <span class="math inline">\(T=200\)</span>, <span class="math inline">\(\bar\alpha_T=6.1\times10^{-8}\)</span>, so the
+amplification is 4058: a noise estimate off by half a unit becomes a clean-point
+estimate off by two thousand. The demo measures exactly this: the implied
+<span class="math inline">\(\hat x_0\)</span> has mean squared error <span class="math inline">\(328{,}000\)</span> at the last rung under
+<span class="math inline">\(\epsilon\)</span>-prediction and <span class="math inline">\(0.340\)</span> under <span class="math inline">\(v\)</span>-prediction. With <span class="math inline">\(v\)</span> the map in (9)
+has coefficients at most one and no division.</p>
+<h3 id="the-ancestral-update">The ancestral update <a class="header-anchor" href="#the-ancestral-update">#</a></h3>
+<p>Given <span class="math inline">\(\hat\epsilon\)</span>, the posterior mean (3) becomes</p>
+<div class="math block">
+\[x_{t-1}=\frac{1}{\sqrt{\alpha_t}}\Bigl(
+x_t-\frac{\beta_t}{\sqrt{1-\bar\alpha_t}}\,\hat\epsilon\Bigr)
++\sigma_t z,
+\qquad
+\sigma_t^2=\tilde\beta_t,
+\qquad (11)\]
+</div>
+<p>with <span class="math inline">\(z\sim\mathcal N(0,I)\)</span> for <span class="math inline">\(t>1\)</span> and no noise at <span class="math inline">\(t=1\)</span>. If <span class="math inline">\(\hat\epsilon\)</span> is
+the <em>true</em> noise and no noise is injected, (11) is exact: substituting
+<span class="math inline">\(x_t=\sqrt{\bar\alpha_t}x_0+\sqrt{1-\bar\alpha_t}\epsilon\)</span> gives
+<span class="math inline">\(\sqrt{\bar\alpha_{t-1}}x_0+\sqrt{1-\bar\alpha_{t-1}}\epsilon\)</span>, the same
+functional form one rung down. Iterating from <span class="math inline">\(x_T\)</span> therefore returns <span class="math inline">\(x_0\)</span> with
+no error at all. The demo runs that oracle through the real update and gets a
+maximum deviation of <span class="math inline">\(0.0\)</span>: the arithmetic of the sampler is exact, so every
+error in a real sample belongs to the model.</p>
+<h3 id="schedules">Schedules <a class="header-anchor" href="#schedules">#</a></h3>
+<p>The linear schedule interpolates the per-step variance:</p>
+<div class="math block">
+\[\beta_t=\beta_1+\frac{t-1}{T-1}\bigl(\beta_T-\beta_1\bigr).
+\qquad (12)\]
+</div>
+<p>The cosine schedule instead places the cumulative signal on a cosine:</p>
+<div class="math block">
+\[\bar\alpha_t=\frac{\cos^2\bigl(\frac{t/T+s}{1+s}\cdot\frac{\pi}{2}\bigr)}
+{\cos^2\bigl(\frac{s}{1+s}\cdot\frac{\pi}{2}\bigr)},
+\qquad s=0.008,
+\qquad (13)\]
+</div>
+<p>and recovers <span class="math inline">\(\beta_t=1-\bar\alpha_t/\bar\alpha_{t-1}\)</span>, clipped at <span class="math inline">\(0.999\)</span>. The
+<span class="math inline">\(s\)</span> offset keeps <span class="math inline">\(\beta_t\)</span> from vanishing at <span class="math inline">\(t=0\)</span>. Because
+<span class="math inline">\(\cos^2(\pi/4)=\tfrac12\)</span>, this schedule is defined so that half the signal is
+gone at the midpoint: the demo's crossover step is 100 of 200, against 72 for
+the linear one.</p>
+<h3 id="latent-diffusion">Latent diffusion <a class="header-anchor" href="#latent-diffusion">#</a></h3>
+<p>Let <span class="math inline">\(B\)</span> be a <span class="math inline">\(2\times8\)</span> matrix with orthonormal rows, and make every data point
+<span class="math inline">\(B^{\mathsf T}\)</span> times a point on the circle. Then</p>
+<div class="math block">
+\[z=Bx\in\mathbb R^2,
+\qquad
+\hat x=B^{\mathsf T}z,
+\qquad
+\hat x=B^{\mathsf T}Bx=x
+\qquad (14)\]
+</div>
+<p>for every point in the data's plane, so the autoencoder is exact here. Diffusion
+runs on <span class="math inline">\(z\)</span>; the sampler decodes once at the end. The point is not compression
+for its own sake — it is that the model is never asked to represent the six
+directions in which the data has no variance.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The data: a circle in two dimensions, lifted into eight by an isometric basis.
+<code>encode</code> is a projection and <code>decode</code> its transpose, and on this data the two
+compose to the identity.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_basis</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The (2, 8) matrix whose rows span the data's plane."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">BASIS_SEED</span><span class="p">)</span>
+    <span class="n">q</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">qr</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">DIM</span><span class="p">,</span> <span class="n">LATENT</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">q</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Project ambient points onto the two-dimensional data plane."""</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">@</span> <span class="n">BASIS</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="n">z</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Lift latent codes back into the ambient space, exactly."""</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">@</span> <span class="n">BASIS</span>
+</code></pre>
+<p>The schedule is a pure function of the step count and the kind, so the two
+schedules are compared on identical arithmetic. The linear one is rescaled for
+short chains; the cosine one is inverted from a cosine curve and clipped.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">make_schedule</span><span class="p">(</span><span class="n">steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return (beta, alpha, abar), each of length `steps`.</span>
+
+<span class="sd">    `linear` interpolates the per-step variance from LINEAR_LO to LINEAR_HI;</span>
+<span class="sd">    `cosine` places the cumulative signal on a cosine curve (Nichol &amp; Dhariwal</span>
+<span class="sd">    2021), which keeps more signal at small t and destroys it faster at the end.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"linear"</span><span class="p">:</span>
+        <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span> <span class="o">=</span> <span class="p">(</span><span class="n">LINEAR_LO</span><span class="p">,</span> <span class="n">LINEAR_HI</span><span class="p">)</span> <span class="k">if</span> <span class="n">steps</span> <span class="o">&gt;=</span> <span class="mi">500</span> <span class="k">else</span> <span class="p">(</span><span class="n">SHORT_LO</span><span class="p">,</span> <span class="n">SHORT_HI</span><span class="p">)</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">,</span> <span class="n">steps</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"cosine"</span><span class="p">:</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">steps</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">((</span><span class="n">t</span> <span class="o">+</span> <span class="n">COSINE_S</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">COSINE_S</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">abar</span> <span class="o">=</span> <span class="n">f</span> <span class="o">/</span> <span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">/</span> <span class="n">abar</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="mf">1e-5</span><span class="p">,</span> <span class="mf">0.999</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown schedule </span><span class="si">{</span><span class="n">kind</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">beta</span>
+    <span class="k">return</span> <span class="n">beta</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">cumprod</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span>
+</code></pre>
+<p>The network needs the step number, and one scalar is not enough: a single
+monotone input makes the high-noise regime a thin slice of the domain. Four
+Fourier features give the model a periodic code in which nearby noise levels are
+nearby inputs and the two ends of the schedule are far apart.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_time_features</span><span class="p">(</span><span class="n">t</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Four features: sin and cos at one and two cycles over the schedule."""</span>
+    <span class="n">phase</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">/</span> <span class="n">steps</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">phase</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">phase</span><span class="p">),</span>
+                     <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">phase</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">phase</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>The stack is a two-hidden-layer MLP with SiLU. The last layer is initialised to
+zero, so the model starts by predicting no noise and learns the scale before it
+learns the shape.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+             <span class="n">steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run the stack; returns (prediction, cache) with one entry per layer."""</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">_time_features</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">steps</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">cache</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+        <span class="n">pre</span> <span class="o">=</span> <span class="n">h</span> <span class="o">@</span> <span class="n">layer</span><span class="p">[</span><span class="s2">"W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">layer</span><span class="p">[</span><span class="s2">"b"</span><span class="p">]</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">pre</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">last</span> <span class="k">else</span> <span class="n">pre</span> <span class="o">*</span> <span class="n">_sig</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+        <span class="n">cache</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">h</span><span class="p">,</span> <span class="n">pre</span><span class="p">,</span> <span class="n">out</span><span class="p">))</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="k">return</span> <span class="n">h</span><span class="p">,</span> <span class="n">cache</span>
+</code></pre>
+<p>SiLU's derivative is <span class="math inline">\(\sigma(z)+z\sigma(z)(1-\sigma(z))\)</span>, which is why the
+backward pass recomputes the sigmoid rather than storing it: the cache is
+already three arrays per layer, and memory is what limits diffusion models at
+scale.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">cache</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">dout</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return parameter gradients; `dout` carries the 1/(n*d) of a mean."""</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">dout</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">last</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">h</span><span class="p">,</span> <span class="n">pre</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">last</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">_sig</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">d</span> <span class="o">*</span> <span class="p">(</span><span class="n">s</span> <span class="o">+</span> <span class="n">pre</span> <span class="o">*</span> <span class="n">s</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">s</span><span class="p">))</span>
+        <span class="n">grads</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"W"</span><span class="p">:</span> <span class="n">h</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">d</span><span class="p">,</span> <span class="s2">"b"</span><span class="p">:</span> <span class="n">d</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)}</span>
+        <span class="k">if</span> <span class="n">i</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">d</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">"W"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">return</span> <span class="n">grads</span>
+</code></pre>
+<p>The two parameterisations are one branch each. <code>_target</code> builds the regression
+label during training; <code>_split</code> inverts a prediction at sampling time.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_target</span><span class="p">(</span><span class="n">x0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">abar</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The regression target at the batch's own noise levels."""</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"eps"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">eps</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">eps</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">x0</span>
+</code></pre>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_split</span><span class="p">(</span><span class="n">out</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">xt</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">abar</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+           <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Turn a prediction into (x_hat_0, eps_hat) at one noise level."""</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"eps"</span><span class="p">:</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="n">out</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">xt</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">out</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">abar</span><span class="p">),</span> <span class="n">eps</span>
+    <span class="n">x0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">xt</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">out</span>
+    <span class="n">eps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">out</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">xt</span>
+    <span class="k">return</span> <span class="n">x0</span><span class="p">,</span> <span class="n">eps</span>
+</code></pre>
+<p>Training samples one noise level per point, not a trajectory: the forward chain
+is simulated in closed form by (2), so a step costs one forward and one backward
+pass regardless of <span class="math inline">\(T\)</span>. The <code>abar</code> broadcast is the only place the schedule
+enters the loop.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_steps</span><span class="p">):</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">)</span>
+            <span class="n">x0</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">)</span>
+            <span class="n">eps</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">x0</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">abar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">xt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">x0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">eps</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">_target</span><span class="p">(</span><span class="n">x0</span><span class="p">,</span> <span class="n">eps</span><span class="p">,</span> <span class="n">abar</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">)</span>
+            <span class="n">out</span><span class="p">,</span> <span class="n">cache</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">xt</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">)</span>
+            <span class="n">dout</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">out</span> <span class="o">-</span> <span class="n">y</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x0</span><span class="p">)</span> <span class="o">*</span> <span class="n">x0</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">dout</span><span class="p">))</span>
+</code></pre>
+<p>Sampling is the same network called <span class="math inline">\(T\)</span> times, with the noise level decreasing
+by one each call. The model's prediction is converted to <span class="math inline">\(\hat\epsilon\)</span> by
+<code>_split</code>, which is the only line that differs between the two targets.</p>
+<pre class="highlight"><code>        <span class="n">x</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">out</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">t</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">eps</span> <span class="o">=</span> <span class="n">_split</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">)</span>
+            <span class="n">noise</span> <span class="o">=</span> <span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">))</span>
+                     <span class="k">if</span> <span class="n">t</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">eps</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">decode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">latent</span> <span class="k">else</span> <span class="n">x</span>
+</code></pre>
+<p>The update itself is written once and used by both the sampler and the oracle
+check. <code>noise=None</code> makes it deterministic, which is how the demo proves the
+arithmetic: fed the true noise, the loop must return the point it started from.</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+              <span class="n">noise</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""One ancestral update; `noise=None` makes it deterministic."""</span>
+        <span class="n">abar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">eps</span><span class="p">)</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">noise</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">t</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">mean</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">2</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mean</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var</span><span class="p">)</span> <span class="o">*</span> <span class="n">noise</span>
+</code></pre>
+<p>The diagnostic projects every model's implied clean point onto the data's plane
+before scoring it. Without that projection the ambient model would be flattered
+by six coordinates whose true value is zero, and the comparison with the latent
+model would be meaningless.</p>
+<pre class="highlight"><code>            <span class="n">out</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">xt</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="n">t</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">)</span>
+            <span class="n">x0</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_split</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">xt</span><span class="p">,</span> <span class="n">abar</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">)</span>
+            <span class="n">x0</span> <span class="o">=</span> <span class="n">x0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">latent</span> <span class="k">else</span> <span class="n">encode</span><span class="p">(</span><span class="n">x0</span><span class="p">)</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">x0</span> <span class="o">-</span> <span class="n">z</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">total</span> <span class="o">/</span> <span class="n">repeats</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>The ambient model has 5512 parameters and the latent one 4738: the input is
+12 numbers (8 ambient plus 4 time features) against 6, and the output 8 against
+2, so the saving is confined to the first and last layers — 14% here, and more
+when the ambient dimension is large. The hidden layers, which dominate both
+counts, are identical.</p>
+<p>A training step is one forward and one backward pass on a batch of 256, about
+4M multiply-adds, and 3000 steps is roughly 13G. Sampling is <span class="math inline">\(T\)</span> forward passes;
+at 1024 draws that is 5.6G for the 1000-step model and 0.56G for a 100-step one,
+so the reference configuration is ten times the sampling cost of the short ones
+for a slightly worse distance. The sequential loop is the bottleneck no batched
+implementation can remove; it is why step distillation and DDIM exist.</p>
+<p>Memory is the parameter count plus the activations of one batch per layer,
+doubled for Adam. Nothing here needs checkpointing; a 512-channel image model at
+256×256 does, and the same code shape applies.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong><span class="math inline">\(\bar\alpha_T\)</span> that is not small enough.</strong> The linear schedule's constants are
+tied to <span class="math inline">\(T=1000\)</span>. Run them at 200 steps and <span class="math inline">\(\bar\alpha_T=0.56\)</span>: <span class="math inline">\(x_T\)</span> still
+carries more than half the signal, the sampler starts from a distribution that
+is not noise, and no amount of training fixes it. The check is one number, and
+the rescaling is one line.</p>
+<p><strong><span class="math inline">\(\epsilon\)</span>-prediction's implied clean point is ill-conditioned at high noise.</strong>
+The amplification is <span class="math inline">\(\sqrt{(1-\bar\alpha_T)/\bar\alpha_T}\)</span> — 4058 for the
+cosine schedule at 200 steps. The sampler is safe because it uses <span class="math inline">\(\hat\epsilon\)</span>,
+not <span class="math inline">\(\hat x_0\)</span>; everything downstream that needs the clean point (clipping,
+guidance, inversion) is not. The demo's 328,000 against 0.340 is that difference
+in one row.</p>
+<p><strong>More steps are not free quality.</strong> The 1000-step model has the best per-step
+denoising (0.0019 at <span class="math inline">\(t=10\)</span>) and the worst sample distance (0.308) under a fixed
+update budget, because a thousand rungs need more than 3000 updates to learn.
+Steps, capacity and training budget trade against each other; the schedule is
+not a dial that improves monotonically.</p>
+<p><strong>The time embedding is not optional.</strong> Without <span class="math inline">\(t\)</span> the network sees a mixture of
+all noise levels and can only return their average, which samples as a blur. A
+single scalar input is enough in principle and thin in practice; Fourier
+features are the cheap fix. The related bug is an off-by-one between <span class="math inline">\(t\)</span> and the
+array index: this file stores <span class="math inline">\(\bar\alpha_{t}\)</span> at <code>abar[t - 1]</code> and reads
+<code>abar[t - 2]</code> for the previous rung, and the oracle check is what catches a
+mistake there.</p>
+<p><strong>An ELBO weight that is not a good training weight.</strong> For the linear schedule
+the bound's coefficient falls from 0.600 at <span class="math inline">\(t=2\)</span> to 0.0102 at <span class="math inline">\(T\)</span>; for the
+cosine schedule the clipped last step <span class="math inline">\(\beta_T\approx1\)</span> makes its coefficient
+about 500, so the weighted bound is dominated by the final rung. The simplified
+objective drops all of this on purpose. Reporting &quot;the ELBO&quot; from a model
+trained on the simplified loss is a category error.</p>
+<p><strong>A lossy encoder caps the sampler.</strong> Latent diffusion is only as good as the
+autoencoder: here the round trip is exact because the data lies in the encoded
+plane, so the latent model has no reconstruction error to inherit. A convolutional
+autoencoder at image scale does not have that property, and its reconstruction
+artefacts are the floor under every sample.</p>
+<p><strong>Mode collapse is not the failure to watch for.</strong> All six variants cover all
+eight modes; diffusion's failure mode is distance, off-manifold mass and
+over-smoothing, not a generator that picks one mode. A coverage table alone
+would call every row a success.</p>
+<p><strong>Evaluating with the loss at <span class="math inline">\(t=T\)</span>.</strong> The implied clean point at maximum noise
+is meaningless for <span class="math inline">\(\epsilon\)</span>-prediction by construction (it divides by
+<span class="math inline">\(\sqrt{\bar\alpha_T}\)</span>), so a large number there is arithmetic, not a bad model.
+The meaningful diagnostics are the error at low and middle noise and the
+distribution of final samples.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Image, audio and video generation.</strong> The reason the field moved: DALL·E 2,
+Imagen and Stable Diffusion are diffusion models (with a text conditioner), and
+audio and video followed the same recipe. The training stability relative to
+GANs is the main reason.</p>
+<p><strong>Conditional restoration.</strong> Super-resolution, inpainting, deblurring and
+colouring are diffusion with the known pixels clamped at every step. The same
+ancestral loop runs, with the observed region overwritten between steps; no
+retraining is needed for a new mask.</p>
+<p><strong>Science and engineering.</strong> Molecular conformation, protein backbone design and
+weather downscaling all use the same denoiser-plus-sampler template, often with
+equivariance built into the network. The data's structure lives in the
+architecture; the process is unchanged.</p>
+<p><strong>Planning and control.</strong> A trajectory is a point in a high-dimensional space,
+and a diffusion model over trajectories is a policy (Diffuser and successors).
+The classifier or cost function enters as a guidance term on <span class="math inline">\(\hat x_0\)</span>, which
+is exactly where the conditioning problem from the failure section bites.</p>
+<p><strong>As a sampler for an unnormalised density.</strong> The score-based reading (Song &amp;
+Ermon) makes diffusion a way to sample from <span class="math inline">\(p(x)\propto e^{-U(x)}\)</span> by estimating
+<span class="math inline">\(\nabla\log p\)</span> at every noise level. The <span class="math inline">\(\epsilon\)</span>-network and the score network
+differ by a factor of <span class="math inline">\(\sqrt{1-\bar\alpha_t}\)</span>.</p>
+<p><strong>Latent diffusion as the default.</strong> For anything larger than a toy, running the
+process in a compressed space is the difference between feasible and not: Stable
+Diffusion's autoencoder reduces 512×512×3 to 64×64×4 before the chain starts, a
+48-fold reduction in the sequence the model has to denoise.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Sohl-Dickstein, Weiss, Maheswaranathan &amp; Ganguli (2015). <em>Deep Unsupervised
+Learning using Nonequilibrium Thermodynamics.</em> ICML.</li>
+<li>Ho, Jain &amp; Abbeel (2020). <em>Denoising Diffusion Probabilistic Models.</em> NeurIPS.</li>
+<li>Song &amp; Ermon (2019). <em>Generative Modeling by Estimating Gradients of the Data
+Distribution.</em> NeurIPS.</li>
+<li>Song, Meng &amp; Ermon (2021). <em>Denoising Diffusion Implicit Models.</em> ICLR.</li>
+<li>Nichol &amp; Dhariwal (2021). <em>Improved Denoising Diffusion Probabilistic Models.</em>
+ICML.</li>
+<li>Dhariwal &amp; Nichol (2021). <em>Diffusion Models Beat GANs on Image Synthesis.</em>
+NeurIPS.</li>
+<li>Kingma, Salimans, Poole &amp; Ho (2021). <em>Variational Diffusion Models.</em> NeurIPS.</li>
+<li>Salimans &amp; Ho (2022). <em>Progressive Distillation for Fast Sampling of Diffusion
+Models.</em> ICLR.</li>
+<li>Ho &amp; Salimans (2022). <em>Classifier-Free Diffusion Guidance.</em> arXiv.</li>
+<li>Rombach, Blattmann, Lorenz, Esser &amp; Ommer (2022). <em>High-Resolution Image
+Synthesis with Latent Diffusion Models.</em> CVPR.</li>
+<li>Song, Sohl-Dickstein, Kingma, Kumar, Ermon &amp; Poole (2021). <em>Score-Based
+Generative Modeling through Stochastic Differential Equations.</em> ICLR.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="gan.html"><small>Previous</small><span>GAN</span></a><a class="next" href="../15-graphs/index.html"><small>Next</small><span>15 · Graphs</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">14 · Generative models</p><ul class="rail-list"><li><a href="vae.html"><span class="tick">✓</span><span>Variational autoencoder</span></a></li><li><a href="gan.html"><span class="tick">✓</span><span>GAN</span></a></li><li><a href="diffusion.html" aria-current="page"><span class="tick">✓</span><span>Diffusion (DDPM)</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Wasserstein GAN</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>DDIM</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Guidance</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Normalising flows</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>VQ-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Beta-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Score-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Autoregressive generation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Energy-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Flow matching</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../13-training/index.html"><span class="jump">← 13 · Training</span></a></li><li><a href="../15-graphs/index.html"><span class="jump">15 · Graphs&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-forward-process">The forward process</a></li><li class="lvl3"><a href="#the-reverse-is-gaussian-too-given-the-clean-point">The reverse is Gaussian too, given the clean point</a></li><li class="lvl3"><a href="#the-elbo">The ELBO</a></li><li class="lvl3"><a href="#the-simplified-objective">The simplified objective</a></li><li class="lvl3"><a href="#velocity-prediction">Velocity prediction</a></li><li class="lvl3"><a href="#the-ancestral-update">The ancestral update</a></li><li class="lvl3"><a href="#schedules">Schedules</a></li><li class="lvl3"><a href="#latent-diffusion">Latent diffusion</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/14-generative/diffusion.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>
