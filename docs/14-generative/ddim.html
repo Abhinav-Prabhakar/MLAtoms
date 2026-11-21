@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DDIM · MLAtoms</title>
+<meta name="description" content="Deterministic, fast sampling and the eta knob. A diffusion model is a denoiser plus a choice of how to run it backwards. The denoiser is trained on the…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/ddim.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="DDIM">
+<meta property="og:description" content="Deterministic, fast sampling and the eta knob. A diffusion model is a denoiser plus a choice of how to run it backwards. The denoiser is trained on the…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/ddim.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DDIM">
+<meta name="twitter:description" content="Deterministic, fast sampling and the eta knob. A diffusion model is a denoiser plus a choice of how to run it backwards. The denoiser is trained on the…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "DDIM", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/14-generative/ddim.html", "description": "Deterministic, fast sampling and the eta knob. A diffusion model is a denoiser plus a choice of how to run it backwards. The denoiser is trained on the\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">14 · Generative models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="ddim.py.html">source</a></p><h1>DDIM — a deterministic reverse process, and the knob that makes it stochastic</h1>
+<p>A diffusion model is a denoiser plus a choice of how to run it backwards. The
+denoiser is trained on the forward marginals, and those marginals do not
+determine the reverse chain: many generative processes have the same
+<span class="math inline">\(q(x_t\mid x_0)\)</span> as the forward one. DDPM picks a Markov chain with injected
+noise. DDIM picks a family in which one parameter <span class="math inline">\(\eta\)</span> controls how much noise
+each step injects, and at <span class="math inline">\(\eta=0\)</span> the process is deterministic. Everything
+interesting about DDIM follows from that: the same starting noise always gives
+the same sample, ten steps can match two hundred, and the trajectory can be run
+backwards to map data into noise. This file trains one denoiser architecture and
+reads it four ways.</p>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>The forward process is fixed: after <span class="math inline">\(t\)</span> rungs the point is
+<span class="math inline">\(\sqrt{\bar\alpha_t}\,x_0+\sqrt{1-\bar\alpha_t}\,\epsilon\)</span>. A sampler has to
+invent a path between those marginals. DDPM's path takes a small step down one
+rung and adds noise of the posterior variance. DDIM's path jumps straight to the
+point that has the right signal-to-noise ratio, using the model's prediction of
+the clean point, and adds nothing:</p>
+<pre class="mermaid-source"><code class="language-mermaid">flowchart LR
+    N[&quot;x_T ~ N(0,I)&quot;] --&gt;|&quot;eta = 0, k steps&quot;| D[&quot;x_0 sample&quot;]
+    D --&gt;|&quot;invert&quot;| N
+    N --&gt;|&quot;eta &gt; 0&quot;| S[&quot;x_0 sample (stochastic)&quot;]
+</code></pre>
+<p>One step is easy to picture. Given <span class="math inline">\(x_t\)</span>, the denoiser proposes a clean point
+<span class="math inline">\(\hat x_0\)</span> and a noise <span class="math inline">\(\hat\epsilon\)</span>. The pair defines a line; every rung of the
+schedule is a point on that line. DDIM takes the point at the next rung, with no
+randomness. In the limit of small steps this is an Euler integrator of the
+probability-flow ODE, so the sampler is a numerical method, and its error is
+discretisation error rather than sampling variance.</p>
+<p>Three practical facts follow.</p>
+<ul>
+<li><strong>Reproducibility.</strong> A sample is a deterministic function of <span class="math inline">\(x_T\)</span>. The demo
+asserts that two calls with the same seed return identical arrays, which is
+not true of the ancestral sampler.</li>
+<li><strong>Few steps.</strong> Because nothing is injected, there is no variance to
+accumulate; the cost of a larger stride is truncation error. On this data ten
+steps are indistinguishable from two hundred (0.178 against 0.177), and five
+steps are still all eight modes (0.216).</li>
+<li><strong>Inversion.</strong> A deterministic map can be run backwards. Given a data point,
+solve each step for the noisier state and recover the <span class="math inline">\(x_T\)</span> that generates
+it. This is the basis of editing methods that invert an image, change
+something in the latent, and resample.</li>
+</ul>
+<p><span class="math inline">\(\eta\)</span> re-introduces the missing noise. At <span class="math inline">\(\eta=1\)</span> the per-step variance is
+exactly the DDPM posterior variance, so the family contains the ancestral
+sampler as one end of a dial; intermediate values interpolate. The demo runs all
+three from the <em>same</em> starting noise and measures how far the samples move: zero
+at <span class="math inline">\(\eta=0\)</span>, 0.80 at <span class="math inline">\(\eta=0.5\)</span>, 1.03 at <span class="math inline">\(\eta=1\)</span>.</p>
+<p>The last ingredient is the prediction target. DDIM's clean point is
+<span class="math inline">\(\hat x_0=(x_t-\sqrt{1-\bar\alpha_t}\,\hat\epsilon)/\sqrt{\bar\alpha_t}\)</span>, and at
+high noise that divides a noisy quantity by a tiny number. The file therefore
+trains on the velocity <span class="math inline">\(v\)</span>, for which the same inversion has coefficients of
+magnitude at most one. This is not cosmetic. The first version of this atom used
+<span class="math inline">\(\epsilon\)</span>-prediction and its distance at 50 steps was 0.473, at ten steps 2.46,
+and at five 5.90 — the sampler amplified the model's high-noise error on every
+long jump. With <span class="math inline">\(v\)</span> the same sampler at the same step counts gives 0.177, 0.178
+and 0.216. The sampler did not change; the conditioning of the target did.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:right">steps</th>
+<th style="text-align:right"><span class="math inline">\(\eta\)</span></th>
+<th style="text-align:right">modes</th>
+<th style="text-align:right">share</th>
+<th style="text-align:right">distance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ddim</code></td>
+<td style="text-align:right">50</td>
+<td style="text-align:right">0.0</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.15</td>
+<td style="text-align:right">0.177</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>eta_sampling</code></td>
+<td style="text-align:right">50</td>
+<td style="text-align:right">1.0</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.15</td>
+<td style="text-align:right">0.174</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ddim_inversion</code></td>
+<td style="text-align:right">200</td>
+<td style="text-align:right">0.0</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.15</td>
+<td style="text-align:right">0.177</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>few_step</code></td>
+<td style="text-align:right">10</td>
+<td style="text-align:right">0.0</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.14</td>
+<td style="text-align:right">0.178</td>
+</tr>
+</tbody>
+</table>
+<p>All four use the same denoiser: 2048 points from eight Gaussians of radius 0.8
+and spread 0.07, a cosine schedule with 200 training rungs, a <span class="math inline">\(2+4\to64\to64\to2\)</span>
+SiLU network (4738 parameters), 3000 Adam steps at <span class="math inline">\(2\times10^{-3}\)</span> on batches
+of 256. Each variant trains its own copy with the same seed, so the four
+denoisers are byte-identical — the demo checks every weight against the
+<code>few_step</code> copy — and the table isolates the sampler.</p>
+<p><strong><code>ddim</code></strong> — the standard fast sampler: 50 steps, <span class="math inline">\(\eta=0\)</span>, distance 0.177,
+which matches the 200-step run to three decimals. The cost of sampling is the
+step count, and this is the row that says the step count can be cut by four with
+no measurable loss <em>on this data</em>.</p>
+<p><strong><code>eta_sampling</code></strong> — the same 50 steps with <span class="math inline">\(\eta=1\)</span>. Coverage and distance are
+unchanged (0.174), which is the honest result: on a distribution this easy, the
+stochasticity does not buy quality. What it changes is the sample itself — from
+a fixed start the outputs move by 1.03 in mean norm — and it is what makes
+inversion impossible, which the demo checks by asking this variant to invert and
+expecting a refusal.</p>
+<p><strong><code>ddim_inversion</code></strong> — the deterministic map run at full resolution (200 steps)
+and read backwards. <code>invert</code> maps a data point to a latent with the same update
+solved for the other direction, and <code>round_trip</code> inverts and resamples.
+Round-trip error at 200 steps is 0.0033 mean and 0.0105 max; at 50 steps it is
+0.0128 and 0.043; at 20 it is 0.0317 and 0.143. Inversion is not free: it
+evaluates the model at states the forward process never produced, so the error
+compounds, and a longer stride compounds it faster. The inverted latents are
+also slightly narrower than standard normal (std 0.953 against 1.0), which is
+worth knowing before editing in that space.</p>
+<p><strong><code>few_step</code></strong> — ten steps, <span class="math inline">\(\eta=0\)</span>. Distance 0.178 against 0.177 for 200
+steps. This is the result that made DDIM the default sampler for a generation:
+a tenfold saving with no visible cost. It is also the result that is most
+data-dependent, and the failure section says why.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-marginals-and-what-they-do-not-determine">The marginals, and what they do not determine <a class="header-anchor" href="#the-marginals-and-what-they-do-not-determine">#</a></h3>
+<p>The forward process has the closed form</p>
+<div class="math block">
+\[q(x_t\mid x_0)=\mathcal N\bigl(\sqrt{\bar\alpha_t}\,x_0,\,
+(1-\bar\alpha_t)I\bigr),
+\qquad (1)\]
+</div>
+<p>and the training objective only ever asks the model about these marginals. Any
+joint distribution over <span class="math inline">\(x_{1:T}\)</span> whose <span class="math inline">\(t\)</span>-marginals equal (1) produces the
+same training signal, so it is a valid generative model to run backwards. DDIM
+constructs one with a free variance parameter:</p>
+<div class="math block">
+\[q_\sigma(x_{1:T}\mid x_0)
+=q(x_T\mid x_0)\prod_{t=2}^{T}q_\sigma(x_{t-1}\mid x_t,x_0),
+\qquad (2)\]
+</div>
+<div class="math block">
+\[q_\sigma(x_{t-1}\mid x_t,x_0)=\mathcal N\Bigl(
+\sqrt{\bar\alpha_{t-1}}\,x_0
++\sqrt{1-\bar\alpha_{t-1}-\sigma_t^2}\,
+\frac{x_t-\sqrt{\bar\alpha_t}\,x_0}{\sqrt{1-\bar\alpha_t}},
+\;\sigma_t^2 I\Bigr).
+\qquad (3)\]
+</div>
+<p>The claim that makes this useful is that the marginals do not depend on
+<span class="math inline">\(\sigma\)</span>:</p>
+<div class="math block">
+\[q_\sigma(x_t\mid x_0)=q(x_t\mid x_0)
+\qquad (4)\]
+</div>
+<p>for every admissible <span class="math inline">\(\sigma_t\)</span>. The proof is induction: (3) is Gaussian and
+linear in <span class="math inline">\(x_t\)</span>, so its marginal is Gaussian; its mean is
+<span class="math inline">\(\sqrt{\bar\alpha_t}x_0\)</span> by construction, and its variance is
+<span class="math inline">\((1-\bar\alpha_t)\)</span>, which a one-line calculation from the coefficients in (3)
+confirms. Nothing in the derivation uses a particular <span class="math inline">\(\sigma_t\)</span>.</p>
+<h3 id="the-step">The step <a class="header-anchor" href="#the-step">#</a></h3>
+<p>At sampling time <span class="math inline">\(x_0\)</span> is unknown, so the model supplies <span class="math inline">\(\hat x_0\)</span> and
+<span class="math inline">\(\hat\epsilon\)</span>. Substituting them into (3) and reading off the mean gives the
+update:</p>
+<div class="math block">
+\[x_{s}=\sqrt{\bar\alpha_{s}}\,\hat x_0
++\sqrt{1-\bar\alpha_{s}-\sigma^2}\,\hat\epsilon
++\sigma z,
+\qquad (5)\]
+</div>
+<p>where <span class="math inline">\(s<t\)</span> is the next rung visited — not necessarily <span class="math inline">\(t-1\)</span>, which is what
+makes few-step sampling possible. With <span class="math inline">\(\sigma=0\)</span> the update is the point on the
+segment from <span class="math inline">\(\hat x_0\)</span> through <span class="math inline">\(\hat\epsilon\)</span> at signal fraction
+<span class="math inline">\(\bar\alpha_s\)</span>; in the notation of (1), it is the state whose implied noise is
+exactly <span class="math inline">\(\hat\epsilon\)</span>.</p>
+<p>The variance has one natural parameterisation, with <span class="math inline">\(\eta\)</span> controlling how much
+of the DDPM variance is used:</p>
+<div class="math block">
+\[\sigma^2=\eta^2\,
+\frac{1-\bar\alpha_s}{1-\bar\alpha_t}
+\Bigl(1-\frac{\bar\alpha_t}{\bar\alpha_s}\Bigr).
+\qquad (6)\]
+</div>
+<p>For <span class="math inline">\(s=t-1\)</span>, the bracket is <span class="math inline">\(1-\alpha_t=\beta_t\)</span>, so <span class="math inline">\(\eta=1\)</span> gives
+<span class="math inline">\(\sigma^2=\beta_t(1-\bar\alpha_{t-1})/(1-\bar\alpha_t)\)</span> — the DDPM posterior
+variance exactly. The family therefore contains the ancestral sampler at
+<span class="math inline">\(\eta=1\)</span> and the deterministic map at <span class="math inline">\(\eta=0\)</span>, and nothing else has to change.</p>
+<h3 id="why--is-an-ode">Why <span class="math inline">\(\eta=0\)</span> is an ODE <a class="header-anchor" href="#why--is-an-ode">#</a></h3>
+<p>Take <span class="math inline">\(s=t-1\)</span> and let the schedule become fine. Equation (5) at <span class="math inline">\(\sigma=0\)</span>
+expresses <span class="math inline">\(x_{t-1}\)</span> as <span class="math inline">\(x_t\)</span> plus a drift proportional to the step size; the
+drift is a function of <span class="math inline">\((x_t,t)\)</span> only. That is the Euler update of the
+probability-flow ODE (Song et al. 2021), and the sampler is its integrator. Two
+consequences matter here: the map
+<span class="math inline">\(x_T\mapsto x_0\)</span> is deterministic, and the error at a fixed number of steps is
+truncation error, not variance.</p>
+<p>Neither consequence says how <em>large</em> the error is. That depends on how straight
+the trajectory is, which depends on the data and the model. On a two-dimensional
+manifold the trajectory is almost straight, so ten Euler steps suffice; on
+natural images it is not, and ten steps of a first-order integrator are visibly
+worse than two hundred. This file's flat ladder is a property of the toy, not a
+promise about images.</p>
+<h3 id="velocity-prediction">Velocity prediction <a class="header-anchor" href="#velocity-prediction">#</a></h3>
+<p>The denoiser is trained on</p>
+<div class="math block">
+\[v=\sqrt{\bar\alpha_t}\,\epsilon-\sqrt{1-\bar\alpha_t}\,x_0,
+\qquad (7)\]
+</div>
+<p>which inverts without division:</p>
+<div class="math block">
+\[x_0=\sqrt{\bar\alpha_t}\,x_t-\sqrt{1-\bar\alpha_t}\,v,
+\qquad
+\epsilon=\sqrt{\bar\alpha_t}\,v+\sqrt{1-\bar\alpha_t}\,x_t .
+\qquad (8)\]
+</div>
+<p>Compare the sensitivity of the recovered clean point to an error in the
+prediction:</p>
+<div class="math block">
+\[\frac{\partial\hat x_0}{\partial\hat\epsilon}
+=-\frac{\sqrt{1-\bar\alpha_t}}{\sqrt{\bar\alpha_t}},
+\qquad
+\frac{\partial\hat x_0}{\partial\hat v}
+=-\sqrt{1-\bar\alpha_t}.
+\qquad (9)\]
+</div>
+<p>At the last rung of this cosine schedule <span class="math inline">\(\bar\alpha_T=6\times10^{-8}\)</span>, so the
+<span class="math inline">\(\epsilon\)</span> route multiplies an error by about 4000 and the <span class="math inline">\(v\)</span> route by at most
+one. A few-step sampler evaluates the model at high noise and takes large jumps,
+which is precisely where the amplification is worst; that is why the
+<span class="math inline">\(\epsilon\)</span>-trained version of this file degrades to 0.47 and then 2.46 as the
+stride grows, and why the <span class="math inline">\(v\)</span>-trained one does not.</p>
+<h3 id="inversion">Inversion <a class="header-anchor" href="#inversion">#</a></h3>
+<p>The <span class="math inline">\(\eta=0\)</span> step is a map from one rung to the next. Given a state <span class="math inline">\(x_s\)</span> on the
+trajectory, the same two predictions define the noisier state:</p>
+<div class="math block">
+\[x_t=\sqrt{\bar\alpha_t}\,\hat x_0(x_s,s)
++\sqrt{1-\bar\alpha_t}\,\hat\epsilon(x_s,s).
+\qquad (10)\]
+</div>
+<p>Starting from a data point and iterating (10) upward produces a latent <span class="math inline">\(x_T\)</span>.
+If the model's predictions were consistent — if the <span class="math inline">\(\hat\epsilon\)</span> it returns at
+the reconstructed state equalled the one used to build it — the round trip would
+be exact, because (5) and (10) are algebraic inverses. They are not consistent:
+the model is evaluated off the training distribution, and each step's error
+becomes the next step's input. The measured round-trip error is therefore a
+measure of the model's self-consistency, not of the algebra:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">steps</th>
+<th style="text-align:right">mean error</th>
+<th style="text-align:right">max error</th>
+<th style="text-align:right">latent std</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">200</td>
+<td style="text-align:right">0.0033</td>
+<td style="text-align:right">0.0105</td>
+<td style="text-align:right">0.953</td>
+</tr>
+<tr>
+<td style="text-align:right">50</td>
+<td style="text-align:right">0.0128</td>
+<td style="text-align:right">0.0433</td>
+<td style="text-align:right">0.920</td>
+</tr>
+<tr>
+<td style="text-align:right">20</td>
+<td style="text-align:right">0.0317</td>
+<td style="text-align:right">0.1430</td>
+<td style="text-align:right">0.865</td>
+</tr>
+</tbody>
+</table>
+<p>Two things in that table are worth keeping. The error grows as the stride grows,
+so editing pipelines invert at full resolution and sample at reduced one. And the
+latent standard deviation falls below one, so inverted latents are not samples
+from the prior the sampler expects; resampling from them drifts toward the data.</p>
+<h3 id="determinism-and-eta">Determinism and (\eta) <a class="header-anchor" href="#determinism-and-eta">#</a></h3>
+<p>At <span class="math inline">\(\eta=0\)</span>, (5) contains no random draw, so the entire trajectory is a function
+of <span class="math inline">\(x_T\)</span>. Different seeds change only the initial draw; the same seed gives the
+same sample bit for bit. At <span class="math inline">\(\eta>0\)</span> each step adds <span class="math inline">\(\sigma z\)</span>, so the same
+<span class="math inline">\(x_T\)</span> gives a distribution of samples — the demo measures a mean displacement of
+0.80 at <span class="math inline">\(\eta=0.5\)</span> and 1.03 at <span class="math inline">\(\eta=1\)</span> from the <span class="math inline">\(\eta=0\)</span> path.</p>
+<p>The training objective is untouched by any of this:</p>
+<div class="math block">
+\[\mathcal L=\mathbb E_{t,x_0,\epsilon}
+\bigl\lVert v-v_\theta(x_t,t)\bigr\rVert^2 .
+\qquad (11)\]
+</div>
+<p>DDIM is a different way to <em>use</em> a model, not a different model. That is why the
+four variants in this file share byte-identical weights.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The rung list is the first design decision. <code>steps</code> is the number of
+<em>transitions</em>, so the grid has <code>steps + 1</code> points, and the endpoints are always
+<span class="math inline">\(T\)</span> and zero. Rounding can in principle repeat a rung; the guard on the range
+keeps that from happening silently for long trajectories.</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""The descending rungs visited, from STEPS to zero inclusive."""</span>
+        <span class="k">if</span> <span class="n">steps</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">steps</span> <span class="o">&gt;</span> <span class="n">STEPS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"steps must lie in [1, </span><span class="si">{</span><span class="n">STEPS</span><span class="si">}</span><span class="s2">]"</span><span class="p">)</span>
+        <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">STEPS</span><span class="p">,</span> <span class="n">steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">grid</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</code></pre>
+<p>The variance is a function of the two rungs and <span class="math inline">\(\eta\)</span> alone, which is what
+makes (6) cheap to inspect. The <code>s == 0</code> branch is not an optimisation: at the
+last rung <span class="math inline">\(\bar\alpha_s=1\)</span>, so the bracket in (6) is already zero, and the guard
+only avoids a zero-over-zero in floating point.</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_sigma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">eta</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">at</span><span class="p">,</span> <span class="n">as_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">eta</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="n">s</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.0</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">eta</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">as_</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">at</span><span class="p">)</span>
+                                   <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">at</span> <span class="o">/</span> <span class="n">as_</span><span class="p">)))</span>
+</code></pre>
+<p>The split between a prediction and the pair <span class="math inline">\((\hat x_0,\hat\epsilon)\)</span> is where
+the target choice lives. With <span class="math inline">\(v\)</span> it is two linear combinations, (8), and
+neither divides:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""The velocity prediction turned into (x_hat_0, eps_hat)."""</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+        <span class="n">abar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">x</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">v</span><span class="p">,</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">v</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">x</span><span class="p">)</span>
+</code></pre>
+<p>The sampler is then (5) in five lines. <code>max(..., 0.0)</code> guards the square root
+when <span class="math inline">\(\sigma^2\)</span> nearly fills the budget; with <span class="math inline">\(\eta\le1\)</span> the quantity is
+non-negative in exact arithmetic.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">times</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">times</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">x0</span><span class="p">,</span> <span class="n">eps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+            <span class="n">sig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sigma</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">eta</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">s</span><span class="p">])</span> <span class="o">*</span> <span class="n">x0</span>
+                 <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">-</span> <span class="n">sig</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span> <span class="o">*</span> <span class="n">eps</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">sig</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">sig</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+</code></pre>
+<p>Inversion is the same loop in the other direction, from the cleanest rung
+upward. The first step asks the model at <span class="math inline">\(t=0\)</span>, which training never visits;
+the velocity limit there is well defined (<span class="math inline">\(v=\epsilon\)</span> when
+<span class="math inline">\(\bar\alpha=1\)</span>), and the model extrapolates it without trouble. The <code>eta = 0</code>
+check is the guard that keeps a stochastic variant from pretending to invert.</p>
+<pre class="highlight"><code>        <span class="n">times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_times</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steps</span> <span class="k">if</span> <span class="n">steps</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">steps</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">times</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">s</span><span class="p">,</span> <span class="n">t</span> <span class="o">=</span> <span class="n">times</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">times</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">x0</span><span class="p">,</span> <span class="n">eps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">t</span><span class="p">])</span> <span class="o">*</span> <span class="n">x0</span>
+                 <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">abar</span><span class="p">[</span><span class="n">t</span><span class="p">])</span> <span class="o">*</span> <span class="n">eps</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">z</span>
+</code></pre>
+<p><code>round_trip</code> is two calls and a norm. It exists as a method because the
+diagnostic is the point of the variant: the error is the model's, and the demo
+prints it at three resolutions rather than asserting a single number.</p>
+<pre class="highlight"><code>        <span class="n">x</span> <span class="o">=</span> <span class="n">_check_data</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="n">steps</span><span class="p">)</span>
+        <span class="n">recon</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="n">steps</span><span class="o">=</span><span class="n">steps</span><span class="p">,</span> <span class="n">eta</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">z</span><span class="p">)</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">recon</span> <span class="o">-</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">recon</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">mean</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+</code></pre>
+<p>Training is the diffusion training loop with one line changed. The target is the
+velocity, and the rest — cosine schedule, four time features, SiLU, Adam — is
+the same machinery as <code>diffusion.py</code>:</p>
+<pre class="highlight"><code>            <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">eps</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">abar</span><span class="p">)</span> <span class="o">*</span> <span class="n">x0</span>
+            <span class="n">out</span><span class="p">,</span> <span class="n">cache</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">xt</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">STEPS</span><span class="p">)</span>
+            <span class="n">dout</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">out</span> <span class="o">-</span> <span class="n">target</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x0</span><span class="p">)</span> <span class="o">*</span> <span class="n">x0</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">dout</span><span class="p">))</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>The denoiser has 4738 parameters, so a forward pass on 1024 points is about
+4.9M multiply-adds. A 50-step sample is therefore 0.24G, a 10-step sample 49M,
+and a 200-step sample 0.97G. The ratio is exactly the step ratio — unlike
+samplers that reuse computation between steps, DDIM simply calls the network
+fewer times.</p>
+<p>Training is 3000 steps on batches of 256, each a forward and two backward
+passes, about 3.6G multiply-adds forward and 11G total. Sampling is therefore
+cheap relative to training once the model exists: the demo's four trainings
+dominate its work, and the eight sampling runs it reports add less than a tenth
+of the multiply-adds.</p>
+<p>Inversion costs one forward pass per rung, the same as sampling. A round trip is
+two trajectories. Editing a single image at 200 steps therefore costs 400
+forward passes at batch one, which is why pipelines invert at the coarsest
+resolution whose error they can tolerate.</p>
+<p>Memory is one batch of activations per layer per trajectory, plus the model and
+its Adam moments. Nothing is sequential across batch elements, so the loop over
+rungs is the only serial dimension.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong><span class="math inline">\(\epsilon\)</span>-prediction with a long stride.</strong> The clean point divides by
+<span class="math inline">\(\sqrt{\bar\alpha_t}\)</span>, so a high-noise prediction error is amplified by up to
+4000 on this schedule. The sampler is fine at 200 steps and falls apart at ten:
+the same code with an <span class="math inline">\(\epsilon\)</span> target gives distance 0.473 at 50 steps, 2.46
+at ten, 5.90 at five. The fix is a target whose inversion is well conditioned,
+not a different sampler.</p>
+<p><strong>Inverting a stochastic sampler.</strong> With <span class="math inline">\(\eta>0\)</span> the step has a random draw, so
+there is no inverse; <code>invert</code> raises rather than returning a plausible-looking
+wrong answer. Editing pipelines that use <span class="math inline">\(\eta>0\)</span> must either fix the noise
+(which turns them into <span class="math inline">\(\eta=0\)</span> maps) or accept an approximate inverse.</p>
+<p><strong>Reading the few-step result as universal.</strong> Ten steps match two hundred here
+because the data is a two-dimensional circle. On images, the same ten steps are
+a clearly worse sample and the trajectory is visibly curved; DPM-Solver,
+distillation and consistency models exist because the gap there is real. The
+honest statement is &quot;ten steps sufficed on this manifold&quot;, not &quot;ten steps
+suffice&quot;.</p>
+<p><strong>Inverted latents that are not prior samples.</strong> The latent std is 0.953 at 200
+steps and 0.865 at 20, not 1.0. The inverse map shrinks slightly, so resampling
+from an inverted latent starts from a narrower distribution than the sampler was
+trained for. Editing works anyway because the drift is small; measuring it is
+what tells you how small.</p>
+<p><strong>A rung grid that silently repeats.</strong> <code>np.linspace</code> with more steps than rungs
+rounds to duplicates, and a duplicated rung makes a zero-length step. The range
+check refuses <code>steps &gt; 200</code> here; a general implementation should also dedupe.</p>
+<p><strong>Confusing <span class="math inline">\(\eta=1\)</span> with DDPM.</strong> At <span class="math inline">\(\eta=1\)</span> and a single-rung step the
+variance matches the DDPM posterior exactly, but a 50-step DDIM with <span class="math inline">\(\eta=1\)</span>
+is not the 200-step ancestral sampler: the rungs are different and the
+per-step variances are computed for the larger stride. It is a stochastic DDIM,
+which is what the name <code>eta_sampling</code> says.</p>
+<p><strong>Sampling without a fixed start.</strong> Determinism is a property of the pair
+(start, model). Reproducing a sample requires storing <span class="math inline">\(x_T\)</span>, not just the seed,
+if the seed also drives other draws. The demo passes an explicit <code>start</code> for
+exactly this reason.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Fast sampling.</strong> DDIM was the first widely used answer to diffusion's
+sampling cost: 20–50 steps instead of 1000, with the same trained model. It is
+still the baseline that DPM-Solver and distillation improve on.</p>
+<p><strong>Editing and img2img.</strong> Invert an image, modify the latent or the conditioning,
+resample. SDEdit's &quot;add noise to level <span class="math inline">\(t\)</span>, then denoise&quot; is the stochastic
+version; DDIM inversion is the deterministic one used when the edit must
+preserve the original closely.</p>
+<p><strong>Interpolation.</strong> Because the map from <span class="math inline">\(x_T\)</span> to <span class="math inline">\(x_0\)</span> is continuous and
+deterministic, interpolating between two latents and decoding gives a smooth
+path between two samples — the latent-space interpolation that made diffusion
+models usable as generative tools.</p>
+<p><strong>Likelihoods and ODE methods.</strong> The probability-flow ODE has a tractable
+likelihood via the instantaneous change of variables, so deterministic samplers
+connect diffusion to continuous normalising flows. That connection is what
+score-based generative modelling and later flow-matching methods build on.</p>
+<p><strong>Consistency and distillation.</strong> A deterministic teacher is easier to
+distil: consistency models and progressive distillation train a student to jump
+along the teacher's trajectory, and the teacher's determinism is what makes the
+target well defined. Few-step DDIM is the usual teacher.</p>
+<p><strong>Video and long sequences.</strong> Determinism matters when frames must be
+consistent across a batch or across calls; a stochastic sampler changes the
+output on every call, which is unacceptable for some pipelines and fine for
+others. The <span class="math inline">\(\eta\)</span> knob is the switch between the two regimes.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Song, Meng &amp; Ermon (2021). <em>Denoising Diffusion Implicit Models.</em> ICLR.</li>
+<li>Song, Sohl-Dickstein, Kingma, Kumar, Ermon &amp; Poole (2021). <em>Score-Based
+Generative Modeling through Stochastic Differential Equations.</em> ICLR.</li>
+<li>Ho, Jain &amp; Abbeel (2020). <em>Denoising Diffusion Probabilistic Models.</em> NeurIPS.</li>
+<li>Nichol &amp; Dhariwal (2021). <em>Improved Denoising Diffusion Probabilistic Models.</em>
+ICML.</li>
+<li>Salimans &amp; Ho (2022). <em>Progressive Distillation for Fast Sampling of Diffusion
+Models.</em> ICLR.</li>
+<li>Meng, He, Song, Song, Wu, Zhu &amp; Ermon (2022). <em>SDEdit: Guided Image Synthesis
+and Editing with Stochastic Differential Equations.</em> ICLR.</li>
+<li>Lu, Zhou, Bao, Chen, Li &amp; Zhu (2022). <em>DPM-Solver: A Fast ODE Solver for
+Diffusion Probabilistic Model Sampling in Around 10 Steps.</em> NeurIPS.</li>
+<li>Karras, Aittala, Aila &amp; Laine (2022). <em>Elucidating the Design Space of
+Diffusion-Based Generative Models.</em> NeurIPS.</li>
+<li>Song, Dhariwal, Chen &amp; Sutskever (2023). <em>Consistency Models.</em> ICML.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="wgan.html"><small>Previous</small><span>Wasserstein GAN</span></a><a class="next" href="../15-graphs/index.html"><small>Next</small><span>15 · Graphs</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">14 · Generative models</p><ul class="rail-list"><li><a href="vae.html"><span class="tick">✓</span><span>Variational autoencoder</span></a></li><li><a href="gan.html"><span class="tick">✓</span><span>GAN</span></a></li><li><a href="diffusion.html"><span class="tick">✓</span><span>Diffusion (DDPM)</span></a></li><li><a href="wgan.html"><span class="tick">✓</span><span>Wasserstein GAN</span></a></li><li><a href="ddim.html" aria-current="page"><span class="tick">✓</span><span>DDIM</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Guidance</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Normalising flows</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>VQ-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Beta-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Score-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Autoregressive generation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Energy-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Flow matching</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../13-training/index.html"><span class="jump">← 13 · Training</span></a></li><li><a href="../15-graphs/index.html"><span class="jump">15 · Graphs&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-marginals-and-what-they-do-not-determine">The marginals, and what they do not determine</a></li><li class="lvl3"><a href="#the-step">The step</a></li><li class="lvl3"><a href="#why--is-an-ode">Why \eta=0 is an ODE</a></li><li class="lvl3"><a href="#velocity-prediction">Velocity prediction</a></li><li class="lvl3"><a href="#inversion">Inversion</a></li><li class="lvl3"><a href="#determinism-and-eta">Determinism and \(\eta\)</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/14-generative/ddim.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>
