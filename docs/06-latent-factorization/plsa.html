@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probabilistic LSA · MLAtoms</title>
+<meta name="description" content="Aspect model fitted by EM; LDA&#x27;s non-Bayesian ancestor. A document × term matrix of counts is the most common object in text analysis, and it has two obvious…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/plsa.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Probabilistic LSA">
+<meta property="og:description" content="Aspect model fitted by EM; LDA&#x27;s non-Bayesian ancestor. A document × term matrix of counts is the most common object in text analysis, and it has two obvious…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/plsa.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Probabilistic LSA">
+<meta name="twitter:description" content="Aspect model fitted by EM; LDA&#x27;s non-Bayesian ancestor. A document × term matrix of counts is the most common object in text analysis, and it has two obvious…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Probabilistic LSA", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/plsa.html", "description": "Aspect model fitted by EM; LDA's non-Bayesian ancestor. A document \u00d7 term matrix of counts is the most common object in text analysis, and it has two obvious\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">06 · Latent structure &amp; factorisation</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>3 variants</span><span class="page-meta__sep">/</span><a href="plsa.py.html">source</a></p><h1>Probabilistic LSA</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A document × term matrix of counts is the most common object in text analysis, and
+it has two obvious low-rank stories. The first is linear algebra: truncate an SVD
+and call the result latent semantic analysis. That works, and it produces factors
+with negative entries that are not probabilities of anything. The second is
+probabilistic: say that each document is a <strong>mixture over topics</strong>, each topic is
+a <strong>distribution over words</strong>, and the word distribution of a document is the
+mixture.</p>
+<pre class="highlight"><code>                 terms (V = 60)
+              ┌───────┬───────┬───────┐
+   d  ┌───────┼───────┼───────┼───────┤
+   o  │       │  ···  │       │       │   each row: counts of 80 tokens
+   c  │       │       │  ···  │       │   each row is a mixture of 3 blocks
+   s  │       │       │       │  ···  │
+      └───────┴───────┴───────┴───────┘
+                 z=1     z=2     z=3
+</code></pre>
+<p>The generative story is two lines. To produce one word of document <span class="math inline">\(d\)</span>: draw a
+topic <span class="math inline">\(z\)</span> with probability <span class="math inline">\(p(z\mid d)\)</span>, then draw a word with probability
+<span class="math inline">\(p(w\mid z)\)</span>. Marginalise the topic you did not observe and the document's word
+distribution is</p>
+<div class="math block">
+\[p(w\mid d) \;=\; \sum_{z=1}^{Z} p(w\mid z)\,p(z\mid d). \qquad (1)\]
+</div>
+<p>Everything the model knows is in two stochastic matrices: <code>doc_topic_</code> <span class="math inline">\((D\times
+Z)\)</span>, how much of each topic each document uses, and <code>topic_word_</code> <span class="math inline">\((Z\times V)\)</span>,
+what each topic says. The counts are the only observed thing, and the likelihood
+is the only objective.</p>
+<p>That objective is where the trouble is. Maximum likelihood has no term that
+charges for parameters, so on the demo's corpus — 120 documents, 80 tokens each,
+60 terms in three disjoint blocks, generated from exactly three topics — asking
+for <strong>twenty</strong> topics produces a <em>higher</em> likelihood per token than the three that
+generated the data (<span class="math inline">\(-3.47257\)</span> against <span class="math inline">\(-3.58817\)</span>) while recovering the planted
+topics at cosine <span class="math inline">\(0.5978\)</span> instead of <span class="math inline">\(0.9971\)</span>. The extra topics are not
+describing anything; they are absorbing sampling noise, and the likelihood cannot
+tell the difference. That is the whole content of pLSA: a clean, identifiable,
+closed-form latent-variable model with no complexity control whatsoever.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">What changes</th>
+<th style="text-align:left">Update</th>
+<th style="text-align:left">Cost per iteration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>em</code></td>
+<td style="text-align:left">nothing — the model of (1)</td>
+<td style="text-align:left">exact E and M steps</td>
+<td style="text-align:left"><span class="math inline">\(O(DVZ)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tempered_em</code></td>
+<td style="text-align:left">responsibilities raised to <span class="math inline">\(\beta < 1\)</span>, annealed to 1</td>
+<td style="text-align:left">same M-step, tempered E-step</td>
+<td style="text-align:left"><span class="math inline">\(O(DVZ)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>map_plsa</code></td>
+<td style="text-align:left">Dirichlet prior on each topic's word distribution</td>
+<td style="text-align:left"><span class="math inline">\(\alpha-1\)</span> added to every count</td>
+<td style="text-align:left"><span class="math inline">\(O(DVZ)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>em</code></strong> is the reference: alternate the exact posterior over topics with the
+closed-form maximisation. On the demo it recovers the three planted topics at
+mean cosine <span class="math inline">\(0.9971\)</span> in 388 iterations, with the log-likelihood rising on every
+one of the 387 steps. That is EM's guarantee and the demo measures it rather than
+assuming it.</p>
+<p><strong><code>tempered_em</code></strong> is a <em>schedule</em>, not a different estimator: with <span class="math inline">\(\beta = 1\)</span> it
+must reproduce <code>em</code> exactly, and the demo checks that the two final likelihoods
+agree to <span class="math inline">\(0.0\)</span>. The reason to anneal is that the likelihood surface has local
+optima and EM walks downhill from wherever it starts; flattening the
+responsibilities early widens the basins, then raising the temperature sharpens
+them back to the true posterior. The demo's measurement is unambiguous at six
+topics: with <span class="math inline">\(\beta = 0.8\)</span> climbing linearly to 1 over the first 150 iterations it
+beats plain <code>em</code> on <strong>all four</strong> starts, by <span class="math inline">\(15.6\)</span> nats on average and <span class="math inline">\(22.0\)</span> at
+best, from the same initialisation.</p>
+<p>The same code at <span class="math inline">\(\beta = 0.4\)</span> is a catastrophe, and the demo shows exactly why.
+Responsibilities that flat hand every topic nearly the same counts; identical rows
+produce identical responsibilities; the map preserves that symmetry exactly, so
+the run stops in <strong>23 iterations</strong> at a fixed point where all three topics agree
+to <span class="math inline">\(6.5\times10^{-6}\)</span> in every entry and every document is <span class="math inline">\(0.3334\)</span> of each. The
+likelihood falls on all 22 steps, to <span class="math inline">\(-38896.3\)</span> against <span class="math inline">\(-34446.5\)</span> for <code>em</code>. The
+temperature is a hyper-parameter with a cliff on the low side.</p>
+<p><strong><code>map_plsa</code></strong> adds a symmetric <span class="math inline">\(\mathrm{Dirichlet}(\alpha)\)</span> prior to every
+topic's word distribution, which adds <span class="math inline">\(\alpha-1\)</span> to each count before
+normalising. At <span class="math inline">\(\alpha = 1\)</span> that is exactly <code>em</code> (measured: <span class="math inline">\(0.0\)</span> difference in
+likelihood), because concentration 1 is the uniform prior and the uniform prior is
+no prior. Above 1 it smooths: the demo's mean topic entropy climbs
+<span class="math inline">\(2.928 \to 3.367 \to 3.749\)</span> nats for <span class="math inline">\(\alpha = 1, 5, 20\)</span>, the smallest entry of
+<code>topic_word_</code> goes from exactly <span class="math inline">\(0\)</span> to <span class="math inline">\(1.1\times10^{-3}\)</span> and <span class="math inline">\(4.2\times10^{-3}\)</span>,
+and the training likelihood per token pays for it, <span class="math inline">\(-3.4771 \to -3.5103 \to
+-3.6041\)</span>. That price buys the one thing <code>em</code> cannot do: when the demo hands the
+model ten tokens of a term that appears in <strong>no</strong> training document, <code>em</code>'s
+perplexity is <code>inf</code>, because one unseen word multiplies the likelihood by zero and
+no arithmetic recovers it, while <span class="math inline">\(\alpha = 5\)</span> gives <span class="math inline">\(768.2\)</span>.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-likelihood">1. The likelihood <a class="header-anchor" href="#1-the-likelihood">#</a></h3>
+<p>Documents are independent, words within a document are independent given the
+topics, so with <span class="math inline">\(n(d,w)\)</span> the count of term <span class="math inline">\(w\)</span> in document <span class="math inline">\(d\)</span> the likelihood is</p>
+<div class="math block">
+\[\mathcal{L} \;=\; \prod_{d=1}^{D}\prod_{w=1}^{V}
+\Big[\sum_{z} p(w\mid z)\,p(z\mid d)\Big]^{n(d,w)}, \qquad (2)\]
+</div>
+<p>a product over observed tokens, not over cells. The constraint set is two
+simplices per document, <span class="math inline">\(\sum_z p(z\mid d) = 1\)</span>, and one per topic, <span class="math inline">\(\sum_w
+p(w\mid z) = 1\)</span>, and (2) is not concave on it: the sum inside the log is where the
+non-convexity lives.</p>
+<h3 id="2-the-complete-data-view">2. The complete-data view <a class="header-anchor" href="#2-the-complete-data-view">#</a></h3>
+<p>Introduce a distribution <span class="math inline">\(q_{dwz}\)</span> over which topic produced word <span class="math inline">\(w\)</span> in document
+<span class="math inline">\(d\)</span>. Multiplying and dividing inside the log by <span class="math inline">\(q\)</span> and applying Jensen gives, for
+<strong>any</strong> <span class="math inline">\(q\)</span> on the simplex,</p>
+<div class="math block">
+\[\log \mathcal{L} \;\ge\; \sum_{d,w} n(d,w)\sum_z q_{dwz}
+\Big[\log p(z\mid d) + \log p(w\mid z) - \log q_{dwz}\Big], \qquad (3)\]
+</div>
+<p>with equality exactly when <span class="math inline">\(q\)</span> is the posterior. Writing <span class="math inline">\(H(q)\)</span> for the entropy
+term, the bound is the usual decomposition</p>
+<div class="math block">
+\[\log \mathcal{L} \;=\; \underbrace{\mathbb{E}_q\big[\log p(d,w,z)\big] + H(q)}_{\text{ELBO}}
+\;+\; \mathrm{KL}\big(q \,\Vert\, p(z\mid d,w)\big), \qquad (4)\]
+</div>
+<p>and (4) is the entire algorithm in one line: the E-step sets the KL term to zero
+by choosing the posterior, the M-step maximises the ELBO, and neither step can
+decrease the left-hand side. EM is the coordinate ascent this identity forces.</p>
+<h3 id="3-the-e-step">3. The E-step <a class="header-anchor" href="#3-the-e-step">#</a></h3>
+<p>The posterior of a topic given one observed word is Bayes applied to (1):</p>
+<div class="math block">
+\[q_{dwz} \;=\; \frac{p(z\mid d)\,p(w\mid z)}
+{\sum_{z'} p(z'\mid d)\,p(w\mid z')}, \qquad (5)\]
+</div>
+<p>and it depends on the cell <span class="math inline">\((d,w)\)</span> only through the word — every occurrence of
+the same word in the same document has the same responsibility. That is why the
+whole E-step is <span class="math inline">\(D\times V\times Z\)</span> numbers rather than a loop over 9600 tokens.</p>
+<h3 id="4-the-m-step">4. The M-step <a class="header-anchor" href="#4-the-m-step">#</a></h3>
+<p>Maximise the ELBO part of (3) subject to the two simplex constraints. With
+multipliers <span class="math inline">\(\lambda_d\)</span> and <span class="math inline">\(\mu_z\)</span>,</p>
+<div class="math block">
+\[\frac{\partial}{\partial p(w\mid z)}\Big[\sum_{d,w} n(d,w) q_{dwz}\log p(w\mid z)
+- \mu_z\Big(\sum_w p(w\mid z)-1\Big)\Big] = 0, \qquad (6)\]
+</div>
+<p>so <span class="math inline">\(p(w\mid z) \propto \sum_d n(d,w)q_{dwz} = N_{zw}\)</span>, and normalising,</p>
+<div class="math block">
+\[p(w\mid z) \;=\; \frac{N_{zw}}{\sum_{w'} N_{zw'}},
+\qquad N_{zw} = \sum_{d} n(d,w)\, q_{dwz}. \qquad (7)\]
+</div>
+<p>The document side is the same computation with the roles of <span class="math inline">\(d\)</span> and <span class="math inline">\(w\)</span>
+exchanged, and since <span class="math inline">\(\sum_z q_{dwz} = 1\)</span> it simplifies to</p>
+<div class="math block">
+\[p(z\mid d) \;=\; \frac{\sum_w n(d,w) q_{dwz}}{n(d,\cdot)}. \qquad (8)\]
+</div>
+<p>Both are weighted averages of the data: (7) is &quot;a topic's word distribution is
+the counts it takes responsibility for&quot;, (8) is &quot;a document's mixture is the
+fraction of its tokens each topic explains&quot;. Nothing is solved iteratively inside
+a step; the only iteration is the alternation.</p>
+<h3 id="5-what-monotonicity-does-not-say">5. What monotonicity does not say <a class="header-anchor" href="#5-what-monotonicity-does-not-say">#</a></h3>
+<p>(4) guarantees that the likelihood never falls, and that is the only guarantee.
+It says nothing about which stationary point is reached, and it says nothing
+about the number of topics. The demo's 20-topic fit is a better optimum of a
+bigger model on the same data, so the guarantee is satisfied and the answer is
+worse. Model selection has to come from somewhere else — a prior, a held-out
+criterion that actually penalises parameters, or a hypothesis about the data.</p>
+<h3 id="6-tempering">6. Tempering <a class="header-anchor" href="#6-tempering">#</a></h3>
+<p>The tempered E-step raises the posterior to a power,</p>
+<div class="math block">
+\[q^{(\beta)}_{dwz} \;=\; \frac{\big[p(z\mid d)\,p(w\mid z)\big]^{\beta}}
+{\sum_{z'}\big[p(z'\mid d)\,p(w\mid z')\big]^{\beta}}, \qquad (9)\]
+</div>
+<p>which is the stationary point of the tilted free energy</p>
+<div class="math block">
+\[F_\beta(\theta) \;=\; -\frac{1}{\beta}\sum_{d,w} n(d,w)
+\log \sum_{z}\big[p(z\mid d)\,p(w\mid z)\big]^{\beta}. \qquad (10)\]
+</div>
+<p>At <span class="math inline">\(\beta = 1\)</span>, (10) is the negative log-likelihood and (9) is (5). At <span class="math inline">\(\beta \to
+0\)</span> the expression inside the log flattens towards the uniform average, the
+responsibilities stop discriminating, and the M-step sees every topic receiving
+the same counts. The M-step in the code is unchanged — only the <span class="math inline">\(q\)</span> that feeds it
+is tempered — which is why <span class="math inline">\(\beta = 1\)</span> is an exact identity rather than an
+approximation.</p>
+<p>There is a fixed point at the bottom of that road. If <code>topic_word_</code> ever has
+identical rows, then <span class="math inline">\(q_{dwz} = 1/Z\)</span> for every <span class="math inline">\((d,w,z)\)</span> at any <span class="math inline">\(\beta\)</span>, the
+M-step returns identical rows, and the symmetry is preserved forever. The demo's
+<span class="math inline">\(\beta = 0.4\)</span> run reaches it to <span class="math inline">\(6.5\times10^{-6}\)</span> and stops, because there is
+nothing left to move.</p>
+<h3 id="7-the-map-variant">7. The MAP variant <a class="header-anchor" href="#7-the-map-variant">#</a></h3>
+<p>Put an independent <span class="math inline">\(\mathrm{Dirichlet}(\alpha)\)</span> prior on each row of
+<code>topic_word_</code>. The penalised objective is the ELBO plus</p>
+<div class="math block">
+\[\log p\big(p(\cdot\mid z)\big) \;=\; (\alpha-1)\sum_w \log p(w\mid z) + \text{const},
+\qquad (11)\]
+</div>
+<p>so the same Lagrangian as (6) gives</p>
+<div class="math block">
+\[p(w\mid z) \;=\; \frac{N_{zw} + \alpha - 1}{\sum_{w'}\big(N_{zw'} + \alpha - 1\big)},
+\qquad (12)\]
+</div>
+<p>which is (7) with every count incremented. For <span class="math inline">\(\alpha > 1\)</span> that is add-<span class="math inline">\(\alpha-1\)</span>
+smoothing: no entry can be zero, because a zero would cost infinite prior
+density. For <span class="math inline">\(\alpha < 1\)</span> the increment is negative and the closed form can go
+below zero, so implementations clamp at zero — the code does, and the clamp is a
+projection onto the simplex rather than the exact MAP.</p>
+<p>The consequence that matters is visible only out of sample. Under (7), a term
+with <span class="math inline">\(N_{zw} = 0\)</span> for every <span class="math inline">\(z\)</span> gets probability exactly zero, so any document
+containing it has likelihood zero and perplexity infinite. Under (12) with
+<span class="math inline">\(\alpha > 1\)</span> every term gets a floor, and &quot;unlikely&quot; becomes expressible.</p>
+<h3 id="8-perplexity-and-folding-in">8. Perplexity, and folding in <a class="header-anchor" href="#8-perplexity-and-folding-in">#</a></h3>
+<p>The held-out measure is per-token perplexity,</p>
+<div class="math block">
+\[\mathrm{ppl}(X) \;=\; \exp\!\left(-\frac{\log p(X)}{\sum_{d,w} n(d,w)}\right),
+\qquad (13)\]
+</div>
+<p>the geometric mean inverse probability the model assigns to a token. For a new
+document the topics are fixed and only the mixture is free, so folding in solves</p>
+<div class="math block">
+\[\hat\theta \;=\; \arg\min_{\theta \in \Delta_Z}
+-\sum_w n(d^*,w)\log \sum_z \theta_z\, p(w\mid z), \qquad (14)\]
+</div>
+<p>by EM on that one vector. Note what (14) is: a <strong>maximum-likelihood</strong> fit of <span class="math inline">\(Z\)</span>
+free parameters to one document, not a posterior. It has enough freedom to
+compensate for a bad topic matrix, which is why the demo's held-out perplexity
+also prefers twenty topics — <span class="math inline">\(34.20\)</span> against <span class="math inline">\(36.24\)</span> for three — even though
+recovery has collapsed. Fold-in does not measure the model; it measures the model
+plus a per-document refit.</p>
+<h3 id="9-symmetry-and-what-is-identified">9. Symmetry, and what is identified <a class="header-anchor" href="#9-symmetry-and-what-is-identified">#</a></h3>
+<p>Relabel the topics and nothing observable changes:</p>
+<div class="math block">
+\[p(z\mid d) \mapsto p(\sigma(z)\mid d), \qquad p(w\mid z) \mapsto p(w\mid \sigma(z)),
+\qquad (15)\]
+</div>
+<p>for any permutation <span class="math inline">\(\sigma\)</span>. That is the only exact ambiguity in the model: pLSA
+is a mixture of conditionally independent unigrams, and generically its parameters
+are determined up to (15) — which is why a recovered topic can be compared to a
+planted one at all, and why the demo's cosine is a meaningful score rather than a
+score of one representative of a rotation family, as in <code>factor_analysis</code> or
+Tucker. What is <em>not</em> unique is the optimisation: many local optima exist, and
+which one you reach depends on the start, which is the practical cost of the
+non-convexity in (2).</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>PLSA(n_topics=3, *, variant=&quot;em&quot;, n_iter=200, tol=1e-7, beta=0.5, alpha=2.0, seed=0)</code> with <code>fit(X)</code>, <code>transform(X, n_iter=100)</code>, <code>perplexity(X)</code> and the
+attributes <code>topic_word_</code>, <code>doc_topic_</code>, <code>log_likelihood_</code>, <code>n_iter_</code>. <code>X</code> is a
+<code>(documents, terms)</code> array of non-negative counts.</p>
+<h3 id="1-a-row-stochastic-matrix-with-a-dead-row-guard">1. A row-stochastic matrix with a dead-row guard <a class="header-anchor" href="#1-a-row-stochastic-matrix-with-a-dead-row-guard">#</a></h3>
+<pre class="highlight"><code>    <span class="n">s</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">dead</span> <span class="o">=</span> <span class="n">s</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">EPS</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">dead</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dead</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">P</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">P</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">EPS</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">P</span> <span class="o">/</span> <span class="n">s</span>
+</code></pre>
+<p>Every update in the file ends in this function, because both factors are
+stochastic matrices. The guard is not decoration: with <span class="math inline">\(\alpha < 1\)</span> in (12) the
+clamped update can zero a whole row, and a topic that has died then produces
+<code>0/0</code> in the next E-step and a <code>nan</code> two functions away from the cause. Replacing
+the dead row by the uniform distribution keeps the arithmetic finite and makes
+the death visible in the output instead of in a traceback.</p>
+<h3 id="2-the-e-step-in-logs">2. The E-step, in logs <a class="header-anchor" href="#2-the-e-step-in-logs">#</a></h3>
+<pre class="highlight"><code>    <span class="n">log_joint</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">doc_topic</span><span class="p">,</span> <span class="n">EPS</span><span class="p">))[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+                 <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">topic_word</span><span class="p">,</span> <span class="n">EPS</span><span class="p">))</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span>
+    <span class="n">log_joint</span> <span class="o">*=</span> <span class="n">beta</span>
+    <span class="n">top</span> <span class="o">=</span> <span class="n">log_joint</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_joint</span> <span class="o">-</span> <span class="n">top</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">q</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">EPS</span><span class="p">)</span>
+</code></pre>
+<p>(5) and (9) in one expression. The broadcast produces the full <span class="math inline">\((D,V,Z)\)</span> array of
+log joints; the <code>max</code> subtraction is the log-sum-exp shift, without which a
+probability of <span class="math inline">\(10^{-300}\)</span> underflows to zero and a document of rare words gets
+<code>nan</code> responsibilities. The <code>beta</code> line is the entire difference between the
+plain and tempered variants, applied before the shift so the shift stays exact.</p>
+<h3 id="3-the-m-step-and-the-prior">3. The M-step, and the prior <a class="header-anchor" href="#3-the-m-step-and-the-prior">#</a></h3>
+<pre class="highlight"><code>            <span class="n">counts_word</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"dw,dwz-&gt;zw"</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"map_plsa"</span><span class="p">:</span>
+                <span class="c1"># Dirichlet(alpha) prior on each p(·|z): the MAP solution adds</span>
+                <span class="c1"># alpha − 1 to every count, which is smoothing above 1 and</span>
+                <span class="c1"># sparsification below it</span>
+                <span class="n">counts_word</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">counts_word</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">topic_word_</span> <span class="o">=</span> <span class="n">_normalise_rows</span><span class="p">(</span><span class="n">counts_word</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">doc_topic_</span> <span class="o">=</span> <span class="n">_normalise_rows</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"dw,dwz-&gt;dz"</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">q</span><span class="p">))</span>
+</code></pre>
+<p>(7), (8) and (12). Both M-steps are the same contraction of the same <span class="math inline">\((D,V,Z)\)</span>
+responsibility array against the counts, one summing over documents and one over
+terms — that symmetry is why pLSA is cheap, and it is also why the array itself is
+the cost. The clamp is where the code stops being exact MAP: for <span class="math inline">\(\alpha < 1\)</span> the
+true MAP has zeros in it, the clamp forces that, and the projection is not the
+maximiser of (11) but the nearest point in the simplex.</p>
+<h3 id="4-the-temperature-schedule">4. The temperature schedule <a class="header-anchor" href="#4-the-temperature-schedule">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"tempered_em"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">1.0</span>
+        <span class="n">span</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_iter</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">)</span> <span class="o">*</span> <span class="nb">min</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">it</span> <span class="o">/</span> <span class="n">span</span><span class="p">)</span>
+</code></pre>
+<p>(10)'s schedule: linear from <code>beta</code> to 1 over the first half of the iteration
+budget, then exactly 1. Deterministic, which is what makes the demo reproducible,
+and monotone, which is what makes <span class="math inline">\(\beta = 1\)</span> reachable in finite time. The half
+is a choice: too long and the run spends its budget at a temperature that is not
+the model, too short and the flattened phase is over before the basins have
+merged. The demo's <span class="math inline">\(\beta = 0.4\)</span> failure is not a schedule bug — it is the
+temperature itself, and a slower ramp does not fix it.</p>
+<h3 id="5-the-likelihood-exactly">5. The likelihood, exactly <a class="header-anchor" href="#5-the-likelihood-exactly">#</a></h3>
+<pre class="highlight"><code>    <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">divide</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">):</span>
+        <span class="n">log_joint</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">doc_topic</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+                     <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">topic_word</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span>
+    <span class="n">top</span> <span class="o">=</span> <span class="n">log_joint</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">top</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">top</span><span class="p">),</span> <span class="n">top</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">divide</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">):</span>
+        <span class="n">log_sum</span> <span class="o">=</span> <span class="n">top</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_joint</span> <span class="o">-</span> <span class="n">top</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+    <span class="n">nz</span> <span class="o">=</span> <span class="n">X</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span> <span class="o">*</span> <span class="n">log_sum</span><span class="p">[</span><span class="n">nz</span><span class="p">]))</span>
+</code></pre>
+<p>(2) without a floor. <code>topic_word</code> may legitimately contain zeros under <code>em</code>, and
+the whole point of the <code>map_plsa</code> demo is that those zeros make the held-out
+likelihood infinite: a simulated <span class="math inline">\(-\infty\)</span> would turn the headline into a finite
+number. <code>top = np.where(np.isfinite(top), top, 0.0)</code> handles the all-<span class="math inline">\(-\infty\)</span>
+column (a word no topic can produce) so that the shift does not produce <code>nan</code>,
+and <code>log_sum</code> is then <span class="math inline">\(-\infty\)</span> as it should be. Only the nonzero cells
+contribute, which is both correct and faster on a sparse count matrix.</p>
+<h3 id="6-folding-in">6. Folding in <a class="header-anchor" href="#6-folding-in">#</a></h3>
+<pre class="highlight"><code>        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="n">doc_topic</span> <span class="o">=</span> <span class="n">_normalise_rows</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_topics</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_iter</span><span class="p">):</span>
+            <span class="n">q</span> <span class="o">=</span> <span class="n">_e_step</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">topic_word_</span><span class="p">,</span> <span class="n">doc_topic</span><span class="p">)</span>
+            <span class="n">doc_topic</span> <span class="o">=</span> <span class="n">_normalise_rows</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"dw,dwz-&gt;dz"</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">q</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">doc_topic</span>
+</code></pre>
+<p>(14) by the same two steps as <code>fit</code>, with <code>topic_word_</code> frozen. <code>n_iter=100</code> and
+no convergence test is honest rather than lazy: the objective in (14) is a
+<span class="math inline">\(Z\)</span>-parameter problem for each document, 100 sweeps is far past what it needs,
+and a per-document stopping rule would make the reported perplexity depend on a
+tolerance. Note that <code>atleast_2d</code> is what lets <code>perplexity</code> accept a single
+document, which the demo uses to score one probe.</p>
+<h3 id="7-the-stopping-rule">7. The stopping rule <a class="header-anchor" href="#7-the-stopping-rule">#</a></h3>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_likelihood_</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
+                    <span class="ow">and</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_likelihood_</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_likelihood_</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+                    <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_likelihood_</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> <span class="mf">1.0</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n_iter_</span> <span class="o">=</span> <span class="n">it</span> <span class="o">+</span> <span class="mi">1</span>
+                <span class="k">break</span>
+</code></pre>
+<p>A <strong>relative</strong> change, because the likelihood scales with corpus size and an
+absolute threshold would mean a different stopping point on every dataset. The
+<code>max(..., 1.0)</code> guards the scale when the likelihood is small. This rule is also
+the reason the <span class="math inline">\(\beta = 0.4\)</span> run ends at 23 iterations: a symmetric fixed point
+has a flat likelihood, so the relative change falls below tolerance while the fit
+is still terrible — convergence of the objective is not convergence to the
+answer.</p>
+<h3 id="8-scoring-a-recovery-that-is-only-identified-up-to-a-permutation">8. Scoring a recovery that is only identified up to a permutation <a class="header-anchor" href="#8-scoring-a-recovery-that-is-only-identified-up-to-a-permutation">#</a></h3>
+<pre class="highlight"><code>    <span class="n">ln</span> <span class="o">=</span> <span class="n">learned</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">learned</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">EPS</span><span class="p">)</span>
+    <span class="n">tn</span> <span class="o">=</span> <span class="n">truth</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">EPS</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">ln</span> <span class="o">@</span> <span class="n">tn</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+</code></pre>
+<p>(15) is the only ambiguity, so the score is: normalise both sides, take the best
+cosine for each learned topic, average. Max over the truth handles the
+permutation; mean over the learned topics means one perfect topic out of three
+scores <span class="math inline">\(1/3\)</span>, not <span class="math inline">\(1\)</span>. The absolute value is deliberately absent — pLSA's topics
+are non-negative distributions, so a negative cosine is a genuinely bad match and
+should not be folded back.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><span class="math inline">\(D\)</span> documents, <span class="math inline">\(V\)</span> terms, <span class="math inline">\(Z\)</span> topics, <span class="math inline">\(T\)</span> iterations, <span class="math inline">\(N = \sum_{d,w} n(d,w)\)</span>
+tokens.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Operation</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:left">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">E-step</td>
+<td style="text-align:left"><span class="math inline">\(O(DVZ)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(DVZ)\)</span></td>
+<td style="text-align:left">the responsibility array dominates</td>
+</tr>
+<tr>
+<td style="text-align:left">M-step</td>
+<td style="text-align:left"><span class="math inline">\(O(DVZ)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(VZ + DZ)\)</span></td>
+<td style="text-align:left">two contractions of the same array</td>
+</tr>
+<tr>
+<td style="text-align:left">one iteration</td>
+<td style="text-align:left"><span class="math inline">\(O(DVZ)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(DVZ)\)</span></td>
+<td style="text-align:left">independent of <span class="math inline">\(N\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">full <code>fit</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T\,DVZ)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(DVZ)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(T\)</span> decided by the stopping rule</td>
+</tr>
+<tr>
+<td style="text-align:left">fold-in, one document</td>
+<td style="text-align:left"><span class="math inline">\(O(VZ)\)</span> per sweep</td>
+<td style="text-align:left"><span class="math inline">\(O(VZ)\)</span></td>
+<td style="text-align:left">100 sweeps</td>
+</tr>
+<tr>
+<td style="text-align:left">parameters</td>
+<td style="text-align:left"><span class="math inline">\(DZ\)</span> (document mixtures) + <span class="math inline">\(ZV\)</span> (topics)</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">see the failure modes</td>
+</tr>
+<tr>
+<td style="text-align:left">full demo</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">20 fits, 2.7 s</td>
+</tr>
+</tbody>
+</table>
+<p>Two facts decide whether this runs on your data. The first is the memory of the
+responsibility array: <span class="math inline">\(D V Z\)</span> floats, which is 43 thousand for the demo and <span class="math inline">\(10^9\)</span>
+for a million documents over a thousand-term vocabulary at ten topics. Every
+serious implementation either streams over documents or keeps the responsibilities
+implicit — the M-step only needs their contractions, so a chunked
+<span class="math inline">\(O(VZ)\)</span>-memory version is a few lines away, and the demo's version is the clear
+one because the demo's matrices are small.</p>
+<p>The second is the parameter count in the table's last row: <span class="math inline">\(DZ + ZV\)</span>, which grows
+with the number of documents. That is not an accounting detail, it is the reason
+pLSA overfits small corpora and the reason LDA replaces the per-document
+parameters with a distribution over them. A pLSA model of a corpus is not a
+generative model of the corpus's documents; it is a model with one free vector per
+document, fitted jointly.</p>
+<p>Convergence is linear, with a rate that degrades as the topics overlap — the
+fraction of missing information in the E-step is large exactly when a word is
+compatible with several topics. The demo's three disjoint blocks are the easy
+case and still take 388 iterations at a relative tolerance of <span class="math inline">\(10^{-9}\)</span>; real
+text with overlapping topics takes several times that, which is why practical
+fits use loose tolerances and compare restarts rather than waiting for the last
+digit.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>1. The likelihood cannot count parameters.</strong> The demo's 20-topic fit is better
+by every number the objective can see — likelihood per token <span class="math inline">\(-3.47257\)</span> against
+<span class="math inline">\(-3.58817\)</span> — and recovers the three planted topics at <span class="math inline">\(0.5978\)</span> instead of
+<span class="math inline">\(0.9971\)</span>. The extra topics split the noise, and the model is not penalised for
+it. Choose <span class="math inline">\(Z\)</span> by a prior, by a held-out criterion that does not refit per
+document, or by what you claim the data is.</p>
+<p><strong>2. Held-out perplexity is not that criterion.</strong> On 60 training documents and 60
+held out, the demo gets <span class="math inline">\(36.24\)</span> with three topics and <span class="math inline">\(34.20\)</span> with twenty: the
+usual defence prefers the wrong model. Fold-in (14) fits a fresh <span class="math inline">\(Z\)</span>-vector to
+each held-out document, and that freedom compensates for topic estimates that
+have nothing to do with the truth. This is a known weakness of the metric, not a
+bug in this implementation — and it is measured here rather than assumed.</p>
+<p><strong>3. Zero is absorbing.</strong> Under <code>em</code>, a term that no topic takes responsibility
+for keeps probability exactly zero forever: the E-step multiplies by it, the
+M-step gets no counts back, and the state reproduces itself. Out of sample this
+is a single word turning perplexity into <code>inf</code>. The prior in <code>map_plsa</code> is the
+fix, and it is a real cost — <span class="math inline">\(-3.4771 \to -3.5103 \to -3.6041\)</span> per token as
+<span class="math inline">\(\alpha\)</span> rises through 5 and 20.</p>
+<p><strong>4. The wrong temperature collapses the model to one topic.</strong> At <span class="math inline">\(\beta = 0.4\)</span>
+the demo's run dies in 23 iterations with all three topics agreeing to
+<span class="math inline">\(6.5\times10^{-6}\)</span> and every document at <span class="math inline">\(0.3334\)</span> of each. This is a fixed point,
+not a transient: identical rows give uniform responsibilities, which give
+identical rows. If a tempered run converges suspiciously fast to a suspiciously
+bad likelihood, check the rows for agreement before blaming the data.</p>
+<p><strong>5. Local optima are the norm, and the start is the only exploration.</strong> Two
+restarts from different seeds land on different likelihoods; the demo's
+<code>tempered_em</code> gain of <span class="math inline">\(15.6\)</span> nats on average is precisely the size of that
+spread. Report the best of several runs <em>and</em> the spread, and compare recovered
+topics across runs — the likelihood alone will not tell you whether you are in
+the same basin.</p>
+<p><strong>6. The mixture is per document, so &quot;the model of the corpus&quot; is a fiction.</strong>
+<code>doc_topic_</code> has <span class="math inline">\(DZ\)</span> entries, one vector per document, all fitted. pLSA does not
+define a distribution over documents, so you cannot sample a new one from it;
+<code>transform</code> is a fit, not a draw. This is the structural difference from LDA and
+the reason pLSA's perplexity numbers are not comparable to LDA's.</p>
+<p><strong>7. The responsibilities are <span class="math inline">\(D\times V\times Z\)</span>.</strong> Memory, not time, is the
+constraint at scale, and it fails as an allocation far from the line that chose
+the algorithm. Chunk over documents; the contractions do not need the whole array
+at once.</p>
+<p><strong>8. Overlapping topics make the cosine score look worse than the model is.</strong> The
+demo's planted topics are disjoint blocks, so recovery is a clean number. Real
+topics overlap, a fitted topic can be a blend of two true ones, and the mean-best
+cosine then understates the fit. Compare topic <em>co-occurrence</em> structure or
+downstream task performance when the ground truth is not known.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Information retrieval.</strong> pLSA was introduced as probabilistic latent semantic
+indexing: query and document are projected into the same topic simplex and
+matched there, which handles synonymy and polysemy that a term-matching
+baseline cannot. The original paper's retrieval results are still the cleanest
+demonstration of why the probabilistic formulation is worth the trouble.</li>
+<li><strong>Text classification and clustering with few labels.</strong> Topics as features,
+<code>doc_topic_</code> as the representation. The per-document mixture is a compact
+summary that a small classifier can use, and it is fitted unsupervised.</li>
+<li><strong>Image and audio annotation.</strong> Any co-occurrence matrix of &quot;documents&quot; ×
+&quot;terms&quot; works: images × visual words, tracks × audio tokens, users × items. The
+model does not know what a document is, which is a strength and a trap.</li>
+<li><strong>A baseline for topic models.</strong> Every LDA paper compares against pLSA, and
+reproducing it is the fastest way to check a new inference routine: the
+likelihood is exact in closed form at every iteration, so a wrong E-step shows
+up immediately as a non-monotone likelihood.</li>
+<li><strong>Teaching the ELBO.</strong> Equations (3)–(4) are the cleanest example of the
+variational decomposition in the field: a discrete latent variable, an exact
+posterior, and a coordinate ascent whose two steps both have closed forms.</li>
+<li><strong>Segmentation and change detection.</strong> Fit topics to windows of text and track
+<code>doc_topic_</code> across the windows; the mixture vector is a low-dimensional signal
+and a shift in it is a topic change.</li>
+</ul>
+<p>Where it is a trap: choosing <span class="math inline">\(Z\)</span> by likelihood; trusting held-out perplexity with
+fold-in; reporting topics when the model has <span class="math inline">\(DZ\)</span> parameters and the corpus is
+small; using a tempered schedule with a low starting temperature; and expecting
+pLSA to generate documents, which it structurally cannot.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li><strong>Hofmann (1999),</strong> <em>Probabilistic latent semantic indexing</em> — the aspect model,
+the EM algorithm, and the retrieval results that made the probabilistic reading
+of LSA credible.</li>
+<li><strong>Hofmann (2001),</strong> <em>Unsupervised learning by probabilistic latent semantic
+analysis</em> — the journal treatment, including the tempered variant and the
+discussion of local optima that the annealing is meant to address.</li>
+<li><strong>Dempster, Laird &amp; Rubin (1977),</strong> <em>Maximum likelihood from incomplete data via
+the EM algorithm</em> — the monotonicity result behind equation (4), and the
+reason a rising likelihood is a guarantee about the objective only.</li>
+<li><strong>Neal &amp; Hinton (1998),</strong> <em>A view of the EM algorithm that justifies incremental,
+sparse, and other variants</em> — the ELBO reading of (3)–(4), and the framework
+that makes MAP-EM and tempered EM look like the same algorithm with a different
+bound.</li>
+<li><strong>Ueda &amp; Nakano (1998),</strong> <em>Deterministic annealing EM algorithm</em> — the tempered
+E-step of (9), with the free-energy schedule of (10) and the conditions under
+which it escapes local optima.</li>
+<li><strong>Blei, Ng &amp; Jordan (2003),</strong> <em>Latent Dirichlet allocation</em> — the model that
+replaces pLSA's per-document parameters with a Dirichlet prior, which is the
+fix for failure modes 1, 2 and 6.</li>
+<li><strong>Lee &amp; Seung (1999),</strong> <em>Learning the parts of objects by non-negative matrix
+factorization</em> — the multiplicative-update view of the same factorisation, and
+the comparison that makes pLSA's probabilistic constraints visible as
+normalisation rather than non-negativity.</li>
+<li><strong>Gaussier &amp; Goutte (2005),</strong> <em>Relation between PLSA and NMF and implications</em>
+— the exact correspondence, including the equivalence of the PLSA likelihood
+and a specific NMF divergence up to a constant.</li>
+<li><strong>Wallach, Murray, Salakhutdinov &amp; Mimno (2009),</strong> <em>Evaluation methods for topic
+models</em> — the systematic account of why held-out perplexity with fold-in
+rewards the wrong models, which is failure mode 2 measured on real corpora.</li>
+<li><strong>Arora, Ge, Halpern, Mimno, Moitra, Sontag, Wu &amp; Zhu (2013),</strong> <em>A practical
+algorithm for topic modeling with provable guarantees</em> — identifiability of the
+topic-word matrix from moments, which is what makes equation (15) the <em>only</em>
+ambiguity rather than one of many.</li>
+<li><strong>Blei &amp; Lafferty (2009),</strong> <em>Topic models</em> — the survey that places pLSA, LDA
+and their descendants in one framework, and the honest account of what each
+buys and costs.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="tensor_decomposition.html"><small>Previous</small><span>Tensor decomposition</span></a><a class="next" href="../07-clustering/index.html"><small>Next</small><span>07 · Clustering</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">06 · Latent structure &amp; factorisation</p><ul class="rail-list"><li><a href="pca.html"><span class="tick">✓</span><span>PCA</span></a></li><li><a href="nmf.html"><span class="tick">✓</span><span>Non-negative matrix factorisation</span></a></li><li><a href="probabilistic_pca.html"><span class="tick">✓</span><span>Probabilistic PCA</span></a></li><li><a href="factor_analysis.html"><span class="tick">✓</span><span>Factor analysis</span></a></li><li><a href="ica.html"><span class="tick">✓</span><span>Independent component analysis</span></a></li><li><a href="lsa.html"><span class="tick">✓</span><span>Latent semantic analysis</span></a></li><li><a href="lda_topic.html"><span class="tick">✓</span><span>Latent Dirichlet allocation</span></a></li><li><a href="cca.html"><span class="tick">✓</span><span>Canonical correlation</span></a></li><li><a href="sparse_coding.html"><span class="tick">✓</span><span>Sparse coding</span></a></li><li><a href="dictionary_learning.html"><span class="tick">✓</span><span>Dictionary learning</span></a></li><li><a href="tensor_decomposition.html"><span class="tick">✓</span><span>Tensor decomposition</span></a></li><li><a href="plsa.html" aria-current="page"><span class="tick">✓</span><span>Probabilistic LSA</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../05-probabilistic/index.html"><span class="jump">← 05 · Probabilistic models</span></a></li><li><a href="../07-clustering/index.html"><span class="jump">07 · Clustering&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-likelihood">1. The likelihood</a></li><li class="lvl3"><a href="#2-the-complete-data-view">2. The complete-data view</a></li><li class="lvl3"><a href="#3-the-e-step">3. The E-step</a></li><li class="lvl3"><a href="#4-the-m-step">4. The M-step</a></li><li class="lvl3"><a href="#5-what-monotonicity-does-not-say">5. What monotonicity does not say</a></li><li class="lvl3"><a href="#6-tempering">6. Tempering</a></li><li class="lvl3"><a href="#7-the-map-variant">7. The MAP variant</a></li><li class="lvl3"><a href="#8-perplexity-and-folding-in">8. Perplexity, and folding in</a></li><li class="lvl3"><a href="#9-symmetry-and-what-is-identified">9. Symmetry, and what is identified</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-a-row-stochastic-matrix-with-a-dead-row-guard">1. A row-stochastic matrix with a dead-row guard</a></li><li class="lvl3"><a href="#2-the-e-step-in-logs">2. The E-step, in logs</a></li><li class="lvl3"><a href="#3-the-m-step-and-the-prior">3. The M-step, and the prior</a></li><li class="lvl3"><a href="#4-the-temperature-schedule">4. The temperature schedule</a></li><li class="lvl3"><a href="#5-the-likelihood-exactly">5. The likelihood, exactly</a></li><li class="lvl3"><a href="#6-folding-in">6. Folding in</a></li><li class="lvl3"><a href="#7-the-stopping-rule">7. The stopping rule</a></li><li class="lvl3"><a href="#8-scoring-a-recovery-that-is-only-identified-up-to-a-permutation">8. Scoring a recovery that is only identified up to a permutation</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/06-latent-factorization/plsa.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Early stopping · MLAtoms</title>
+<meta name="description" content="Patience, restoration and the generalisation gap. Training loss is not the objective. It falls on every epoch of a long enough run, including the epochs…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/early_stopping.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Early stopping">
+<meta property="og:description" content="Patience, restoration and the generalisation gap. Training loss is not the objective. It falls on every epoch of a long enough run, including the epochs…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/early_stopping.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Early stopping">
+<meta name="twitter:description" content="Patience, restoration and the generalisation gap. Training loss is not the objective. It falls on every epoch of a long enough run, including the epochs…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Early stopping", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/early_stopping.html", "description": "Patience, restoration and the generalisation gap. Training loss is not the objective. It falls on every epoch of a long enough run, including the epochs\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="early_stopping.py.html">source</a></p><h1>Early stopping — four ways to decide when a training run is finished</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Training loss is not the objective. It falls on every epoch of a long enough
+run, including the epochs where the model is memorising the training set, and
+it says nothing about what happens on data the model has not seen. Early
+stopping reads a second signal — a validation set — and uses the epoch where
+that signal is best, or the point where it stops improving.</p>
+<p>The demo makes the two curves visible. There are 240 training points in two
+concentric rings, 10% of the labels are flipped, and the budget is 400 epochs
+of full-batch Adam on a two-layer MLP.</p>
+<pre class="highlight"><code>epoch    20     40     55     80    120    240    400
+train   .472   .273   .246   .221   .194   .141   .099
+val     .420   .128   .084   .094   .097   .111   .142
+</code></pre>
+<p>The validation loss reaches 0.084 at epoch 55 and then climbs while the
+training loss keeps falling. At epoch 400 the model scores 0.126 on a held-out
+test set; at the point where validation was best, 0.088. Nothing about the
+optimiser is wrong — it is doing exactly what it was asked, which is to fit the
+training data, and fitting the last 10% means fitting noise.</p>
+<p>The training curve also hides a trap. At epoch 70 the training loss (0.229) is
+<em>higher</em> than the validation loss (0.094); at epoch 400 it is <em>lower</em> (0.099
+against 0.142). The generalisation gap changes sign during training, because
+early on the flipped labels are still unfitted and contribute a large loss to
+the training average, and later they have been memorised. A stopped run is not
+a run with a small gap; it is a run that stopped before the gap became
+informative.</p>
+<pre class="mermaid-source"><code class="language-mermaid">flowchart TD
+    A[train one epoch] --&gt; B[evaluate validation loss]
+    B --&gt; C{beat the best by min_delta?}
+    C --&gt;|yes| D[checkpoint weights&lt;br/&gt;reset counter]
+    C --&gt;|no| E[increment counter]
+    E --&gt; F{counter reached patience?}
+    F --&gt;|no| A
+    F --&gt;|yes| G{which variant?}
+    G --&gt;|patience, min_delta| H[stop here]
+    G --&gt;|restore_best| I[stop, keep checkpoint]
+    G --&gt;|plateau_decay| J[multiply lr by factor&lt;br/&gt;reset counter, continue]
+</code></pre>
+<p>The four variants map onto the four places that decision can go wrong. A stop
+that is too late wastes epochs and overfits; a stop that is too early leaves
+accuracy on the table; a stop that keeps the wrong weights throws away the best
+epoch it saw; and a run that never stops needs a schedule instead.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:right">epochs</th>
+<th style="text-align:right">last counted best</th>
+<th style="text-align:right">train</th>
+<th style="text-align:right">val</th>
+<th style="text-align:right">test</th>
+<th style="text-align:right">acc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">fixed budget</td>
+<td style="text-align:right">400</td>
+<td style="text-align:right">55</td>
+<td style="text-align:right">0.099</td>
+<td style="text-align:right">0.142</td>
+<td style="text-align:right">0.126</td>
+<td style="text-align:right">0.954</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>patience</code></td>
+<td style="text-align:right">70</td>
+<td style="text-align:right">55</td>
+<td style="text-align:right">0.229</td>
+<td style="text-align:right">0.094</td>
+<td style="text-align:right">0.096</td>
+<td style="text-align:right">0.987</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>min_delta</code></td>
+<td style="text-align:right">59</td>
+<td style="text-align:right">44</td>
+<td style="text-align:right">0.241</td>
+<td style="text-align:right">0.087</td>
+<td style="text-align:right">0.090</td>
+<td style="text-align:right">0.989</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>restore_best</code></td>
+<td style="text-align:right">70</td>
+<td style="text-align:right">55</td>
+<td style="text-align:right">0.246</td>
+<td style="text-align:right">0.084</td>
+<td style="text-align:right">0.088</td>
+<td style="text-align:right">0.989</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>plateau_decay</code></td>
+<td style="text-align:right">400</td>
+<td style="text-align:right">55</td>
+<td style="text-align:right">0.216</td>
+<td style="text-align:right">0.093</td>
+<td style="text-align:right">0.094</td>
+<td style="text-align:right">0.985</td>
+</tr>
+</tbody>
+</table>
+<p><code>patience</code> costs 70 epochs and gets within 0.008 of the best test loss in the
+table. <code>restore_best</code> spends the same 70 epochs and recovers the actual minimum.
+<code>min_delta</code> stops earlier still and lands at 0.090, because demanding a real
+improvement is a cheaper way to notice a plateau. <code>plateau_decay</code> never stops;
+it anneals the learning rate instead, and reaches a comparable loss at the end
+of the full budget.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<p>All four train the same model on the same data with the same optimiser. They
+differ only in what they do with the validation numbers.</p>
+<p><strong><code>patience</code></strong> — stop after <span class="math inline">\(p=15\)</span> consecutive epochs without a new best
+validation loss. It is the default rule, and its cost is visible in the table:
+the best epoch is 55 and the run stops at 70, so fifteen epochs of overfitting
+are paid for on every run. With a noisy validation curve those fifteen epochs
+are also the margin that keeps the run from stopping on a spurious dip.</p>
+<p><strong><code>min_delta</code></strong> — an improvement only counts if the new loss is at least
+<span class="math inline">\(\delta=0.02\)</span> below the best so far. Near the minimum, epoch-to-epoch gains are
+smaller than that, so the patience counter starts running sooner: this run stops
+at epoch 59 instead of 70, and its test loss is 0.090. The trade-off is that a
+genuinely slow improvement — a long plateau followed by a drop — can be cut
+off before it arrives.</p>
+<p><strong><code>restore_best</code></strong> — keep the patience rule, but return the weights from the
+epoch with the lowest validation loss rather than the weights from the stopping
+epoch. It is not a stopping rule at all; it is a decision about what to hand
+back. On this run it is worth 0.008 test loss. The implementation detail that
+matters is that the checkpoint must be a deep copy of every array: assigning
+<code>best_params = params</code> aliases the dictionary, and the &quot;best&quot; weights keep
+training along with everything else.</p>
+<p><strong><code>plateau_decay</code></strong> — never stop; when the counter reaches patience, multiply
+the learning rate by <span class="math inline">\(\gamma=0.5\)</span> and reset the counter. The run spends all 400
+epochs, halves the rate 23 times, and ends at <span class="math inline">\(6\times10^{-10}\)</span>. That is
+effectively a frozen model, which is fine here: the point is that the schedule
+reaches a good loss without needing a stopping decision, at the price of never
+saving any compute.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="what-early-stopping-estimates">What early stopping estimates <a class="header-anchor" href="#what-early-stopping-estimates">#</a></h3>
+<p>Write the population risk and its validation estimate as</p>
+<div class="math block">
+\[R(\theta)=\mathbb E_{(x,y)\sim\mathcal D}\left[\ell(\theta;x,y)\right],
+\qquad
+\hat R_{\mathrm{val}}(\theta)=\frac1{n_{\mathrm{val}}}
+\sum_{i\in\mathrm{val}}\ell(\theta;x_i,y_i).
+\qquad (1)\]
+</div>
+<p>Training walks a path <span class="math inline">\(\theta_1,\theta_2,\dots\)</span> that depends on the training set
+only. The validation loss along that path,</p>
+<div class="math block">
+\[R_{\mathrm{val}}(\theta_t)=R^{*}+E_{\mathrm{approx}}(t)+E_{\mathrm{est}}(t),
+\qquad (2)\]
+</div>
+<p>has a U-shape for the usual reason. <span class="math inline">\(E_{\mathrm{approx}}\)</span> falls as the model
+fits more of the signal; <span class="math inline">\(E_{\mathrm{est}}\)</span> rises as the fit becomes specific to
+the training sample, including its noise. Early stopping is a bet that the sum
+has a minimum before the budget ends, and that the minimum can be located from
+validation data.</p>
+<h3 id="the-patience-rule">The patience rule <a class="header-anchor" href="#the-patience-rule">#</a></h3>
+<p>With <span class="math inline">\(t_{\mathrm{best}}\)</span> the epoch of the current best validation loss, the
+stopping time is</p>
+<div class="math block">
+\[\hat t=\min\left\{t:\ t-t_{\mathrm{best}}\ge p\right\}.
+\qquad (3)\]
+</div>
+<p>If a new best arrives on each epoch with probability <span class="math inline">\(q\)</span>, independently, the
+number of epochs spent waiting for <span class="math inline">\(p\)</span> consecutive failures has mean</p>
+<div class="math block">
+\[\mathbb E\left[\hat t-t_{\mathrm{best}}\right]
+=\frac{1-q^{p}}{(1-q)\,q^{p}}.
+\qquad (4)\]
+</div>
+<p>The formula is the reason patience helps at all: <span class="math inline">\(q\)</span> is never 1, so a rule that
+stopped at the first non-improvement would stop almost immediately on any noisy
+curve. It also explains the cost: for <span class="math inline">\(q=0.5\)</span> and <span class="math inline">\(p=15\)</span> the run spends about
+65,000 epochs looking for fifteen failures in a row — patience is only
+affordable because near a minimum <span class="math inline">\(q\)</span> collapses and the wait is short in
+practice.</p>
+<h3 id="min_delta">min_delta <a class="header-anchor" href="#min_delta">#</a></h3>
+<p>The improvement test becomes</p>
+<div class="math block">
+\[\text{improvement}\iff L_t<L_{\mathrm{best}}-\delta,
+\qquad (5)\]
+</div>
+<p>which lowers the effective <span class="math inline">\(q\)</span> in (4) and therefore shortens the wait. It is a
+deadband on the controller: small wiggles that would reset the counter no
+longer count as progress. The danger is symmetric. A run that improves by
+<span class="math inline">\(0.9\delta\)</span> every epoch is making real progress and will be stopped, so
+<span class="math inline">\(\delta\)</span> has to be smaller than the improvement the task is expected to produce
+per epoch.</p>
+<h3 id="restoring-the-best-weights">Restoring the best weights <a class="header-anchor" href="#restoring-the-best-weights">#</a></h3>
+<p>Stopping tells you the run is over; it does not tell you which weights to keep.
+The restored estimator is</p>
+<div class="math block">
+\[\hat\theta=\theta_{t^{*}},\qquad
+t^{*}=\arg\min_{t\le\hat t}L_{\mathrm{val}}(\theta_t).
+\qquad (6)\]
+</div>
+<p>There is a subtle bias in (6) that no amount of checkpointing removes: the
+minimum of noisy estimates is itself biased low,</p>
+<div class="math block">
+\[\mathbb E\left[\min_{t\le T}\hat L_t\right]
+\le\min_{t\le T}\mathbb E\left[\hat L_t\right],
+\qquad (7)\]
+</div>
+<p>by Jensen's inequality. The selected epoch looks better on validation than it
+really is, and the more epochs you search over, the larger the optimism. That is
+why the demo keeps a test set that the rule never touches: the 0.084 validation
+loss at the chosen epoch is an optimistic number, and 0.088 on a thousand
+held-out points is the honest one.</p>
+<h3 id="plateau-decay">Plateau decay <a class="header-anchor" href="#plateau-decay">#</a></h3>
+<p>Instead of stopping, the schedule reacts:</p>
+<div class="math block">
+\[\eta\leftarrow\gamma\eta
+\quad\text{when}\quad t-t_{\mathrm{best}}\ge p,
+\qquad (8)\]
+</div>
+<p>with <span class="math inline">\(\gamma=0.5\)</span> here. The reason this helps is the shape of the noise floor
+near a minimum. For stochastic gradient descent with step size <span class="math inline">\(\eta\)</span> on a
+quadratic with Hessian <span class="math inline">\(H\)</span> and gradient-noise covariance <span class="math inline">\(\Sigma\)</span>, the
+stationary covariance is approximately</p>
+<div class="math block">
+\[\mathrm{Cov}(\theta_\infty)\approx\frac{\eta}{2}H^{-1}\Sigma,
+\qquad (9)\]
+</div>
+<p>so the radius of the ball the iterates wander in shrinks with <span class="math inline">\(\eta\)</span>. Halving
+the rate halves the width of that ball, which is what the flat stretch of the
+validation curve is measuring. With no lower bound the rate eventually reaches
+zero — 23 halvings from <span class="math inline">\(5\times10^{-3}\)</span> is <span class="math inline">\(6\times10^{-10}\)</span> — and the run
+freezes at whatever weights it had. Production schedules add a minimum rate or
+a cooldown for exactly this reason.</p>
+<h3 id="early-stopping-as-regularisation">Early stopping as regularisation <a class="header-anchor" href="#early-stopping-as-regularisation">#</a></h3>
+<p>For gradient flow on a quadratic loss
+<span class="math inline">\(L(\theta)=\tfrac12(\theta-\theta^{*})^{\top}H(\theta-\theta^{*})\)</span> started at
+zero, the iterate after time <span class="math inline">\(t\)</span> is</p>
+<div class="math block">
+\[\theta(t)=\left(I-e^{-Ht}\right)\theta^{*},
+\qquad
+\theta_\lambda=\left(I+\lambda H^{-1}\right)^{-1}\theta^{*},
+\qquad (10)\]
+</div>
+<p>where the second expression is ridge regression with penalty <span class="math inline">\(\lambda\)</span>. In the
+eigenbasis the two filters are <span class="math inline">\(1-e^{-\lambda_i t}\)</span> and
+<span class="math inline">\(\lambda_i/(\lambda_i+\lambda)\)</span>; for small <span class="math inline">\(\lambda\)</span> they agree with
+<span class="math inline">\(\lambda\approx 1/t\)</span>. Stopping early is therefore shrinkage in the directions
+the data constrains weakly, and the number of epochs plays the role of the
+regularisation strength. That is why early stopping can substitute for weight
+decay on a small model, and why the two together are not additive.</p>
+<h3 id="why-the-gap-changes-sign">Why the gap changes sign <a class="header-anchor" href="#why-the-gap-changes-sign">#</a></h3>
+<p>With a flip rate <span class="math inline">\(\varepsilon\)</span> the training loss is a mixture,</p>
+<div class="math block">
+\[L_{\mathrm{train}}(\theta)
+=(1-\varepsilon)L_{\mathrm{clean}}(\theta)
++\varepsilon L_{\mathrm{flip}}(\theta),
+\qquad (11)\]
+</div>
+<p>while the validation set is clean. Before the model memorises the flips,
+<span class="math inline">\(L_{\mathrm{flip}}\)</span> is large and <span class="math inline">\(L_{\mathrm{train}}\)</span> can sit above
+<span class="math inline">\(L_{\mathrm{val}}\)</span>. Afterwards the flipped points are fitted, <span class="math inline">\(L_{\mathrm{flip}}\)</span>
+collapses, and the usual ordering returns:</p>
+<div class="math block">
+\[\mathrm{gap}(\theta)=L_{\mathrm{val}}(\theta)-L_{\mathrm{train}}(\theta).
+\qquad (12)\]
+</div>
+<p>So the gap is not a fixed property of a run. It starts negative when labels are
+noisy, turns positive as memorisation proceeds, and the moment it turns
+positive is roughly when the validation curve turns up. Watching the gap is
+useful, but watching the validation curve is what the stopping rule needs.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The two rings overlap by design, so the boundary is not perfectly
+separable, and 10% of the training labels are flipped after the points are
+drawn. The test and validation sets never see a flip.</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">noise</span><span class="p">:</span>
+        <span class="n">flip</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">noise</span>
+        <span class="n">y</span><span class="p">[</span><span class="n">flip</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">y</span><span class="p">[</span><span class="n">flip</span><span class="p">]</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">order</span><span class="p">]</span>
+</code></pre>
+<p>The monitored quantity is the validation loss, computed with the same clipped
+cross-entropy as training. Clipping at <span class="math inline">\(10^{-12}\)</span> keeps a saturated wrong
+prediction finite instead of turning the running mean into an infinity.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_loss</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+    <span class="n">prob</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">picked</span> <span class="o">=</span> <span class="n">prob</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)),</span> <span class="n">y</span><span class="p">]</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">picked</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)))</span>
+</code></pre>
+<p>One epoch is one full-batch Adam step, with the standard softmax gradient. The
+full batch is deliberate: the validation curve in the introduction is then a
+property of the optimisation, not of minibatch sampling noise, which makes the
+stopping experiment repeatable.</p>
+<pre class="highlight"><code>    <span class="n">delta</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">)</span>
+    <span class="n">delta</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)),</span> <span class="n">y</span><span class="p">]</span> <span class="o">-=</span> <span class="mf">1.0</span>
+    <span class="n">delta</span> <span class="o">/=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"W3"</span><span class="p">:</span> <span class="n">a2</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">delta</span><span class="p">,</span> <span class="s2">"b3"</span><span class="p">:</span> <span class="n">delta</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)}</span>
+</code></pre>
+<p>The controller is the loop's only non-standard part. It keeps a running best, a
+deep copy of the weights at that best, a counter of epochs since the last
+counted improvement, and the current learning rate.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">epochs</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">_adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">state</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">lr</span><span class="p">)</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">_loss</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x_val</span><span class="p">,</span> <span class="n">y_val</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">current</span> <span class="o">&lt;</span> <span class="n">best</span> <span class="o">-</span> <span class="n">threshold</span><span class="p">:</span>
+                <span class="n">best</span> <span class="o">=</span> <span class="n">current</span>
+                <span class="n">best_epoch</span> <span class="o">=</span> <span class="n">epoch</span>
+                <span class="n">bad</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">best_params</span> <span class="o">=</span> <span class="n">_copy</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">bad</span> <span class="o">+=</span> <span class="mi">1</span>
+</code></pre>
+<p><code>threshold</code> is the only difference between <code>patience</code> and <code>min_delta</code>: it is
+zero for the first and <span class="math inline">\(\delta\)</span> for the second. That single number changes the
+stopping epoch from 70 to 59.</p>
+<pre class="highlight"><code>        <span class="n">threshold</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_delta</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"min_delta"</span> <span class="k">else</span> <span class="mf">0.0</span>
+</code></pre>
+<p>The reaction is a branch on the variant. <code>plateau_decay</code> multiplies the rate and
+resets the counter, so it never leaves the loop through this path; the other
+three stop, and <code>restore_best</code> then swaps in the checkpoint.</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"plateau_decay"</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">bad</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">patience</span><span class="p">:</span>
+                    <span class="n">lr</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">factor</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">decays</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">bad</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">elif</span> <span class="n">bad</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">patience</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">stopped</span> <span class="o">=</span> <span class="n">epoch</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"restore_best"</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">best_params</span>
+</code></pre>
+<p>Evaluation never re-runs training; it just reads the kept weights. Reporting
+accuracy next to loss is what catches the case where a lower loss came from
+better calibration rather than better decisions.</p>
+<pre class="highlight"><code>        <span class="n">prob</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"loss"</span><span class="p">:</span> <span class="n">_loss</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
+            <span class="s2">"accuracy"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">prob</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">y</span><span class="p">)),</span>
+        <span class="p">}</span>
+</code></pre>
+<p>The no-stopping baseline is not a separate training loop. It is the patience
+rule with a patience longer than the budget, which can never fire, so the
+baseline is guaranteed to take exactly the same path as the stopped runs.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_budget</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">x_val</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                 <span class="n">y_val</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">EPOCHS</span><span class="p">,</span>
+                 <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EarlyStopper</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The baseline: a patience longer than the budget can never trigger."""</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">EarlyStopper</span><span class="p">(</span><span class="s2">"patience"</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="n">epochs</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="n">epochs</span><span class="p">,</span>
+                         <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x_val</span><span class="p">,</span> <span class="n">y_val</span><span class="p">)</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>The model has <span class="math inline">\(2\cdot48+48\cdot48+48\cdot48+48\cdot2+2=2{,}594\)</span> parameters. One
+training epoch over 240 points costs about
+<span class="math inline">\(240(2\cdot48+48\cdot48+48\cdot2)\approx0.6\)</span> million multiply-adds, and the
+backward pass is roughly twice that, so a training step is about 1.8 million.
+One validation pass over 600 points costs about 1.5 million, 2.5 times the
+training forward pass, because the validation set is larger than the training
+set. Monitoring is not free: on this workload the validation passes are roughly
+45% of the compute that the stopped runs spend.</p>
+<p>The stopping variants save epochs, and that is the whole point of the trade.
+<code>patience</code> and <code>restore_best</code> run 70 of 400 epochs, so they skip 82% of the
+training work but pay the 70 validation passes. <code>plateau_decay</code> runs the full
+budget and pays 400 validation passes, which is why it is the slowest of the
+four despite having the same per-epoch cost. Memory is one model plus one
+checkpoint — 2,594 floats each — and the history is one float per epoch.</p>
+<p>The cost of a bad stopping rule is asymmetric. Stopping too late costs compute
+and test accuracy; stopping too early costs the accuracy that the discarded
+epochs would have bought. The table shows the first cost clearly (0.126 against
+0.088) and the <code>min_delta</code> row shows that the second is easier to avoid than it
+sounds, at least when the curve is as well behaved as this one.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The validation set is part of the estimate.</strong> Every epoch is judged on the
+same 600 points, and the stopping epoch is chosen because it looked good on
+them. Equation (7) says that number is optimistic, so reporting it as the
+model's performance is a mistake; the demo's test column exists to make the
+difference visible. With a small validation set the optimism is larger, because
+the per-epoch noise is larger and the minimum of more noise is more extreme.</p>
+<p><strong>Patience is tuned by the noise level.</strong> Fifteen epochs is a reasonable
+default at this scale, but it was chosen by looking at the curve. A noisier
+validation set needs more patience, a smoother one needs less, and the right
+value changes with the learning rate. The rule has one hyperparameter and no
+principled default, which is why <code>min_delta</code> exists: it lets you express &quot;an
+improvement smaller than this is not worth waiting for&quot;.</p>
+<p><strong>The checkpoint must be a copy.</strong> The most common implementation bug in this
+atom is <code>best_params = params</code>. That stores a reference to the live dictionary,
+so the &quot;best&quot; weights are overwritten by every subsequent epoch and
+<code>restore_best</code> silently returns the final weights. The code uses a per-array
+copy, and the demo asserts that the restored model's best epoch matches
+<code>argmin</code> of the recorded history, which is what catches the aliasing.</p>
+<p><strong>A rate schedule with no floor freezes the model.</strong> <code>plateau_decay</code> halves the
+rate 23 times and reaches <span class="math inline">\(6\times10^{-10}\)</span>; the last hundred epochs change
+nothing. That is not a bug in the rule, it is the rule without a minimum. Add
+<code>min_lr</code>, or stop decaying after a fixed count, or switch to a cosine schedule
+that decays to a known value over a known horizon.</p>
+<p><strong>Early stopping is not a substitute for a good model.</strong> It picks an epoch; it
+does not fix an architecture, a learning rate, or a data pipeline. On the fixed
+budget the ceiling is 0.126 test loss because the model memorised the noise,
+and stopping recovers 0.088 — a real gain, but the same model with clean labels
+would be better than both. The rule buys time and generalisation, not capacity.</p>
+<p><strong>The curve must be monotone enough to read.</strong> If the validation loss has a
+second, lower basin after a long plateau — common with learning-rate restarts —
+patience will stop in the first basin and never see it. That is a schedule
+interaction, not a stopping-rule interaction: the same 400-epoch run with a
+restart at epoch 200 would need its patience counter reset at the restart.</p>
+<p><strong>A minimum that is only one standard error deep is not a minimum.</strong> The
+validation loss at the selected epoch is 0.084 and the values around it are
+0.087 to 0.094; with 600 points the standard error of the mean loss is roughly
+0.01. The difference between <code>patience</code>, <code>min_delta</code> and <code>restore_best</code> on the
+test column — 0.096, 0.090, 0.088 — is within that noise. The ordering is
+suggestive, not established, and the demo's assertions only claim the
+directions that are large.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Early stopping is the default regulariser of gradient-boosted trees: XGBoost
+and LightGBM both take an evaluation set and a patience, and it is the standard
+way to choose the number of boosting rounds without a grid search. Neural
+network fine-tuning uses the same rule, usually with <code>restore_best</code> and a
+learning-rate schedule attached. In scikit-learn the API is
+<code>n_iter_no_change</code>, which is patience by another name.</p>
+<p>The larger the run, the less the rule is about overfitting and the more it is
+about compute. A pretraining job does not stop when validation plateaus — the
+curve is monotone for weeks — but a fine-tuning job on a small dataset can
+finish in a fraction of its budget, and the saving is the whole reason to
+monitor. The same logic applies to hyperparameter search: a trial that stops
+early frees budget for the next one, which is the connection to successive
+halving and Hyperband.</p>
+<p>The restoring half of the rule matters in production for a second reason: the
+model that is deployed should be a checkpoint, not the last state of an
+optimiser. Reusing the best weights is also what makes an interrupted job
+resumable, and it is the same machinery that underpins checkpoint averaging and
+early-stopped ensembles.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Morgan, N., Bourlard, H. (1990). <em>Generalization by cross-validation and
+early stopping of back-propagation learning.</em> IEEE ICASSP. The original
+validation-monitored stopping rule.</li>
+<li>Prechelt, L. (1998). <em>Early stopping — but when?</em> In Neural Networks: Tricks
+of the Trade. Patience, validation error, and the practical pitfalls of both.</li>
+<li>Yao, Y., Rosasco, L., Caponnetto, A. (2007). <em>On early stopping in gradient
+descent learning.</em> Constructive Approximation. The ridge equivalence, (10).</li>
+<li>Zhang, T., Yu, B. (2005). <em>Boosting with early stopping: convergence and
+consistency.</em> Annals of Statistics. The same regularisation view for
+boosting.</li>
+<li>Bengio, Y. (2012). <em>Practical recommendations for gradient-based training of
+deep architectures.</em> In Neural Networks: Tricks of the Trade. The
+validation-curve protocol and the test-set discipline behind (6)-(7).</li>
+<li>Loshchilov, I., Hutter, F. (2017). <em>SGDR: stochastic gradient descent with
+warm restarts.</em> ICLR. The restart interaction that breaks a plain patience
+counter.</li>
+<li>Smith, L. N. (2018). <em>A disciplined approach to neural network
+hyper-parameters.</em> arXiv:1803.09820. Cyclical rates, the one-cycle schedule,
+and the connection between the rate and the noise floor, (9).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="label_smoothing.html"><small>Previous</small><span>Label smoothing</span></a><a class="next" href="federated.html"><small>Next</small><span>Federated averaging</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html" aria-current="page"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#what-early-stopping-estimates">What early stopping estimates</a></li><li class="lvl3"><a href="#the-patience-rule">The patience rule</a></li><li class="lvl3"><a href="#min_delta">mindelta</a></li><li class="lvl3"><a href="#restoring-the-best-weights">Restoring the best weights</a></li><li class="lvl3"><a href="#plateau-decay">Plateau decay</a></li><li class="lvl3"><a href="#early-stopping-as-regularisation">Early stopping as regularisation</a></li><li class="lvl3"><a href="#why-the-gap-changes-sign">Why the gap changes sign</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/early_stopping.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backpropagation · MLAtoms</title>
+<meta name="description" content="Reverse-mode autodiff on a tiny scalar engine, then vectorised. Every training step needs the derivative of one scalar loss with respect to every parameter…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/backprop.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Backpropagation">
+<meta property="og:description" content="Reverse-mode autodiff on a tiny scalar engine, then vectorised. Every training step needs the derivative of one scalar loss with respect to every parameter…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/backprop.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Backpropagation">
+<meta name="twitter:description" content="Reverse-mode autodiff on a tiny scalar engine, then vectorised. Every training step needs the derivative of one scalar loss with respect to every parameter…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Backpropagation", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/backprop.html", "description": "Reverse-mode autodiff on a tiny scalar engine, then vectorised. Every training step needs the derivative of one scalar loss with respect to every parameter\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="backprop.py.html">source</a></p><h1>Backpropagation — six ways to differentiate a program</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Every training step needs the derivative of one scalar loss with respect to
+every parameter. Backpropagation is not a formula for neural networks; it is a
+way of running the chain rule over a computation graph so that all those
+derivatives cost about as much as one extra forward pass.</p>
+<p>The six variants are six answers to &quot;which derivative, and which direction?&quot;.
+The <code>scalar_engine</code> builds a graph of individual numbers, so each operation
+shows up as one node with one local derivative. <code>reverse_mode</code> does the same
+thing over arrays, which is what a deep-learning framework does. <code>forward_mode</code>
+carries a derivative forward alongside every value, which is cheap when there
+are few inputs and many outputs. <code>jacobian</code> uses repeated reverse sweeps to
+fill a matrix of derivatives. <code>hessian_vector</code> differentiates the gradient
+itself. <code>gradient_check</code> compares the analytic answer against two numerical
+ones.</p>
+<p>The demo differentiates the same two-layer tanh network four ways and demands
+that they agree. Reverse mode and central differences match to <span class="math inline">\(4.8\times
+10^{-10}\)</span>, forward mode reproduces the reverse-mode gradient to <span class="math inline">\(4.4\times
+10^{-16}\)</span>, and the complex step lands at machine precision.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">object</th>
+<th style="text-align:left">one call returns</th>
+<th style="text-align:left">cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>scalar_engine</code></td>
+<td style="text-align:left"><code>Scalar</code> graph</td>
+<td style="text-align:left">value and one derivative per input</td>
+<td style="text-align:left">one sweep</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>reverse_mode</code></td>
+<td style="text-align:left"><code>Tensor</code> graph</td>
+<td style="text-align:left">full gradient of a scalar</td>
+<td style="text-align:left">one sweep</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>forward_mode</code></td>
+<td style="text-align:left"><code>Dual</code> numbers</td>
+<td style="text-align:left">full gradient</td>
+<td style="text-align:left">one pass per parameter</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>jacobian</code></td>
+<td style="text-align:left"><code>Tensor</code> graph</td>
+<td style="text-align:left"><span class="math inline">\(m\times n\)</span> matrix</td>
+<td style="text-align:left">one sweep per output</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>hessian_vector</code></td>
+<td style="text-align:left">gradients</td>
+<td style="text-align:left"><span class="math inline">\(Hv\)</span> for a direction <span class="math inline">\(v\)</span></td>
+<td style="text-align:left">two gradient calls</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gradient_check</code></td>
+<td style="text-align:left">any callable</td>
+<td style="text-align:left">numeric vs complex error</td>
+<td style="text-align:left"><span class="math inline">\(3P\)</span> evaluations</td>
+</tr>
+</tbody>
+</table>
+<p>All six share one <code>mlp_loss</code>, written with operators only, so the same source
+runs on <code>Scalar</code>, <code>Tensor</code>, <code>Dual</code> and plain arrays. That is the point of the
+file: autodiff is a property of the operators, not of the model.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-chain-rule-on-a-graph">The chain rule on a graph <a class="header-anchor" href="#the-chain-rule-on-a-graph">#</a></h3>
+<p>For a scalar loss <span class="math inline">\(L\)</span> computed by a directed acyclic graph, define the adjoint
+of a node <span class="math inline">\(v\)</span> as <span class="math inline">\(\bar v=\partial L/\partial v\)</span>. Reverse mode seeds
+<span class="math inline">\(\bar L=1\)</span> and visits nodes in reverse topological order:</p>
+<div class="math block">
+\[\bar p \mathrel{+}= \bar v\,\frac{\partial v}{\partial p}
+\quad\text{for every edge } p\to v.
+\qquad (1)\]
+</div>
+<p>The sum is essential: if <span class="math inline">\(p\)</span> feeds two consumers, both contributions must be
+added. A node that is used <span class="math inline">\(k\)</span> times receives <span class="math inline">\(k\)</span> terms, which is why the
+scalar engine stores edges and accumulates rather than assigns.</p>
+<h3 id="the-scalar-engine">The scalar engine <a class="header-anchor" href="#the-scalar-engine">#</a></h3>
+<p>Each operation allocates a node holding its value, its parents, and one
+closure per parent that maps the incoming adjoint to that parent's share:</p>
+<div class="math block">
+\[v=ab,\qquad \frac{\partial v}{\partial a}=b,\qquad
+\frac{\partial v}{\partial b}=a.
+\qquad (2)\]
+</div>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="fm">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="n">other</span> <span class="o">=</span> <span class="n">other</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Scalar</span><span class="p">)</span> <span class="k">else</span> <span class="n">Scalar</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Scalar</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">other</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">),</span>
+                      <span class="p">(</span><span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">g</span> <span class="o">*</span> <span class="n">other</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                       <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">g</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+</code></pre>
+<p>A node does not know the graph above it, only the local derivative below it.
+The sweep in (1) supplies the rest.</p>
+<h3 id="reverse-mode-is-one-forward-and-one-backward-pass">Reverse mode is one forward and one backward pass <a class="header-anchor" href="#reverse-mode-is-one-forward-and-one-backward-pass">#</a></h3>
+<p>Let <span class="math inline">\(C\)</span> be the cost of the forward pass and <span class="math inline">\(P\)</span> the number of parameters.
+Reverse mode costs</p>
+<div class="math block">
+\[O(C)_{\text{forward}} + O(C)_{\text{backward}} = O(C),
+\qquad (3)\]
+</div>
+<p>independent of <span class="math inline">\(P\)</span>. Forward mode costs <span class="math inline">\(O(PC)\)</span> because each parameter needs
+its own seeded pass. For a network with <span class="math inline">\(P=10^6\)</span> and a scalar loss, reverse
+mode is the only option. For a function with one input and <span class="math inline">\(10^6\)</span> outputs, the
+inequality reverses.</p>
+<p>The price of reverse mode is memory: every intermediate needed by a local
+derivative must survive until the backward pass. That is the tape, and it is
+why checkpointing exists as a separate atom.</p>
+<h3 id="broadcasting-has-to-be-undone">Broadcasting has to be undone <a class="header-anchor" href="#broadcasting-has-to-be-undone">#</a></h3>
+<p>A forward add of shapes <span class="math inline">\((3,4)\)</span> and <span class="math inline">\((4,)\)</span> produces <span class="math inline">\((3,4)\)</span>. The adjoint
+arrives with shape <span class="math inline">\((3,4)\)</span>, but the second parent only owns <span class="math inline">\(4\)</span> numbers, so the
+extra axes are summed away:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial b_j}=\sum_{i}\bar y_{ij}.
+\qquad (4)\]
+</div>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_unbroadcast</span><span class="p">(</span><span class="n">gradient</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="n">gradient</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">gradient</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="k">while</span> <span class="n">gradient</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">):</span>
+        <span class="n">gradient</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">axis</span><span class="p">,</span> <span class="n">size</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">shape</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">gradient</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">gradient</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gradient</span>
+</code></pre>
+<p>Getting this wrong is the most common autodiff bug: the gradient has the right
+values but the wrong shape, and NumPy silently broadcasts it into something
+plausible.</p>
+<h3 id="forward-mode-with-dual-numbers">Forward mode with dual numbers <a class="header-anchor" href="#forward-mode-with-dual-numbers">#</a></h3>
+<p>Adjoin a nilpotent <span class="math inline">\(\epsilon\)</span> with <span class="math inline">\(\epsilon^2=0\)</span>. Then</p>
+<div class="math block">
+\[f(a+b\epsilon)=f(a)+f'(a)\,b\,\epsilon,
+\qquad (5)\]
+</div>
+<p>so evaluating <span class="math inline">\(f\)</span> once on a dual number returns both the value and the
+directional derivative. Every rule follows mechanically:</p>
+<div class="math block">
+\[(a+b\epsilon)(c+d\epsilon)=ac+(ad+bc)\epsilon,\qquad
+\tanh(a+b\epsilon)=\tanh(a)+(1-\tanh^2 a)\,b\,\epsilon.
+\qquad (6)\]
+</div>
+<p>One pass gives <span class="math inline">\(Jv\)</span> for a single direction <span class="math inline">\(v\)</span>; <span class="math inline">\(n\)</span> passes over the basis
+directions give the full gradient. The demo's single dual pass reproduces
+<span class="math inline">\(g^{\top}v\)</span> to <span class="math inline">\(4.4\times10^{-16}\)</span>.</p>
+<h3 id="jacobians">Jacobians <a class="header-anchor" href="#jacobians">#</a></h3>
+<p>For <span class="math inline">\(f:\mathbb R^n\to\mathbb R^m\)</span> the Jacobian is <span class="math inline">\(J_{ij}=\partial y_i/
+\partial x_j\)</span>. Reverse mode produces one row per sweep, so the full matrix
+costs <span class="math inline">\(m\)</span> backward passes:</p>
+<div class="math block">
+\[J=\begin{bmatrix}\nabla y_1^{\top}\\ \vdots\\ \nabla y_m^{\top}\end{bmatrix}.
+\qquad (7)\]
+</div>
+<p>The demo differentiates <span class="math inline">\(y=\tanh(Ax+b)\)</span> with <span class="math inline">\(A\)</span> of shape <span class="math inline">\(3\times4\)</span>. The
+closed form is</p>
+<div class="math block">
+\[J=\mathrm{diag}\bigl(1-\tanh^2(Ax+b)\bigr)A,
+\qquad (8)\]
+</div>
+<p>and the three reverse sweeps reproduce it exactly — the difference is <span class="math inline">\(0.0\)</span>,
+not merely small, because both sides perform the same floating-point products.</p>
+<h3 id="hessian-vector-products">Hessian-vector products <a class="header-anchor" href="#hessian-vector-products">#</a></h3>
+<p>The Hessian is the Jacobian of the gradient. A product <span class="math inline">\(Hv\)</span> therefore costs one
+derivative of a gradient, and the implementation here takes the cheapest route
+available with only reverse mode:</p>
+<div class="math block">
+\[Hv\approx\frac{\nabla f(\theta+\epsilon v)-\nabla f(\theta-\epsilon v)}
+{2\epsilon}.
+\qquad (9)\]
+</div>
+<p>That is two gradient calls and a truncation error of <span class="math inline">\(O(\epsilon^2)\)</span> times the
+third derivative. For the demo's quadratic <span class="math inline">\(f=\tfrac12\theta^{\top}A\theta\)</span> the
+third derivative is zero, so the product is exact up to roundoff
+(<span class="math inline">\(9.8\times10^{-12}\)</span>). A production HVP instead does forward-over-reverse and
+avoids the finite difference entirely; the demo prints the number so the
+approximation is visible rather than hidden.</p>
+<h3 id="why-two-numerical-checks">Why two numerical checks <a class="header-anchor" href="#why-two-numerical-checks">#</a></h3>
+<p>Central differences truncate at <span class="math inline">\(O(\epsilon^2)\)</span> but subtract two nearly equal
+numbers, so the roundoff term grows like machine precision over <span class="math inline">\(\epsilon\)</span>:</p>
+<div class="math block">
+\[\text{error}\;\approx\;\frac{\epsilon^2}{6}\bigl|f'''\bigr|
++\frac{2\,\text{eps}_{\text{mach}}\,\bigl|f\bigr|}{\epsilon}.
+\qquad (10)\]
+</div>
+<p>The best <span class="math inline">\(\epsilon\)</span> sits near <span class="math inline">\(10^{-5}\)</span>, and the error floor is around
+<span class="math inline">\(10^{-10}\)</span> — exactly the <span class="math inline">\(4.8\times10^{-10}\)</span> the demo reports. The complex step
+has no subtraction:</p>
+<div class="math block">
+\[\mathrm{Im}\,f(x+ih)/h=f'(x)-\frac{h^2}{6}f'''(x)+O(h^4),
+\qquad (11)\]
+</div>
+<p>so <span class="math inline">\(h=10^{-20}\)</span> gives a relative error at the machine floor
+(<span class="math inline">\(4.4\times10^{-16}\)</span> here). It requires <span class="math inline">\(f\)</span> to be analytic and implemented
+without <code>abs</code>, <code>max</code>, or comparisons.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The whole reverse pass is a reverse topological sweep with accumulation. Note
+that the seed is assigned after the zeroing, and that a node visited twice is
+visited once:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_backward</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">_topological</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">grad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">grad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">_topological</span><span class="p">(</span><span class="n">node</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">parent</span><span class="p">,</span> <span class="n">local</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">parents</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">local</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">grad</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">grad</span> <span class="o">+</span> <span class="n">local</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+</code></pre>
+<p><code>Tensor</code> needs <code>__array_priority__</code> so that <code>x @ W</code> with a NumPy <code>x</code> defers to
+<code>W.__rmatmul__</code> instead of trying to convert the graph node into an array. The
+matrix-multiply rule is the two adjoints of <span class="math inline">\(y=xW\)</span>:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="n">other</span> <span class="o">=</span> <span class="n">other</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="k">else</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">other</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Tensor</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">@</span> <span class="n">other</span><span class="o">.</span><span class="n">value</span><span class="p">),</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">),</span>
+                          <span class="p">(</span><span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">g</span> <span class="o">*</span> <span class="n">other</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                           <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">g</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">Tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">@</span> <span class="n">other</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">),</span>
+                      <span class="p">(</span><span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">g</span> <span class="o">@</span> <span class="n">other</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                       <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">g</span><span class="p">))</span>
+</code></pre>
+<p>The reverse driver builds a node per parameter, calls the function, and
+requires a scalar. Returning a vector would be a silent bug, so it is checked:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_reverse_gradient</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+    <span class="n">nodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">Tensor</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">]</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="n">out</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"the function must return a scalar"</span><span class="p">)</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">grad</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">]</span>
+</code></pre>
+<p>Forward mode is the same loop shape, but the seed is a unit tangent instead of
+an adjoint. Its cost is visible in the nesting: one pass per parameter entry:</p>
+<pre class="highlight"><code>    <span class="k">for</span> <span class="n">position</span><span class="p">,</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">ndindex</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
+            <span class="n">seeded</span> <span class="o">=</span> <span class="p">[</span><span class="n">Dual</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">p</span><span class="p">))</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">]</span>
+            <span class="n">seeded</span><span class="p">[</span><span class="n">position</span><span class="p">]</span><span class="o">.</span><span class="n">tangent</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="n">seeded</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">Dual</span><span class="p">)</span> <span class="ow">or</span> <span class="n">out</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"the function must return a scalar"</span><span class="p">)</span>
+            <span class="n">gradients</span><span class="p">[</span><span class="n">position</span><span class="p">][</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">tangent</span>
+</code></pre>
+<p>The Jacobian reuses one graph and re-seeds the output. Each <code>backward</code> call
+resets every adjoint first, so the rows do not contaminate each other:</p>
+<pre class="highlight"><code>        <span class="n">flat</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">flat</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+            <span class="n">seed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+            <span class="n">seed</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="n">row</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">column</span><span class="o">.</span><span class="n">grad</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+</code></pre>
+<p>The Hessian-vector product is two gradient evaluations around the point, which
+is why it needs no second-order machinery:</p>
+<pre class="highlight"><code>        <span class="n">plus</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">*</span> <span class="n">v</span> <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span>
+                                                  <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+        <span class="n">minus</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">*</span> <span class="n">v</span> <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span>
+                                                   <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+        <span class="n">ahead</span> <span class="o">=</span> <span class="n">_reverse_gradient</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">plus</span><span class="p">)</span>
+        <span class="n">behind</span> <span class="o">=</span> <span class="n">_reverse_gradient</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">minus</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[(</span><span class="n">a</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ahead</span><span class="p">,</span> <span class="n">behind</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+</code></pre>
+<p>The two numerical checks share one loop. The complex probe perturbs by an
+imaginary <span class="math inline">\(10^{-20}\)</span> and divides the imaginary part; there is no subtraction,
+which is exactly why it is more accurate than the central difference beside it:</p>
+<pre class="highlight"><code>                <span class="n">probe</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">complex</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">]</span>
+                <span class="n">probe</span><span class="p">[</span><span class="n">position</span><span class="p">][</span><span class="n">index</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">1e-20j</span>
+                <span class="n">complex_step</span><span class="p">[</span><span class="n">position</span><span class="p">][</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">imag</span><span class="p">(</span><span class="n">fn</span><span class="p">(</span><span class="n">probe</span><span class="p">))</span> <span class="o">/</span> <span class="mf">1e-20</span>
+</code></pre>
+<p>Because <code>mlp_loss</code> is written with <code>@</code>, <code>+</code>, <code>-</code>, <code>*</code> and <code>.mean()</code>, every
+engine above drives it unchanged:</p>
+<pre class="highlight"><code>    <span class="n">first</span><span class="p">,</span> <span class="n">first_bias</span><span class="p">,</span> <span class="n">second</span><span class="p">,</span> <span class="n">second_bias</span> <span class="o">=</span> <span class="n">params</span>
+    <span class="n">hidden</span> <span class="o">=</span> <span class="n">_tanh</span><span class="p">(</span><span class="n">x</span> <span class="o">@</span> <span class="n">first</span> <span class="o">+</span> <span class="n">first_bias</span><span class="p">)</span>
+    <span class="n">prediction</span> <span class="o">=</span> <span class="n">hidden</span> <span class="o">@</span> <span class="n">second</span> <span class="o">+</span> <span class="n">second_bias</span>
+    <span class="n">difference</span> <span class="o">=</span> <span class="n">prediction</span> <span class="o">-</span> <span class="n">y</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">difference</span> <span class="o">*</span> <span class="n">difference</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(C\)</span> be the cost of one forward evaluation, <span class="math inline">\(P\)</span> the number of parameters,
+<span class="math inline">\(m\)</span> the number of outputs and <span class="math inline">\(N\)</span> the number of graph nodes.</p>
+<ul>
+<li><strong>Scalar engine:</strong> <span class="math inline">\(O(N)\)</span> time and <span class="math inline">\(O(N)\)</span> memory; one Python object per
+operation, so it is a teaching tool rather than a runtime.</li>
+<li><strong>Reverse mode:</strong> one forward and one backward sweep, roughly <span class="math inline">\(2\)</span>–<span class="math inline">\(3C\)</span>, with
+<span class="math inline">\(O(\text{tape})\)</span> memory. The cost is independent of <span class="math inline">\(P\)</span>.</li>
+<li><strong>Forward mode:</strong> <span class="math inline">\(P\)</span> dual passes, <span class="math inline">\(O(PC)\)</span>; memory <span class="math inline">\(O(1)\)</span> beyond the values.</li>
+<li><strong>Jacobian:</strong> <span class="math inline">\(m\)</span> reverse sweeps, <span class="math inline">\(O(mC)\)</span>, or <span class="math inline">\(n\)</span> forward sweeps for a wider
+than tall map. Choose the smaller dimension.</li>
+<li><strong>Hessian-vector:</strong> two gradient calls, <span class="math inline">\(O(C)\)</span> each, plus the vector
+arithmetic; accuracy <span class="math inline">\(O(\epsilon^2)\)</span>.</li>
+<li><strong>Gradient check:</strong> <span class="math inline">\(2P\)</span> forward evaluations plus <span class="math inline">\(P\)</span> complex ones, so
+<span class="math inline">\(O(PC)\)</span> with a large constant; used on small probes, never in a loop.</li>
+<li><strong>The demo:</strong> 17 parameters, one hidden layer of width 4, batches of 3. The
+17-parameter loop in the check is 51 evaluations; the 300-step training run
+is 300 forward-backward pairs. Everything is milliseconds.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Aliasing breaks the tape.</strong> An in-place update of an array that a node still
+references changes the value the backward pass will read. Reverse mode requires
+that every tensor saved for the backward pass is treated as immutable.</p>
+<p><strong><code>__array_priority__</code> missing.</strong> Without it, <code>ndarray @ Tensor</code> calls the
+ndarray's own <code>matmul</code>, which tries to convert the node to a 0-d object array
+and fails with a shape error far from the real cause. Any wrapper object that
+sits on the left of a NumPy operator needs the priority attribute and a
+reflected method.</p>
+<p><strong>Broadcast gradients are not summed.</strong> A parameter of shape <span class="math inline">\((4,)\)</span> used
+against a batch of shape <span class="math inline">\((3,4)\)</span> accumulates three rows. Skipping
+<code>_unbroadcast</code> gives a shape error at best and a silently transposed gradient
+at worst.</p>
+<p><strong>Accumulate, do not assign.</strong> Two consumers of one node must both add into its
+adjoint. Assigning the last contribution is the classic bug: the loss still
+decreases, just more slowly, and the gradient check is what catches it.</p>
+<p><strong>Reverse mode's memory grows with depth.</strong> The tape holds every activation
+whose local derivative needs it. A 100-layer network with large activations
+can need more memory for the backward pass than for the parameters.</p>
+<p><strong>Forward mode's cost grows with the parameter count.</strong> For a network it is
+<span class="math inline">\(P\)</span> passes, which is why frameworks rarely use it for training. It is the right
+tool for a tall Jacobian or a single directional derivative.</p>
+<p><strong>Finite differences have a floor.</strong> The demo's <span class="math inline">\(4.8\times10^{-10}\)</span> is not a
+bug; it is the sum of the two error terms in (10). Tuning <span class="math inline">\(\epsilon\)</span> below
+<span class="math inline">\(10^{-6}\)</span> makes the answer worse, not better, because cancellation takes over.</p>
+<p><strong>The complex step assumes analyticity.</strong> <code>abs</code>, <code>max</code>, <code>relu</code> and any branch
+on a comparison destroy it. The check would still run and return a number, so a
+wrong result looks like a right one.</p>
+<p><strong>Gradient checks at kinks are meaningless.</strong> A ReLU has no derivative at zero
+and different one-sided derivatives next to it. Central differences there
+report a large error for a correct implementation.</p>
+<p><strong>The Hessian-vector product is not exact.</strong> Equation (9) approximates <span class="math inline">\(Hv\)</span> and
+is only exact for quadratics. A curvature-aware optimiser that assumes an exact
+product inherits the truncation error.</p>
+<p><strong>Node identity, not value identity, defines the graph.</strong> <code>_topological</code> keys
+on <code>id()</code>, so nodes must stay alive for the duration of the sweep, and two
+equal arrays are still two nodes.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Backpropagation is the engine of every gradient-trained model. Reverse mode is
+what PyTorch, TensorFlow, JAX and tinygrad implement; the array graph here is a
+condensed version of the same design. Forward mode appears in
+sensitivity analysis, in computing directional derivatives for adversarial
+robustness, and in differentiating tall maps where the output dimension is
+small.</p>
+<p>Jacobians and Hessian-vector products are the workhorses of second-order
+methods: natural gradient, K-FAC, Hessian-free optimisation, influence
+functions and sharpness-aware training all call an HVP. Gradient checking is
+the standard unit test for a new layer, and the complex step is the sharpest
+version of it when the layer is analytic. The scalar engine is the standard
+pedagogical starting point because a graph with one edge per operation makes
+the chain rule visible with nothing else in the way.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Baydin, A. G., Pearlmutter, B. A., Radul, A. A., Siskind, J. M. (2018).
+<em>Automatic differentiation in machine learning: a survey.</em> JMLR 18(153).
+The taxonomy of forward and reverse mode.</li>
+<li>Griewank, A., Walther, A. (2008). <em>Evaluating Derivatives: Principles and
+Techniques of Algorithmic Differentiation.</em> SIAM. The graph formulation and
+the cost model in (3).</li>
+<li>Pearlmutter, B. A. (1994). <em>Fast exact multiplication by the Hessian.</em>
+Neural Computation 6(1). The R-operator behind exact Hessian-vector
+products.</li>
+<li>Maclaurin, D., Duvenaud, D., Adams, R. P. (2015). <em>Autograd: effortless
+gradients in NumPy.</em> ICML AutoML workshop. The array-level tape design.</li>
+<li>Martins, J. R. R. A., Sturdza, P., Alonso, J. J. (2003). <em>The complex-step
+derivative approximation.</em> ACM TOMS 29(3). Equation (11).</li>
+<li>Karpathy, A. (2022). <em>micrograd.</em> A scalar autodiff engine in about a hundred
+lines, the model for the <code>scalar_engine</code> variant.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="index.html"><small>Previous</small><span>13 · Training</span></a><a class="next" href="distillation.html"><small>Next</small><span>Knowledge distillation</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html" aria-current="page"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-chain-rule-on-a-graph">The chain rule on a graph</a></li><li class="lvl3"><a href="#the-scalar-engine">The scalar engine</a></li><li class="lvl3"><a href="#reverse-mode-is-one-forward-and-one-backward-pass">Reverse mode is one forward and one backward pass</a></li><li class="lvl3"><a href="#broadcasting-has-to-be-undone">Broadcasting has to be undone</a></li><li class="lvl3"><a href="#forward-mode-with-dual-numbers">Forward mode with dual numbers</a></li><li class="lvl3"><a href="#jacobians">Jacobians</a></li><li class="lvl3"><a href="#hessian-vector-products">Hessian-vector products</a></li><li class="lvl3"><a href="#why-two-numerical-checks">Why two numerical checks</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/backprop.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

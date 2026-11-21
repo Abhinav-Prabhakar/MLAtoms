@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pruning · MLAtoms</title>
+<meta name="description" content="Magnitude, structured and movement pruning; lottery tickets. A trained network contains far more weights than the task needs, so most of them can be set to…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/pruning.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Pruning">
+<meta property="og:description" content="Magnitude, structured and movement pruning; lottery tickets. A trained network contains far more weights than the task needs, so most of them can be set to…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/pruning.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pruning">
+<meta name="twitter:description" content="Magnitude, structured and movement pruning; lottery tickets. A trained network contains far more weights than the task needs, so most of them can be set to…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Pruning", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/pruning.html", "description": "Magnitude, structured and movement pruning; lottery tickets. A trained network contains far more weights than the task needs, so most of them can be set to\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="pruning.py.html">source</a></p><h1>Pruning — eight ways to delete weights and keep the accuracy</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A trained network contains far more weights than the task needs, so most of
+them can be set to zero with little loss. That part is easy. The two decisions
+that actually matter are <em>which</em> weights to delete and <em>when</em> to delete them,
+and the eight variants here are different answers to those two questions.</p>
+<p>The implementation makes the deletion explicit with a binary mask per matrix.
+The mask multiplies the weight in the forward pass, so a pruned weight
+contributes nothing, and it multiplies the gradient in the backward pass, so a
+pruned weight never moves again. Every variant then reduces to a rule for
+filling those masks: the weight's magnitude, its accumulated movement, the
+norm of the hidden unit it belongs to, the singular values of the matrix, or a
+schedule that grows the masks over training.</p>
+<p>The demo trains a 643-parameter MLP on a three-class problem, then compresses
+it. At 80% sparsity seven of the eight variants keep at least 0.979 accuracy,
+which says something about how redundant the model is, not about how clever the
+criteria are. The separation appears at 98%: a single prune collapses to 0.333,
+iterative pruning reaches 0.662, rewinding to the initial weights reaches 0.967,
+and a gradual schedule reaches 0.996. When the budget is genuinely tight, <em>when</em>
+matters more than <em>which</em>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">score</th>
+<th style="text-align:left">unit</th>
+<th style="text-align:left">decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>magnitude</code></td>
+<td style="text-align:left"><span class="math inline">\(\lvert w\rvert\)</span></td>
+<td style="text-align:left">weight</td>
+<td style="text-align:left">iterative, per layer</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>one_shot</code></td>
+<td style="text-align:left"><span class="math inline">\(\lvert w\rvert\)</span></td>
+<td style="text-align:left">weight</td>
+<td style="text-align:left">once, after training</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>unstructured</code></td>
+<td style="text-align:left"><span class="math inline">\(\lvert w\rvert\)</span></td>
+<td style="text-align:left">weight</td>
+<td style="text-align:left">once, global threshold</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>movement</code></td>
+<td style="text-align:left"><span class="math inline">\(\sum_t\lvert w^{(t)}g^{(t)}\rvert\)</span></td>
+<td style="text-align:left">weight</td>
+<td style="text-align:left">once, accumulated</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>structured</code></td>
+<td style="text-align:left"><span class="math inline">\(\lVert W_{:,j}\rVert_2\lVert W_{j,:}\rVert_2\)</span></td>
+<td style="text-align:left">hidden unit</td>
+<td style="text-align:left">once</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gradual</code></td>
+<td style="text-align:left"><span class="math inline">\(\lvert w\rvert\)</span></td>
+<td style="text-align:left">weight</td>
+<td style="text-align:left">cubic schedule during training</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lottery_ticket</code></td>
+<td style="text-align:left"><span class="math inline">\(\lvert w\rvert\)</span></td>
+<td style="text-align:left">weight</td>
+<td style="text-align:left">iterative, rewind to init</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>svd_prune</code></td>
+<td style="text-align:left">singular values</td>
+<td style="text-align:left">rank</td>
+<td style="text-align:left">low-rank factorisation</td>
+</tr>
+</tbody>
+</table>
+<p>The schedule column is the interesting one once the budget gets tight. The
+score column decides <em>which</em> weights die; the schedule decides whether the
+network gets a chance to route around the damage.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-masked-network">The masked network <a class="header-anchor" href="#the-masked-network">#</a></h3>
+<p>Let <span class="math inline">\(M_l\)</span> be a binary mask the shape of <span class="math inline">\(W_l\)</span>. The forward pass and the
+gradient are both masked:</p>
+<div class="math block">
+\[h=\tanh\!\left((W_1\odot M_1)\,x+b_1\right),\qquad
+z=(W_2\odot M_2)\,h+b_2,
+\qquad (1)\]
+</div>
+<div class="math block">
+\[\frac{\partial L}{\partial W_l}=M_l\odot G_l,\qquad
+W_l\leftarrow W_l-\eta\,M_l\odot G_l.
+\qquad (2)\]
+</div>
+<p>Equation (2) is why a mask is not merely a view: an entry with <span class="math inline">\(M_{ij}=0\)</span> has
+zero gradient, so it stays exactly where it was and can be restored later
+without a saved copy. The pruned values are dead weight in memory but they are
+never read by the forward pass, which is why <code>n_stored</code> counts the mask rather
+than the array.</p>
+<p>For a matrix with <span class="math inline">\(k\)</span> survivors this costs</p>
+<div class="math block">
+\[\text{stored}=k+\underbrace{\dim b_1+\dim b_2}_{\text{never pruned}},
+\qquad (3)\]
+</div>
+<p>so the demo's per-layer 80% model keeps 121 of 608 weights plus 35 biases and
+reports 156 numbers against 643.</p>
+<h3 id="what-to-remove">What to remove <a class="header-anchor" href="#what-to-remove">#</a></h3>
+<p>The simplest score is the weight itself. Magnitude pruning keeps the <span class="math inline">\(k\)</span>
+largest entries,</p>
+<div class="math block">
+\[M_{ij}=\mathbf{1}\!\left[\,|W_{ij}|\ge \tau_k\,\right],
+\qquad (4)\]
+</div>
+<p>where <span class="math inline">\(\tau_k\)</span> is the <span class="math inline">\(k\)</span>-th largest magnitude. This is a first-order
+approximation to the loss change from deleting a weight. Expanding around the
+trained point, the second-order model of LeCun's optimal brain damage is</p>
+<div class="math block">
+\[\delta L_i\approx \tfrac12\,W_i^2\,H_{ii},
+\qquad (5)\]
+</div>
+<p>so magnitude is exact only when the diagonal Hessian is constant across
+weights. It ignores the fact that a weight can be large and still redundant
+because another unit already computes the same feature.</p>
+<p>Movement pruning replaces the static score with the first-order term
+accumulated along the training trajectory:</p>
+<div class="math block">
+\[s_{ij}=\sum_{t}\left|W^{(t)}_{ij}\,g^{(t)}_{ij}\right|,
+\qquad (6)\]
+</div>
+<p>which is the total first-order loss change attributable to that weight, and it
+is what the demo accumulates in the last 100 steps before masking. On the demo
+task it flips 104 of 512 first-layer decisions relative to a pure magnitude
+rule at the same sparsity, and scores 0.967 instead of 1.000: a different mask
+is not automatically a better one.</p>
+<h3 id="global-against-per-layer-budgets">Global against per-layer budgets <a class="header-anchor" href="#global-against-per-layer-budgets">#</a></h3>
+<p>A per-layer rule spends the sparsity evenly, <span class="math inline">\(k_l=\lfloor(1-s)|W_l|\rfloor\)</span>,
+while a global rule spends it where the large weights are:</p>
+<div class="math block">
+\[\sum_l k_l=(1-s)\sum_l|W_l|.
+\qquad (7)\]
+</div>
+<p>Both target the same total, but the global threshold is free to empty a layer
+whose weights happen to be small. In the demo it zeroes 82% of <code>W1</code> and 70% of
+<code>W2</code>, and still scores 0.988; the layer-wise rule lands exactly on 80/80 and
+scores 1.000. Neither is universally right: global is better when layers have
+very different scales, per-layer when every layer is load-bearing.</p>
+<h3 id="structured-pruning">Structured pruning <a class="header-anchor" href="#structured-pruning">#</a></h3>
+<p>Structured pruning removes whole hidden units, which is the only kind that
+makes the matrix physically smaller. The score for unit <span class="math inline">\(j\)</span> multiplies its
+incoming and outgoing norms:</p>
+<div class="math block">
+\[s_j=\lVert W_{1,:,j}\rVert_2\;\lVert W_{2,j,:}\rVert_2,
+\qquad (8)\]
+</div>
+<p>and the same indicator zeroes column <span class="math inline">\(j\)</span> of <span class="math inline">\(W_1\)</span> and row <span class="math inline">\(j\)</span> of <span class="math inline">\(W_2\)</span>. In the
+demo six of 32 units survive at 80% sparsity, accuracy stays at 1.000, and the
+stored count is 149 — the smallest of the mask-based variants, because the
+surviving rows and columns are genuinely gone rather than multiplied by zero.</p>
+<h3 id="schedules-gradual-iterative-rewinding">Schedules: gradual, iterative, rewinding <a class="header-anchor" href="#schedules-gradual-iterative-rewinding">#</a></h3>
+<p>A gradual schedule raises the target sparsity during one training run:</p>
+<div class="math block">
+\[s_t=s\left(1-\left(1-\tfrac{t}{T}\right)^3\right),
+\qquad (9)\]
+</div>
+<p>so the model is dense when it is still learning the task and sparse only once
+the easy structure has been found. Iterative pruning does the same in discrete
+rounds and retrains between them:</p>
+<div class="math block">
+\[s_r=1-(1-s)^{r/R},
+\qquad (10)\]
+</div>
+<p>with <span class="math inline">\(R\)</span> rounds. The lottery-ticket variant adds one extra step: before each
+round it rewinds the weights to their initial values,</p>
+<div class="math block">
+\[W^{(r)}\leftarrow W^{(0)}\odot M^{(r-1)},
+\qquad (11)\]
+</div>
+<p>so the mask and the weights are selected together instead of the mask being
+fitted to whatever weights the previous round happened to reach. On the demo,
+at 98% sparsity, one prune gives 0.333, iterative pruning 0.662, rewinding
+0.967, and the gradual schedule 0.996.</p>
+<h3 id="low-rank-pruning">Low-rank pruning <a class="header-anchor" href="#low-rank-pruning">#</a></h3>
+<p>The last variant does not mask at all. It replaces each matrix by its truncated
+singular value decomposition,</p>
+<div class="math block">
+\[W\approx U_r\,\mathrm{diag}(\sigma_{1:r})\,V_r^{\top},
+\qquad (12)\]
+</div>
+<p>which stores <span class="math inline">\(r(d+k)\)</span> numbers instead of <span class="math inline">\(dk\)</span>. The demo allocates rank greedily
+across both matrices, always buying the singular value with the largest energy
+per stored number:</p>
+<div class="math block">
+\[\text{gain}_i=\frac{\sigma_i^2}{d+k},
+\qquad (13)\]
+</div>
+<p>until the entry budget or <span class="math inline">\(1-\text{tolerance}\)</span> of the total energy is reached.
+At 50% it keeps ranks 4 and 3 and scores 1.000; at 80% the budget buys rank 1
+for <code>W1</code> and rank 2 for <code>W2</code>, and accuracy falls to 0.667. A rank-one output
+layer cannot separate three classes, and no amount of clever allocation fixes
+that: the constraint is the rank, not the criterion.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The mask enters in exactly two places, and both are one expression. Forward:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_forward</span><span class="p">(</span><span class="n">parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">masks</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+    <span class="n">pre</span> <span class="o">=</span> <span class="n">x</span> <span class="o">@</span> <span class="p">(</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span> <span class="o">*</span> <span class="n">masks</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">])</span> <span class="o">+</span> <span class="n">parameters</span><span class="p">[</span><span class="s2">"b1"</span><span class="p">]</span>
+    <span class="n">hidden</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">hidden</span> <span class="o">@</span> <span class="p">(</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">*</span> <span class="n">masks</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">])</span> <span class="o">+</span> <span class="n">parameters</span><span class="p">[</span><span class="s2">"b2"</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">logits</span><span class="p">,</span> <span class="p">{</span><span class="s2">"x"</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="s2">"pre"</span><span class="p">:</span> <span class="n">pre</span><span class="p">,</span> <span class="s2">"hidden"</span><span class="p">:</span> <span class="n">hidden</span><span class="p">}</span>
+</code></pre>
+<p>Backward multiplies each gradient by the same mask, including the hidden-layer
+gradient that flows through the masked second matrix:</p>
+<pre class="highlight"><code>    <span class="n">dhidden</span> <span class="o">=</span> <span class="p">(</span><span class="n">dlogits</span> <span class="o">@</span> <span class="p">(</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">*</span> <span class="n">masks</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">])</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span>
+        <span class="mf">1.0</span> <span class="o">-</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"hidden"</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"W1"</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dhidden</span> <span class="o">*</span> <span class="n">masks</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">],</span>
+        <span class="s2">"b1"</span><span class="p">:</span> <span class="n">dhidden</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="s2">"W2"</span><span class="p">:</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"hidden"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dlogits</span> <span class="o">*</span> <span class="n">masks</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">],</span>
+        <span class="s2">"b2"</span><span class="p">:</span> <span class="n">dlogits</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+    <span class="p">}</span>
+</code></pre>
+<p>Choosing the survivors is a stable top-<span class="math inline">\(k\)</span> over the flattened score, so ties do
+not depend on the platform's sort order:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_keep_top</span><span class="p">(</span><span class="n">scores</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">sparsity</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="n">flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">sparsity</span><span class="p">)</span> <span class="o">*</span> <span class="n">flat</span><span class="o">.</span><span class="n">size</span><span class="p">)))</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">keep</span><span class="p">,</span> <span class="n">flat</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">flat</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"stable"</span><span class="p">)[:</span><span class="n">keep</span><span class="p">]</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">flat</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="n">mask</span><span class="p">[</span><span class="n">order</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">return</span> <span class="n">mask</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+</code></pre>
+<p>The global variant concatenates both layers before taking the top-<span class="math inline">\(k\)</span>, then
+slices the result back apart; every other mask variant applies the same helper
+per layer:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"unstructured"</span><span class="p">:</span>
+            <span class="n">flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">scores</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                                   <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">LEARNED</span><span class="p">])</span>
+            <span class="n">keep</span> <span class="o">=</span> <span class="n">_keep_top</span><span class="p">(</span><span class="n">flat</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">flat</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">LEARNED</span><span class="p">:</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">keep</span><span class="p">[</span><span class="n">offset</span><span class="p">:</span><span class="n">offset</span> <span class="o">+</span> <span class="n">size</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">*</span> <span class="n">mask</span>
+                <span class="n">offset</span> <span class="o">+=</span> <span class="n">size</span>
+</code></pre>
+<p>Movement accumulates the product of weight and gradient at every step, which
+is the discrete form of (6), before the same <code>_prune_masks</code> call consumes it:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_accumulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">grads</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_loss_and_grads</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">LEARNED</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">scores</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">*</span> <span class="n">grads</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">lr</span><span class="p">))</span>
+</code></pre>
+<p>The gradual schedule is (9) evaluated once per step, with a prune every
+<code>interval</code> steps and a final prune at the end:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_fit_gradual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                     <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+            <span class="n">fraction</span> <span class="o">=</span> <span class="p">(</span><span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">steps</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparsity</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">fraction</span><span class="p">)</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">step</span> <span class="o">%</span> <span class="n">interval</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">step</span> <span class="o">==</span> <span class="n">steps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_prune_masks</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">lr</span><span class="p">))</span>
+</code></pre>
+<p>Iterative pruning is the same loop over rounds, and the <code>rewind</code> flag is the
+only difference between <code>magnitude</code> and <code>lottery_ticket</code>:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_fit_iterative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                       <span class="n">rewind</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">round_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">steps</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">rounds</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">round_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rounds</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">rewind</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">LEARNED</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"b1"</span><span class="p">,</span> <span class="s2">"b2"</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_train</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">round_steps</span><span class="p">,</span> <span class="n">lr</span><span class="p">)</span>
+</code></pre>
+<p>Structured pruning scores units rather than entries, then broadcasts one
+indicator into a column mask and a row mask:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_prune_structured</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">norm_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">norm_out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="n">norm_in</span> <span class="o">*</span> <span class="n">norm_out</span>
+        <span class="n">keep</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparsity</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">)))</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">score</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"stable"</span><span class="p">)[:</span><span class="n">keep</span><span class="p">]</span>
+        <span class="n">keep_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">)</span>
+        <span class="n">keep_mask</span><span class="p">[</span><span class="n">order</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">keep_mask</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">=</span> <span class="n">keep_mask</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">masks</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">])</span>
+</code></pre>
+<p>The low-rank variant is the only one that changes the arrays rather than the
+mask, and its loop is (13) written as a greedy auction over ranks:</p>
+<pre class="highlight"><code>        <span class="k">while</span> <span class="n">recovered</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">tolerance</span><span class="p">)</span> <span class="o">*</span> <span class="n">total</span><span class="p">:</span>
+            <span class="n">best</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">LEARNED</span><span class="p">:</span>
+                <span class="n">singular</span> <span class="o">=</span> <span class="n">factor</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">ranks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">singular</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">cost</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">used</span> <span class="o">+</span> <span class="n">cost</span> <span class="o">&gt;</span> <span class="n">budget</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">gain</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">singular</span><span class="p">[</span><span class="n">ranks</span><span class="p">[</span><span class="n">name</span><span class="p">]]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">cost</span>
+                <span class="k">if</span> <span class="n">best</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">gain</span> <span class="o">&gt;</span> <span class="n">best</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="n">best</span> <span class="o">=</span> <span class="p">(</span><span class="n">gain</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">cost</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">best</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">cost</span> <span class="o">=</span> <span class="n">best</span>
+            <span class="n">recovered</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">factor</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="n">ranks</span><span class="p">[</span><span class="n">name</span><span class="p">]]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">ranks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">used</span> <span class="o">+=</span> <span class="n">cost</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For a weight matrix of shape <span class="math inline">\(d\times k\)</span> and a batch of <span class="math inline">\(B\)</span> examples:</p>
+<ul>
+<li><strong>Masked forward and backward:</strong> still <span class="math inline">\(O(Bdk)\)</span>; multiplying by a mask does
+not skip work. A sparse mask saves memory, not time, unless the storage and
+kernel are also sparse.</li>
+<li><strong>Choosing a mask:</strong> <span class="math inline">\(O(dk\log(dk))\)</span> for the sort, done once per prune event.
+Gradual pruning repeats it every <code>interval</code> steps, which is why the interval
+is a real cost knob.</li>
+<li><strong>Structured pruning:</strong> reduces the hidden width from <span class="math inline">\(h\)</span> to <span class="math inline">\(h'\)</span>, so the
+matmuls shrink to <span class="math inline">\(O(Bdh')+O(Bh'c)\)</span> — the only variant here that is faster
+at inference on ordinary hardware.</li>
+<li><strong>SVD pruning:</strong> one <span class="math inline">\(O(\min(d,k)\,dk)\)</span> factorisation per matrix, then
+<span class="math inline">\(O(r(d+k))\)</span> storage and <span class="math inline">\(O(Br(d+k))\)</span> per forward pass.</li>
+<li><strong>The demo:</strong> eight variants over 500 steps on 240 examples, plus four
+schedules and a finite-difference-free training loop. The whole run is under a
+second, and the assertions are on stored counts and held-out accuracy rather
+than on gradients, because pruning never changes the gradients, only gates
+them.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A single prune at 98% destroys the model.</strong> The demo reports 0.333 for
+<code>one_shot</code> against 1.000 for the dense model. The mask was chosen from weights
+that had never operated under sparsity, and the next two variants show what a
+schedule buys: 0.662 for four rounds of prune-and-retrain, 0.967 for rewinding.</p>
+<p><strong>Iterative pruning is not the same as a good mask.</strong> <code>magnitude</code> reaches 0.662
+at 98%, better than one shot and far worse than rewinding or gradual. Four
+rounds of prune-and-retrain help, but the later rounds are fitting weights that
+already carry the damage of the early rounds.</p>
+<p><strong>The lottery ticket's win is over reinitialisation, not over magnitude.</strong> At
+80% every method scores 1.000; at 98% rewinding reaches 0.967. The control in
+the original paper is a random reinitialisation at the same mask, which the
+demo does not include, so the honest reading is that rewinding helps this task,
+not that it is universally the best criterion.</p>
+<p><strong>Global thresholds can empty a layer.</strong> The demo's global rule gives <code>W2</code> 70%
+sparsity while <code>W1</code> gets 82%; on a network with one narrow layer, the same rule
+can delete all of it. The per-layer rule exists for that reason.</p>
+<p><strong>Structured pruning can delete a class.</strong> Unit scores are aggregated over all
+outputs, so a unit that only serves one class can look unimportant. The demo is
+lucky — six units carry three classes — but the failure is the reason structured
+pruning is usually followed by fine-tuning.</p>
+<p><strong>Sparsity is not speed.</strong> A mask of 80% zeros still runs a dense matmul at
+full cost. Only <code>structured</code> and <code>svd_prune</code> reduce compute, and only the
+structured one reduces it on hardware that cannot exploit sparsity.</p>
+<p><strong>The mask is applied to gradients, not to the optimiser state.</strong> If the
+optimiser keeps momentum for a pruned weight, restoring the mask later resumes
+with stale momentum. This implementation is plain SGD and sidesteps the issue;
+Adam-based pruning stacks have to zero the state explicitly.</p>
+<p><strong>Pruning before training is a different algorithm.</strong> <code>one_shot</code> here prunes
+after training. Pruning at initialisation and then training the sparse mask is
+the other one-shot recipe, and it behaves differently because the surviving
+weights never see the dense solution.</p>
+<p><strong>Low rank is a hard constraint, not a budget.</strong> At 80% sparsity <code>svd_prune</code>
+keeps rank 1 in <code>W1</code> and rank 2 in <code>W2</code> and scores 0.667, because three classes
+need a rank-two output. Allocating the same number of stored values as a mask
+does not buy the same function class.</p>
+<p><strong>The reported sparsity is over prunable weights only.</strong> Biases are never
+pruned here, so total sparsity is lower than the per-matrix number. The demo
+prints both <code>n_stored</code> and <code>n_dense</code> for this reason.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Magnitude and movement pruning are the default compression step for large
+language models, usually combined with quantisation: prune to 50–60%, then
+quantise what remains. Movement pruning's accumulated score is the basis of
+several production recipes because it can be computed during fine-tuning
+without a separate pass. Structured pruning is what ships to phones and
+accelerators, because removing a channel is the only kind of sparsity that a
+dense kernel can exploit.</p>
+<p>The lottery-ticket line of work changed how people think about over-parameterised
+training: the mask found on a dense run is often trainable from the original
+initialisation, which suggests the dense network's role is partly to find a
+good sparse subnetwork. Low-rank pruning is the bridge to the previous atom:
+truncated SVD is the same decomposition that LoRA learns, applied to a frozen
+weight instead of an update. In practice the strongest compression pipelines
+stack all three — prune for zeros, factorise for rank, quantise for bits — and
+distil the result into a smaller dense model.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>LeCun, Y., Denker, J. S., Solla, S. A. (1990). <em>Optimal brain damage.</em>
+NeurIPS. The diagonal-Hessian score of (5).</li>
+<li>Hassibi, B., Stork, D. G. (1993). <em>Second order derivatives for network
+pruning: optimal brain surgeon.</em> NeurIPS. The full-Hessian correction that
+magnitude ignores.</li>
+<li>Han, S., Pool, J., Tran, J., Dally, W. J. (2015). <em>Learning both weights and
+connections for efficient neural networks.</em> NeurIPS. Iterative magnitude
+pruning, (10).</li>
+<li>Li, H., Kadav, A., Durdanovic, I., Samet, H., Graf, H. P. (2017). <em>Pruning
+filters for efficient ConvNets.</em> ICLR. The structured score of (8).</li>
+<li>Zhu, M., Gupta, S. (2017). <em>To prune, or not to prune: exploring the efficacy
+of pruning for model compression.</em> arXiv:1710.01878. The cubic schedule, (9).</li>
+<li>Frankle, J., Carbin, M. (2019). <em>The lottery ticket hypothesis: finding sparse,
+trainable neural networks.</em> ICLR. Rewinding, (11).</li>
+<li>Sanh, V., Wolf, T., Rush, A. M. (2020). <em>Movement pruning: adaptive sparsity
+by fine-tuning.</em> NeurIPS. The accumulated score of (6).</li>
+<li>Denton, E., Zaremba, W., Bruna, J., LeCun, Y., Fergus, R. (2014). <em>Exploiting
+linear structure within convolutional networks for efficient evaluation.</em>
+NeurIPS. Low-rank factorisation of trained weights, (12).</li>
+<li>Frankle, J., Dziugaite, G. K., Roy, D. M., Carbin, M. (2020). <em>Linear mode
+connectivity and the lottery ticket hypothesis.</em> ICML. Why rewinding beats
+reinitialisation.</li>
+<li>Sun, M., Liu, Z., Bair, A., Kolter, J. Z. (2023). <em>A simple and effective
+pruning approach for large language models.</em> arXiv:2306.11695. Magnitude with
+activations, the modern descendant of (4).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="lora.html"><small>Previous</small><span>LoRA &amp; PEFT</span></a><a class="next" href="quantization.html"><small>Next</small><span>Quantisation</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html" aria-current="page"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-masked-network">The masked network</a></li><li class="lvl3"><a href="#what-to-remove">What to remove</a></li><li class="lvl3"><a href="#global-against-per-layer-budgets">Global against per-layer budgets</a></li><li class="lvl3"><a href="#structured-pruning">Structured pruning</a></li><li class="lvl3"><a href="#schedules-gradual-iterative-rewinding">Schedules: gradual, iterative, rewinding</a></li><li class="lvl3"><a href="#low-rank-pruning">Low-rank pruning</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/pruning.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

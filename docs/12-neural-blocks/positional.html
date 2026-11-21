@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Positional encoding · MLAtoms</title>
+<meta name="description" content="How a set of tokens learns about order. Attention is a weighted average over a set. Permute the tokens and every weight permutes with them, because nothing…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/positional.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Positional encoding">
+<meta property="og:description" content="How a set of tokens learns about order. Attention is a weighted average over a set. Permute the tokens and every weight permutes with them, because nothing…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/positional.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Positional encoding">
+<meta name="twitter:description" content="How a set of tokens learns about order. Attention is a weighted average over a set. Permute the tokens and every weight permutes with them, because nothing…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Positional encoding", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/positional.html", "description": "How a set of tokens learns about order. Attention is a weighted average over a set. Permute the tokens and every weight permutes with them, because nothing\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">12 · Neural blocks</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="positional.py.html">source</a></p><h1>Positional encoding — how a bag of tokens learns about order</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Attention is a weighted average over a set. Permute the tokens and every weight
+permutes with them, because nothing in <span class="math inline">\(q\cdot k\)</span> refers to an index. A
+transformer without positional information therefore cannot tell &quot;a then b&quot; from
+&quot;b then a&quot;. The demo measures exactly that: swap the values of two markers and
+the readout of the <code>no_position</code> model is bit-identical in 48 pairs out of 48.</p>
+<p>There are three places to put order back, and the variants divide along them:</p>
+<ul>
+<li><strong>An additive table.</strong> Add a vector to each token before the first projection
+(<code>sinusoidal</code> with a formula, <code>learned</code> with a parameter).</li>
+<li><strong>A rotation.</strong> Rotate queries and keys by an angle proportional to the
+position, which makes the score depend on the distance (<code>rope</code>, <code>rope_ntk</code>).</li>
+<li><strong>A score bias.</strong> Add a term that depends only on the two positions
+(<code>alibi</code>, <code>relative_bias</code>, <code>t5_bias</code>).</li>
+</ul>
+<p><code>no_position</code> does none of them and is the control. All three channels are
+visible in one line:</p>
+<div class="math block">
+\[s_{ij}=\frac{\bigl((x_i+t_i)W_q\bigr)\cdot\bigl((x_j+t_j)W_k\bigr)}
+{\sqrt d}+b_{ij},
+\qquad (1)\]
+</div>
+<p>where <span class="math inline">\(t\)</span> is the table (zero for the bias variants) and <span class="math inline">\(b\)</span> is the bias (zero
+for the table variants). RoPE replaces the two projections with rotated copies,
+which is a different but equivalent way of making the score depend on <span class="math inline">\(i-j\)</span>.</p>
+<p>The demo applies each scheme to a fixed random attention readout and asks how
+much the readout moves when two marker values are exchanged. Six schemes move
+on every pair. <code>t5_bias</code> collides on 19 of 48 pairs, because two distances can
+fall in the same bucket. <code>no_position</code> never moves: the readout is a function of
+the multiset, so no downstream model can recover the order from it.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">mechanism</th>
+<th style="text-align:left">applied to</th>
+<th style="text-align:right">parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>sinusoidal</code></td>
+<td style="text-align:left">fixed sin/cos table</td>
+<td style="text-align:left">tokens</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>learned</code></td>
+<td style="text-align:left">trainable table</td>
+<td style="text-align:left">tokens</td>
+<td style="text-align:right">128</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rope</code></td>
+<td style="text-align:left">per-pair rotation</td>
+<td style="text-align:left">queries and keys</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rope_ntk</code></td>
+<td style="text-align:left">rotation, stretched base</td>
+<td style="text-align:left">queries and keys</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>alibi</code></td>
+<td style="text-align:left">linear distance penalty</td>
+<td style="text-align:left">scores</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>relative_bias</code></td>
+<td style="text-align:left">learned per-distance bias</td>
+<td style="text-align:left">scores</td>
+<td style="text-align:right">27</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>t5_bias</code></td>
+<td style="text-align:left">shared log-bucket table</td>
+<td style="text-align:left">scores</td>
+<td style="text-align:right">8</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>no_position</code></td>
+<td style="text-align:left">nothing</td>
+<td style="text-align:left">—</td>
+<td style="text-align:right">0</td>
+</tr>
+</tbody>
+</table>
+<p>The counts are for the demo: the learned table is 16 positions by 8 channels,
+the relative bias has 3 heads and 9 distances, and the T5 table has 8 buckets.</p>
+<p><strong><code>sinusoidal</code></strong> uses no parameters and can be evaluated at any position, so it
+extrapolates past the longest sequence it was designed for. Its rows have
+constant norm and its dot products depend only on the gap.</p>
+<p><strong><code>learned</code></strong> is a <span class="math inline">\(N\times d\)</span> table, one row per position, trained with
+everything else. It cannot extrapolate: a position beyond <span class="math inline">\(N\)</span> has no row. The
+demo's table is initialised at standard deviation 0.02, which is why its readout
+moves the least of the exact schemes.</p>
+<p><strong><code>rope</code></strong> leaves the token features alone and rotates each query and key by an
+angle proportional to its position, two coordinates at a time. The value is not
+rotated. The score between positions <span class="math inline">\(i\)</span> and <span class="math inline">\(j\)</span> then depends only on <span class="math inline">\(j-i\)</span>.</p>
+<p><strong><code>rope_ntk</code></strong> is the same rotation with the base stretched by
+<span class="math inline">\(s^{d/(d-2)}\)</span> for a context-extension factor <span class="math inline">\(s\)</span>. At dimension 8 and <span class="math inline">\(s=8\)</span> the
+base goes from 10000 to 160000, and the frequency ratios from slowest to fastest
+become <span class="math inline">\(1, 1/2, 1/4, 1/8\)</span>: the longest wave is untouched, the fastest is
+stretched eightfold.</p>
+<p><strong><code>alibi</code></strong> adds <span class="math inline">\(-m_h|i-j|\)</span> to the score, with one slope per head and the
+slopes spaced geometrically. It costs no parameters and no memory beyond the
+distance.</p>
+<p><strong><code>relative_bias</code></strong> learns one bias per head and per relative distance, clipped
+at a maximum distance. It costs <span class="math inline">\(H(2D+1)\)</span> parameters.</p>
+<p><strong><code>t5_bias</code></strong> learns one shared table over <span class="math inline">\(B\)</span> buckets. Small distances get
+their own bucket and large distances are log-spaced into the rest; the sign of
+the offset uses the other half of the table.</p>
+<p><strong><code>no_position</code></strong> returns zeros from every channel, so the rest of the code can
+treat it uniformly.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="sinusoidal">Sinusoidal <a class="header-anchor" href="#sinusoidal">#</a></h3>
+<p>With <span class="math inline">\(d\)</span> even and <span class="math inline">\(i=0,\dots,d/2-1\)</span>,</p>
+<div class="math block">
+\[\theta_i=\mathrm{base}^{-2i/d},
+\qquad
+\mathrm{PE}(p,2i)=\sin(p\theta_i),
+\qquad
+\mathrm{PE}(p,2i+1)=\cos(p\theta_i).
+\qquad (2)\]
+</div>
+<p>Each pair of coordinates is a point on the unit circle, turning at a different
+speed: the first pair turns one radian per token, the last pair turns
+<span class="math inline">\(1/10000\)</span> of a radian per token. Two useful facts follow immediately.</p>
+<p>The norm of every row is the same, because every pair contributes
+<span class="math inline">\(\sin^2+\cos^2=1\)</span>:</p>
+<div class="math block">
+\[\lVert \mathrm{PE}(p)\rVert^2=\sum_i 1=\frac d2 .
+\qquad (3)\]
+</div>
+<p>And the dot product of two rows is a function of the gap only:</p>
+<div class="math block">
+\[\mathrm{PE}(p)\cdot \mathrm{PE}(q)
+=\sum_i \cos\bigl((p-q)\theta_i\bigr),
+\qquad (4)\]
+</div>
+<p>using <span class="math inline">\(\sin a\sin b+\cos a\cos b=\cos(a-b)\)</span>. The demo checks (4) against the
+table for all sixteen positions to <span class="math inline">\(10^{-12}\)</span> and the norm in (3) to <span class="math inline">\(10^{-12}\)</span>.</p>
+<h3 id="learned">Learned <a class="header-anchor" href="#learned">#</a></h3>
+<p>The table is a parameter, and the lookup is a slice:</p>
+<div class="math block">
+\[t_p=T[p], \qquad T\in\mathbb R^{N\times d}.
+\qquad (5)\]
+</div>
+<p>Gradients flow only to the rows that were looked up; row <span class="math inline">\(p\)</span> receives the sum of
+the gradients of every token at position <span class="math inline">\(p\)</span>. Positions beyond <span class="math inline">\(N\)</span> have no row,
+which is why the constructor takes a maximum length and why <code>table(length)</code>
+raises beyond it. The demo's table is written in place through the slice, which
+is what makes a gradient step possible.</p>
+<h3 id="rotary-embeddings">Rotary embeddings <a class="header-anchor" href="#rotary-embeddings">#</a></h3>
+<p>Split each projected vector into pairs and rotate pair <span class="math inline">\(i\)</span> by <span class="math inline">\(p\theta_i\)</span>:</p>
+<div class="math block">
+\[R_i(p)=
+\begin{pmatrix}
+\cos p\theta_i & -\sin p\theta_i\\
+\sin p\theta_i & \cos p\theta_i
+\end{pmatrix}.
+\qquad (6)\]
+</div>
+<p>The score between a query at <span class="math inline">\(p\)</span> and a key at <span class="math inline">\(q\)</span> is</p>
+<div class="math block">
+\[q_p\cdot k_q
+=\bigl(R(p)W_qx_p\bigr)\cdot\bigl(R(q)W_kx_q\bigr)
+=\bigl(W_qx_p\bigr)^{\top}R(q-p)\bigl(W_kx_q\bigr),
+\qquad (7)\]
+</div>
+<p>because <span class="math inline">\(R(p)^{\top}R(q)=R(q-p)\)</span>: rotations commute and their angles add. The
+absolute positions disappear and only the gap survives. That is the whole point
+of RoPE, and the demo verifies it three ways: scores at gaps 1, 3 and 7 are
+constant along the sequence to <span class="math inline">\(10^{-12}\)</span>, the score at <span class="math inline">\((3,7)\)</span> equals the score
+at <span class="math inline">\((0,4)\)</span>, and the rotation preserves every row norm.</p>
+<p>The catch is the period. The slowest pair turns <span class="math inline">\(\theta_0=1\)</span> radian per token
+at dimension 8, so its period is <span class="math inline">\(2\pi\approx6.3\)</span> tokens: positions 0 and 6
+differ by only <span class="math inline">\(0.28\)</span> radians in that coordinate. Rotation does not alias
+outright, but the low frequencies stop being informative well before the model's
+context length. This is the reason context extension is a research topic rather
+than a multiplication.</p>
+<h3 id="ntk-aware-scaling">NTK-aware scaling <a class="header-anchor" href="#ntk-aware-scaling">#</a></h3>
+<p>The base stretch multiplies the frequency of pair <span class="math inline">\(i\)</span> by</p>
+<div class="math block">
+\[\frac{\theta_i'}{\theta_i}
+=s^{-2i/(d-2)},
+\qquad
+\theta_i'=\bigl(\mathrm{base}\,s^{d/(d-2)}\bigr)^{-2i/d}.
+\qquad (8)\]
+</div>
+<p>At <span class="math inline">\(i=0\)</span> the ratio is one; at <span class="math inline">\(i=d/2-1\)</span> it is <span class="math inline">\(1/s\)</span>. The interpolation is
+deliberately non-uniform: the slowest pair keeps its wavelength, so absolute
+positions remain anchored, while the fastest pairs are stretched so that a long
+sequence does not rotate them many times over. The demo prints the four ratios
+for <span class="math inline">\(d=8,s=8\)</span> and asserts both endpoints and monotonicity.</p>
+<h3 id="alibi">ALiBi <a class="header-anchor" href="#alibi">#</a></h3>
+<div class="math block">
+\[b_h(i,j)=-m_h\,|i-j|,
+\qquad
+m_h=2^{-8h/H},
+\qquad h=1,\dots,H .
+\qquad (9)\]
+</div>
+<p>The slopes are fixed, geometric, and per head: the first head is almost flat,
+the last decays by <span class="math inline">\(2^{-8}\)</span> per token. The paper defines the penalty on the
+causal side only, with future entries masked to <span class="math inline">\(-\infty\)</span>; the demo uses
+<span class="math inline">\(|i-j|\)</span> so the same bias is usable in a bidirectional block. The matrix is
+Toeplitz, which is what lets a real implementation generate it from one vector
+of distances instead of storing <span class="math inline">\(H L^2\)</span> numbers.</p>
+<h3 id="learned-relative-bias">Learned relative bias <a class="header-anchor" href="#learned-relative-bias">#</a></h3>
+<div class="math block">
+\[b_h(i,j)=\beta_h\bigl[\mathrm{clip}(i-j,\,-D,\,D)\bigr],
+\qquad
+\beta\in\mathbb R^{H\times(2D+1)} .
+\qquad (10)\]
+</div>
+<p>Every pair with the same offset shares a parameter, so the bias is constant on
+diagonals and all distances beyond <span class="math inline">\(D\)</span> share the edge value. The demo checks the
+diagonal property directly, with 3 heads and <span class="math inline">\(D=4\)</span>, giving 27 parameters.</p>
+<h3 id="t5-buckets">T5 buckets <a class="header-anchor" href="#t5-buckets">#</a></h3>
+<p>T5 keeps a shared table and assigns an index to each signed offset. With <span class="math inline">\(B\)</span>
+buckets split into two halves for the sign, <span class="math inline">\(E=(B/2)/2\)</span> exact distances, and a
+maximum distance <span class="math inline">\(M\)</span>,</p>
+<div class="math block">
+\[\mathrm{bucket}(i-j)=
+\begin{cases}
+|i-j|, & |i-j|<E,\\[2pt]
+E+\Bigl\lfloor \dfrac{\log(|i-j|/E)}{\log(M/E)}\Bigl(\dfrac B2-E\Bigr)\Bigr\rfloor,
+& \text{otherwise},
+\end{cases}
+\qquad (11)\]
+</div>
+<p>clipped to the half and offset by <span class="math inline">\(B/2\)</span> when <span class="math inline">\(i-j<0\)</span>. The table has <span class="math inline">\(B\)</span> entries
+and is shared by every head. With <span class="math inline">\(B=8\)</span>, <span class="math inline">\(M=16\)</span> and length 12, the forward
+distances use buckets <span class="math inline">\([0,1,2,2,2,2,3,3,3,3,3,3]\)</span> and the backward ones
+<span class="math inline">\([0,5,6,6,6,6,7,7,7,7,7,7]\)</span> — the demo prints both lists. Note the collision:
+distances 3 and 4 share bucket 2, which is a real loss of resolution and the
+reason 19 of the 48 swapped pairs produced an identical readout.</p>
+<h3 id="parameter-counts">Parameter counts <a class="header-anchor" href="#parameter-counts">#</a></h3>
+<div class="math block">
+\[P_{\mathrm{learned}}=Nd,
+\qquad
+P_{\mathrm{relative}}=H(2D+1),
+\qquad
+P_{\mathrm{t5}}=B,
+\qquad (12)\]
+</div>
+<p>and zero for the fixed schemes. At <span class="math inline">\(N=16\)</span>, <span class="math inline">\(d=8\)</span>: 128; at <span class="math inline">\(H=3\)</span>, <span class="math inline">\(D=4\)</span>: 27; at
+<span class="math inline">\(B=8\)</span>: 8.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The frequencies are the only formula the fixed schemes need:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_frequencies</span><span class="p">(</span><span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">base</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The d/2 inverse wavelengths of the sinusoidal and rotary tables."""</span>
+    <span class="k">return</span> <span class="n">base</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">dim</span><span class="p">)</span>
+</code></pre>
+<p>Multiplying them by the position gives the angles, and the sinusoidal table
+interleaves the sine and cosine of those angles:</p>
+<pre class="highlight"><code>            <span class="n">angles</span> <span class="o">=</span> <span class="n">_rotations</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="p">)</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">length</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">))</span>
+            <span class="n">table</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angles</span><span class="p">)</span>
+            <span class="n">table</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angles</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">table</span>
+</code></pre>
+<p>The rotation is four multiplications on reshaped pairs, and it works for any
+leading shape, so one function serves a single vector and a whole sequence:</p>
+<pre class="highlight"><code>    <span class="n">pairs</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">cosine</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angles</span><span class="p">)[</span><span class="kc">None</span><span class="p">]</span>
+    <span class="n">sine</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angles</span><span class="p">)[</span><span class="kc">None</span><span class="p">]</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">pairs</span><span class="p">)</span>
+    <span class="n">out</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">pairs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">cosine</span> <span class="o">-</span> <span class="n">pairs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">sine</span>
+    <span class="n">out</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">pairs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">sine</span> <span class="o">+</span> <span class="n">pairs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">cosine</span>
+    <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+</code></pre>
+<p>The learned table is a slice of a parameter, not a copy, which is what makes the
+gradient step in the demo land in the model:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"learned"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">length</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_positions</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"length exceeds max_positions"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"table"</span><span class="p">][:</span><span class="n">length</span><span class="p">]</span>
+</code></pre>
+<p>ALiBi is one outer product of slopes and distances:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"alibi"</span><span class="p">:</span>
+            <span class="n">slopes</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="mf">8.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                             <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">)</span>
+            <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">length</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+                              <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">length</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span>
+            <span class="k">return</span> <span class="o">-</span><span class="n">slopes</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">distance</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>
+</code></pre>
+<p>The learned relative bias is a table lookup on the clipped diagonal index:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"relative_bias"</span><span class="p">:</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"bias"</span><span class="p">]</span>
+            <span class="n">signed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">length</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">length</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">signed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">signed</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">max_distance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_distance</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">table</span><span class="p">[:,</span> <span class="n">signed</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_distance</span><span class="p">]</span>
+</code></pre>
+<p>and the T5 bucket map is the only branchy piece:</p>
+<pre class="highlight"><code>    <span class="n">half</span> <span class="o">=</span> <span class="n">buckets</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">exact</span> <span class="o">=</span> <span class="n">half</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">signed</span><span class="p">),</span> <span class="n">max_distance</span><span class="p">)</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">distance</span><span class="p">)</span>
+    <span class="n">small</span> <span class="o">=</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">exact</span>
+    <span class="n">index</span><span class="p">[</span><span class="n">small</span><span class="p">]</span> <span class="o">=</span> <span class="n">distance</span><span class="p">[</span><span class="n">small</span><span class="p">]</span>
+    <span class="n">large</span> <span class="o">=</span> <span class="o">~</span><span class="n">small</span>
+    <span class="n">index</span><span class="p">[</span><span class="n">large</span><span class="p">]</span> <span class="o">=</span> <span class="n">exact</span> <span class="o">+</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">distance</span><span class="p">[</span><span class="n">large</span><span class="p">]</span> <span class="o">/</span> <span class="n">exact</span><span class="p">)</span>
+                            <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">max_distance</span> <span class="o">/</span> <span class="n">exact</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">half</span> <span class="o">-</span> <span class="n">exact</span><span class="p">))</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">half</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">index</span> <span class="o">+</span> <span class="p">(</span><span class="n">signed</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">half</span>
+</code></pre>
+<p>The <code>small</code> mask is what keeps <code>log</code> away from zero; the constructor refuses a
+maximum distance that does not exceed the exact bucket count, because that is
+the case where the logarithm's denominator vanishes.</p>
+<p>The readout that the demo measures applies all three channels in the order (1)
+prescribes:</p>
+<pre class="highlight"><code>    <span class="n">hidden</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">pos</span><span class="o">.</span><span class="n">table</span><span class="p">(</span><span class="n">length</span><span class="p">)</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">hidden</span> <span class="o">@</span> <span class="n">wq</span><span class="p">)</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">hidden</span> <span class="o">@</span> <span class="n">wk</span><span class="p">)</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">hidden</span> <span class="o">@</span> <span class="n">wv</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">query</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">@</span> <span class="n">key</span><span class="o">.</span><span class="n">T</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+    <span class="n">weights_</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">scores</span> <span class="o">+</span> <span class="n">pos</span><span class="o">.</span><span class="n">bias</span><span class="p">(</span><span class="n">length</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">weights_</span> <span class="o">@</span> <span class="n">value</span>
+</code></pre>
+<p>Note that the value is not rotated: rotation is a unitary change of basis, and
+applying it to the values would rotate the output without adding information.
+The table is added before the projection and the bias after the score, which is
+the standard placement for each.</p>
+<p>The backward pass is short because the readout is one attention layer, and it is
+what the learned-table demo trains:</p>
+<pre class="highlight"><code>    <span class="n">d_scores</span> <span class="o">=</span> <span class="n">weights_</span> <span class="o">*</span> <span class="p">(</span><span class="n">value</span> <span class="o">@</span> <span class="n">residual</span>
+                           <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">weights_</span> <span class="o">@</span> <span class="p">(</span><span class="n">value</span> <span class="o">@</span> <span class="n">residual</span><span class="p">)))</span>
+    <span class="n">d_query</span> <span class="o">=</span> <span class="n">d_scores</span> <span class="o">@</span> <span class="n">key</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+    <span class="n">d_key</span> <span class="o">=</span> <span class="n">d_scores</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">query</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+    <span class="n">d_value</span> <span class="o">=</span> <span class="n">weights_</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">residual</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+</code></pre>
+<p><code>d_scores</code> is the softmax Jacobian from the transformer atom, and the three
+projections each receive one term. The table's gradient is the sum of
+<code>d_query @ wq.T</code>, <code>d_key @ wk.T</code> and <code>d_value @ wv.T</code>, which is why it has
+support only on the rows that were used.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For sequence length <span class="math inline">\(L\)</span>, dimension <span class="math inline">\(d\)</span>, <span class="math inline">\(H\)</span> heads, <span class="math inline">\(N\)</span> stored positions, <span class="math inline">\(D\)</span>
+maximum relative distance and <span class="math inline">\(B\)</span> buckets:</p>
+<ul>
+<li><strong>Sinusoidal:</strong> <span class="math inline">\(O(Ld)\)</span> time and memory to build the table, and no
+parameters. Because it is a formula, it can be evaluated at <span class="math inline">\(L\)</span> larger than
+any length seen in training.</li>
+<li><strong>Learned:</strong> <span class="math inline">\(O(Nd)\)</span> parameters, <span class="math inline">\(O(Ld)\)</span> lookup. Training touches only the
+<span class="math inline">\(L\)</span> used rows per sequence.</li>
+<li><strong>RoPE:</strong> <span class="math inline">\(O(Ld)\)</span> time to rotate queries and keys, no parameters, and no extra
+memory if the rotation is fused into the projection.</li>
+<li><strong>ALiBi:</strong> <span class="math inline">\(O(HL^2)\)</span> if the matrix is materialised and <span class="math inline">\(O(L)\)</span> if it is
+generated per row. The arithmetic is one multiply-add per score.</li>
+<li><strong>Relative bias and T5:</strong> the same <span class="math inline">\(O(HL^2)\)</span> score-matrix cost, but with a
+table lookup and, for T5, one shared table instead of <span class="math inline">\(H\)</span>.</li>
+<li><strong>The demo:</strong> one attention readout over eight tokens, so every scheme costs
+a handful of matrix products and the whole file runs in a tenth of a second.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>No position is exactly order-blind.</strong> The readout is a weighted average over
+the multiset of tokens, so exchanging two rows leaves it unchanged up to
+summation order — <span class="math inline">\(2.6\times10^{-17}\)</span> in the demo's 48 pairs. No classifier on
+top of that readout can do better than chance on an order task, no matter how
+large it is.</p>
+<p><strong>Buckets collide.</strong> T5's log spacing maps distances 3 and 4 to the same bucket,
+so 19 of 48 swapped pairs produced an identical readout. Coarse buckets save
+parameters and lose resolution exactly where the model might need it; the exact
+relative table has no such collision but costs <span class="math inline">\(H(2D+1)\)</span> parameters.</p>
+<p><strong>Clipping is the same loss at the tail.</strong> A relative bias with maximum distance
+<span class="math inline">\(D\)</span> gives every offset beyond <span class="math inline">\(D\)</span> the same value. A model that needs to
+distinguish &quot;ten tokens back&quot; from &quot;a hundred tokens back&quot; cannot.</p>
+<p><strong>The learned table cannot extrapolate.</strong> A sequence longer than
+<code>max_positions</code> has no rows to look up. Sinusoidal and rotary schemes have no
+such bound, which is why they are the usual choice for context extension.</p>
+<p><strong>RoPE's slowest frequency has a short period at small dimension.</strong> At <span class="math inline">\(d=8\)</span>,
+the first pair turns one radian per token and repeats every <span class="math inline">\(2\pi\approx6.3\)</span>
+tokens. NTK scaling does not change that pair — the ratio in (8) is one at
+<span class="math inline">\(i=0\)</span> — so it buys high-frequency resolution, not a longer absolute range.</p>
+<p><strong>Rotating the values is a bug.</strong> RoPE rotates queries and keys to make the
+score relative; rotating the values too would rotate the attention output by the
+query's position, mixing the readout with the encoding. The demo's readout
+rotates <code>query</code> and <code>key</code> and leaves <code>value</code> alone.</p>
+<p><strong>ALiBi's causal form is not symmetric.</strong> The paper's bias is defined on the
+past side and masks the future. Using <span class="math inline">\(|i-j|\)</span> in a bidirectional block is a
+different function; it is the one this file implements, and the doc says so.</p>
+<p><strong>A zero-initialised bias learns slowly at first.</strong> The relative and T5 tables
+start near zero, so the bias has no effect until the gradients move it. That is
+the intended behaviour, but it means the first few steps see an effectively
+unpositioned model.</p>
+<p><strong>A table added before layer norm is partly erased.</strong> If the first block
+normalises its input, the mean and scale of the table are removed and only its
+direction survives. Pre-LN transformers add the table to the embedding before
+the block, so the table is re-normalised at every block; that is fine, but it
+means the absolute magnitude of the table is not what the model sees.</p>
+<p><strong>Buckets and distances must agree at construction.</strong> The constructor refuses a
+maximum distance that does not exceed the exact bucket count, because the log
+spacing divides by <span class="math inline">\(\log(M/E)\)</span> and <span class="math inline">\(M=E\)</span> would be a zero denominator — the kind
+of bug that only appears when someone configures a small model.</p>
+<p><strong>The readout is one layer, not a trained model.</strong> The demo measures whether the
+information is present in a feature, not whether gradient descent will use it.
+The learned-table block closes that gap for one scheme by checking the gradient
+against finite differences (<span class="math inline">\(2.3\times10^{-11}\)</span>) and training the table until
+the loss falls from 0.0467 to 0.0006.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Learned absolute tables are BERT's and GPT-2's choice: simple, fast, and
+bounded by the training length. Sinusoidal tables are the original transformer's
+and still appear where extrapolation matters.</p>
+<p>RoPE is the standard in open decoder-only models — LLaMA, GPT-NeoX, Qwen — and
+NTK-aware scaling is one of the standard tricks for extending their context.
+ALiBi is used by BLOOM and Mosaic's models, and its fixed geometric slopes make
+it cheap at long lengths.</p>
+<p>Relative position in the score is the Transformer-XL and T5 answer: position
+enters through the offset rather than through the token, which keeps the table
+shared across positions and, in T5's case, across heads.</p>
+<p>No positional encoding is the right choice for set-valued inputs — the
+Perceiver's latents, point clouds, molecules — where order is genuinely absent
+and adding a position would be a lie.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N.,
+Kaiser, L., Polosukhin, I. (2017). <em>Attention is all you need.</em> NeurIPS.
+Equation (2).</li>
+<li>Gehring, J., Auli, M., Grangier, D., Yarats, D., Dauphin, Y. N. (2017).
+<em>Convolutional sequence to sequence learning.</em> ICML. Learned absolute
+positions.</li>
+<li>Shaw, P., Uszkoreit, J., Vaswani, A. (2018). <em>Self-attention with relative
+position representations.</em> NAACL. Equation (10).</li>
+<li>Su, J., Lu, Y., Pan, S., Murtadha, A., Wen, B., Liu, Y. (2021). <em>RoFormer:
+enhanced transformer with rotary position embedding.</em> arXiv:2104.09864.
+Equations (6) and (7).</li>
+<li>bloc97 (2023). <em>NTK-aware scaled RoPE allows for efficient fine-tuning of
+large language models.</em> The base stretch of (8).</li>
+<li>Press, O., Smith, N. A., Lewis, M. (2022). <em>Train short, test long: attention
+with linear biases input length.</em> ICLR. Equation (9).</li>
+<li>Raffel, C. et al. (2020). <em>Exploring the limits of transfer learning with a
+unified text-to-text transformer.</em> JMLR. The buckets of (11).</li>
+<li>Devlin, J., Chang, M.-W., Lee, K., Toutanova, K. (2019). <em>BERT: pre-training
+of deep bidirectional transformers.</em> NAACL. A learned absolute table in
+practice.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="transformer.html"><small>Previous</small><span>Transformer block</span></a><a class="next" href="moe.html"><small>Next</small><span>Mixture of experts</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">12 · Neural blocks</p><ul class="rail-list"><li><a href="mlp.html"><span class="tick">✓</span><span>MLP</span></a></li><li><a href="conv.html"><span class="tick">✓</span><span>Convolution</span></a></li><li><a href="pooling.html"><span class="tick">✓</span><span>Pooling</span></a></li><li><a href="residual.html"><span class="tick">✓</span><span>Residual blocks</span></a></li><li><a href="transformer.html"><span class="tick">✓</span><span>Transformer block</span></a></li><li><a href="positional.html" aria-current="page"><span class="tick">✓</span><span>Positional encoding</span></a></li><li><a href="moe.html"><span class="tick">✓</span><span>Mixture of experts</span></a></li><li><a href="dropout.html"><span class="tick">✓</span><span>Dropout family</span></a></li><li><a href="embedding_layers.html"><span class="tick">✓</span><span>Embedding layers</span></a></li><li><a href="gnn_blocks.html"><span class="tick">✓</span><span>Graph neural blocks</span></a></li><li><a href="mixer.html"><span class="tick">✓</span><span>MLP-Mixer</span></a></li><li><a href="perceiver.html"><span class="tick">✓</span><span>Perceiver</span></a></li><li><a href="convnext.html"><span class="tick">✓</span><span>ConvNeXt</span></a></li><li><a href="hypernetwork.html"><span class="tick">✓</span><span>Hypernetworks</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../11-time-series/index.html"><span class="jump">← 11 · Time series</span></a></li><li><a href="../13-training/index.html"><span class="jump">13 · Training&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#sinusoidal">Sinusoidal</a></li><li class="lvl3"><a href="#learned">Learned</a></li><li class="lvl3"><a href="#rotary-embeddings">Rotary embeddings</a></li><li class="lvl3"><a href="#ntk-aware-scaling">NTK-aware scaling</a></li><li class="lvl3"><a href="#alibi">ALiBi</a></li><li class="lvl3"><a href="#learned-relative-bias">Learned relative bias</a></li><li class="lvl3"><a href="#t5-buckets">T5 buckets</a></li><li class="lvl3"><a href="#parameter-counts">Parameter counts</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/12-neural-blocks/positional.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

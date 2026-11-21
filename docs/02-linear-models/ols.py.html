@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordinary least squares — ols.py · MLAtoms</title>
+<meta name="description" content="Source of ols.py: Four ways to solve the same normal equations, with standard errors.">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/02-linear-models/ols.py.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Ordinary least squares — ols.py">
+<meta property="og:description" content="Source of ols.py: Four ways to solve the same normal equations, with standard errors.">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/02-linear-models/ols.py.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ordinary least squares — ols.py">
+<meta name="twitter:description" content="Source of ols.py: Four ways to solve the same normal equations, with standard errors.">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "SoftwareSourceCode", "name": "Ordinary least squares \u2014 ols.py", "programmingLanguage": "Python", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/02-linear-models/ols.py.html", "description": "Source of ols.py: Four ways to solve the same normal equations, with standard errors.", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout layout--wide"><div><div class="prose code-page"><p class="page-meta"><a href="./index.html">02 · Linear models</a><span class="page-meta__sep">/</span><a href="ols.html">Ordinary least squares</a><span class="page-meta__sep">/</span><span>source</span></p><h1>ols.py</h1><p class="code-page__bar"><span>176 lines</span><span>·</span><span>7 variants</span><a class="btn" href="ols.py">Raw file</a><a class="btn" href="ols.html">Companion</a></p><pre class="highlight"><code><span class="sd">"""OLS — 7 ways to solve the same least-squares problem.</span>
+
+<span class="sd">Chapter:   02-linear-models</span>
+<span class="sd">Companion: ols.md</span>
+<span class="sd">Tier 1 · 7 variants: normal_equations, qr, svd_pinv, cholesky, recursive,</span>
+<span class="sd">with_intercept, standard_errors</span>
+
+<span class="sd">The model is always y = Xβ + ε. The variants are numerical paths to β̂ and the two</span>
+<span class="sd">things people actually need afterwards: an intercept that is not biased by the</span>
+<span class="sd">data's offset, and standard errors. Everything returns a dict so the extra output</span>
+<span class="sd">is optional.</span>
+
+<span class="sd">    normal_equations  solve(X^T X, X^T y)      — fastest, worst conditioning</span>
+<span class="sd">    qr                R β = Q^T y              — stable, O(nd^2)</span>
+<span class="sd">    svd_pinv          V S^+ U^T y              — stable, gives rank/pseudoinverse</span>
+<span class="sd">    cholesky          X^T X = LL^T, two solves — stable only if X is well scaled</span>
+<span class="sd">    recursive         rank-1 updates (RLS)     — streaming, same answer</span>
+<span class="sd">    with_intercept    centre X and y, then fit — intercept unpenalised later</span>
+<span class="sd">    standard_errors   QR fit + σ̂²(X^T X)^-1   — inference, not just prediction</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fit_intercept</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+    <span class="n">xm</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">ym</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="n">beta</span> <span class="o">=</span> <span class="n">_solve</span><span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="n">xm</span><span class="p">,</span> <span class="n">y</span> <span class="o">-</span> <span class="n">ym</span><span class="p">,</span> <span class="s2">"qr"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">beta</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">ym</span> <span class="o">-</span> <span class="n">xm</span> <span class="o">@</span> <span class="n">beta</span><span class="p">),</span> <span class="n">X</span> <span class="o">-</span> <span class="n">xm</span><span class="p">,</span> <span class="n">y</span> <span class="o">-</span> <span class="n">ym</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_solve</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"normal_equations"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">y</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"cholesky"</span><span class="p">:</span>
+        <span class="n">G</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">G</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">X</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"svd_pinv"</span><span class="p">:</span>
+        <span class="n">U</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">Vt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">full_matrices</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">tol</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span> <span class="o">*</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">s_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">s</span> <span class="o">&gt;</span> <span class="n">tol</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">s</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Vt</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">s_inv</span> <span class="o">*</span> <span class="p">(</span><span class="n">U</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">y</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"qr"</span><span class="p">:</span>
+        <span class="n">Q</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">qr</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="n">Q</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">y</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown solve variant </span><span class="si">{</span><span class="n">variant</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">ols</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"qr"</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">se</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Ordinary least squares.</span>
+
+<span class="sd">    Returns {"coef": (d,), "intercept": float or None, "se": (d,) or None,</span>
+<span class="sd">             "cov": (d, d) or None, "resid": (n,)}.</span>
+<span class="sd">    """</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"recursive"</span><span class="p">:</span>
+        <span class="n">coef</span> <span class="o">=</span> <span class="n">recursive_least_squares</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">intercept</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">X</span> <span class="o">@</span> <span class="n">coef</span>
+    <span class="k">elif</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"with_intercept"</span><span class="p">:</span>
+        <span class="n">coef</span><span class="p">,</span> <span class="n">intercept</span><span class="p">,</span> <span class="n">Xc</span><span class="p">,</span> <span class="n">yc</span> <span class="o">=</span> <span class="n">_fit_intercept</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="p">(</span><span class="n">X</span> <span class="o">@</span> <span class="n">coef</span> <span class="o">+</span> <span class="n">intercept</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"normal_equations"</span><span class="p">,</span> <span class="s2">"qr"</span><span class="p">,</span> <span class="s2">"svd_pinv"</span><span class="p">,</span> <span class="s2">"cholesky"</span><span class="p">,</span> <span class="s2">"standard_errors"</span><span class="p">):</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s2">"qr"</span> <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"standard_errors"</span> <span class="k">else</span> <span class="n">variant</span>
+        <span class="n">coef</span> <span class="o">=</span> <span class="n">_solve</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="n">intercept</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">X</span> <span class="o">@</span> <span class="n">coef</span>
+        <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"standard_errors"</span> <span class="ow">or</span> <span class="n">se</span><span class="p">:</span>
+            <span class="n">rss</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">resid</span> <span class="o">@</span> <span class="n">resid</span><span class="p">)</span>
+            <span class="n">sigma2</span> <span class="o">=</span> <span class="n">rss</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">d</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">sigma2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">pinv</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">"coef"</span><span class="p">:</span> <span class="n">coef</span><span class="p">,</span>
+                <span class="s2">"intercept"</span><span class="p">:</span> <span class="n">intercept</span><span class="p">,</span>
+                <span class="s2">"se"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">cov</span><span class="p">)),</span>
+                <span class="s2">"cov"</span><span class="p">:</span> <span class="n">cov</span><span class="p">,</span>
+                <span class="s2">"resid"</span><span class="p">:</span> <span class="n">resid</span><span class="p">,</span>
+            <span class="p">}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown variant </span><span class="si">{</span><span class="n">variant</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"coef"</span><span class="p">:</span> <span class="n">coef</span><span class="p">,</span> <span class="s2">"intercept"</span><span class="p">:</span> <span class="n">intercept</span><span class="p">,</span> <span class="s2">"se"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">"cov"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">"resid"</span><span class="p">:</span> <span class="n">resid</span><span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">recursive_least_squares</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Recursive least squares: the exact OLS estimate after each row, updated in</span>
+<span class="sd">    O(d^2) per observation with the Sherman-Morrison identity.</span>
+
+<span class="sd">    P is the inverse of the information matrix; it shrinks as data arrives, which</span>
+<span class="sd">    is why later observations move the estimate less.</span>
+<span class="sd">    """</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">warm</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">n</span><span class="p">)</span>
+    <span class="n">beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="n">warm</span><span class="p">],</span> <span class="n">y</span><span class="p">[:</span><span class="n">warm</span><span class="p">],</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">pinv</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="n">warm</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span><span class="p">[:</span><span class="n">warm</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">warm</span><span class="p">:],</span> <span class="n">y</span><span class="p">[</span><span class="n">warm</span><span class="p">:],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="n">Px</span> <span class="o">=</span> <span class="n">P</span> <span class="o">@</span> <span class="n">xi</span>
+        <span class="n">denom</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">xi</span> <span class="o">@</span> <span class="n">Px</span>
+        <span class="n">gain</span> <span class="o">=</span> <span class="n">Px</span> <span class="o">/</span> <span class="n">denom</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">+</span> <span class="n">gain</span> <span class="o">*</span> <span class="p">(</span><span class="n">yi</span> <span class="o">-</span> <span class="n">xi</span> <span class="o">@</span> <span class="n">beta</span><span class="p">)</span>
+        <span class="n">P</span> <span class="o">=</span> <span class="n">P</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">gain</span><span class="p">,</span> <span class="n">Px</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">beta</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">4</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span>
+    <span class="n">beta_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">])</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">X</span> <span class="o">@</span> <span class="n">beta_true</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+
+    <span class="c1"># 1. All four direct solvers agree to machine precision on a benign problem.</span>
+    <span class="n">fits</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">ols</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">v</span><span class="p">)[</span><span class="s2">"coef"</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span>
+            <span class="p">(</span><span class="s2">"normal_equations"</span><span class="p">,</span> <span class="s2">"qr"</span><span class="p">,</span> <span class="s2">"svd_pinv"</span><span class="p">,</span> <span class="s2">"cholesky"</span><span class="p">)}</span>
+    <span class="n">ref</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="s2">"svd_pinv"</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">fits</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">),</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">ref</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"4 direct solvers agree to 1e-10"</span><span class="p">)</span>
+
+    <span class="c1"># 2. Recursive least squares reproduces the batch fit exactly, one row at a time.</span>
+    <span class="n">b_rls</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="s2">"recursive"</span><span class="p">)[</span><span class="s2">"coef"</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">b_rls</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">b_rls</span> <span class="o">-</span> <span class="n">ref</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"recursive == batch (max diff </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">b_rls</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">ref</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+
+    <span class="c1"># 3. Conditioning is what separates them: on a Hilbert-like design the normal</span>
+    <span class="c1">#    equations lose digits that QR and SVD keep.</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="n">V</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vander</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="n">increasing</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>         <span class="c1"># polynomial regression</span>
+    <span class="n">b_true</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">yv</span> <span class="o">=</span> <span class="n">V</span> <span class="o">@</span> <span class="n">b_true</span>
+    <span class="n">err_ne</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">ols</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">yv</span><span class="p">,</span> <span class="s2">"normal_equations"</span><span class="p">)[</span><span class="s2">"coef"</span><span class="p">]</span> <span class="o">-</span> <span class="n">b_true</span><span class="p">)</span>
+    <span class="n">err_qr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">ols</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">yv</span><span class="p">,</span> <span class="s2">"qr"</span><span class="p">)[</span><span class="s2">"coef"</span><span class="p">]</span> <span class="o">-</span> <span class="n">b_true</span><span class="p">)</span>
+    <span class="n">err_svd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">ols</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">yv</span><span class="p">,</span> <span class="s2">"svd_pinv"</span><span class="p">)[</span><span class="s2">"coef"</span><span class="p">]</span> <span class="o">-</span> <span class="n">b_true</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">err_qr</span> <span class="o">&lt;</span> <span class="n">err_ne</span> <span class="ow">and</span> <span class="n">err_svd</span> <span class="o">&lt;</span> <span class="n">err_ne</span><span class="p">,</span> <span class="p">(</span><span class="n">err_ne</span><span class="p">,</span> <span class="n">err_qr</span><span class="p">,</span> <span class="n">err_svd</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"cond(V) = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">: normal eq err </span><span class="si">{</span><span class="n">err_ne</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">, "</span>
+          <span class="sa">f</span><span class="s2">"qr </span><span class="si">{</span><span class="n">err_qr</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">, svd </span><span class="si">{</span><span class="n">err_svd</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="c1"># 4. with_intercept recovers the offset; fitting without one absorbs it into</span>
+    <span class="c1">#    the slope whenever X has a non-zero mean.</span>
+    <span class="n">x1</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
+    <span class="n">y1</span> <span class="o">=</span> <span class="mf">5.0</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">x1</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
+    <span class="n">fit</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="n">x1</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">y1</span><span class="p">,</span> <span class="s2">"with_intercept"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">fit</span><span class="p">[</span><span class="s2">"intercept"</span><span class="p">]</span> <span class="o">-</span> <span class="mf">5.0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.2</span><span class="p">,</span> <span class="n">fit</span><span class="p">[</span><span class="s2">"intercept"</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">fit</span><span class="p">[</span><span class="s2">"coef"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.02</span><span class="p">,</span> <span class="n">fit</span><span class="p">[</span><span class="s2">"coef"</span><span class="p">]</span>
+    <span class="n">no_int</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="n">x1</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">y1</span><span class="p">,</span> <span class="s2">"qr"</span><span class="p">)[</span><span class="s2">"coef"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">no_int</span> <span class="o">-</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.3</span><span class="p">,</span> <span class="n">no_int</span>        <span class="c1"># biased by y's mean</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"intercept </span><span class="si">{</span><span class="n">fit</span><span class="p">[</span><span class="s1">'intercept'</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> (truth 5), "</span>
+          <span class="sa">f</span><span class="s2">"slope </span><span class="si">{</span><span class="n">fit</span><span class="p">[</span><span class="s1">'coef'</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">; no-intercept slope </span><span class="si">{</span><span class="n">no_int</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="c1"># 5. Standard errors match σ̂²(X^T X)^-1 and shrink as 1/sqrt(n).</span>
+    <span class="n">fit</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="s2">"standard_errors"</span><span class="p">)</span>
+    <span class="n">sigma2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">fit</span><span class="p">[</span><span class="s2">"resid"</span><span class="p">]</span> <span class="o">@</span> <span class="n">fit</span><span class="p">[</span><span class="s2">"resid"</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">d</span><span class="p">)</span>
+    <span class="n">se_manual</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">sigma2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span><span class="p">)))</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">fit</span><span class="p">[</span><span class="s2">"se"</span><span class="p">],</span> <span class="n">se_manual</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
+    <span class="n">se_half</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="mi">50</span><span class="p">],</span> <span class="n">y</span><span class="p">[:</span><span class="mi">50</span><span class="p">],</span> <span class="s2">"standard_errors"</span><span class="p">)[</span><span class="s2">"se"</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">se_half</span> <span class="o">&gt;</span> <span class="n">fit</span><span class="p">[</span><span class="s2">"se"</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"standard errors ok (mean </span><span class="si">{</span><span class="n">fit</span><span class="p">[</span><span class="s1">'se'</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, "</span>
+          <span class="sa">f</span><span class="s2">"n=50 gives </span><span class="si">{</span><span class="n">se_half</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+
+    <span class="c1"># 6. The residual is orthogonal to every column — the first-order condition.</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">fit</span><span class="p">[</span><span class="s2">"resid"</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"normal equations: X^T r = 0"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"ols demo passed"</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">02 · Linear models</p><ul class="rail-list"><li><a href="ols.html" aria-current="page"><span class="tick">✓</span><span>Ordinary least squares</span></a></li><li><a href="ridge.html"><span class="tick">✓</span><span>Ridge</span></a></li><li><a href="lasso.html"><span class="tick">✓</span><span>Lasso</span></a></li><li><a href="elastic_net.html"><span class="tick">✓</span><span>Elastic net</span></a></li><li><a href="logistic_regression.html"><span class="tick">✓</span><span>Logistic regression</span></a></li><li><a href="glm.html"><span class="tick">✓</span><span>Generalised linear models</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Robust regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Quantile regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Splines</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Additive models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Isotonic regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Bayesian linear regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Generalised least squares</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Partial least squares</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Tobit regression</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../01-optimization/index.html"><span class="jump">← 01 · Optimization</span></a></li><li><a href="../03-kernels-and-instance/index.html"><span class="jump">03 · Kernels &amp; instance-based&nbsp;→</span></a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/02-linear-models/ols.py">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

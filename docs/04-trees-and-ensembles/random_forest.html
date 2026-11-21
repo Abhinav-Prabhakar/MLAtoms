@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Random forest · MLAtoms</title>
+<meta name="description" content="Bagging plus feature subsampling, with out-of-bag error. One tree is unstable. Move a few training points and the best root split can change, which changes…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/random_forest.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Random forest">
+<meta property="og:description" content="Bagging plus feature subsampling, with out-of-bag error. One tree is unstable. Move a few training points and the best root split can change, which changes…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/random_forest.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Random forest">
+<meta name="twitter:description" content="Bagging plus feature subsampling, with out-of-bag error. One tree is unstable. Move a few training points and the best root split can change, which changes…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Random forest", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/random_forest.html", "description": "Bagging plus feature subsampling, with out-of-bag error. One tree is unstable. Move a few training points and the best root split can change, which changes\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">04 · Trees &amp; ensembles</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="random_forest.py.html">source</a></p><h1>Random forest</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>One tree is unstable. Move a few training points and the best root split can
+change, which changes every split below it, which changes every prediction. The
+tree has low bias but enormous variance.</p>
+<p>Averaging many trees fixes variance, but only if the trees disagree. Bootstrap
+resampling alone is not enough: on a problem with one dominant feature, nearly
+every bootstrap tree splits on that feature first, so the trees are almost
+identical and their average has the same variance as one tree. The forest's second
+ingredient is <strong>random feature subsets at every split</strong>. Each tree is forced to
+look at a different part of the feature space, so their errors decorrelate and the
+average cancels them.</p>
+<p>Extra trees push the same idea further: instead of searching for the best
+threshold, each candidate feature gets a <em>random</em> threshold. The trees are more
+biased individually but even less correlated, and the ensemble is faster because
+there is no sort.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Task</th>
+<th style="text-align:left">What changes</th>
+<th style="text-align:left">Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>classification</code></td>
+<td style="text-align:left">classification</td>
+<td style="text-align:left">majority vote over probability averages</td>
+<td style="text-align:left">the default forest</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>regression</code></td>
+<td style="text-align:left">regression</td>
+<td style="text-align:left">average of tree means</td>
+<td style="text-align:left">continuous targets</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>extra_trees</code></td>
+<td style="text-align:left">either</td>
+<td style="text-align:left">random thresholds, no bootstrap</td>
+<td style="text-align:left">more decorrelation, faster</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>oob</code></td>
+<td style="text-align:left">classification</td>
+<td style="text-align:left">reports the out-of-bag score</td>
+<td style="text-align:left">free validation, no holdout</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>permutation_importance</code></td>
+<td style="text-align:left">either</td>
+<td style="text-align:left">shuffles each column and measures the drop</td>
+<td style="text-align:left">model-agnostic importance</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>balanced_subsample</code></td>
+<td style="text-align:left">classification</td>
+<td style="text-align:left">equal sample count per class in each draw</td>
+<td style="text-align:left">rare-class recall</td>
+</tr>
+</tbody>
+</table>
+<p><code>classification</code> and <code>regression</code> differ only in the leaf value and the averaging:
+probabilities versus means. <code>extra_trees</code> is the same forest with <code>splitter= &quot;random&quot;</code> and <code>bootstrap=False</code>. <code>oob</code>, <code>permutation_importance</code> and
+<code>balanced_subsample</code> are not different estimators — they change how the forest is
+sampled or how it is inspected, and the demo measures each one.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Variance of an average.</strong> For <code>B</code> trees with individual variance <code>σ²</code> and
+pairwise correlation <code>ρ</code>,</p>
+<div class="math block">
+\[\mathrm{Var}\!\left(\frac1B\sum_{b=1}^B T_b\right)
+= \rho\sigma^2 + \frac{1-\rho}{B}\sigma^2\]
+</div>
+<p>The second term vanishes as <code>B</code> grows; the first does not. This is the entire
+design argument for the forest: increasing <code>B</code> cannot help if <code>ρ≈1</code>, so the
+algorithm must reduce <code>ρ</code>. Restricting each split to <code>m</code> of <code>d</code> features does
+that, at the cost of slightly weaker individual trees.</p>
+<p><strong>Why <code>sqrt(d)</code>.</strong> For classification, Breiman's default <code>m = √d</code> keeps the
+correlation low without starving the trees. For regression, <code>m = d/3</code> is the
+usual choice; this implementation defaults to all features because the demo's
+<code>d=2</code> is too small for a fraction to mean anything. The right <code>m</code> is a
+hyperparameter: smaller <code>m</code> means less correlation and more bias.</p>
+<p><strong>Out-of-bag.</strong> A bootstrap sample draws <code>n</code> times with replacement, so</p>
+<div class="math block">
+\[P(\text{sample } i \text{ is out-of-bag}) = \left(1-\frac1n\right)^n \to e^{-1}
+\approx 0.368\]
+</div>
+<p>Each tree therefore has a validation set of about 37% of the data that it never
+saw, and every training point is OOB for about <code>B/e</code> trees. Averaging only those
+trees gives a validation prediction at no extra fitting cost. The estimate is
+slightly pessimistic because each OOB prediction uses fewer trees than the final
+forest, but it is unbiased for the sampling scheme.</p>
+<p><strong>Impurity importance.</strong> Mean decrease in impurity (MDI) credits a split with</p>
+<div class="math block">
+\[\text{MDI}_j = \sum_{\text{nodes splitting on }j}
+\frac{n_{\text{node}}}{n_{\text{total}}}\,\Delta I_{\text{node}}\]
+</div>
+<p>This is what <code>feature_importances_</code> computes. It is cheap and it is biased: a
+continuous feature with many distinct values offers more candidate thresholds, so
+it is more likely to be chosen by chance, and correlated features split the credit
+between them.</p>
+<p><strong>Permutation importance.</strong> Shuffle column <code>j</code>, predict again, and report</p>
+<div class="math block">
+\[\text{PI}_j = \text{score}(X,y) - \text{score}(X^{(j\text{ shuffled})},y)\]
+</div>
+<p>This measures how much the fitted model <em>uses</em> the feature, not how much the
+feature could help in a different model. It is unbiased under the null (a noise
+column scores zero in expectation) but it is fooled by correlated features: if
+<code>x₀</code> and <code>x₁</code> are duplicates, shuffling either one alone leaves the other intact
+and both importances are near zero.</p>
+<p><strong>Balanced subsampling.</strong> The variant draws the same number of rows from every
+class, <code>n // K</code> per class, so each tree sees a balanced problem regardless of the
+original prevalence. This changes the <em>sampling distribution</em>, not the impurity:
+the tree still maximises gini on the sample it receives. The cost is that the
+forest no longer estimates the population prior, so predicted probabilities are
+biased toward the uniform; the variant is for recall, not calibration.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The forest is a loop around <code>CART</code>, and the loop body is where all the randomness
+enters:</p>
+<pre class="highlight"><code>            <span class="n">tree</span> <span class="o">=</span> <span class="n">CART</span><span class="p">(</span>
+                <span class="s2">"gini"</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">==</span> <span class="s2">"classification"</span> <span class="k">else</span> <span class="s2">"variance"</span><span class="p">,</span>
+                <span class="n">max_depth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_depth</span><span class="p">,</span>
+                <span class="n">min_samples_leaf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_samples_leaf</span><span class="p">,</span>
+                <span class="n">max_features</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_features</span><span class="p">,</span>
+                <span class="n">splitter</span><span class="o">=</span><span class="s2">"random"</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"extra_trees"</span> <span class="k">else</span> <span class="s2">"best"</span><span class="p">,</span>
+                <span class="n">random_state</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">31</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)),</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+</code></pre>
+<p><code>max_features</code> is passed straight to the tree, so the feature subset is drawn
+<em>per node</em>, not per tree — that is the correct granularity, and it is why the trees
+differ even when they see the same bootstrap sample. The per-tree <code>random_state</code>
+comes from the forest's generator, so the whole ensemble is reproducible from one
+seed.</p>
+<p>Sampling is the only place where the variants diverge:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"balanced_subsample"</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">==</span> <span class="s2">"classification"</span><span class="p">:</span>
+            <span class="n">classes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+            <span class="n">per</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span> <span class="o">//</span> <span class="n">classes</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+            <span class="n">parts</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">classes</span><span class="p">:</span>
+                <span class="n">pool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="n">c</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">per</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">bootstrap</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+</code></pre>
+<p>The balanced branch returns <code>K·(n//K)</code> rows, not exactly <code>n</code>, so a tree may see a
+few fewer points. That is deliberate: forcing an exact total would require
+rounding one class differently and reintroducing a small imbalance. <code>replace=True</code>
+is what makes the minority class drawable <code>per</code> times even when it has fewer than
+<code>per</code> distinct rows; without it, <code>np.random.choice</code> raises.</p>
+<p>Out-of-bag predictions are accumulated per tree and divided at the end:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">tree</span><span class="p">,</span> <span class="n">inbag</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trees_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inbags_</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">inbag</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">mask</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">continue</span>
+            <span class="n">counts</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">1.0</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">==</span> <span class="s2">"classification"</span><span class="p">:</span>
+                <span class="n">sums</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">+=</span> <span class="n">tree</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sums</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">+=</span> <span class="n">tree</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+        <span class="n">seen</span> <span class="o">=</span> <span class="n">counts</span> <span class="o">&gt;</span> <span class="mi">0</span>
+</code></pre>
+<p><code>counts</code> is the number of trees for which each row was OOB. A row can be in-bag in
+every tree (especially with small <code>n</code>), in which case <code>seen</code> is false and it is
+excluded from <code>oob_score_</code> rather than scored against a zero prediction. The
+<code>strict=True</code> on <code>zip</code> catches a tree/bag length mismatch, which would otherwise
+silently misalign predictions.</p>
+<p>Prediction is one line per task:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">==</span> <span class="s2">"regression"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">t</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees_</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)]</span>
+</code></pre>
+<p>Averaging probabilities before <code>argmax</code> is not the same as majority-voting labels:
+a class with 40% probability in every tree wins over one with 30% in a majority of
+trees but 0% elsewhere. Probability averaging is the lower-variance rule and is
+what <code>predict_proba</code> exposes. For regression, the mean of tree predictions is the
+bagged estimator; the mean of leaf values is the same thing because each leaf is a
+mean.</p>
+<p><code>_mdi</code> walks every tree and credits each split by its sample share:</p>
+<pre class="highlight"><code>        <span class="k">def</span><span class="w"> </span><span class="nf">walk</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">total</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">node</span><span class="p">[</span><span class="s2">"leaf"</span><span class="p">]:</span>
+                <span class="k">return</span>
+            <span class="n">imp</span><span class="p">[</span><span class="n">node</span><span class="p">[</span><span class="s2">"feature"</span><span class="p">]]</span> <span class="o">+=</span> <span class="n">node</span><span class="p">[</span><span class="s2">"n"</span><span class="p">]</span> <span class="o">/</span> <span class="n">total</span> <span class="o">*</span> <span class="n">node</span><span class="p">[</span><span class="s2">"gain"</span><span class="p">]</span>
+            <span class="n">walk</span><span class="p">(</span><span class="n">node</span><span class="p">[</span><span class="s2">"left"</span><span class="p">],</span> <span class="n">total</span><span class="p">)</span>
+            <span class="n">walk</span><span class="p">(</span><span class="n">node</span><span class="p">[</span><span class="s2">"right"</span><span class="p">],</span> <span class="n">total</span><span class="p">)</span>
+</code></pre>
+<p><code>node[&quot;gain&quot;]</code> is already the impurity decrease <em>on that node's sample</em>, so
+multiplying by <code>n_node/n_total</code> converts it to a contribution to the whole
+dataset. Normalising the sum to 1 at the end makes the vector comparable across
+forests but removes the absolute scale — do not read <code>0.3</code> as &quot;30% of the
+variance&quot;, only as a ranking.</p>
+<p>Permutation importance is deliberately the slow, honest version:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span><span class="p">):</span>
+            <span class="n">drops</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_repeats</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_repeats</span><span class="p">):</span>
+                <span class="n">Xp</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">Xp</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">Xp</span><span class="p">[:,</span> <span class="n">j</span><span class="p">])</span>
+                <span class="n">drops</span><span class="p">[</span><span class="n">r</span><span class="p">]</span> <span class="o">=</span> <span class="n">base</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">Xp</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</code></pre>
+<p><code>X.copy()</code> per repeat keeps every other column fixed; shuffling in place across
+features would compound the permutations. The score is recomputed on the <em>same</em>
+data, so the drop measures reliance on the column, not generalisation. The
+demo's signal features score <code>0.195–0.303</code> and the noise features <code>0.001–0.019</code>,
+which is the separation the method is supposed to provide.</p>
+<p><code>score</code> uses the right denominator for each task:</p>
+<pre class="highlight"><code>        <span class="n">ss_res</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(((</span><span class="n">y</span> <span class="o">-</span> <span class="n">pred</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">ss_tot</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(((</span><span class="n">y</span> <span class="o">-</span> <span class="n">y</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="k">return</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">ss_res</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">ss_tot</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+</code></pre>
+<p><code>R²</code> is <code>1 − SS_res/SS_tot</code>; the <code>max(..., 1e-12)</code> only guards a constant target,
+where <code>R²</code> is undefined and <code>0</code> is a defensible convention. Classification uses
+plain accuracy, so the permutation importance of a classifier is a drop in
+accuracy — a coarse metric that can understate the importance of a feature that
+changes probabilities without changing the argmax. Switch to log loss if that
+matters.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Quantity</th>
+<th style="text-align:left">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Fit</td>
+<td style="text-align:left"><code>B · O(d n log n · depth)</code> for the forest; each split is <code>O(m n log n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Predict one sample</td>
+<td style="text-align:left"><code>O(B · depth)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Predict <code>n</code> samples</td>
+<td style="text-align:left"><code>O(B · n · depth)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Memory</td>
+<td style="text-align:left"><code>O(B · nodes)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Permutation importance</td>
+<td style="text-align:left"><code>O(d · repeats · B · n · depth)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The forest is embarrassingly parallel across trees; this implementation is
+sequential so the code stays readable. <code>extra_trees</code> is faster per tree because it
+skips the sort and the full scan, at the price of needing more trees. Prediction is
+the bottleneck in serving: <code>B=500</code> trees of depth 15 means 7,500 comparisons per
+row, which is why production forests are often distilled or pruned.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Correlated trees.</strong> If one feature dominates, <code>ρ</code> stays near 1 and adding
+trees stops helping. The fix is a smaller <code>max_features</code> or a different feature
+representation, not more trees.</li>
+<li><strong>OOB is not a test set.</strong> It estimates performance on the training
+distribution, so it cannot detect distribution shift or leakage across time.
+With <code>n</code> small, some rows are never OOB and the estimate quietly ignores them.</li>
+<li><strong>MDI favours high-cardinality features.</strong> Continuous and ID-like columns get
+more candidate thresholds and accumulate more credit. Use permutation
+importance, or group correlated features before interpreting.</li>
+<li><strong>Permutation importance with correlated features.</strong> Shuffling one of two
+duplicates leaves the model able to use the other, so both importances collapse
+to zero. Permute groups of correlated columns together, or use conditional
+permutation.</li>
+<li><strong>Balanced sampling and probability calibration.</strong> Equalising classes changes
+the prior, so <code>predict_proba</code> no longer matches the population frequency.
+Recalibrate on a held-out set if probabilities are the product.</li>
+<li><strong>Extrapolation.</strong> Trees predict a constant outside the training range; a
+regression forest cannot extrapolate a trend. Do not use it for time series
+with a trend unless the target is detrended.</li>
+<li><strong>Many trees, no gain.</strong> <code>n_estimators</code> has diminishing returns once the OOB
+curve flattens; 100–500 is usually enough. More trees cost latency forever,
+while the variance reduction saturates.</li>
+<li><strong>Class imbalance without the variant.</strong> Plain bootstrapping preserves the
+prevalence, so a 5% class can be absent from many bootstrap samples. The demo's
+balanced accuracy rises from <code>0.781</code> to <code>0.864</code> with <code>balanced_subsample</code>; if
+that is not enough, combine with threshold tuning.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Tabular default.</strong> The strongest off-the-shelf baseline for mixed-type,
+medium-sized data; it needs no scaling, handles missing values (through CART),
+and gives importances for free.</li>
+<li><strong>Remote sensing and land cover.</strong> Thousands of spectral features, correlated
+bands, and a need for per-pixel uncertainty; the forest's OOB estimate and
+permutation importance are standard in the literature.</li>
+<li><strong>Bioinformatics.</strong> Gene-expression classification with <code>p ≫ n</code>; random feature
+subsets make the forest robust to the correlated gene blocks that break linear
+models.</li>
+<li><strong>Fraud and anomaly triage.</strong> Rare-event recall is the priority, so
+<code>balanced_subsample</code> plus a low decision threshold; the OOB score gives a quick
+read on whether the model learned anything.</li>
+<li><strong>Feature screening.</strong> Permutation importance ranks inputs before a costly
+model; the demo's clean separation between signal and noise is the intended use.</li>
+<li><strong>As a component.</strong> The forest is the base learner in stacking, the fallback in
+AutoML, and the reference model against which boosting is judged.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Breiman, <em>Random Forests</em>, 2001, Machine Learning — the original paper, including
+the <code>√d</code> default and the OOB estimate.</li>
+<li>Breiman, <em>Bagging Predictors</em>, 1996, Machine Learning — the variance argument.</li>
+<li>Geurts, Ernst &amp; Wehenkel, <em>Extremely Randomized Trees</em>, 2006, Machine Learning —
+random thresholds and the bias/variance trade-off.</li>
+<li>Louppe, Wehenkel, Sutera &amp; Geurts, <em>Understanding Variable Importances in Forests
+of Randomized Trees</em>, 2013, NeurIPS — the MDI bias analysis.</li>
+<li>Strobl, Boulesteix, Zeileis &amp; Hothorn, <em>Bias in Random Forest Variable Importance
+Measures</em>, 2007, BMC Bioinformatics — why permutation importance is preferred
+under correlation.</li>
+<li>Hastie, Tibshirani &amp; Friedman, <em>The Elements of Statistical Learning</em>, 2nd ed.,
+2009, ch. 15 — the correlation decomposition and forest asymptotics.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="cart.html"><small>Previous</small><span>CART</span></a><a class="next" href="gradient_boosting.html"><small>Next</small><span>Gradient boosting</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">04 · Trees &amp; ensembles</p><ul class="rail-list"><li><a href="cart.html"><span class="tick">✓</span><span>CART</span></a></li><li><a href="random_forest.html" aria-current="page"><span class="tick">✓</span><span>Random forest</span></a></li><li><a href="gradient_boosting.html"><span class="tick">✓</span><span>Gradient boosting</span></a></li><li><a href="xgboost.html"><span class="tick">✓</span><span>XGBoost</span></a></li><li><a href="lightgbm.html"><span class="tick">✓</span><span>LightGBM</span></a></li><li><a href="adaboost.html"><span class="tick">✓</span><span>AdaBoost</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>C4.5</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Extremely randomised trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>CatBoost</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Stacking &amp; blending</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BART</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Oblique trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Rule lists</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Tsetlin machine</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../03-kernels-and-instance/index.html"><span class="jump">← 03 · Kernels &amp; instance-based</span></a></li><li><a href="../05-probabilistic/index.html"><span class="jump">05 · Probabilistic models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/04-trees-and-ensembles/random_forest.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variational autoencoder · MLAtoms</title>
+<meta name="description" content="ELBO, reparameterisation and posterior collapse. A VAE is two models that share a latent space. The generative model says a data point was produced by…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/vae.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Variational autoencoder">
+<meta property="og:description" content="ELBO, reparameterisation and posterior collapse. A VAE is two models that share a latent space. The generative model says a data point was produced by…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/vae.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Variational autoencoder">
+<meta name="twitter:description" content="ELBO, reparameterisation and posterior collapse. A VAE is two models that share a latent space. The generative model says a data point was produced by…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Variational autoencoder", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/14-generative/vae.html", "description": "ELBO, reparameterisation and posterior collapse. A VAE is two models that share a latent space. The generative model says a data point was produced by\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">14 · Generative models</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="vae.py.html">source</a></p><h1>Variational autoencoder — the ELBO, and four ways to tighten or break it</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A VAE is two models that share a latent space. The generative model says a data
+point was produced by drawing a code <span class="math inline">\(z\)</span> from a standard normal and pushing it
+through a decoder; the inference model says, given a data point, where its code
+probably sits. Training pushes the two together with one objective, and that
+objective has two terms that fight.</p>
+<p>The demo makes the fight visible because the data is deliberately low
+dimensional: eight Gaussian blobs on a circle of radius 1.2, 100 points each,
+noise 0.12. The manifold is a circle — two degrees of freedom, eight identities.
+A latent of eight dimensions is therefore four times more room than the data
+needs, which is exactly the setting where a VAE has to decide how much
+information to keep.</p>
+<pre class="highlight"><code>                  encoder                 decoder
+    x (2)  ──▶  2 → 48 ──▶ (mu, log var) ──▶ z (8) ──▶ 48 → 2  ──▶  x hat
+                              │
+                              └── eps ~ N(0, 1) is added to mu * exp(log var / 2)
+</code></pre>
+<p>Running all five variants gives one table. The first two columns are estimates
+of the same quantity — the log likelihood of held-out data — computed with one
+sample and with eight:</p>
+<pre class="highlight"><code>variant            elbo    iwae8  active  mean sd
+standard         -1.891    -1.605    2/8    0.814
+conditional       1.305       --    0/8    0.997
+iwae             -7.607    -1.273    7/8    0.879
+beta             -5.291    -1.651    2/8    0.867
+collapse_fix     -4.671    -2.537    8/8    0.613
+</code></pre>
+<p><code>active</code> counts latent dimensions whose posterior mean varies across the data
+(var above 0.01), and <code>mean sd</code> is the average posterior standard deviation over
+all eight.</p>
+<p>Three things in that table are the whole atom.</p>
+<p><strong><code>standard</code> uses two of the eight latent dimensions and leaves six at the
+prior.</strong> That is correct — the data has two degrees of freedom. The per
+dimension KL is <code>[1.57, 1.36, 0, 0, 0, 0, 0, 0]</code>: the model discovered the
+manifold's dimension from nothing but a bound.</p>
+<p><strong><code>conditional</code> uses none of them.</strong> Hand the decoder the blob's label and the
+latent becomes redundant; the KL collapses to 0.002 and every dimension sits at
+the prior. Reconstruction is still passable (mean squared error 0.031), because
+the label already says where the point is, and that is posterior collapse — not
+a bug, an optimum.</p>
+<p><strong><code>iwae</code> is best on the eight-sample bound and worst on the one-sample
+estimate.</strong> That is not a contradiction. The importance-weighted bound is a
+better estimate of the marginal likelihood even when the posterior it produces
+is a worse approximation to the true posterior; optimising a tighter bound
+sharpens the estimate and tolerates a diffuse <span class="math inline">\(q\)</span>.</p>
+<p>The rest of the file is four ways to move along that frontier, and one way to
+get the arithmetic wrong.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<p><strong><code>standard</code></strong> — the original (Kingma &amp; Welling 2014; Rezende et al. 2014).
+Gaussian encoder, Gaussian decoder with a fixed variance, one latent sample per
+step, exact analytic KL. This is the reference the other four deviate from.</p>
+<p><strong><code>conditional</code></strong> — encode and decode the label as a one-hot concatenated to the
+input and to <span class="math inline">\(z\)</span>. The model becomes <span class="math inline">\(p(x\mid z,c)\)</span>, so a sample is drawn for a
+chosen class: the demo's 200 draws per class land 0.03–0.05 from the right
+centre. The cost is that <span class="math inline">\(z\)</span> stops carrying class identity, and here it stops
+carrying anything.</p>
+<p><strong><code>iwae</code></strong> — replace the one-sample bound with the <span class="math inline">\(K\)</span>-sample importance
+weighted bound of Burda et al. (2016), <span class="math inline">\(K=8\)</span>. Each step draws eight latents and
+weights them by their own likelihood, so the gradient is dominated by the
+samples that explain the point. The bound is tighter (monotonically in <span class="math inline">\(K\)</span> in
+expectation) and each step costs eight times the decoding.</p>
+<p><strong><code>beta</code></strong> — multiply the KL by <span class="math inline">\(\beta=8\)</span>, the <span class="math inline">\(\beta\)</span>-VAE of Higgins et al.
+(2017). The rate is capped, so the model stores less per dimension: the two
+active dimensions drop from 1.57 and 1.36 nats to 0.78 and 0.77, mean squared
+error rises from 0.0137 to 0.0167, and the reported ELBO falls to <span class="math inline">\(-5.29\)</span>
+because the objective being optimised is no longer the ELBO.</p>
+<p><strong><code>collapse_fix</code></strong> — <span class="math inline">\(\beta=16\)</span> plus free bits <span class="math inline">\(\lambda=0.5\)</span> (Kingma et al. 2016;
+Chen et al. 2018). Each dimension's KL is floored at <span class="math inline">\(\lambda\)</span>: dimensions below
+the floor get no KL gradient at all, so the optimiser cannot switch them off for
+free. Plain <span class="math inline">\(\beta=16\)</span> keeps two dimensions at 0.52 and 0.49 nats
+and reconstructs with mean squared error 0.0655; the floor forces all eight
+dimensions open at about 0.48 nats each, to 0.0224.</p>
+<p>The five differ in which term of the bound they attack. <code>conditional</code> changes
+the model, <code>iwae</code> changes the estimator, <code>beta</code> and <code>collapse_fix</code> change the
+objective's weighting, and <code>standard</code> changes nothing.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-generative-model">The generative model <a class="header-anchor" href="#the-generative-model">#</a></h3>
+<p>Two ingredients. A prior on the code, and a decoder that turns a code into a
+distribution over data:</p>
+<div class="math block">
+\[p(z)=\mathcal N(z;0,I),\qquad
+p_\theta(x\mid z)=\mathcal N\big(x;\,\hat x_\theta(z),\,\sigma^2 I\big),
+\qquad (1)\]
+</div>
+<p>with <span class="math inline">\(\sigma^2\)</span> fixed at 0.02 in this file. Everything the model can represent
+is in <span class="math inline">\(\hat x_\theta\)</span>, and everything it can be uncertain about is that fixed
+noise.</p>
+<h3 id="the-marginal-is-the-thing-you-want-and-cannot-have">The marginal is the thing you want and cannot have <a class="header-anchor" href="#the-marginal-is-the-thing-you-want-and-cannot-have">#</a></h3>
+<p>The likelihood of a point is the integral over all codes that could have made
+it:</p>
+<div class="math block">
+\[p_\theta(x)=\int p_\theta(x\mid z)\,p(z)\,dz .
+\qquad (2)\]
+</div>
+<p>For a linear decoder this is a Gaussian and the integral is closed form — that
+is factor analysis and it is in chapter 06. For the two-layer tanh decoder here
+it is not, and the dimension of <span class="math inline">\(z\)</span> makes quadrature hopeless.</p>
+<h3 id="jensen-gives-a-bound-and-the-gap-has-a-name">Jensen gives a bound, and the gap has a name <a class="header-anchor" href="#jensen-gives-a-bound-and-the-gap-has-a-name">#</a></h3>
+<p>Introduce any distribution <span class="math inline">\(q_\phi(z\mid x)\)</span> that is easy to sample. Then</p>
+<div class="math block">
+\[\log p_\theta(x)
+=\log\mathbb E_{q_\phi}\Big[\frac{p_\theta(x,z)}{q_\phi(z\mid x)}\Big]
+\;\ge\;\mathbb E_{q_\phi}\Big[\log\frac{p_\theta(x,z)}
+{q_\phi(z\mid x)}\Big]=\mathcal L,
+\qquad (3)\]
+</div>
+<p>by Jensen, because <span class="math inline">\(\log\)</span> is concave. The gap is exactly the KL between the
+approximation and the true posterior,</p>
+<div class="math block">
+\[\log p_\theta(x)-\mathcal L
+=\mathrm{KL}\big(q_\phi(z\mid x)\,\Vert\,p_\theta(z\mid x)\big),
+\qquad (4)\]
+</div>
+<p>so maximising <span class="math inline">\(\mathcal L\)</span> in <span class="math inline">\(\phi\)</span> does two things at once: it pushes the
+likelihood up and it pulls <span class="math inline">\(q_\phi\)</span> toward the posterior. That is why the same
+gradient trains a model and an inference network.</p>
+<h3 id="the-gaussian-posterior-makes-the-kl-closed-form">The Gaussian posterior makes the KL closed form <a class="header-anchor" href="#the-gaussian-posterior-makes-the-kl-closed-form">#</a></h3>
+<p>Take</p>
+<div class="math block">
+\[q_\phi(z\mid x)=\mathcal N\big(z;\,\mu_\phi(x),\,
+\mathrm{diag}(\sigma^2_\phi(x))\big),
+\qquad (5)\]
+</div>
+<p>written in code as <code>mu</code> and <code>lv = log sigma^2</code>. Against a standard normal prior
+the KL is a sum over dimensions with no sampling in it:</p>
+<div class="math block">
+\[\mathrm{KL}\big(q_\phi\,\Vert\,p\big)
+=\tfrac12\sum_d\Big(\mu_d^2+\sigma_d^2-1-\log\sigma_d^2\Big).
+\qquad (6)\]
+</div>
+<p>This is the line <code>kl = 0.5 * np.sum(mu ** 2 + np.exp(lv) - 1.0 - lv, axis=1)</code>,
+and it is worth noticing that (6) is a function of <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\log\sigma^2\)</span>
+alone. Any gradient that flows into the encoder through the reconstruction uses
+samples; the KL gradient does not.</p>
+<h3 id="reparameterisation-is-what-makes-the-sample-differentiable">Reparameterisation is what makes the sample differentiable <a class="header-anchor" href="#reparameterisation-is-what-makes-the-sample-differentiable">#</a></h3>
+<p>The expectation in (3) is over <span class="math inline">\(q_\phi\)</span>, whose parameters we want to
+differentiate. Move the randomness out:</p>
+<div class="math block">
+\[z_\phi(\epsilon)=\mu_\phi+\sigma_\phi\odot\epsilon,\qquad
+\epsilon\sim\mathcal N(0,I),
+\qquad (7)\]
+</div>
+<p>so that</p>
+<div class="math block">
+\[\nabla_\phi\mathcal L
+=\mathbb E_{\epsilon}\Big[\nabla_\phi\big(\log p_\theta(x,z_\phi(\epsilon))
+-\log q_\phi(z_\phi(\epsilon)\mid x)\big)\Big].
+\qquad (8)\]
+</div>
+<p>Now the sample is a deterministic function of <span class="math inline">\(\phi\)</span> and a fixed noise draw,
+and the gradient is an ordinary chain rule through the decoder. The demo checks
+both estimators against central differences and lands at <span class="math inline">\(5.7\times10^{-9}\)</span> and
+<span class="math inline">\(9.8\times10^{-10}\)</span>.</p>
+<h3 id="the-same-objective-has-two-single-sample-gradients">The same objective has two single-sample gradients <a class="header-anchor" href="#the-same-objective-has-two-single-sample-gradients">#</a></h3>
+<p>For the Gaussian there are two algebraically different but equally valid
+single-sample gradients, and which one you write down decides whether your code
+is right.</p>
+<p>Write <span class="math inline">\(J=\partial\hat x/\partial z\)</span> for the decoder Jacobian, so that
+<span class="math inline">\(\frac{x-\hat x}{\sigma^2}J\)</span> is a row vector of length <span class="math inline">\(\dim z\)</span> — the
+backpropagated reconstruction gradient.</p>
+<p><strong>The pathwise form</strong> differentiates everything, including <span class="math inline">\(\log q\)</span>:</p>
+<div class="math block">
+\[\nabla_\mu\mathcal L=\frac{x-\hat x}{\sigma^2}J-z,
+\qquad
+\nabla_{\log\sigma^2}\mathcal L=\Big(\frac{x-\hat x}{\sigma^2}J-z\Big)
+\odot\tfrac12\sigma\epsilon+\tfrac12 .
+\qquad (9)\]
+</div>
+<p>The <span class="math inline">\(\tfrac12\sigma\epsilon\)</span> is <span class="math inline">\(\partial z/\partial\log\sigma^2\)</span>: a factor of
+<span class="math inline">\(\sigma\)</span> from the standard deviation and a factor of <span class="math inline">\(\tfrac12\)</span> from the
+logarithm. Both are easy to drop and neither throws — they mis-scale the
+gradient on <span class="math inline">\(\log\sigma^2\)</span> by the posterior's own width, which is the quantity
+that gradient exists to set, so the run still trains and settles somewhere
+wrong.</p>
+<p><strong>The analytic form</strong> uses (6) for the KL and reparameterises only the
+reconstruction:</p>
+<div class="math block">
+\[\nabla_\mu\mathcal L=\mathbb E\Big[\frac{x-\hat x}{\sigma^2}J\Big]-\mu,\qquad
+\nabla_{\log\sigma^2}\mathcal L=\mathbb E\Big[\Big(\frac{x-\hat x}{\sigma^2}J
+\Big)\odot\tfrac12\sigma\epsilon\Big]-\tfrac12(\sigma^2-1).
+\qquad (10)\]
+</div>
+<p>They agree in expectation and not per sample. The analytic form takes the
+expectation of the reconstruction part before backpropagation, and its prior
+rows are the means of the pathwise ones, <span class="math inline">\(-\mu\)</span> for the first and
+<span class="math inline">\(-\tfrac12(\sigma^2-1)\)</span> for the second, because <span class="math inline">\(\mathbb E[-z\odot
+\tfrac12\sigma\epsilon]=-\tfrac12\sigma^2\)</span>. The analytic form therefore has
+lower variance, so it is what <code>standard</code>, <code>conditional</code>, <code>beta</code> and
+<code>collapse_fix</code> use. <code>iwae</code> needs the pathwise form, because an importance
+weighted bound has no closed-form KL to differentiate.</p>
+<p>The trap is to mix them. If you reparameterise the reconstruction but keep the
+prior term in its <strong>pathwise</strong> form with the wrong sign, you get a model that
+never converges and never throws: the prior term points away from the origin
+along <span class="math inline">\(z\)</span> instead of toward it, the latent scale grows without bound, and the
+reconstruction loss is swamped long after the first few hundred steps. The
+finite-difference check in the demo exists because this is the mistake that does
+not announce itself.</p>
+<h3 id="the-importance-weighted-bound">The importance weighted bound <a class="header-anchor" href="#the-importance-weighted-bound">#</a></h3>
+<p>Draw <span class="math inline">\(K\)</span> latents per point and average their likelihood ratios, then take the
+log:</p>
+<div class="math block">
+\[\mathcal L_K=\mathbb E\Big[\log\frac1K\sum_{k=1}^K w_k\Big],\qquad
+w_k=\frac{p_\theta(x,z_k)}{q_\phi(z_k\mid x)},
+\qquad (11)\]
+</div>
+<p>with <span class="math inline">\(z_k\)</span> reparameterised as in (7). Jensen on the inner average gives</p>
+<div class="math block">
+\[\log p_\theta(x)\;\ge\;\mathcal L_K\;\ge\;\mathcal L_{K-1}\;\ge\;\mathcal L_1,
+\qquad (12)\]
+</div>
+<p>in expectation — the bound tightens with <span class="math inline">\(K\)</span>, which is why the demo's iwae row
+wins on the eight-sample column. Its gradient is a self-normalised average over
+the samples in the batch:</p>
+<div class="math block">
+\[\tilde w_k=\frac{w_k}{\sum_j w_j},\qquad
+\nabla_\phi\mathcal L_K
+=\mathbb E\Big[\sum_{k=1}^K\tilde w_k\,\nabla_\phi\log w_k\Big],
+\qquad (13)\]
+</div>
+<p>because <span class="math inline">\(\nabla\log\frac1K\sum_k w_k=\sum_k\tilde w_k\nabla\log w_k\)</span>. The
+weights are computed with a max shift before exponentiation; without it a
+batch of eight samples with log weights around <span class="math inline">\(-36\)</span> underflows to a vector of
+zeros and the gradient becomes <code>nan</code>.</p>
+<p>The estimator is unbiased for the bound but the bound is not the likelihood. At
+<span class="math inline">\(K=8\)</span> the demo estimates <span class="math inline">\(-1.27\)</span> nats for the iwae model against <span class="math inline">\(-1.61\)</span> for the
+standard one, while the <em>same</em> iwae model scores <span class="math inline">\(-7.61\)</span> on the one-sample
+estimate against <span class="math inline">\(-1.89\)</span>. Measured on the held-out set, the iwae model's weights
+put 45% of the mass on a single one of the eight samples and the effective
+sample size is 3.5, against 5.6 for the standard model. A few samples carry the
+bound; the single-sample estimate is then a draw that usually lands in a region
+the weights call unimportant, which is exactly the lottery. A fit that is better
+by the metric it optimises can be much worse by the metric you were using to
+compare it.</p>
+<h3 id="what-beta-does-to-the-rate">What beta does to the rate <a class="header-anchor" href="#what-beta-does-to-the-rate">#</a></h3>
+<p><span class="math inline">\(\beta\)</span>-VAE replaces (3) with</p>
+<div class="math block">
+\[\mathcal L_\beta=\mathbb E_{q}\big[\log p_\theta(x\mid z)\big]
+-\beta\,\mathrm{KL}\big(q_\phi(z\mid x)\,\Vert\,p(z)\big).
+\qquad (14)\]
+</div>
+<p>Since the two terms are a rate and a distortion,</p>
+<div class="math block">
+\[\mathrm{rate}=\mathrm{KL}(q_\phi\,\Vert\,p),\qquad
+\mathrm{distortion}=-\mathbb E\big[\log p_\theta(x\mid z)\big],
+\qquad (15)\]
+</div>
+<p><span class="math inline">\(\beta\)</span> is the exchange rate between them: a larger <span class="math inline">\(\beta\)</span> buys a lower rate
+and pays for it in distortion. The demo's sweep is that frontier,
+one point per <span class="math inline">\(\beta\)</span>:</p>
+<pre class="highlight"><code>beta  1.0  kl  2.934  rec  1.731  elbo   -1.891  mse  0.0137
+beta  2.0  kl  2.527  rec  1.679  elbo   -2.054  mse  0.0158
+beta  4.0  kl  2.086  rec  1.667  elbo   -2.870  mse  0.0163
+beta  8.0  kl  1.552  rec  1.656  elbo   -5.291  mse  0.0167
+</code></pre>
+<p>Rate falls by half and mean squared error rises by a fifth across the sweep, so
+this manifold is cheap to encode and <span class="math inline">\(\beta\)</span> has little distortion to buy. Push
+to <span class="math inline">\(\beta=16\)</span> and the rate falls to 1.011, spread over the same two dimensions
+at 0.52 and 0.49 nats, and the distortion finally breaks: mean squared error
+0.0655, five times the unweighted model. The two dimensions are still there;
+there is just not enough rate left in them to say where on the circle a point
+sits.</p>
+<h3 id="free-bits-is-a-floor-and-a-floor-is-a-budget">Free bits is a floor, and a floor is a budget <a class="header-anchor" href="#free-bits-is-a-floor-and-a-floor-is-a-budget">#</a></h3>
+<p>The fix is not to lower <span class="math inline">\(\beta\)</span>, it is to forbid the KL from going to zero
+dimension by dimension. Replace the KL with a hinge:</p>
+<div class="math block">
+\[\mathcal L_{\text{free}}
+=\mathbb E\big[\log p_\theta(x\mid z)\big]
+-\sum_d\max\big(\lambda,\,\mathrm{KL}_d\big),
+\qquad (16)\]
+</div>
+<p>where <span class="math inline">\(\mathrm{KL}_d\)</span> is the batch mean of dimension <span class="math inline">\(d\)</span>'s contribution. The
+gradient of the hinge with respect to <span class="math inline">\(\mathrm{KL}_d\)</span> is one when
+<span class="math inline">\(\mathrm{KL}_d>\lambda\)</span> and zero otherwise, which is exactly the switch the code
+implements: <code>(kld &gt; self.free).astype(float)</code>.</p>
+<p>The demo runs <span class="math inline">\(\beta=16\)</span> with <span class="math inline">\(\lambda=0.5\)</span> and finds all eight dimensions parked
+at 0.47–0.49 nats — just <em>under</em> the floor, where the KL gradient switches off.
+The floor is a budget of <span class="math inline">\(8\times0.5=4\)</span> nats and the optimiser fills it one
+dimension at a time, because below <span class="math inline">\(\lambda\)</span> a dimension costs nothing; it does
+not spend the budget where the data would. The ELBO recovers from <span class="math inline">\(-10.90\)</span> to
+<span class="math inline">\(-4.67\)</span> and the reconstruction from 0.0655 to 0.0224, but neither returns to the
+<span class="math inline">\(\beta=1\)</span> model's <span class="math inline">\(-1.89\)</span> and 0.0137. Free bits buys information flow, not
+quality.</p>
+<h3 id="why-a-conditional-model-throws-its-latent-away">Why a conditional model throws its latent away <a class="header-anchor" href="#why-a-conditional-model-throws-its-latent-away">#</a></h3>
+<p>Conditioning adds the label to both networks:</p>
+<div class="math block">
+\[q_\phi(z\mid x,c),\qquad p_\theta(x\mid z,c).
+\qquad (17)\]
+</div>
+<p>Now the decoder can compute the conditional mean of <span class="math inline">\(x\)</span> given <span class="math inline">\(c\)</span> without
+consulting <span class="math inline">\(z\)</span>, and if it does, the only term in (3) that depends on the
+encoder's output is <span class="math inline">\(-\mathrm{KL}\)</span>, whose optimum is the prior. For a dimension
+that the decoder ignores, the objective is minimised at</p>
+<div class="math block">
+\[\mu_d=0,\qquad \log\sigma_d^2=0,
+\qquad (18)\]
+</div>
+<p>which is what the demo measures: KL 0.001 and zero active dimensions, stable
+from 2000 to 8000 steps. Collapse is not the encoder failing; it is the decoder
+winning.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The data first, because it sets the difficulty. Eight centres on a circle, each
+with isotropic noise, which gives a manifold that needs exactly two latent
+dimensions:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">make_data</span><span class="p">(</span><span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">per_mode</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return (x, y) with `per_mode` points around each of eight centres."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+    <span class="n">angle</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">NMODES</span><span class="p">)</span> <span class="o">/</span> <span class="n">NMODES</span>
+    <span class="n">centres</span> <span class="o">=</span> <span class="n">RADIUS</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">c</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">SPREAD</span><span class="p">,</span> <span class="p">(</span><span class="n">per_mode</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+                   <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">centres</span><span class="p">])</span>
+</code></pre>
+<p>Both networks are one hidden tanh layer. <code>_decode</code> reshapes to whatever leading
+batch shape it was handed, so the same function serves a single sample <code>(n, d)</code>
+and the <code>(n, k, d)</code> stack that <code>iwae</code> needs:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_encode</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">xc</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">xc</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"E1"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"b1"</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">h</span><span class="p">,</span> <span class="n">h</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"Em"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"bm"</span><span class="p">],</span> <span class="n">h</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"El"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"bl"</span><span class="p">]</span>
+</code></pre>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_decode</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">zc</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Decode any leading batch shape; returns (hidden, reconstruction)."""</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">zc</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">flat</span> <span class="o">=</span> <span class="n">zc</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">zc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">flat</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"D1"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"d1"</span><span class="p">])</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">g</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"D2"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"d2"</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">g</span><span class="p">,</span> <span class="n">out</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p><code>_terms</code> computes the bound and hands back everything the backward pass needs.
+The <code>onehot</code> argument is how the conditional variant reaches into the same
+function: it is concatenated to <code>z</code> before decoding, so there is one code path
+for both models:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_terms</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">xc</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+           <span class="n">onehot</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return (elbo, rec, kl, cache) per data point for one latent sample."""</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">lv</span> <span class="o">=</span> <span class="n">_encode</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">xc</span><span class="p">)</span>
+    <span class="n">sd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">lv</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">sd</span> <span class="o">*</span> <span class="n">eps</span>
+    <span class="n">zc</span> <span class="o">=</span> <span class="n">z</span> <span class="k">if</span> <span class="n">onehot</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">z</span><span class="p">,</span> <span class="n">onehot</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">g</span><span class="p">,</span> <span class="n">xr</span> <span class="o">=</span> <span class="n">_decode</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">zc</span><span class="p">)</span>
+    <span class="n">rec</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">xr</span> <span class="o">-</span> <span class="n">x</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">DEC_VAR</span>
+           <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">DEC_VAR</span><span class="p">))</span>
+    <span class="n">kl</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mu</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">lv</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">lv</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">rec</span> <span class="o">-</span> <span class="n">kl</span><span class="p">,</span> <span class="n">rec</span><span class="p">,</span> <span class="n">kl</span><span class="p">,</span> <span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">lv</span><span class="p">,</span> <span class="n">sd</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">zc</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">xr</span><span class="p">)</span>
+</code></pre>
+<p>The backward pass is the analytic form of (10). Note the two halves: the
+decoder chain is the usual backpropagation with <code>dxr</code> carrying <span class="math inline">\(1/\sigma^2\)</span>,
+and the encoder gets <code>dmu</code> and <code>dlv</code> where only the first term comes from the
+data and the second is the closed-form KL:</p>
+<pre class="highlight"><code>    <span class="n">dxr</span> <span class="o">=</span> <span class="p">(</span><span class="n">xr</span> <span class="o">-</span> <span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="n">DEC_VAR</span> <span class="o">/</span> <span class="n">n</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"D2"</span><span class="p">:</span> <span class="n">g</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dxr</span><span class="p">,</span> <span class="s2">"d2"</span><span class="p">:</span> <span class="n">dxr</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)}</span>
+    <span class="n">dg</span> <span class="o">=</span> <span class="p">(</span><span class="n">dxr</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"D2"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">g</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">grads</span><span class="p">[</span><span class="s2">"D1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">zc</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dg</span>
+    <span class="n">grads</span><span class="p">[</span><span class="s2">"d1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">dg</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">dz</span> <span class="o">=</span> <span class="p">(</span><span class="n">dg</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"D1"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)[:,</span> <span class="p">:</span><span class="n">lv</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="n">dmu</span> <span class="o">=</span> <span class="n">dz</span> <span class="o">+</span> <span class="n">beta</span> <span class="o">*</span> <span class="p">(</span><span class="n">mu</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span> <span class="o">*</span> <span class="n">mask</span>
+    <span class="n">dlv</span> <span class="o">=</span> <span class="p">(</span><span class="n">dz</span> <span class="o">*</span> <span class="n">eps</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">sd</span>
+           <span class="o">+</span> <span class="n">beta</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">lv</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span> <span class="o">*</span> <span class="n">mask</span><span class="p">)</span>
+</code></pre>
+<p><code>dz</code> is cut back to the latent width because <code>zc</code> may be <code>z</code> concatenated with
+a one-hot; the label columns must not receive a gradient from the code. The
+<code>beta * ...</code> terms are (6) differentiated, and <code>mask</code> is the free-bits switch of
+(16) — an all-ones vector unless the variant is <code>collapse_fix</code>.</p>
+<p>The importance weights are computed in log space, shifted, and only then
+exponentiated:</p>
+<pre class="highlight"><code>    <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">latent</span> <span class="o">=</span> <span class="n">eps</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">lv</span> <span class="o">=</span> <span class="n">_encode</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+    <span class="n">sd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">lv</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">mu</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">sd</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">eps</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">xr</span> <span class="o">=</span> <span class="n">_decode</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+    <span class="n">ss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">xr</span> <span class="o">-</span> <span class="n">x</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">log_px</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">ss</span> <span class="o">/</span> <span class="n">DEC_VAR</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">DEC_VAR</span><span class="p">)</span>
+    <span class="n">log_pz</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">z</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">latent</span> <span class="o">*</span> <span class="n">LOG_2PI</span>
+    <span class="n">log_qz</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">eps</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">lv</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">log_qz</span> <span class="o">-=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">latent</span> <span class="o">*</span> <span class="n">LOG_2PI</span>
+    <span class="k">return</span> <span class="n">log_px</span> <span class="o">+</span> <span class="n">log_pz</span> <span class="o">-</span> <span class="n">log_qz</span>
+</code></pre>
+<p>The three densities are the whole of (11): likelihood of the point under that
+sample's reconstruction, prior density of the sample, and the proposal density
+that produced it. <code>log_qz</code> is written in terms of <code>eps</code> rather than <code>z</code> because
+that is the form that stays finite when <span class="math inline">\(\sigma\)</span> is tiny.</p>
+<p>The IWAE gradient is the same chain rule with the per-sample weights applied to
+each sample's contribution, then summed over <span class="math inline">\(k\)</span> after the decoder-backprop
+step:</p>
+<pre class="highlight"><code>    <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">latent</span> <span class="o">=</span> <span class="n">eps</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">weight</span> <span class="o">=</span> <span class="n">_softmax_rows</span><span class="p">(</span><span class="n">iwae_log_weights</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">eps</span><span class="p">))</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">lv</span> <span class="o">=</span> <span class="n">_encode</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+    <span class="n">sd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">lv</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">mu</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">sd</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">eps</span>
+    <span class="n">g</span><span class="p">,</span> <span class="n">xr</span> <span class="o">=</span> <span class="n">_decode</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+    <span class="n">dxr</span> <span class="o">=</span> <span class="n">weight</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">xr</span> <span class="o">-</span> <span class="n">x</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:])</span> <span class="o">/</span> <span class="n">DEC_VAR</span> <span class="o">/</span> <span class="n">n</span>
+    <span class="n">dz</span> <span class="o">=</span> <span class="n">weight</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">z</span> <span class="o">/</span> <span class="n">n</span>
+    <span class="n">flat_dxr</span> <span class="o">=</span> <span class="n">dxr</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">k</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">flat_g</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">k</span><span class="p">,</span> <span class="n">h</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"D2"</span><span class="p">:</span> <span class="n">flat_g</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">flat_dxr</span><span class="p">,</span> <span class="s2">"d2"</span><span class="p">:</span> <span class="n">flat_dxr</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)}</span>
+    <span class="n">dg</span> <span class="o">=</span> <span class="p">(</span><span class="n">flat_dxr</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"D2"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">flat_g</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">grads</span><span class="p">[</span><span class="s2">"D1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">z</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">k</span><span class="p">,</span> <span class="n">latent</span><span class="p">)</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dg</span>
+    <span class="n">grads</span><span class="p">[</span><span class="s2">"d1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">dg</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">dz</span> <span class="o">=</span> <span class="n">dz</span> <span class="o">+</span> <span class="p">(</span><span class="n">dg</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"D1"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">latent</span><span class="p">)</span>
+    <span class="n">dmu</span> <span class="o">=</span> <span class="n">dz</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">dlv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dz</span> <span class="o">*</span> <span class="n">eps</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">sd</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">/</span> <span class="n">n</span>
+</code></pre>
+<p><code>dz</code> starts as the prior term of the pathwise gradient and then receives the
+decoder's contribution in-place; <code>dmu</code> and <code>dlv</code> are sums over the <span class="math inline">\(k\)</span> samples
+because the encoder is evaluated once per point, not once per sample. Every
+line here is a sign that has to be right, which is why the demo
+finite-differences this function too.</p>
+<p><code>_beta</code> and <code>_mask</code> are the two knobs that define <code>beta</code> and <code>collapse_fix</code>.
+<code>_mask</code> recomputes the batch-mean KL from the <em>current</em> parameters on every
+step, so the set of open dimensions can change during training:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_beta</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"beta"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"collapse_fix"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">HARD_BETA</span>
+        <span class="k">return</span> <span class="mf">1.0</span>
+</code></pre>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">xc</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"collapse_fix"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">lv</span> <span class="o">=</span> <span class="n">_encode</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">xc</span><span class="p">)</span>
+        <span class="n">kld</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">mu</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">lv</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                     <span class="o">-</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">lv</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">kld</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">free</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+</code></pre>
+<p>Evaluation is deliberately separate from training. <code>elbo(..., importance=True)</code>
+is the only place the <span class="math inline">\(K\)</span>-sample bound is computed, and it refuses the
+conditional model outright because the weight ratio is defined against the
+unconditional prior:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">importance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conditional</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"the iwae bound is unconditional only"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">importance</span><span class="p">:</span>
+            <span class="n">log_w</span> <span class="o">=</span> <span class="n">iwae_log_weights</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">eps</span><span class="p">)</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="n">log_w</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_w</span> <span class="o">-</span> <span class="n">top</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+                                 <span class="o">+</span> <span class="n">top</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]))</span>
+</code></pre>
+<p>The <code>top</code> shift is the same trick as inside the weights, applied to the bound
+itself: with 32 samples and log weights near <span class="math inline">\(-36\)</span> the plain mean underflows,
+and the max-shifted form is exact up to rounding.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>The unconditional network has</p>
+<div class="math block">
+\[(2\cdot48+48)+(2\cdot48\cdot8+2\cdot8)+(48\cdot8+48)+(48\cdot2+2)=1458
+\qquad (19)\]
+</div>
+<p>— encoder weights and bias, the two heads, then the decoder's weights and bias.</p>
+<p>parameters — encoder weights and bias, the two heads, then the decoder's. The
+conditional model has 2226 because both the input and the decoder input grow by
+eight. One forward pass costs about 1.3k multiply-adds per point;
+a training step is a forward and a backward over a batch of 128, so roughly
+<span class="math inline">\(5\times10^{5}\)</span> multiply-adds, and the 2000-step fit is about <span class="math inline">\(10^{9}\)</span>. The demo
+is nine fits — five variants, three extra <span class="math inline">\(\beta\)</span> values and the collapsed
+model — so a few seconds of numpy.</p>
+<p>The interesting cost is <code>iwae</code>: the encoder runs once per point but the decoder
+runs <span class="math inline">\(K\)</span> times, so a step costs <span class="math inline">\(K\)</span> times the decode and the bound's memory is
+<span class="math inline">\(K\)</span> copies of <span class="math inline">\((n,\text{latent})\)</span>. Eight samples is the usual compromise;
+past a few dozen the bound improves by less than the sampler's variance.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The prior term's sign is the one to get wrong.</strong> The loss gradient of the
+prior is <span class="math inline">\(+z\)</span> pathwise and <span class="math inline">\(+\mu\)</span> in the analytic form, because the loss
+contains <span class="math inline">\(+\tfrac12 z^\top z\)</span> from <span class="math inline">\(-\log p(z)\)</span>. Writing <span class="math inline">\(-z\)</span> (which is what
+you get from <span class="math inline">\(\nabla\log w\)</span> if you forget that the objective is <span class="math inline">\(-\log w\)</span>)
+makes the objective unbounded below along <span class="math inline">\(z\)</span>: the prior stops pulling the code
+toward the origin and starts pushing it out, while the reconstruction term is
+quadratic and flat, so the run does not stall — it runs away. The first version
+of this file did exactly that and the bound reached <span class="math inline">\(-10^{170}\)</span> within 500 steps.
+Nothing in the code looks wrong, because nothing in the code is wrong except one
+character; only a finite-difference check on the objective catches it.</p>
+<p><strong>Conditional models collapse and it is not a transient.</strong> KL <span class="math inline">\(0.001\)</span>, zero
+active dimensions at 2000, 4000 and 8000 steps, with reconstruction error more
+than twice the unconditional model's. The decoder prefers the label because the
+label is free information. If you need <span class="math inline">\(z\)</span> to matter — for interpolation, for
+style transfer — you have to take something away: drop the label out randomly,
+anneal <span class="math inline">\(\beta\)</span> upward, or apply free bits. None of those is in this file, and
+that is the honest state of the variant.</p>
+<p><strong><span class="math inline">\(\beta\)</span> is not scale free, because <span class="math inline">\(\sigma^2\)</span> is fixed.</strong> The reconstruction
+term is <span class="math inline">\(1/\sigma^2\)</span> times a squared error while the KL is order one, so the
+KL's effective weight is <span class="math inline">\(\beta\sigma^2\)</span>. At <code>DEC_VAR = 0.02</code> the whole sweep is
+shifted by a factor of fifty against a unit-variance decoder: <span class="math inline">\(\beta=8\)</span> here is
+as strong as <span class="math inline">\(\beta=0.16\)</span> would be there, and <span class="math inline">\(\beta=1\)</span> is already a heavily
+down-weighted KL. That is why this data tolerates <span class="math inline">\(\beta=8\)</span> with almost no
+distortion cost, and why a <span class="math inline">\(\beta\)</span> from one codebase never transfers to another
+unless <span class="math inline">\(\sigma^2\)</span> matches.</p>
+<p><strong>&quot;Active dimensions&quot; cannot see rate starvation.</strong> The demo's <span class="math inline">\(\beta=1\)</span> and
+<span class="math inline">\(\beta=16\)</span> models both report two active dimensions, and <span class="math inline">\(\beta=16\)</span> reconstructs
+five times worse. The count measures which dimensions
+carry data, not how much; the per-dimension KL is what changes (1.57 and 1.36
+against 0.52 and 0.49). Use both, and treat the count as a coarse screen.</p>
+<p><strong>Free bits with a large floor forces capacity you did not ask for.</strong> At
+<span class="math inline">\(\lambda=0.5\)</span> and eight dimensions the floor is four nats, more than the
+unconstrained model spends in total. The optimiser satisfies it by opening all
+eight dimensions shallowly — 0.47 to 0.49 each — and reconstruction is worse
+than the two-dimension solution. The floor is a target as well as a bound, and
+setting it above what the data needs spends rate on dimensions that cannot
+help.</p>
+<p><strong>A tighter bound is not a better model.</strong> The iwae row is best on eight samples
+and worst on one. If you report the bound you trained, you cannot compare
+variants trained with different <span class="math inline">\(K\)</span>; if you report a single-sample estimate, you
+are measuring the variance of an estimator as much as the model. The demo's
+tables keep both columns for that reason.</p>
+<p><strong>The ELBO is a lower bound on likelihood, not a calibrated likelihood.</strong>
+Nothing in the training signal prevents a VAE from assigning high density to
+data it has never seen — the reconstruction term rewards confident decoders and
+the KL only bounds the code. Anomaly detection by ELBO alone is a known trap
+(Nalisnick et al. 2019); the usual repair is a likelihood ratio against a
+background model, or a typicality test.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Compression and rate-distortion coding.</strong> (14) is literally a rate-distortion
+Lagrangian with <span class="math inline">\(\beta\)</span> as the multiplier, which is why VAE-like models show up
+in learned image and audio codecs: the KL is the bit rate you pay for the code
+and the reconstruction term is the distortion you accept. The <span class="math inline">\(\beta\)</span> sweep in
+this file is the smallest possible version of that curve.</p>
+<p><strong>Density estimation.</strong> Importance weighted bounds are tight enough to rank
+models on image benchmarks, at a fraction of the sequential cost of an
+autoregressive likelihood, and the estimator is the same one used for marginal
+likelihood comparison anywhere a latent variable makes the integral
+intractable.</p>
+<p><strong>Structured generation.</strong> A conditional VAE is a generator you can steer: draw
+<span class="math inline">\(z\)</span>, fix the class, decode. The demo's sampling block is the whole recipe, and
+the collapse in its table is why practical conditional generators add KL
+annealing, free bits or an auxiliary loss that forces the code to predict
+something.</p>
+<p><strong>Latent spaces for downstream work.</strong> Two dimensions recovered from an
+eight-dimensional code is the standard outcome for data on a manifold, and the
+recovered coordinates are useful for interpolation, nearest-neighbour search
+and visualisation. The caveat is the same one (4) makes: the code is only as
+faithful to the posterior as the bound is tight.</p>
+<p><strong>As the inference network for something else.</strong> The encoder is a learned
+amortised posterior; every latent-variable model with intractable posteriors —
+hierarchical models, sequence models, topic models — can use this file's
+<code>_encode</code>/<code>_grads</code> pair as the pattern, with the decoder swapped for the
+model's generative part.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Kingma, D. P. and Welling, M. (2014). Auto-encoding variational Bayes.
+arXiv:1312.6114.</li>
+<li>Rezende, D. J., Mohamed, S. and Wierstra, D. (2014). Stochastic
+backpropagation and approximate inference in deep generative models. ICML.</li>
+<li>Burda, Y., Grosse, R. and Salakhutdinov, R. (2016). Importance weighted
+autoencoders. ICLR. arXiv:1509.00519.</li>
+<li>Higgins, I. et al. (2017). <span class="math inline">\(\beta\)</span>-VAE: learning basic visual concepts with a
+constrained variational framework. ICLR.</li>
+<li>Chen, T. Q. et al. (2018). Isolating sources of disentanglement in variational
+autoencoders. NeurIPS. arXiv:1802.04942.</li>
+<li>Kingma, D. P., Salimans, T., Jozefowicz, R., Chen, X., Sutskever, I. and
+Welling, M. (2016). Improved variational inference with inverse autoregressive
+flow. NeurIPS. arXiv:1606.04934.</li>
+<li>Sohn, K., Lee, H. and Yan, X. (2015). Learning structured output representation
+using deep conditional generative models. NeurIPS.</li>
+<li>Bowman, S. R. et al. (2016). Generating sentences from a continuous space.
+CoNLL. arXiv:1511.06349.</li>
+<li>Rainforth, T. et al. (2018). Tighter variational bounds are not necessarily
+better. ICML. arXiv:1802.02550.</li>
+<li>Doersch, C. (2016). Tutorial on variational autoencoders. arXiv:1606.05908.</li>
+<li>Blei, D. M., Kucukelbir, A. and McAuliffe, J. D. (2017). Variational inference:
+a review for statisticians. JASA.</li>
+<li>Lucas, J., Tucker, G., Grosse, R. and Norouzi, M. (2019). Don't blame the
+ELBO for posterior collapse. ICLR. arXiv:1901.05534.</li>
+<li>Nalisnick, E., Matsukawa, A., Teh, Y. W., Gorur, D. and Lakshminarayanan, B.
+(2019). Do deep generative models know what they don't know? ICLR.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="index.html"><small>Previous</small><span>14 · Generative models</span></a><a class="next" href="gan.html"><small>Next</small><span>GAN</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">14 · Generative models</p><ul class="rail-list"><li><a href="vae.html" aria-current="page"><span class="tick">✓</span><span>Variational autoencoder</span></a></li><li><a href="gan.html"><span class="tick">✓</span><span>GAN</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Diffusion (DDPM)</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Wasserstein GAN</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>DDIM</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Guidance</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Normalising flows</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>VQ-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Beta-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Score-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Autoregressive generation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Energy-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Flow matching</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../13-training/index.html"><span class="jump">← 13 · Training</span></a></li><li><a href="../15-graphs/index.html"><span class="jump">15 · Graphs&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-generative-model">The generative model</a></li><li class="lvl3"><a href="#the-marginal-is-the-thing-you-want-and-cannot-have">The marginal is the thing you want and cannot have</a></li><li class="lvl3"><a href="#jensen-gives-a-bound-and-the-gap-has-a-name">Jensen gives a bound, and the gap has a name</a></li><li class="lvl3"><a href="#the-gaussian-posterior-makes-the-kl-closed-form">The Gaussian posterior makes the KL closed form</a></li><li class="lvl3"><a href="#reparameterisation-is-what-makes-the-sample-differentiable">Reparameterisation is what makes the sample differentiable</a></li><li class="lvl3"><a href="#the-same-objective-has-two-single-sample-gradients">The same objective has two single-sample gradients</a></li><li class="lvl3"><a href="#the-importance-weighted-bound">The importance weighted bound</a></li><li class="lvl3"><a href="#what-beta-does-to-the-rate">What beta does to the rate</a></li><li class="lvl3"><a href="#free-bits-is-a-floor-and-a-floor-is-a-budget">Free bits is a floor, and a floor is a budget</a></li><li class="lvl3"><a href="#why-a-conditional-model-throws-its-latent-away">Why a conditional model throws its latent away</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/14-generative/vae.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

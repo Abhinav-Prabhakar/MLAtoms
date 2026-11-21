@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TSMixer · MLAtoms</title>
+<meta name="description" content="All-MLP token and channel mixing. Every transformer forecaster spends its parameters on pairwise interactions: token i against token j. TSMixer asks what is…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/tsmixer.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="TSMixer">
+<meta property="og:description" content="All-MLP token and channel mixing. Every transformer forecaster spends its parameters on pairwise interactions: token i against token j. TSMixer asks what is…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/tsmixer.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TSMixer">
+<meta name="twitter:description" content="All-MLP token and channel mixing. Every transformer forecaster spends its parameters on pairwise interactions: token i against token j. TSMixer asks what is…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "TSMixer", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/tsmixer.html", "description": "All-MLP token and channel mixing. Every transformer forecaster spends its parameters on pairwise interactions: token i against token j. TSMixer asks what is\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">11 · Time series</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="tsmixer.py.html">source</a></p><h1>TSMixer — replace attention with two alternating perceptrons</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Every transformer forecaster spends its parameters on pairwise interactions:
+token <span class="math inline">\(i\)</span> against token <span class="math inline">\(j\)</span>. TSMixer asks what is actually being mixed, and
+answers that there are only two axes. A multivariate window is a matrix
+<span class="math inline">\(X\in\mathbb R^{L\times C}\)</span> — time down the rows, channels across the columns.
+To forecast it you need to combine observations along time, and you need to
+combine channels. Those are two operations, and neither needs a quadratic
+matrix of interactions.</p>
+<p>So the block is two multi-layer perceptrons applied along the two axes. The
+<strong>time-mixing</strong> MLP takes the <span class="math inline">\(L\)</span> values of one channel, projects them to a
+hidden width, and projects back — it can learn any linear filter over the
+window, and with the ReLU it can learn a nonlinear one. The <strong>feature-mixing</strong>
+MLP does the same across the <span class="math inline">\(C\)</span> channels at a single timestep: it learns which
+channels predict which. Each is wrapped in a residual connection, and the
+stack of blocks alternates time, features, time, features.</p>
+<p>The cost is linear in both <span class="math inline">\(L\)</span> and <span class="math inline">\(C\)</span> rather than quadratic, and the model is
+a stack of matrix products — the kind of thing that runs in microseconds on a
+CPU. On the 289-window demo it reaches a held-out MAE of <span class="math inline">\(0.2282\)</span> against
+<span class="math inline">\(1.3784\)</span> for repeating the last value.</p>
+<p>The variants make the ablation explicit:</p>
+<ul>
+<li><strong><code>time_mix</code></strong> keeps only the time-axis MLP.</li>
+<li><strong><code>feature_mix</code></strong> keeps only the channel-axis MLP.</li>
+<li><strong><code>tsmixer</code></strong> alternates both.</li>
+<li><strong><code>tsmixer_ext</code></strong> also consumes exogenous features, in the feature branch
+and in the head.</li>
+</ul>
+<p>The demo's most interesting result is the negative one: <code>time_mix</code> alone reaches
+<span class="math inline">\(0.1912\)</span> and beats the full model. The channel branch costs parameters and buys
+nothing when the channels are redundant. That is the honest headline, and it is
+the reason the ablation exists.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">time branch</th>
+<th style="text-align:left">feature branch</th>
+<th style="text-align:left">exog</th>
+<th style="text-align:left">held-out MAE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>time_mix</code></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">0.1912</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>feature_mix</code></td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">0.2402</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tsmixer</code></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">0.2282</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tsmixer_ext</code></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">3.3795 vs 4.0221</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>time_mix</code></strong> owns 10 arrays and <span class="math inline">\(6892\)</span> numbers, all of them in the two time
+matrices per block and the head. It is the best of the three on this data,
+which is unsurprising: the three channels are noisy affine copies of one
+another, so there is no independent cross-channel signal to learn.</p>
+<p><strong><code>feature_mix</code></strong> also owns 10 arrays but only <span class="math inline">\(1042\)</span> numbers, because the
+channel axis has three columns. It reaches <span class="math inline">\(0.2402\)</span>. Remarkably it is close to
+the full model — most of the useful fit is a per-timestep linear map plus the
+head.</p>
+<p><strong><code>tsmixer</code></strong> owns 18 arrays and <span class="math inline">\(7346\)</span> numbers: two time branches and two
+feature branches, plus one head. It reaches <span class="math inline">\(0.2282\)</span>, between the two
+ablations. Per block the time branch costs <span class="math inline">\(3152\)</span> numbers and the feature
+branch <span class="math inline">\(227\)</span>, a ratio of fourteen to one.</p>
+<p><strong><code>tsmixer_ext</code></strong> is trained on a different series, one with a random driver
+that the history cannot predict but the future does reveal. Without the driver
+the model reaches <span class="math inline">\(4.0221\)</span> — worse than the last value, because the series is
+mostly unpredictable noise around a seasonal mean. With the driver it reaches
+<span class="math inline">\(3.3795\)</span>. The head widens from <span class="math inline">\(48\)</span> to <span class="math inline">\(60\)</span> columns: <span class="math inline">\(48\)</span> look-back steps plus
+<span class="math inline">\(12\)</span> future driver steps.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="notation">Notation <a class="header-anchor" href="#notation">#</a></h3>
+<p>A training window is <span class="math inline">\(X\in\mathbb R^{L\times C}\)</span> with target
+<span class="math inline">\(Y\in\mathbb R^{H\times C}\)</span>. <span class="math inline">\(L\)</span> is the look-back, <span class="math inline">\(H\)</span> the horizon, <span class="math inline">\(C\)</span> the
+number of channels. A batch stacks <span class="math inline">\(B\)</span> windows.</p>
+<h3 id="standardisation">Standardisation <a class="header-anchor" href="#standardisation">#</a></h3>
+<p>Each window is standardised channel by channel, using its own look-back
+statistics:</p>
+<div class="math block">
+\[\tilde x_{tc}=\frac{x_{tc}-\mu_c}{\sigma_c},\qquad
+\mu_c=\frac1L\sum_{t=1}^{L}x_{tc},\qquad
+\sigma_c^2=\frac1L\sum_{t=1}^{L}(x_{tc}-\mu_c)^2 .
+\qquad (1)\]
+</div>
+<p>The same <span class="math inline">\(\mu_c,\sigma_c\)</span> standardise the target. This is the &quot;instance
+normalisation&quot; that makes a non-stationary series stationary within each
+window: the network never sees an absolute level, only a shape. The forecast is
+mapped back with <span class="math inline">\(\hat y=\mu_c+\sigma_c\hat z\)</span> at prediction time.</p>
+<h3 id="layer-normalisation">Layer normalisation <a class="header-anchor" href="#layer-normalisation">#</a></h3>
+<p>Every mixing MLP is preceded by a normalisation over the axis it is about to
+mix:</p>
+<div class="math block">
+\[\mathrm{LN}(z)=\frac{z-\bar z}{\sqrt{\tfrac1d\sum_{j}(z_j-\bar z)^2+\epsilon}},
+\qquad \bar z=\frac1d\sum_{j=1}^{d}z_j .
+\qquad (2)\]
+</div>
+<p>After transposing, the time MLP sees a vector of length <span class="math inline">\(L\)</span> and the feature MLP
+a vector of length <span class="math inline">\(C\)</span>, so (2) is applied with <span class="math inline">\(d=L\)</span> and <span class="math inline">\(d=C\)</span> respectively.
+The normalisation is affine-free: the gain and bias are redundant with the
+following linear layer's own bias and with the residual scale, and dropping
+them removes two arrays per branch.</p>
+<h3 id="time-mixing">Time mixing <a class="header-anchor" href="#time-mixing">#</a></h3>
+<p>For each channel <span class="math inline">\(c\)</span>, with <span class="math inline">\(W_t\in\mathbb R^{L\times h}\)</span>, <span class="math inline">\(V_t\in\mathbb R^{h\times L}\)</span>:</p>
+<div class="math block">
+\[a_c=\mathrm{ReLU}\bigl(\mathrm{LN}(X_{\cdot c})\,W_t+b_t\bigr)\in\mathbb R^{h},
+\qquad (3)\]
+</div>
+<div class="math block">
+\[Z_{\cdot c}=X_{\cdot c}+a_c\,V_t+c_t .
+\qquad (4)\]
+</div>
+<p>The map <span class="math inline">\(X_{\cdot c}\mapsto a_cV_t\)</span> is a rank-<span class="math inline">\(h\)</span> linear operator on the window,
+gated by which of its <span class="math inline">\(h\)</span> hidden units are active. With <span class="math inline">\(h\ge L\)</span> it can
+represent any linear filter — moving average, difference, seasonal lag — and it
+learns the filter from data rather than from a fixed kernel. This is exactly
+what DLinear does with a fixed moving average plus a linear layer; TSMixer
+learns both parts jointly.</p>
+<h3 id="feature-mixing">Feature mixing <a class="header-anchor" href="#feature-mixing">#</a></h3>
+<p>At each timestep <span class="math inline">\(t\)</span>, with <span class="math inline">\(W_f\in\mathbb R^{(C+A)\times h}\)</span> and
+<span class="math inline">\(V_f\in\mathbb R^{h\times C}\)</span>:</p>
+<div class="math block">
+\[g_t=\mathrm{ReLU}\bigl(\mathrm{LN}(Z_{t\cdot})\,W_f+b_f\bigr)\in\mathbb R^{h},
+\qquad (5)\]
+</div>
+<div class="math block">
+\[X'_{t\cdot}=Z_{t\cdot}+g_t\,V_f+c_f .
+\qquad (6)\]
+</div>
+<p><span class="math inline">\(A\)</span> is the number of exogenous features; they are concatenated to the
+normalised channels before <span class="math inline">\(W_f\)</span>, which is why that matrix is
+<span class="math inline">\((C+A)\times h\)</span>. Setting <span class="math inline">\(A=0\)</span> recovers the plain model.</p>
+<p>Unlike channel independence, this branch gives every channel its own row of
+<span class="math inline">\(W_f\)</span> and its own column of <span class="math inline">\(V_f\)</span>. The model is therefore <strong>not</strong> equivariant to
+permuting the channels: a permuted input meets a different set of weights. That
+is the price of letting the channels talk, and it is why the branch is a good
+place to attach exogenous variables — each one gets an identifiable coefficient.</p>
+<h3 id="the-block">The block <a class="header-anchor" href="#the-block">#</a></h3>
+<p>One block is the composition of the two:</p>
+<div class="math block">
+\[X^{(r+1)}=\mathcal F^{(r)}\bigl(\mathcal T^{(r)}(X^{(r)})\bigr),
+\qquad r=1,\dots,R,
+\qquad (7)\]
+</div>
+<p>with <span class="math inline">\(X^{(1)}=\tilde X\)</span>. Order matters: time mixing sees channels with
+independent residuals, feature mixing then sees a representation already
+smoothed along time. Reversing the order is a different model; the demo's
+<code>feature_mix</code> and <code>time_mix</code> ablations are the two degenerate cases where one
+factor is the identity.</p>
+<h3 id="the-head">The head <a class="header-anchor" href="#the-head">#</a></h3>
+<p>The final representation is flattened across channels and mapped to the
+horizon:</p>
+<div class="math block">
+\[F=\mathrm{reshape}_{C\times H}\!\left(\mathrm{vec}_C(X^{(R)})\,W_o+b_o\right)
+\in\mathbb R^{C\times H},
+\qquad W_o\in\mathbb R^{L\times H}.
+\qquad (8)\]
+</div>
+<p><code>vec_C</code> puts the <span class="math inline">\(L\)</span> values of one channel contiguously, so the same <span class="math inline">\(W_o\)</span> is
+applied to every channel. This is where TSMixer gets its parameter efficiency:
+one <span class="math inline">\(48\times12\)</span> matrix forecasts all three channels.</p>
+<p>With exogenous features the head receives the concatenation</p>
+<div class="math block">
+\[\mathrm{vec}_C(X^{(R)})\;\|\;\mathbf 1_C\otimes \mathrm{vec}(U),
+\qquad U\in\mathbb R^{H\times A},
+\qquad (9)\]
+</div>
+<p>where <span class="math inline">\(U\)</span> is the standardised future driver and <span class="math inline">\(\mathbf 1_C\otimes\cdot\)</span>
+repeats it for every channel. The driver rows of <span class="math inline">\(W_o\)</span> are then per-channel
+regression coefficients on the known future, learned jointly with the rest.</p>
+<h3 id="objective">Objective <a class="header-anchor" href="#objective">#</a></h3>
+<p>Training minimises mean squared error on standardised targets:</p>
+<div class="math block">
+\[L=\frac{1}{BCH}\sum_{b,c}\sum_{h=1}^{H}
+\bigl(\hat y_{bch}-y_{bch}\bigr)^2 .
+\qquad (10)\]
+</div>
+<p>Optimisation is full-batch Adam. The backward pass through a residual is the
+identity plus the branch Jacobian, which is why the residual gradient in the
+code is a sum:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial X}=\frac{\partial L}{\partial X'}
++\mathcal B^{\top}\!\left(\frac{\partial L}{\partial X'}\right).
+\qquad (11)\]
+</div>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The whole architecture is two flags, so the three variants are not three code
+paths:</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">use_time</span> <span class="o">=</span> <span class="n">variant</span> <span class="o">!=</span> <span class="s2">"feature_mix"</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_feature</span> <span class="o">=</span> <span class="n">variant</span> <span class="o">!=</span> <span class="s2">"time_mix"</span>
+</code></pre>
+<p>Everything downstream — parameter creation, forward, backward, the optimiser's
+parameter dict — reads those flags. A variant that turns a branch off does not
+merely skip it; the branch's matrices are never allocated, which is why the
+demo can assert an exact array count for each variant.</p>
+<p>The time branch transposes so that the last axis is the one being mixed:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_time</span><span class="p">:</span>
+                <span class="n">transposed</span> <span class="o">=</span> <span class="n">current</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">norm</span><span class="p">,</span> <span class="n">norm_cache</span> <span class="o">=</span> <span class="n">_layer_norm</span><span class="p">(</span><span class="n">transposed</span><span class="p">)</span>
+                <span class="n">pre</span> <span class="o">=</span> <span class="n">norm</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"T1_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"t1_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
+                <span class="n">active</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">pre</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+                <span class="n">mixed</span> <span class="o">=</span> <span class="n">active</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"T2_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"t2_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">current</span> <span class="o">+</span> <span class="n">mixed</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p><code>current</code> is always <code>(batch, time, channel)</code>. Transposing to
+<code>(batch, channel, time)</code> lets one matrix product apply the same filter to every
+channel without a loop, and the transpose back restores the layout the next
+branch expects. Two transposes per block are the entire cost of sharing.</p>
+<p>The feature branch needs no transpose because the channel axis is already last:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_feature</span><span class="p">:</span>
+                <span class="n">norm</span><span class="p">,</span> <span class="n">norm_cache</span> <span class="o">=</span> <span class="n">_layer_norm</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+                <span class="n">joined</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">norm</span><span class="p">,</span> <span class="n">aux</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                          <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aux</span> <span class="k">else</span> <span class="n">norm</span><span class="p">)</span>
+                <span class="n">pre</span> <span class="o">=</span> <span class="n">joined</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"F1_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"f1_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
+                <span class="n">active</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">pre</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+                <span class="n">mixed</span> <span class="o">=</span> <span class="n">active</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"F2_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"f2_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">current</span> <span class="o">+</span> <span class="n">mixed</span>
+</code></pre>
+<p>Concatenating the auxiliary features into the normalised channels means the
+exogenous inputs are normalised by the <em>same</em> layer norm, so they enter the
+third branch on the same scale as the series. That is a small choice with a
+large effect: an unnormalised driver of magnitude <span class="math inline">\(10^3\)</span> would saturate the
+ReLU and stall training.</p>
+<p>The head folds the channel axis into the batch and then restores it:</p>
+<pre class="highlight"><code>        <span class="n">flat</span> <span class="o">=</span> <span class="n">current</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq_len</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aux</span><span class="p">:</span>
+            <span class="n">repeated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">future</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">head</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">flat</span><span class="p">,</span> <span class="n">repeated</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">head</span> <span class="o">=</span> <span class="n">flat</span>
+        <span class="n">forecast</span> <span class="o">=</span> <span class="p">(</span><span class="n">head</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"Wo"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"bo"</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">forecast</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">{</span><span class="s2">"blocks"</span><span class="p">:</span> <span class="n">cache</span><span class="p">,</span> <span class="s2">"head"</span><span class="p">:</span> <span class="n">head</span><span class="p">}</span>
+</code></pre>
+<p><code>reshape(-1, L)</code> after the transpose gives <code>(batch * channel, L)</code>, so the head
+is one matrix product for all channels. The reshape back to
+<code>(batch, channel, horizon)</code> and the final transpose assume the channel order is
+preserved — which it is, because <code>transpose</code> and <code>reshape</code> are applied in the
+reverse order on the way out.</p>
+<p>The backward pass starts from the same fold. The head's input is cached because
+the residual makes it unrecoverable from the gradient alone:</p>
+<pre class="highlight"><code>        <span class="n">flat_grad</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span>
+        <span class="n">g</span><span class="p">[</span><span class="s2">"Wo"</span><span class="p">]</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"head"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">flat_grad</span>
+        <span class="n">g</span><span class="p">[</span><span class="s2">"bo"</span><span class="p">]</span> <span class="o">=</span> <span class="n">flat_grad</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">current_grad</span> <span class="o">=</span> <span class="p">(</span><span class="n">flat_grad</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"Wo"</span><span class="p">][:</span><span class="bp">self</span><span class="o">.</span><span class="n">seq_len</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+            <span class="n">batch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq_len</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>The slice <code>[:self.seq_len]</code> is the part of the wide head that came from the
+series; the remaining rows belong to the exogenous features and have no path
+back into the mixer.</p>
+<p>The feature branch's backward is worth reading in full because it shows the
+residual sum:</p>
+<pre class="highlight"><code>                    <span class="n">width</span> <span class="o">=</span> <span class="n">active</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">g</span><span class="p">[</span><span class="sa">f</span><span class="s2">"F2_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">active</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+                                        <span class="o">@</span> <span class="n">current_grad</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">))</span>
+                    <span class="n">g</span><span class="p">[</span><span class="sa">f</span><span class="s2">"f2_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">current_grad</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                    <span class="n">delta</span> <span class="o">=</span> <span class="p">(</span><span class="n">current_grad</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"F2_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">pre</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">)</span>
+                    <span class="n">joined</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">"joined"</span><span class="p">]</span>
+                    <span class="n">g</span><span class="p">[</span><span class="sa">f</span><span class="s2">"F1_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">joined</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">joined</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+                                        <span class="o">@</span> <span class="n">delta</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span><span class="p">))</span>
+                    <span class="n">g</span><span class="p">[</span><span class="sa">f</span><span class="s2">"f1_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">delta</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                    <span class="n">normalised_grad</span> <span class="o">=</span> <span class="p">(</span><span class="n">delta</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"F1_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)[</span>
+                        <span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">]</span>
+                    <span class="n">current_grad</span> <span class="o">=</span> <span class="n">current_grad</span> <span class="o">+</span> <span class="n">_layer_norm_backward</span><span class="p">(</span>
+                        <span class="n">normalised_grad</span><span class="p">,</span> <span class="n">entry</span><span class="p">[</span><span class="s2">"cache"</span><span class="p">])</span>
+</code></pre>
+<p><code>delta</code> is the gradient after the ReLU, <code>normalised_grad</code> is the gradient into
+the normalised channels, and the last line adds the branch's contribution to
+the identity path. The slice <code>[..., :self.channels]</code> drops the exogenous
+columns: their gradient exists but there is nothing upstream to receive it.</p>
+<p>For <code>tsmixer_ext</code>, the windows and the future rows are cut from one standardised
+matrix:</p>
+<pre class="highlight"><code>            <span class="n">exog_windows</span> <span class="o">=</span> <span class="n">standardised</span><span class="p">[</span>
+                <span class="n">starts</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq_len</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="p">:]</span>
+            <span class="n">future</span> <span class="o">=</span> <span class="n">standardised</span><span class="p">[</span>
+                <span class="n">starts</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq_len</span>
+                <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="p">:]</span>
+</code></pre>
+<p>Both are built from <code>starts</code>, the same sliding-window indices used for the
+series, which guarantees that the driver at time <span class="math inline">\(t\)</span> lines up with the target
+at time <span class="math inline">\(t\)</span>. Getting that alignment wrong — using <code>starts + 1</code> or forgetting
+the horizon offset — is the classic exogenous-forecasting bug, and it produces
+a model that looks excellent in training and useless out of sample.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(B\)</span> windows, <span class="math inline">\(L\)</span> look-back, <span class="math inline">\(C\)</span> channels, <span class="math inline">\(A\)</span> auxiliary features, <span class="math inline">\(R\)</span>
+blocks, hidden width <span class="math inline">\(h\)</span> and horizon <span class="math inline">\(H\)</span>:</p>
+<ul>
+<li><strong>Standardisation:</strong> <span class="math inline">\(O(BLC)\)</span>.</li>
+<li><strong>Time branch:</strong> <span class="math inline">\(O(B C L h)\)</span> time and <span class="math inline">\(O(B C \max(L,h))\)</span> memory for the
+activations; the same matrix serves every channel.</li>
+<li><strong>Feature branch:</strong> <span class="math inline">\(O(B L (C+A) h)\)</span>.</li>
+<li><strong>One block:</strong> the sum, so linear in <span class="math inline">\(L\)</span>, <span class="math inline">\(C\)</span> and <span class="math inline">\(h\)</span>.</li>
+<li><strong>Head:</strong> <span class="math inline">\(O(B C L H)\)</span>.</li>
+<li><strong>Full forward pass:</strong> <span class="math inline">\(O\bigl(BR(C L h + L(C+A)h) + BCLH\bigr)\)</span>.</li>
+<li><strong>One epoch:</strong> three times the forward pass for the backward, plus the
+parameter count.</li>
+<li><strong>Prediction:</strong> one window, so the same expression with <span class="math inline">\(B=1\)</span>.</li>
+</ul>
+<p>The comparison that matters is against attention. PatchTST mixes <span class="math inline">\(N=L/P\)</span>
+patches with an <span class="math inline">\(N\times N\)</span> attention map, so its mixing cost is <span class="math inline">\(O(L^2 h/P^2)\)</span>
+per channel; TSMixer's is <span class="math inline">\(O(Lh)\)</span> per channel, smaller by a factor of <span class="math inline">\(L/P^2\)</span>.
+Against channel mixing attention, which is <span class="math inline">\(O(C^2h)\)</span> per timestep, TSMixer pays
+<span class="math inline">\(O(Ch)\)</span> — the same saving in <span class="math inline">\(C\)</span>.</p>
+<p>In absolute terms the demo's largest model has <span class="math inline">\(7346\)</span> parameters and trains in
+about a second for 120 full-batch epochs over 289 windows. There is no
+attention map to materialise, so memory stays proportional to the activations
+and not to <span class="math inline">\(L^2\)</span>.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Feature mixing overfits when the channels are redundant.</strong> The full model
+reaches <span class="math inline">\(0.2282\)</span> and the time-only ablation <span class="math inline">\(0.1912\)</span>. The channel branch has
+per-channel weights and only three channels to estimate them from, so it fits
+noise that the time branch ignores. With three hundred channels the same branch
+would be the one carrying the signal; with three, it is a liability. Always run
+the ablation before trusting channel mixing.</p>
+<p><strong>Instance normalisation discards the level.</strong> Because every window is
+standardised by its own mean, the model never sees an absolute value. A linear
+map can still extrapolate a trend, but it has to encode the drift as a fixed
+transformation of the shape, which a trending series defeats. If the level
+matters, add it back as an explicit covariate or use a model with a level
+component.</p>
+<p><strong>No probabilistic output.</strong> The head emits a point forecast. Uncertainty would
+require a quantile head, a distributional loss, or a residual bootstrap — none
+of which the block computes. For decision-making under uncertainty this is the
+main limitation relative to DeepAR or a Gaussian state-space model.</p>
+<p><strong>The head is <span class="math inline">\(L\times H\)</span> per channel-set.</strong> At <span class="math inline">\(L=48\)</span> it is 588 numbers; at
+<span class="math inline">\(L=512\)</span> and <span class="math inline">\(H=96\)</span> it would dominate the parameter count. Longer look-backs
+want a bottleneck or a patching scheme in front of the head.</p>
+<p><strong>Stacking blocks does not monotonically help.</strong> On the demo configuration,
+one block reaches <span class="math inline">\(0.2573\)</span>, two reach <span class="math inline">\(0.2282\)</span>, three <span class="math inline">\(0.2606\)</span> and four
+<span class="math inline">\(0.2401\)</span>, for <span class="math inline">\(3967\)</span>, <span class="math inline">\(7346\)</span>, <span class="math inline">\(10725\)</span> and <span class="math inline">\(14104\)</span> parameters. Depth buys
+capacity that a few hundred windows cannot identify, and the held-out error
+wanders rather than falling. Tune the block count; do not assume more is
+better.</p>
+<p><strong>Reversal of the block order changes the model.</strong> Time-then-feature is not the
+same as feature-then-time; the second branch sees a different residual. If you
+change the order, retune, and do not assume the ablation results transfer.</p>
+<p><strong>Layer norm over few channels is noisy.</strong> With <span class="math inline">\(C=3\)</span> the normalisation has
+three numbers to estimate a variance from, so it is a coarse operation. With
+<span class="math inline">\(C=1\)</span> it divides by the standard deviation of a single value — zero — and the
+code falls back to a unit scale. The model still trains, but the normalisation
+stops doing anything useful.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>TSMixer is aimed at the regime where attention is overkill: hundreds of related
+series, moderate horizons, and a hard latency budget. Retail demand (the M5
+dataset in the paper), electricity load, traffic counts and weather station
+networks all fit. The model is small enough to run on a CPU at the edge or
+inside a database, and the alternating structure maps to two batched matrix
+products that vectorise well.</p>
+<p>The extended variant is for the case where the future is partly known:
+promotions and holidays in retail, temperature forecasts in load forecasting,
+scheduled maintenance in industrial telemetry. Its head puts a per-channel
+coefficient on each future driver, which makes the exogenous effect
+inspectable — a rare property in a deep forecaster.</p>
+<p>It is the wrong choice for a single short series with no cross-channel
+structure (there the time branch alone is a small MLP and a linear model is a
+fair fight), for long horizons on high-frequency data, and for anything that
+needs calibrated intervals.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Chen, S.-A., Li, C.-L., Yoder, N., Arik, S. O., Pfister, T. (2023).
+<em>TSMixer: An all-MLP architecture for time series forecasting.</em> TMLR.
+arXiv:2303.06053. The alternating time and feature mixing blocks and the
+instance-normalisation scheme.</li>
+<li>Google Research (2024). <em>TSMixer-Extended: Towards improved modeling of
+exogenous variables.</em> The exogenous branch and the widened head.</li>
+<li>Tolstikhin, I., Houlsby, N., Kolesnikov, A., Beyer, L., Zhai, X., Unterthiner,
+T., Yung, J., Steiner, A., Keysers, D., Uszkoreit, J., Lucic, M., Dosovitskiy,
+A. (2021). <em>MLP-Mixer: An all-MLP architecture for vision.</em> NeurIPS. The
+two-axis mixing pattern that TSMixer adapts to time series.</li>
+<li>Zeng, A., Chen, M., Zhang, L., Xu, Q. (2023). <em>Are transformers effective for
+time series forecasting?</em> AAAI. The linear-baseline argument behind the
+time-mixing branch.</li>
+<li>Nie, Y., Nguyen, N. H., Sinthong, P., Kalagnanam, J. (2023). <em>A time series is
+worth one word.</em> ICLR. Patching and channel independence, the design TSMixer
+trades against.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="patchtst.html"><small>Previous</small><span>PatchTST</span></a><a class="next" href="deepar.html"><small>Next</small><span>DeepAR</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">11 · Time series</p><ul class="rail-list"><li><a href="baselines.html"><span class="tick">✓</span><span>Naive baselines</span></a></li><li><a href="ets.html"><span class="tick">✓</span><span>ETS / Holt-Winters</span></a></li><li><a href="arima.html"><span class="tick">✓</span><span>ARIMA</span></a></li><li><a href="var.html"><span class="tick">✓</span><span>Vector autoregression</span></a></li><li><a href="garch.html"><span class="tick">✓</span><span>GARCH</span></a></li><li><a href="stl.html"><span class="tick">✓</span><span>STL decomposition</span></a></li><li><a href="spectral_analysis.html"><span class="tick">✓</span><span>Spectral analysis</span></a></li><li><a href="dlinear.html"><span class="tick">✓</span><span>DLinear</span></a></li><li><a href="theta.html"><span class="tick">✓</span><span>Theta method</span></a></li><li><a href="croston.html"><span class="tick">✓</span><span>Croston&#x27;s method</span></a></li><li><a href="nbeats.html"><span class="tick">✓</span><span>N-BEATS</span></a></li><li><a href="nhits.html"><span class="tick">✓</span><span>N-HiTS</span></a></li><li><a href="patchtst.html"><span class="tick">✓</span><span>PatchTST</span></a></li><li><a href="tsmixer.html" aria-current="page"><span class="tick">✓</span><span>TSMixer</span></a></li><li><a href="deepar.html"><span class="tick">✓</span><span>DeepAR</span></a></li><li><a href="tft.html"><span class="tick">✓</span><span>Temporal fusion transformer</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../10-sequences/index.html"><span class="jump">← 10 · Sequences</span></a></li><li><a href="../12-neural-blocks/index.html"><span class="jump">12 · Neural blocks&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#notation">Notation</a></li><li class="lvl3"><a href="#standardisation">Standardisation</a></li><li class="lvl3"><a href="#layer-normalisation">Layer normalisation</a></li><li class="lvl3"><a href="#time-mixing">Time mixing</a></li><li class="lvl3"><a href="#feature-mixing">Feature mixing</a></li><li class="lvl3"><a href="#the-block">The block</a></li><li class="lvl3"><a href="#the-head">The head</a></li><li class="lvl3"><a href="#objective">Objective</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/11-time-series/tsmixer.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

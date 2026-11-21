@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LSTM &amp; GRU · MLAtoms</title>
+<meta name="description" content="Gated memory cells and why they fix vanishing gradients. The recurrent cell of the previous atom multiplies the state by the same matrix at every step. A…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/lstm_gru.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="LSTM &amp; GRU">
+<meta property="og:description" content="Gated memory cells and why they fix vanishing gradients. The recurrent cell of the previous atom multiplies the state by the same matrix at every step. A…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/lstm_gru.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LSTM &amp; GRU">
+<meta name="twitter:description" content="Gated memory cells and why they fix vanishing gradients. The recurrent cell of the previous atom multiplies the state by the same matrix at every step. A…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "LSTM & GRU", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/lstm_gru.html", "description": "Gated memory cells and why they fix vanishing gradients. The recurrent cell of the previous atom multiplies the state by the same matrix at every step. A\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">10 · Sequences</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="lstm_gru.py.html">source</a></p><h1>Gated memory cells — LSTM and GRU, gate by gate</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>The recurrent cell of the previous atom multiplies the state by the same matrix
+at every step. A gradient crossing <span class="math inline">\(T-t\)</span> steps therefore crosses <span class="math inline">\(T-t\)</span> copies of
+that matrix times a tanh derivative, and the <code>rnn</code> atom measured the result:
+eleven orders of magnitude over thirty-two steps. The fix is not a better
+matrix. It is an additive path that the network can open or close.</p>
+<p>An LSTM keeps two states: a hidden state <span class="math inline">\(h_t\)</span> that it exposes, and a cell state
+<span class="math inline">\(c_t\)</span> that it protects. The cell state is updated by a convex combination,</p>
+<div class="math block">
+\[c_t = f_t \odot c_{t-1} + i_t \odot g_t,\]
+</div>
+<p>where <span class="math inline">\(f_t\)</span> is a forget gate, <span class="math inline">\(i_t\)</span> an input gate, and <span class="math inline">\(g_t\)</span> a candidate. If
+<span class="math inline">\(f_t \approx 1\)</span> and <span class="math inline">\(i_t \approx 0\)</span>, the cell state is copied unchanged and the
+gradient crosses the step without shrinking. The gates are themselves functions
+of the input and the hidden state, so the network learns when to copy and when
+to write.</p>
+<pre class="highlight"><code>                            c_(t-1)
+                               │
+                               ▼
+      ┌──────┐   ┌────┐   ┌─────────┐   ┌────┐
+ x_t ─┤ gates├──▶│ i,f├──▶│ f c+i g │──▶│ tanh├──▶ h_t
+h_(t-1)└──────┘   └────┘   └─────────┘   └────┘
+</code></pre>
+<p>A GRU reaches the same effect with fewer parts. It drops the separate cell state
+and uses an update gate <span class="math inline">\(z_t\)</span> to interpolate between the previous hidden state
+and a candidate, which makes the state both the memory and the output. That is
+cheaper and often just as good; the price is that the memory and the readout are
+the same vector, so there is no protected cell to read from later.</p>
+<p>The variants are budgets on this idea. <code>lstm</code> is the full cell. <code>gru</code> removes
+one gate and the cell state. <code>peephole</code> lets the gates read the cell state
+directly, which helps when the timing of a count matters. <code>lstm_projection</code>
+compresses the output through a matrix, which is how large recurrent layers were
+made affordable. <code>cifg</code> ties the input gate to the forget gate, <span class="math inline">\(i_t=1-f_t\)</span>, and
+drops a quarter of the gate parameters. <code>bidirectional</code> runs two cells in
+opposite directions.</p>
+<p>The demos put numbers on the claims. On a symbol delayed by two steps — the kind
+of memory task a tanh recurrence memorises rather than learns — the LSTM reaches
+<span class="math inline">\(0.984\)</span> held-out and the GRU <span class="math inline">\(0.983\)</span>.
+The coupled-gate cell reaches <span class="math inline">\(0.989\)</span> with <span class="math inline">\(76\%\)</span> of the LSTM's parameters, and
+the projection variant <span class="math inline">\(0.953\)</span> with <span class="math inline">\(51\%\)</span>. Every gate branch is checked against
+central differences to <span class="math inline">\(2.6\times10^{-8}\)</span>. On a next-symbol target the forward
+LSTM is at chance (<span class="math inline">\(0.257\)</span>) while the bidirectional model reaches <span class="math inline">\(0.938\)</span>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">gates</th>
+<th style="text-align:left">state carried</th>
+<th style="text-align:left">extra parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>lstm</code></td>
+<td style="text-align:left">input, forget, output, candidate</td>
+<td style="text-align:left">cell and hidden</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gru</code></td>
+<td style="text-align:left">update, reset, candidate</td>
+<td style="text-align:left">hidden only</td>
+<td style="text-align:left"><code>W_hn_</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>peephole</code></td>
+<td style="text-align:left">LSTM gates plus peepholes</td>
+<td style="text-align:left">cell and hidden</td>
+<td style="text-align:left"><code>w_i_</code>, <code>w_f_</code>, <code>w_o_</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lstm_projection</code></td>
+<td style="text-align:left">LSTM gates</td>
+<td style="text-align:left">cell, then projected hidden</td>
+<td style="text-align:left"><code>W_p_</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cifg</code></td>
+<td style="text-align:left">forget, output, candidate (<span class="math inline">\(i=1-f\)</span>)</td>
+<td style="text-align:left">cell and hidden</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bidirectional</code></td>
+<td style="text-align:left">two LSTM cells</td>
+<td style="text-align:left">two hidden states, concatenated</td>
+<td style="text-align:left">second cell</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>lstm</code></strong> is the reference. Four gate blocks are computed from the input and
+the previous hidden state; the input and candidate gates write, the forget gate
+erases, and the output gate decides how much of the cell state is exposed.</p>
+<p><strong><code>gru</code></strong> merges the cell state into the hidden state. An update gate mixes the
+previous state with a candidate, and a reset gate controls how much history the
+candidate sees. It has three gate blocks instead of four and no output gate.</p>
+<p><strong><code>peephole</code></strong> adds a diagonal connection from the cell state to each gate. The
+input and forget gates read <span class="math inline">\(c_{t-1}\)</span>; the output gate reads <span class="math inline">\(c_t\)</span>. The weights
+are vectors, not matrices, so the cost is three extra numbers per unit.</p>
+<p><strong><code>lstm_projection</code></strong> computes the usual cell state and output vector <span class="math inline">\(m_t\)</span>, then
+projects it to a narrower state <span class="math inline">\(h_t=W_p m_t\)</span>. The recurrent matrix and the
+output layer both shrink, which is the point when the hidden width is large.</p>
+<p><strong><code>cifg</code></strong> couples the input and forget gates: whatever is not forgotten is
+written. It is one linear constraint, not an approximation, and it removes one
+gate block and its parameters.</p>
+<p><strong><code>bidirectional</code></strong> runs one LSTM over the sequence and another over its reverse,
+concatenates the two hidden states at every step, and reads the output from the
+concatenation. It is the only variant here that can depend on the future.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-lstm-cell">The LSTM cell <a class="header-anchor" href="#the-lstm-cell">#</a></h3>
+<p>Let <span class="math inline">\(x_t\in\mathbb{R}^{F}\)</span>, <span class="math inline">\(h_{t-1}\in\mathbb{R}^{H}\)</span>, and let
+<span class="math inline">\([W_x,W_h,b]\)</span> be the stacked parameters of the four gate blocks. With <span class="math inline">\(\sigma\)</span>
+the logistic function,</p>
+<div class="math block">
+\[\begin{aligned}
+i_t &= \sigma(W_{xi}x_t+W_{hi}h_{t-1}+b_i), &
+f_t &= \sigma(W_{xf}x_t+W_{hf}h_{t-1}+b_f), \\
+o_t &= \sigma(W_{xo}x_t+W_{ho}h_{t-1}+b_o), &
+g_t &= \tanh(W_{xg}x_t+W_{hg}h_{t-1}+b_g),
+\end{aligned}
+\qquad (1)\]
+</div>
+<p>and then</p>
+<div class="math block">
+\[c_t = f_t\odot c_{t-1} + i_t\odot g_t, \qquad h_t = o_t\odot\tanh(c_t).\]
+</div>
+<p>The implementation stacks the four blocks along the first axis, so one matrix
+product produces every gate, and slices the result:</p>
+<pre class="highlight"><code>            <span class="n">i_pre</span><span class="p">,</span> <span class="n">f_pre</span><span class="p">,</span> <span class="n">o_pre</span><span class="p">,</span> <span class="n">g_pre</span> <span class="o">=</span> <span class="p">(</span><span class="n">pre</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">:</span><span class="n">hidden</span><span class="p">],</span> <span class="n">pre</span><span class="p">[:,</span> <span class="n">hidden</span><span class="p">:</span><span class="mi">2</span> <span class="o">*</span> <span class="n">hidden</span><span class="p">],</span>
+                                          <span class="n">pre</span><span class="p">[:,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">hidden</span><span class="p">:</span><span class="mi">3</span> <span class="o">*</span> <span class="n">hidden</span><span class="p">],</span>
+                                          <span class="n">pre</span><span class="p">[:,</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">hidden</span><span class="p">:])</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"peephole"</span><span class="p">:</span>
+                <span class="n">i_pre</span> <span class="o">=</span> <span class="n">i_pre</span> <span class="o">+</span> <span class="n">c_prev</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_i_</span>
+                <span class="n">f_pre</span> <span class="o">=</span> <span class="n">f_pre</span> <span class="o">+</span> <span class="n">c_prev</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_f_</span>
+            <span class="n">i</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="n">_sigmoid</span><span class="p">(</span><span class="n">i_pre</span><span class="p">),</span> <span class="n">_sigmoid</span><span class="p">(</span><span class="n">f_pre</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">g_pre</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="n">c_prev</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">g</span>
+</code></pre>
+<p>The forget-gate bias is initialised to one, not zero. At the start of training
+the cell state is empty, and a forget gate at <span class="math inline">\(0.5\)</span> would halve whatever the
+input gate writes before it can be read; starting it open lets the gradient
+reach the early steps and lets the model learn to close it.</p>
+<h3 id="the-gru">The GRU <a class="header-anchor" href="#the-gru">#</a></h3>
+<p>The GRU removes the cell state. With update and reset gates,</p>
+<div class="math block">
+\[\begin{aligned}
+z_t &= \sigma(W_{xz}x_t+W_{hz}h_{t-1}+b_z), &
+r_t &= \sigma(W_{xr}x_t+W_{hr}h_{t-1}+b_r), \\
+n_t &= \tanh(W_{xn}x_t+W_{hn}(r_t\odot h_{t-1})+b_n), &
+h_t &= (1-z_t)\odot n_t + z_t\odot h_{t-1}.
+\end{aligned}
+\qquad (2)\]
+</div>
+<p>The update gate plays the role of the forget gate and its complement in one
+number: <span class="math inline">\(z_t\)</span> keeps the old state, <span class="math inline">\(1-z_t\)</span> admits the candidate. The reset gate
+is inside the candidate, so it can hide the past from the new proposal without
+erasing it. The code is the same two matrix products, with the candidate
+computed from the reset state:</p>
+<pre class="highlight"><code>            <span class="n">z</span> <span class="o">=</span> <span class="n">_sigmoid</span><span class="p">(</span><span class="n">pre</span><span class="p">[:,</span> <span class="p">:</span><span class="n">hidden</span><span class="p">]</span> <span class="o">+</span> <span class="n">h_prev</span> <span class="o">@</span> <span class="n">W_h</span><span class="p">[:</span><span class="n">hidden</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">_sigmoid</span><span class="p">(</span><span class="n">pre</span><span class="p">[:,</span> <span class="n">hidden</span><span class="p">:</span><span class="mi">2</span> <span class="o">*</span> <span class="n">hidden</span><span class="p">]</span> <span class="o">+</span> <span class="n">h_prev</span> <span class="o">@</span> <span class="n">W_h</span><span class="p">[</span><span class="n">hidden</span><span class="p">:]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">candidate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">pre</span><span class="p">[:,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">hidden</span><span class="p">:]</span> <span class="o">+</span> <span class="p">(</span><span class="n">r</span> <span class="o">*</span> <span class="n">h_prev</span><span class="p">)</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_hn_</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">z</span><span class="p">)</span> <span class="o">*</span> <span class="n">candidate</span> <span class="o">+</span> <span class="n">z</span> <span class="o">*</span> <span class="n">h_prev</span>
+</code></pre>
+<p>The candidate needs its own recurrent matrix <code>W_hn_</code>, because it reads the reset
+state rather than the full hidden state. That is the one place where the GRU
+does not fit the stacked-block pattern of the LSTM.</p>
+<h3 id="peepholes">Peepholes <a class="header-anchor" href="#peepholes">#</a></h3>
+<p>The gates can read the cell state directly:</p>
+<div class="math block">
+\[i_t=\sigma(\cdot+w_i\odot c_{t-1}), \qquad
+f_t=\sigma(\cdot+w_f\odot c_{t-1}), \qquad
+o_t=\sigma(\cdot+w_o\odot c_t).
+\qquad (3)\]
+</div>
+<p>The output gate reads <span class="math inline">\(c_t\)</span>, the value it is about to scale, which is why the
+forward pass computes <span class="math inline">\(c_t\)</span> before <span class="math inline">\(o_t\)</span>:</p>
+<pre class="highlight"><code>        <span class="n">o</span> <span class="o">=</span> <span class="p">(</span><span class="n">_sigmoid</span><span class="p">(</span><span class="n">o_pre</span> <span class="o">+</span> <span class="n">c</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_o_</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"peephole"</span>
+             <span class="k">else</span> <span class="n">_sigmoid</span><span class="p">(</span><span class="n">o_pre</span><span class="p">))</span>
+</code></pre>
+<p>In the backward pass the peepholes add three terms: the gradient of <span class="math inline">\(c_t\)</span> picks
+up <span class="math inline">\(do_t\odot w_o\)</span>, and the gradient of <span class="math inline">\(c_{t-1}\)</span> picks up
+<span class="math inline">\(di_t\odot w_i+df_t\odot w_f\)</span>. The weights themselves receive the correlations
+<span class="math inline">\(do_t\odot c_t\)</span>, <span class="math inline">\(di_t\odot c_{t-1}\)</span> and <span class="math inline">\(df_t\odot c_{t-1}\)</span>.</p>
+<h3 id="projection">Projection <a class="header-anchor" href="#projection">#</a></h3>
+<p>For a large hidden width <span class="math inline">\(H\)</span>, the recurrent matrix <span class="math inline">\(4H\times H\)</span> and the output
+layer <span class="math inline">\(C\times H\)</span> dominate. The projected cell computes</p>
+<div class="math block">
+\[m_t=o_t\odot\tanh(c_t)\in\mathbb{R}^{H}, \qquad h_t=W_p m_t\in\mathbb{R}^{P},
+\qquad (4)\]
+</div>
+<p>and feeds <span class="math inline">\(h_t\)</span>, not <span class="math inline">\(m_t\)</span>, back into the gates and out to the classifier. The
+recurrent matrix becomes <span class="math inline">\(4H\times P\)</span> and the output layer <span class="math inline">\(C\times P\)</span>. The
+backward pass is one extra linear map:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"lstm_projection"</span><span class="p">:</span>
+            <span class="n">grads</span><span class="p">[</span><span class="s2">"W_p_"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dh</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">m</span>
+            <span class="n">dm</span> <span class="o">=</span> <span class="n">dh</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_p_</span>
+</code></pre>
+<p>The projection is not free: it is a bottleneck, so information that does not fit
+in <span class="math inline">\(P\)</span> dimensions is lost before the next step. In the demo, <span class="math inline">\(H=24\)</span> and <span class="math inline">\(P=8\)</span>
+cut the parameter count from <span class="math inline">\(2884\)</span> to <span class="math inline">\(1476\)</span> and the held-out accuracy from
+<span class="math inline">\(0.984\)</span> to <span class="math inline">\(0.953\)</span>.</p>
+<h3 id="coupled-gates">Coupled gates <a class="header-anchor" href="#coupled-gates">#</a></h3>
+<p>The CIFG sets <span class="math inline">\(i_t=1-f_t\)</span>. The cell update becomes a two-way interpolation,</p>
+<div class="math block">
+\[c_t=f_t\odot c_{t-1}+(1-f_t)\odot g_t,
+\qquad (5)\]
+</div>
+<p>so the cell state is always a convex combination of the old state and the
+candidate. The backward pass follows by substituting <span class="math inline">\(i=1-f\)</span>:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"cifg"</span><span class="p">:</span>
+            <span class="n">dz_f</span> <span class="o">=</span> <span class="n">dc</span> <span class="o">*</span> <span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="s2">"c_prev"</span><span class="p">]</span> <span class="o">-</span> <span class="n">g</span><span class="p">)</span> <span class="o">*</span> <span class="n">f</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">f</span><span class="p">)</span>
+            <span class="n">dz_g</span> <span class="o">=</span> <span class="n">dc</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">f</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">)</span>
+            <span class="n">dpre</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">dz_f</span><span class="p">,</span> <span class="n">dz_o</span><span class="p">,</span> <span class="n">dz_g</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>This removes one gate block, a quarter of the gate parameters, and the ability
+to write and erase independently. The demo's coupled cell is the most accurate
+of the six (<span class="math inline">\(0.989\)</span>) and uses <span class="math inline">\(76\%\)</span> of the reference parameters, which is a
+reminder that the full cell's extra freedom is not always used.</p>
+<h3 id="bidirectional-passes">Bidirectional passes <a class="header-anchor" href="#bidirectional-passes">#</a></h3>
+<p>Two LSTM cells read the sequence from opposite ends:</p>
+<div class="math block">
+\[h_t^{f}=\mathrm{LSTM}^{f}(x_t,h_{t-1}^{f}), \qquad
+h_t^{b}=\mathrm{LSTM}^{b}(x_t,h_{t+1}^{b}),
+\qquad (6)\]
+</div>
+<p>and the output reads the concatenation
+<span class="math inline">\(p_t=\mathrm{softmax}(W_o[h_t^{f};h_t^{b}]+b_o)\)</span>. The gradient of the output
+layer splits into the two blocks; each block drives its own backward pass, and
+the two cells share only <span class="math inline">\(W_o\)</span>:</p>
+<pre class="highlight"><code>        <span class="n">split</span> <span class="o">=</span> <span class="n">dlogits</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_o_</span>
+        <span class="n">first</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backward_direction</span><span class="p">(</span>
+            <span class="n">features</span><span class="p">,</span> <span class="n">forward</span><span class="p">,</span> <span class="n">cache_f</span><span class="p">,</span> <span class="n">split</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">second</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backward_direction</span><span class="p">(</span>
+            <span class="n">features</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">backward</span><span class="p">,</span> <span class="n">cache_b</span><span class="p">,</span>
+            <span class="n">split</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">:][:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="kc">None</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">"b_"</span><span class="p">)</span>
+</code></pre>
+<h3 id="the-loss-and-the-backward-pass">The loss and the backward pass <a class="header-anchor" href="#the-loss-and-the-backward-pass">#</a></h3>
+<p>Every step emits a class distribution, and the loss is the mean cross-entropy
+over the batch and the sequence:</p>
+<div class="math block">
+\[p_t=\mathrm{softmax}(W_o h_t+b_o), \qquad
+L=-\frac{1}{BT}\sum_{b,t}\log p_{b,t}[y_{b,t}].
+\qquad (7)\]
+</div>
+<p>The backward pass of the cell is the chain rule applied to (1). With
+<span class="math inline">\(dm_t=\partial L/\partial m_t\)</span> (equal to <span class="math inline">\(\partial L/\partial h_t\)</span> unless the
+state is projected) and <span class="math inline">\(dc_{t+1}\)</span> the gradient carried from the next step,</p>
+<div class="math block">
+\[\begin{aligned}
+dc_t &= dm_t\odot o_t\odot\big(1-\tanh^2 c_t\big) + dc_{t+1}, \\
+do_t &= dm_t\odot\tanh(c_t)\odot o_t(1-o_t), \\
+di_t &= dc_t\odot g_t\odot i_t(1-i_t), \\
+df_t &= dc_t\odot c_{t-1}\odot f_t(1-f_t), \\
+dg_t &= dc_t\odot i_t\odot(1-g_t^2), \\
+dc_{t-1} &= dc_t\odot f_t.
+\end{aligned}\]
+</div>
+<p>The implementation makes the carried cell gradient an explicit argument, because
+forgetting it is the classic bug in a hand-written LSTM:</p>
+<pre class="highlight"><code>        <span class="n">dc</span> <span class="o">=</span> <span class="n">dm</span> <span class="o">*</span> <span class="n">o</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">tanh_c</span> <span class="o">*</span> <span class="n">tanh_c</span><span class="p">)</span> <span class="o">+</span> <span class="n">carry_c</span>
+        <span class="n">dz_o</span> <span class="o">=</span> <span class="n">dm</span> <span class="o">*</span> <span class="n">tanh_c</span> <span class="o">*</span> <span class="n">o</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">o</span><span class="p">)</span>
+        <span class="o">...</span>
+            <span class="n">dz_i</span> <span class="o">=</span> <span class="n">dc</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">i</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">i</span><span class="p">)</span>
+            <span class="n">dz_f</span> <span class="o">=</span> <span class="n">dc</span> <span class="o">*</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"c_prev"</span><span class="p">]</span> <span class="o">*</span> <span class="n">f</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">f</span><span class="p">)</span>
+            <span class="n">dz_g</span> <span class="o">=</span> <span class="n">dc</span> <span class="o">*</span> <span class="n">i</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">)</span>
+            <span class="n">dc_prev</span> <span class="o">=</span> <span class="n">dc</span> <span class="o">*</span> <span class="n">f</span>
+</code></pre>
+<p>The three gate pre-activations are then concatenated and multiplied by the input
+and recurrent matrices, exactly as in a feedforward layer. The demo perturbs the
+largest entry of every parameter and compares with a central difference; the
+worst relative error across all six variants is <span class="math inline">\(2.6\times10^{-8}\)</span>.</p>
+<h3 id="why-the-cell-state-helps">Why the cell state helps <a class="header-anchor" href="#why-the-cell-state-helps">#</a></h3>
+<p>The gradient of <span class="math inline">\(c_T\)</span> with respect to <span class="math inline">\(c_t\)</span> is a product of the cell-state
+Jacobians. Differentiating <span class="math inline">\(c_s=f_s\odot c_{s-1}+i_s\odot g_s\)</span>,</p>
+<div class="math block">
+\[\frac{\partial c_s}{\partial c_{s-1}}
+=\mathrm{diag}(f_s)
++\mathrm{diag}\Big(\frac{\partial f_s}{\partial c_{s-1}}\Big)c_{s-1}
++\mathrm{diag}\Big(\frac{\partial i_s}{\partial c_{s-1}}\Big)g_s.
+\qquad (8)\]
+</div>
+<p>The leading term is diagonal and equals the forget gate; the other two vanish
+unless the gates have peepholes, which is why that variant has a slightly
+different analysis. When <span class="math inline">\(f_s\approx1\)</span> the product is close to the identity, so
+the gradient crosses the step unchanged; a vanilla recurrence has <span class="math inline">\(D_sW_h\)</span>
+instead, and its norm is below one almost everywhere. The gates learn which
+regime to be in, which is the whole mechanism.</p>
+<p>The demo's fitted forget gate is <span class="math inline">\(0.60\)</span>, not <span class="math inline">\(1\)</span>. A two-step copy does not need a
+perfect integrator, and forcing <span class="math inline">\(f\)</span> to one would make the cell unable to forget.
+The advantage of the additive path is that it exists and is controllable; it is
+not that the fitted gate is always saturated.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="the-logistic-function">The logistic function <a class="header-anchor" href="#the-logistic-function">#</a></h3>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_sigmoid</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Logistic function without overflow on either tail."""</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">positive</span> <span class="o">=</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+    <span class="n">out</span><span class="p">[</span><span class="n">positive</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="n">positive</span><span class="p">]))</span>
+    <span class="n">tail</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="o">~</span><span class="n">positive</span><span class="p">])</span>
+    <span class="n">out</span><span class="p">[</span><span class="o">~</span><span class="n">positive</span><span class="p">]</span> <span class="o">=</span> <span class="n">tail</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">tail</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre>
+<p>Four gates per unit per step means four chances for an exponential to overflow.
+The split form evaluates <span class="math inline">\(\exp\)</span> only on the tail where the argument is negative,
+so neither branch can overflow, and it is the same function as
+<span class="math inline">\(1/(1+e^{-x})\)</span>. It is written once and used by every LSTM variant.</p>
+<h3 id="the-peephole-backward">The peephole backward <a class="header-anchor" href="#the-peephole-backward">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"peephole"</span><span class="p">:</span>
+            <span class="n">dc</span> <span class="o">=</span> <span class="n">dc</span> <span class="o">+</span> <span class="n">dz_o</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_o_</span>
+            <span class="n">grads</span><span class="p">[</span><span class="s2">"w_o_"</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span><span class="n">dz_o</span> <span class="o">*</span> <span class="n">c</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</code></pre>
+<p>The output gate was computed from <span class="math inline">\(c_t\)</span>, so the gradient of <span class="math inline">\(c_t\)</span> has to include
+the path back through that gate before the cell-state gradient is propagated.
+The weight gradient is the sum over the batch of <span class="math inline">\(do_t\odot c_t\)</span>; the peephole
+weight is shared by every step, so the time axis is summed as well.</p>
+<h3 id="the-gru-backward">The GRU backward <a class="header-anchor" href="#the-gru-backward">#</a></h3>
+<pre class="highlight"><code>        <span class="n">dz</span> <span class="o">=</span> <span class="n">dh</span> <span class="o">*</span> <span class="p">(</span><span class="n">h_prev</span> <span class="o">-</span> <span class="n">candidate</span><span class="p">)</span> <span class="o">*</span> <span class="n">z</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">z</span><span class="p">)</span>
+        <span class="n">dn</span> <span class="o">=</span> <span class="n">dh</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">z</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">candidate</span> <span class="o">*</span> <span class="n">candidate</span><span class="p">)</span>
+        <span class="n">d_reset_hidden</span> <span class="o">=</span> <span class="n">dn</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_hn_</span>
+        <span class="n">d_r</span> <span class="o">=</span> <span class="n">d_reset_hidden</span> <span class="o">*</span> <span class="n">h_prev</span>
+        <span class="n">dr</span> <span class="o">=</span> <span class="n">d_r</span> <span class="o">*</span> <span class="n">r</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">r</span><span class="p">)</span>
+</code></pre>
+<p>The update gate has no separate cell state, so its gradient is the difference
+between the two things it mixes. The reset gate receives the candidate gradient
+through <code>W_hn_</code>, multiplied by the previous state; the previous state receives
+the same quantity multiplied by the reset gate. Both terms are needed, and
+leaving out either is a silent half-gradient that still trains.</p>
+<h3 id="the-carried-cell-state">The carried cell state <a class="header-anchor" href="#the-carried-cell-state">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">cache</span> <span class="o">=</span> <span class="n">caches</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="n">dh</span> <span class="o">=</span> <span class="n">dh_out</span><span class="p">[:,</span> <span class="n">t</span><span class="p">]</span> <span class="o">+</span> <span class="n">carry_h</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"gru"</span><span class="p">:</span>
+                <span class="n">dpre</span><span class="p">,</span> <span class="n">dcarry_h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backward_gru</span><span class="p">(</span><span class="n">cache</span><span class="p">,</span> <span class="n">dh</span><span class="p">,</span> <span class="n">grads</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dpre</span><span class="p">,</span> <span class="n">dcarry_h</span><span class="p">,</span> <span class="n">carry_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backward_lstm</span><span class="p">(</span>
+                    <span class="n">cache</span><span class="p">,</span> <span class="n">dh</span><span class="p">,</span> <span class="n">carry_c</span><span class="p">,</span> <span class="n">grads</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
+</code></pre>
+<p><code>carry_h</code> is the hidden-state gradient from step <span class="math inline">\(t+1\)</span>; <code>carry_c</code> is the
+cell-state gradient. The LSTM needs both, the GRU only the first. The loop runs
+backwards because each step's gate depends on the next step's state, which is
+the definition of backpropagation through time.</p>
+<h3 id="parameter-sharing">Parameter sharing <a class="header-anchor" href="#parameter-sharing">#</a></h3>
+<pre class="highlight"><code>            <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s2">"W_x_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dpre</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"x"</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"gru"</span><span class="p">:</span>
+                <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s2">"W_h_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dpre</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span> <span class="o">*</span> <span class="n">hidden</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"h_prev"</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s2">"W_h_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dpre</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"h_prev"</span><span class="p">]</span>
+</code></pre>
+<p>The same gate matrices are used at every step, so the gradient is a sum over
+time. The GRU is the exception: its candidate has a separate recurrent matrix,
+so only the update and reset blocks multiply <code>W_h_</code>. Getting this slice wrong is
+the reason the first version of this file failed its own gradient check.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(B\)</span> be the batch size, <span class="math inline">\(T\)</span> the sequence length, <span class="math inline">\(H\)</span> the hidden width, <span class="math inline">\(P\)</span>
+the projected width, <span class="math inline">\(F\)</span> the input width, <span class="math inline">\(C\)</span> the classes and <span class="math inline">\(G\)</span> the number of
+gate blocks (<span class="math inline">\(4\)</span> for the LSTM family, <span class="math inline">\(3\)</span> for the GRU and CIFG).</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">one step, LSTM</td>
+<td style="text-align:left"><span class="math inline">\(O(BG H(F+H))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(BGH)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one step, projected</td>
+<td style="text-align:left"><span class="math inline">\(O(BG H(F+P))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(BGH)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one step, GRU</td>
+<td style="text-align:left"><span class="math inline">\(O(BH(F+H))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(BH)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one epoch</td>
+<td style="text-align:left"><span class="math inline">\(O(BTG H(F+H))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(BTH)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">parameter count, LSTM</td>
+<td style="text-align:left"><span class="math inline">\(GH(F+H+1)+C(H+1)\)</span></td>
+<td style="text-align:left"></td>
+</tr>
+<tr>
+<td style="text-align:left">parameter count, projected</td>
+<td style="text-align:left"><span class="math inline">\(GH(F+P+1)+CP+PH+C\)</span></td>
+<td style="text-align:left"></td>
+</tr>
+<tr>
+<td style="text-align:left">parameter count, CIFG</td>
+<td style="text-align:left"><span class="math inline">\(3H(F+H+1)+C(H+1)\)</span></td>
+<td style="text-align:left"></td>
+</tr>
+</tbody>
+</table>
+<p>The gate width is the multiplier that makes gated cells expensive: an LSTM step
+costs four times a vanilla step at the same hidden width. Projection attacks
+that multiplier from the other side, replacing <span class="math inline">\(H\)</span> with <span class="math inline">\(P\)</span> in the recurrent
+term. The demo's numbers make the trade concrete: <span class="math inline">\(2884\)</span> parameters and <span class="math inline">\(0.984\)</span>
+for the LSTM, <span class="math inline">\(1476\)</span> and <span class="math inline">\(0.953\)</span> for the projected cell at <span class="math inline">\(P=8\)</span>.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Saturated gates.</strong> A sigmoid driven far into its tail has derivative near
+zero, and the gate stops moving. If both the input and forget gates saturate in
+opposite directions the cell becomes a constant, and the model looks like it has
+stopped learning while the loss is merely flat. Gradient clipping and a
+sensible learning rate are the first defences; inspecting <code>gate_means</code> is the
+diagnostic.</p>
+<p><strong>A forget bias that is too open.</strong> Initialising the forget bias to one is a
+good default for learning long dependencies, but on a task that needs fast
+forgetting it delays the fit: the gate has to travel down from one before the
+cell can discard stale state. The demo's copy task ends at <span class="math inline">\(0.60\)</span>, so the gate
+does move; a model stuck near <span class="math inline">\(1.0\)</span> after training is a symptom, not a success.</p>
+<p><strong>The cell state is not a hard guarantee.</strong> The product of forget gates still
+decays if the gates settle below one, and an LSTM does not solve a dependency of
+ten thousand steps. It moves the practical horizon from tens to hundreds of
+steps, which is why truncation and attention remain relevant. <code>jacobian_norms</code>
+in the <code>rnn</code> atom is the tool for measuring where a particular fit actually
+sits.</p>
+<p><strong>Projection is a bottleneck.</strong> The projected state is a linear image of the
+cell output, so dimensions discarded by <span class="math inline">\(W_p\)</span> cannot be recovered downstream. A
+projection that is too narrow costs accuracy, and the cost is not visible in the
+training loss until the model has fit everything else. Tune <span class="math inline">\(P\)</span> against held-out
+data, not against parameters saved.</p>
+<p><strong>Coupling is a constraint.</strong> The CIFG cannot write and erase independently:
+whatever fraction of the old state survives, the complementary fraction of the
+candidate enters. That is a good prior on many sequence tasks and a bad one on
+tasks that need to add to memory while keeping it. The demo's coupled cell wins
+by five thousandths, which is within noise of the reference; the parameter
+saving is the reliable part.</p>
+<p><strong>Peepholes add variance.</strong> Three extra vectors per unit are cheap, but they
+also give the optimiser more ways to fit noise, and on small data the peephole
+variant is the easiest of the six to overfit. The demo's peephole cell uses
+<span class="math inline">\(102\%\)</span> of the reference parameters for a <span class="math inline">\(0.982\)</span> that is indistinguishable from
+<span class="math inline">\(0.984\)</span>; on this task the extra connections buy nothing.</p>
+<p><strong>Bidirectional leakage.</strong> A bidirectional model reads the future by
+construction. It is correct for tagging a complete sequence and wrong for
+streaming, online control, or any evaluation where the future would not be
+available at prediction time. Using one in a live system is a data leak, not an
+architecture choice.</p>
+<p><strong>Small batches memorise.</strong> With sixty-four sequences, these cells can fit the
+training set by storing sequence identity rather than the rule; the demo's
+held-out split is what distinguishes the two. A gated cell has more capacity to
+memorise than a vanilla one, so the gap between training and held-out accuracy
+is the first thing to inspect.</p>
+<p><strong>No masking.</strong> Every sequence is assumed to start at step zero and to have a
+label at every step. Padded batches need a mask in the loss and in the carried
+state, or the model learns the pad symbol and the state is polluted at the
+boundary. This file refuses ragged labels rather than guessing an alignment.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Speech recognition.</strong> LSTM and GRU acoustic models replaced HMM-hybrid
+systems before attention did, and the bidirectional variant was standard for
+offline transcription. The <code>ctc</code> atom is the alignment-free loss that made
+frame-level labels unnecessary.</p>
+<p><strong>Machine translation.</strong> The sequence-to-sequence model of 2014 was two LSTMs,
+one reading the source and one writing the target, and the projection variant
+was introduced to keep the output softmax affordable on large vocabularies. The
+<code>attention</code> atom is what removed the fixed-size bottleneck between them.</p>
+<p><strong>Language modelling.</strong> A gated recurrent network trained on next-token
+prediction was the strongest language model before the transformer, and the
+forget gate's ability to carry information across sentences is why it worked.
+The training objective here is the same one.</p>
+<p><strong>Time series and sensor streams.</strong> Gated cells are the standard recurrent
+baseline for forecasting and anomaly detection, and the GRU is often preferred
+on small data because it has fewer parameters. The <code>tcn</code> and <code>ssm</code> atoms are the
+convolutional and state-space alternatives.</p>
+<p><strong>Handwriting and gesture recognition.</strong> Pen trajectories and inertial streams
+are variable-length sequences with long-range style; gated cells were the state
+of the art before attention, and the <code>dtw</code> atom is the template-matching
+alternative when there is too little data to train one.</p>
+<p><strong>Reinforcement learning.</strong> A gated policy carries memory through partial
+observability, and the <code>actor-critic</code> and <code>PPO</code> atoms use exactly this cell when
+the observation is not Markov. The GRU is common because the update is cheap
+enough for a rollout loop.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Hochreiter, S. &amp; Schmidhuber, J. (1997). Long short-term memory. <em>Neural
+Computation</em> 9(8), 1735–1780. The cell and the constant error carousel.</li>
+<li>Gers, F. A., Schmidhuber, J. &amp; Cummins, F. (2000). Learning to forget:
+continual prediction with LSTM. <em>Neural Computation</em> 12(10), 2451–2471. The
+forget gate and the forget-bias initialisation.</li>
+<li>Gers, F. A. &amp; Schmidhuber, J. (2001). Recurrent nets that time and count.
+<em>IJCNN</em>, 189–194. Peephole connections and counting tasks.</li>
+<li>Cho, K. et al. (2014). Learning phrase representations using RNN
+encoder–decoder for statistical machine translation. <em>EMNLP</em>, 1724–1734. The
+GRU and the sequence-to-sequence setting.</li>
+<li>Sak, H., Senior, A. &amp; Beaufays, F. (2014). Long short-term memory recurrent
+neural network architectures for large scale acoustic modeling.
+<em>Interspeech</em>, 338–342. The projected LSTM.</li>
+<li>Chung, J., Gülçehre, Ç., Cho, K. &amp; Bengio, Y. (2014). Empirical evaluation of
+gated recurrent neural networks on sequence modeling. <em>arXiv:1412.3555</em>. GRU
+against LSTM on a common benchmark.</li>
+<li>Greff, K., Srivastava, R. K., Koutník, J., Steunebrink, B. R. &amp; Schmidhuber,
+J. (2017). LSTM: a search space odyssey. <em>IEEE Transactions on Neural
+Networks and Learning Systems</em> 28(10), 2222–2232. Which LSTM variants matter.</li>
+<li>Jozefowicz, R., Zaremba, W. &amp; Sutskever, I. (2015). An empirical exploration
+of recurrent network architectures. <em>ICML</em>, 2342–2350. The evolutionary
+search that produced the coupled-gate cell.</li>
+<li>Karpathy, A., Johnson, J. &amp; Fei-Fei, L. (2015). Visualizing and understanding
+recurrent networks. <em>ICLR</em>. What the gates actually do on character-level
+language modelling.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="rnn.html"><small>Previous</small><span>Recurrent networks</span></a><a class="next" href="attention.html"><small>Next</small><span>Attention</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">10 · Sequences</p><ul class="rail-list"><li><a href="markov_chain.html"><span class="tick">✓</span><span>Markov chains</span></a></li><li><a href="hmm.html"><span class="tick">✓</span><span>Hidden Markov models</span></a></li><li><a href="dtw.html"><span class="tick">✓</span><span>Dynamic time warping</span></a></li><li><a href="rnn.html"><span class="tick">✓</span><span>Recurrent networks</span></a></li><li><a href="lstm_gru.html" aria-current="page"><span class="tick">✓</span><span>LSTM &amp; GRU</span></a></li><li><a href="attention.html"><span class="tick">✓</span><span>Attention</span></a></li><li><a href="crf.html"><span class="tick">✓</span><span>Conditional random fields</span></a></li><li><a href="ctc.html"><span class="tick">✓</span><span>Connectionist temporal classification</span></a></li><li><a href="tcn.html"><span class="tick">✓</span><span>Temporal convnets</span></a></li><li><a href="beam_search.html"><span class="tick">✓</span><span>Beam search</span></a></li><li><a href="ngram_lm.html"><span class="tick">✓</span><span>N-gram language models</span></a></li><li><a href="ssm.html"><span class="tick">✓</span><span>State-space models</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../09-density-and-anomaly/index.html"><span class="jump">← 09 · Density &amp; anomaly</span></a></li><li><a href="../11-time-series/index.html"><span class="jump">11 · Time series&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-lstm-cell">The LSTM cell</a></li><li class="lvl3"><a href="#the-gru">The GRU</a></li><li class="lvl3"><a href="#peepholes">Peepholes</a></li><li class="lvl3"><a href="#projection">Projection</a></li><li class="lvl3"><a href="#coupled-gates">Coupled gates</a></li><li class="lvl3"><a href="#bidirectional-passes">Bidirectional passes</a></li><li class="lvl3"><a href="#the-loss-and-the-backward-pass">The loss and the backward pass</a></li><li class="lvl3"><a href="#why-the-cell-state-helps">Why the cell state helps</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#the-logistic-function">The logistic function</a></li><li class="lvl3"><a href="#the-peephole-backward">The peephole backward</a></li><li class="lvl3"><a href="#the-gru-backward">The GRU backward</a></li><li class="lvl3"><a href="#the-carried-cell-state">The carried cell state</a></li><li class="lvl3"><a href="#parameter-sharing">Parameter sharing</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/10-sequences/lstm_gru.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

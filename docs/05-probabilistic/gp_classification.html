@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GP classification · MLAtoms</title>
+<meta name="description" content="Gaussian processes with non-Gaussian likelihoods. Regression with a Gaussian process is a matrix solve because a Gaussian prior times a Gaussian likelihood…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/gp_classification.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="GP classification">
+<meta property="og:description" content="Gaussian processes with non-Gaussian likelihoods. Regression with a Gaussian process is a matrix solve because a Gaussian prior times a Gaussian likelihood…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/gp_classification.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GP classification">
+<meta name="twitter:description" content="Gaussian processes with non-Gaussian likelihoods. Regression with a Gaussian process is a matrix solve because a Gaussian prior times a Gaussian likelihood…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "GP classification", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/gp_classification.html", "description": "Gaussian processes with non-Gaussian likelihoods. Regression with a Gaussian process is a matrix solve because a Gaussian prior times a Gaussian likelihood\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="gp_classification.py.html">source</a></p><h1>Gaussian process classification</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Regression with a Gaussian process is a matrix solve because a Gaussian prior
+times a Gaussian likelihood is Gaussian. <code>gaussian_process.py</code> gets a
+closed-form posterior for free, and the whole atom is one Cholesky factorisation.</p>
+<p>Classification breaks that, and it breaks it completely. The likelihood is
+<span class="math inline">\(\sigma(f_i)\)</span> or <span class="math inline">\(\Phi(f_i)\)</span> — bounded, and not exponential of a quadratic — so
+the posterior over the <span class="math inline">\(n\)</span> latent values is an <span class="math inline">\(n\)</span>-dimensional distribution with
+no closed form, and the predictive probability is an integral over it. Nothing
+about the prior's conjugacy survives.</p>
+<p>What survives is the shape. The posterior over <span class="math inline">\(f\)</span> is <em>approximately</em> Gaussian:
+it is a Gaussian times a product of sigmoids, and a sigmoid is close to a
+Gaussian in log space over the region where the data pin the function down.</p>
+<pre class="highlight"><code>   prior p(f)              likelihood             posterior p(f|y)
+   ─────────               ──────────             ─────────────────
+     N(0, K)               ∏ σ(yᵢfᵢ)              Gaussian × sigmoids
+   ╭─────╮                 ╭──╮                    ╭──╮
+  ╱       ╲               ╱    ╲                  ╱    ╲___
+ ───────────             ────────                ──────────
+   symmetric               saturates              skewed, heavier
+   exactly Gaussian        at both ends           on the uncertain side
+</code></pre>
+<p>So both approximations here return a Gaussian, and they differ in <em>how</em> they
+choose it:</p>
+<ul>
+<li><strong>Laplace</strong> matches the log-density quadratically at its maximum. One point,
+second-order there, nothing else. Cheap, local, and exact in the limit of
+lots of data — the Bernstein–von Mises argument from
+<a href="laplace_approximation.py.html"><code>laplace_approximation.py</code></a> applies unchanged.</li>
+<li><strong>EP</strong> matches the <em>marginal</em> mean and variance of every latent, by
+iteratively replacing the likelihood with one Gaussian factor per data point.
+Global in the sense that every site's update feels every other site, but it
+optimises nothing and carries no guarantee.</li>
+</ul>
+<p>Neither is uniformly better, and the demo is built to show that rather than
+assert otherwise. On two data points, against a 121×121 grid:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"></th>
+<th style="text-align:right">posterior mean error</th>
+<th style="text-align:right">evidence error</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Laplace</td>
+<td style="text-align:right"><span class="math inline">\(4.5\times10^{-2}\)</span></td>
+<td style="text-align:right"><span class="math inline">\(1.4\times10^{-2}\)</span> nats</td>
+</tr>
+<tr>
+<td style="text-align:left">EP</td>
+<td style="text-align:right"><span class="math inline">\(3.8\times10^{-6}\)</span></td>
+<td style="text-align:right"><span class="math inline">\(1.2\times10^{-5}\)</span> nats</td>
+</tr>
+</tbody>
+</table>
+<p>EP wins decisively there. On a 60-point problem the two produce predictions
+that differ by at most 0.021 in probability and score identically on held-out
+data — which is the usual situation, and the reason nobody rewrites a working
+Laplace-based model.</p>
+<p>The three other variants are the parts people get wrong. <code>probit</code> and <code>logistic</code>
+are the two likelihoods; the probit one has closed-form derivatives, closed-form
+EP moments and a closed-form predictive, while the logistic one needs
+quadrature in both places. <code>one_vs_rest</code> is what you actually have to do for
+more than two classes, because neither approximation generalises to <span class="math inline">\(k\)</span> classes
+without a new derivation.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Likelihood</th>
+<th style="text-align:left">Inference</th>
+<th style="text-align:left">Predictive</th>
+<th style="text-align:left">Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>laplace</code></td>
+<td style="text-align:left">logistic</td>
+<td style="text-align:left">Laplace</td>
+<td style="text-align:left">plug-in <span class="math inline">\(\sigma(\mu)\)</span></td>
+<td style="text-align:left">the textbook baseline; fast, slightly overconfident</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>logistic</code></td>
+<td style="text-align:left">logistic</td>
+<td style="text-align:left">Laplace</td>
+<td style="text-align:left">integrate over <span class="math inline">\(q(f_*)\)</span></td>
+<td style="text-align:left">the same fit, honest predictive</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>probit</code></td>
+<td style="text-align:left">probit</td>
+<td style="text-align:left">EP</td>
+<td style="text-align:left">analytic <span class="math inline">\(\Phi(\mu/\sqrt{1+v})\)</span></td>
+<td style="text-align:left">closed forms everywhere; the classic pairing</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>expectation_propagation</code></td>
+<td style="text-align:left">logistic</td>
+<td style="text-align:left">EP</td>
+<td style="text-align:left">integrate</td>
+<td style="text-align:left">best marginals, needs damping</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>one_vs_rest</code></td>
+<td style="text-align:left">logistic</td>
+<td style="text-align:left">Laplace</td>
+<td style="text-align:left">softmax over log-odds</td>
+<td style="text-align:left">more than two classes</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>predictive</code> axis is not cosmetic. At the demo's test point the exact
+predictive is 0.5519, the plug-in reports <strong>0.5607</strong> — overconfident, always, in
+the direction of the mode — integrating over the same Gaussian gives 0.5508, and
+EP gives 0.5520. Plugging the mode in is what most implementations do and it is
+the one choice that is systematically wrong.</p>
+<p><code>probit</code> bundles two independent facts that happen to line up: the probit
+likelihood has closed-form EP moments (truncated-Gaussian integrals), and its
+predictive given a Gaussian posterior is exact, not an approximation. Its
+drawback is the same as everyone's: <span class="math inline">\(\Phi\)</span> is not in numpy.</p>
+<p><code>laplace</code> and <code>logistic</code> share every line of the fit. They are separate atoms in
+the table because the predictive is a different function, and because a table
+that hides that difference teaches the wrong thing.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-model-and-the-integral-that-is-not-there">1. The model, and the integral that is not there <a class="header-anchor" href="#1-the-model-and-the-integral-that-is-not-there">#</a></h3>
+<div class="math block">
+\[f \sim \mathcal{GP}(0, k), \qquad y_i \mid f_i \sim p(y_i \mid f_i), \qquad p(f) = N(f; 0, K) \qquad (1)\]
+</div>
+<p>with <span class="math inline">\(K_{ij} = k(x_i,x_j)\)</span> and <span class="math inline">\(y_i \in \{-1,+1\}\)</span>. Bayes gives</p>
+<div class="math block">
+\[p(f\mid y) = \frac{1}{p(y)}\,N(f;0,K)\prod_{i=1}^{n}p(y_i\mid f_i), \qquad p(y) = \int N(f;0,K)\prod_{i=1}^{n}p(y_i\mid f_i)\,df \qquad (2)\]
+</div>
+<p>The product of <span class="math inline">\(n\)</span> sigmoids is not the exponential of a quadratic in <span class="math inline">\(f\)</span>, so (2)
+has no closed form and no conjugate update exists. Every method below is a
+Gaussian ansatz <span class="math inline">\(q(f) = N(f;\mu,\Sigma)\)</span> plus a rule for choosing it — and the
+predictive is</p>
+<div class="math block">
+\[p(y_*=1\mid y) = \int \sigma(f_*)\,p(f_*\mid y)\,df_* \qquad (3)\]
+</div>
+<p>which is one more integral, again not available.</p>
+<h3 id="2-laplace-quadratic-at-the-mode">2. Laplace: quadratic at the mode <a class="header-anchor" href="#2-laplace-quadratic-at-the-mode">#</a></h3>
+<p>Write <span class="math inline">\(\Psi(f) = \log p(f,y) = -\tfrac12 f^\top K^{-1}f + \sum_i \log p(y_i\mid f_i)\)</span>.
+Then</p>
+<div class="math block">
+\[\nabla\Psi = -K^{-1}f + t, \qquad \nabla^2\Psi = -K^{-1} - W, \qquad t_i = \frac{\partial \log p(y_i\mid f_i)}{\partial f_i}, \quad W_{ii} = -\frac{\partial^2 \log p(y_i\mid f_i)}{\partial f_i^2} \qquad (4)\]
+</div>
+<p>with <span class="math inline">\(W\)</span> positive because each log-likelihood is concave in <span class="math inline">\(f_i\)</span>. Newton's
+method on <span class="math inline">\(\nabla\Psi = 0\)</span> is</p>
+<div class="math block">
+\[(K^{-1} + W)\,\delta = t - K^{-1}f, \qquad f \leftarrow f + \delta \qquad (5)\]
+</div>
+<p>and at convergence <span class="math inline">\(\hat f\)</span> the posterior is approximated by</p>
+<div class="math block">
+\[q(f) = N\!\left(\hat f,\ (K^{-1}+W)^{-1}\right) \qquad (6)\]
+</div>
+<p>The evidence follows from the same expansion as
+<a href="laplace_approximation.py.html"><code>laplace_approximation.py</code></a> (3), one dimension per
+latent:</p>
+<div class="math block">
+\[\log p(y) \approx -\tfrac12 \hat f^\top K^{-1}\hat f + \sum_i \log p(y_i\mid \hat f_i) - \tfrac12\log\lvert I + W^{1/2}KW^{1/2}\rvert \qquad (7)\]
+</div>
+<p>The predictive needs two things from (6). The mean uses an identity that is easy
+to miss: at the mode <span class="math inline">\(K^{-1}\hat f = t\)</span>, so</p>
+<div class="math block">
+\[\mathbb{E}[f_*] = k_*^\top K^{-1}\hat f = k_*^\top t \qquad (8)\]
+</div>
+<p>— no inverse of <span class="math inline">\(K\)</span> required, just the gradient vector the optimiser already
+has. The variance uses the Woodbury form</p>
+<div class="math block">
+\[k_{**} - k_*^\top (K + W^{-1})^{-1}k_* = k_{**} - \big\lVert L^{-1}W^{1/2}k_*\big\rVert^2, \qquad B = I + W^{1/2}KW^{1/2} = LL^\top \qquad (9)\]
+</div>
+<h3 id="3-the-numerical-trick-that-makes-5-work">3. The numerical trick that makes (5) work <a class="header-anchor" href="#3-the-numerical-trick-that-makes-5-work">#</a></h3>
+<p><span class="math inline">\(W_{ii}\)</span> can be enormous — for a well-separated point <span class="math inline">\(p(1-p) \to 0\)</span>, so
+<span class="math inline">\(W^{-1}\)</span> is fine but <span class="math inline">\(W\)</span> is nearly singular, and solving with <span class="math inline">\(K^{-1}+W\)</span> directly
+loses precision. The code keeps everything on the <span class="math inline">\(B\)</span> side:</p>
+<div class="math block">
+\[a = (K+W^{-1})^{-1}\big(Wf + t\big), \qquad \hat f = Ka \qquad (10)\]
+</div>
+<p>and evaluates (10) as <span class="math inline">\(\;a = b - W^{1/2}L^{-\top}L^{-1}W^{1/2}Kb\)</span> with
+<span class="math inline">\(b = Wf + t\)</span>. Every solve is triangular, no inverse of <span class="math inline">\(K\)</span> or <span class="math inline">\(W\)</span> is formed, and
+the determinant in (7) is <span class="math inline">\(\sum_i \log L_{ii}\)</span>. That is
+<a href="https://gaussianprocess.org/gpml/">Rasmussen &amp; Williams (2006)</a> Algorithm 3.1,
+and it is the difference between a method that converges and one that does not
+on separable data.</p>
+<h3 id="4-ep-a-gaussian-site-per-data-point">4. EP: a Gaussian site per data point <a class="header-anchor" href="#4-ep-a-gaussian-site-per-data-point">#</a></h3>
+<p>EP replaces each likelihood factor by an unnormalised Gaussian in <span class="math inline">\(f_i\)</span>:</p>
+<div class="math block">
+\[t_i(f_i) = \tilde Z_i\,N(f_i;\,\nu_i,\,1/\tau_i), \qquad q(f) \propto N(f;0,K)\prod_i t_i(f_i) \qquad (11)\]
+</div>
+<p>This is a Gaussian, so its parameters are two matrix formulas:</p>
+<div class="math block">
+\[\Sigma = (K^{-1} + T)^{-1}, \qquad \mu = \Sigma\,(\tau \odot \nu), \qquad T = \mathrm{diag}(\tau) \qquad (12)\]
+</div>
+<p>Sites are updated one at a time. Removing site <span class="math inline">\(i\)</span> from <span class="math inline">\(q\)</span> gives the <em>cavity</em>,
+which in natural parameters is a subtraction of one precision and one linear
+term. With Sherman–Morrison on the rank-one difference:</p>
+<div class="math block">
+\[\sigma_{-i}^2 = \frac{1}{1/\Sigma_{ii} - \tau_i}, \qquad \mu_{-i} = \sigma_{-i}^2\left(\frac{\mu_i}{\Sigma_{ii}} - \tau_i\nu_i\right) \qquad (13)\]
+</div>
+<p>The <strong>tilted</strong> distribution is the cavity times the true likelihood,</p>
+<div class="math block">
+\[\hat q_i(f_i) \propto q_{-i}(f_i)\,p(y_i\mid f_i) \qquad (14)\]
+</div>
+<p>and EP chooses the new site so that <span class="math inline">\(q\)</span> — which is <span class="math inline">\(q_{-i}\)</span> times the site — has
+<span class="math inline">\(\hat q_i\)</span>'s mean and variance. Solving for the site parameters:</p>
+<div class="math block">
+\[\tau_i^{\text{new}} = \frac{1}{\tilde\sigma_i^2} - \frac{1}{\sigma_{-i}^2}, \qquad \nu_i^{\text{new}} = \frac{1}{\tau_i^{\text{new}}}\left(\frac{\tilde\mu_i}{\tilde\sigma_i^2} - \frac{\mu_{-i}}{\sigma_{-i}^2}\right) \qquad (15)\]
+</div>
+<p><strong>The division by <span class="math inline">\(\tau\)</span> in (15) is where implementations go wrong.</strong> The bracket
+is the site's <em>natural</em> linear parameter <span class="math inline">\(\eta_i\)</span>; <span class="math inline">\(\nu_i = \eta_i/\tau_i\)</span> is its
+mean. Storing <span class="math inline">\(\eta\)</span> where the code expects <span class="math inline">\(\nu\)</span> leaves the posterior variance
+right and the mean wrong by a factor of <span class="math inline">\(\tau_i\)</span> — precisely the bug the demo
+found, and it looked plausible because the variances matched.</p>
+<p>For a probit likelihood, (14) is a Gaussian times a Gaussian CDF, and its moments
+are the truncated-normal formulas:</p>
+<div class="math block">
+\[z_i = \frac{y_i\mu_{-i}}{\sqrt{1+\sigma_{-i}^2}}, \quad \hat Z_i = \Phi(z_i), \quad \tilde\mu_i = \mu_{-i} + \frac{y_i\sigma_{-i}^2\,\varphi(z_i)}{\Phi(z_i)\sqrt{1+\sigma_{-i}^2}}, \quad \tilde\sigma_i^2 = \sigma_{-i}^2 - \frac{\sigma_{-i}^4\,\varphi(z_i)\big(z_i + \varphi(z_i)/\Phi(z_i)\big)}{\Phi(z_i)(1+\sigma_{-i}^2)} \qquad (16)\]
+</div>
+<p>One site, one closed form, no quadrature. For the logistic likelihood there is no
+such formula and the demo computes the same three moments with 40-point
+Gauss–Hermite quadrature.</p>
+<h3 id="5-the-ep-evidence-and-the-amplitude-nobody-remembers">5. The EP evidence, and the amplitude nobody remembers <a class="header-anchor" href="#5-the-ep-evidence-and-the-amplitude-nobody-remembers">#</a></h3>
+<p>Moment matching in (15) fixes <span class="math inline">\(\tau_i\)</span> and <span class="math inline">\(\nu_i\)</span> — the <em>shape</em> of the site — but
+not <span class="math inline">\(\tilde Z_i\)</span>. The missing condition is that the site must carry the same
+mass as the likelihood it replaces, measured under the cavity:</p>
+<div class="math block">
+\[\tilde Z_i = \frac{\hat Z_i}{N(\nu_i;\,\mu_{-i},\,\sigma_{-i}^2 + 1/\tau_i)} \qquad (17)\]
+</div>
+<p>With that, the approximate evidence is the integral of (11):</p>
+<div class="math block">
+\[\log Z_{\text{EP}} = \sum_i \log \tilde Z_i + \log N\!\big(0;\,\nu,\,K + S\big), \qquad S = \mathrm{diag}(1/\tau) \qquad (18)\]
+</div>
+<p>Drop (17) and the estimate is not even exact for a Gaussian likelihood, which is
+the check that catches it. Keep it, and the one-point case becomes exact for a
+different reason: with <span class="math inline">\(n=1\)</span> the cavity is the prior, so <span class="math inline">\(\hat Z_1 = p(y_1)\)</span> and
+the two Gaussian terms in (18) cancel by symmetry. The demo asserts this to
+<span class="math inline">\(10^{-13}\)</span>.</p>
+<h3 id="6-two-likelihoods-one-difference">6. Two likelihoods, one difference <a class="header-anchor" href="#6-two-likelihoods-one-difference">#</a></h3>
+<div class="math block">
+\[\text{logistic: } \log p(y\mid f) = -\log(1+e^{-yf}), \qquad t = y\sigma(-yf), \qquad W = \sigma(f)\sigma(-f) \qquad (19)\]
+</div>
+<div class="math block">
+\[\text{probit: } \log p(y\mid f) = \log\Phi(yf), \qquad t = \frac{y\varphi(z)}{\Phi(z)}, \qquad W = \frac{\varphi(z)}{\Phi(z)}\left(z + \frac{\varphi(z)}{\Phi(z)}\right) \qquad (20)\]
+</div>
+<p>Both are concave, so both Laplace and EP apply. The probit ratios
+<span class="math inline">\(\varphi(z)/\Phi(z)\)</span> have to be computed as <span class="math inline">\(\exp(\log\varphi - \log\Phi)\)</span>, not
+as a quotient of two small numbers; the demo's <code>log_ndtr</code> does that and falls
+back to the asymptotic series in the far tail. The logistic <span class="math inline">\(W\)</span> uses
+<span class="math inline">\(\sigma(f)\sigma(-f) = \sigma(f)(1-\sigma(f))\)</span>, which is the same quantity and is
+what the Fisher information of a Bernoulli is.</p>
+<p>The predictive is where they differ most:</p>
+<div class="math block">
+\[p(y_*=1\mid y) \approx \begin{cases} \Phi\!\left(\mu_*/\sqrt{1+v_*}\right) & \text{probit} \\ \int\sigma(\mu_* + \sqrt{v_*}z)\,\varphi(z)\,dz & \text{logistic} \end{cases} \qquad (21)\]
+</div>
+<p>The probit one is <em>exact given</em> the Gaussian <span class="math inline">\(q\)</span> — the convolution of a Gaussian
+with a Gaussian CDF is a Gaussian CDF — so <code>probit:predictive</code> is exact under the
+approximation, not a second approximation on top. The logistic one is a genuine
+integral, done with Gauss–Hermite. Both pull the prediction toward <span class="math inline">\(\tfrac12\)</span>
+relative to the plug-in, because uncertainty in <span class="math inline">\(f_*\)</span> cannot make the model more
+confident.</p>
+<h3 id="7-more-than-two-classes">7. More than two classes <a class="header-anchor" href="#7-more-than-two-classes">#</a></h3>
+<p>Neither approximation extends to <span class="math inline">\(k\)</span> classes by itself; the multiclass probit
+posterior is a product of <span class="math inline">\(k\)</span> coupled Gaussians and the site structure changes
+shape. The cheap route is <span class="math inline">\(k\)</span> one-vs-rest binary problems, and then a combination
+rule. Normalising the <span class="math inline">\(k\)</span> probabilities is wrong — they are not calibrated
+against each other and the sum is an artefact — so the code combines log-odds:</p>
+<div class="math block">
+\[P(c\mid x) = \frac{\exp(r_c)}{\sum_{c'}\exp(r_{c'})}, \qquad r_c = \log\frac{p_c(x)}{1-p_c(x)} \qquad (22)\]
+</div>
+<p><span class="math inline">\(r_c\)</span> is the latent mean of classifier <span class="math inline">\(c\)</span> up to the link, so (22) is a softmax
+over the <span class="math inline">\(k\)</span> latent functions. It is still not a coherent probability model — the
+<span class="math inline">\(k\)</span> classifiers were fitted independently and can all be confident about
+different classes — which is why multinomial EP and one-vs-one exist. It works
+well enough that it is what most libraries do.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The probit site function is (20), and the only interesting line is the ratio of
+two exponentially small numbers, which has to be an exponential of a difference:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_probit_site</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Same three quantities for `p(y|f) = Φ(y f)`."""</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">y</span> <span class="o">*</span> <span class="n">f</span>
+    <span class="n">ll</span> <span class="o">=</span> <span class="n">log_ndtr</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">z</span> <span class="o">*</span> <span class="n">z</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">LOG2PI</span> <span class="o">-</span> <span class="n">ll</span><span class="p">)</span>          <span class="c1"># φ(z)/Φ(z)</span>
+    <span class="k">return</span> <span class="n">ll</span><span class="p">,</span> <span class="n">y</span> <span class="o">*</span> <span class="n">r</span><span class="p">,</span> <span class="n">r</span> <span class="o">*</span> <span class="p">(</span><span class="n">z</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span>
+</code></pre>
+<p><code>log_ndtr</code> is a hand-rolled <span class="math inline">\(\log\Phi\)</span>, because numpy has no <code>erfc</code>:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">ndtr</span><span class="p">(</span><span class="n">z</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Standard normal CDF. numpy has no `erf`, so this goes through `math`."""</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">erfc</span><span class="p">(</span><span class="o">-</span><span class="n">v</span> <span class="o">/</span> <span class="n">SQRT2</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">ravel</span><span class="p">()],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</code></pre>
+<p>The Newton step is (10). Two triangular solves, and the <code>K_ @ b</code> inside the
+first one is the only matrix-matrix product in the loop:</p>
+<pre class="highlight"><code>            <span class="n">sW</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">W</span><span class="p">)</span>
+            <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">+</span> <span class="n">sW</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">K_</span> <span class="o">*</span> <span class="n">sW</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="n">W</span> <span class="o">*</span> <span class="n">f</span> <span class="o">+</span> <span class="n">t</span>
+            <span class="c1"># a = (K + W⁻¹)⁻¹ b, and the mode is K a. Doing it this way keeps</span>
+            <span class="c1"># every solve triangular; forming K + W⁻¹ would need an inverse.</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">sW</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">K_</span> <span class="o">@</span> <span class="n">b</span><span class="p">))</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">b</span> <span class="o">-</span> <span class="n">sW</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+            <span class="n">new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">K_</span> <span class="o">@</span> <span class="n">a</span>
+</code></pre>
+<p>The evidence is (7), and <code>slogdet</code> is not used: the Cholesky factor is already
+there, so the log-determinant is the sum of its log-diagonal in the same pass
+that the predictive needs.</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">a_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">K_</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logZ_</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">f</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">a_</span><span class="p">)</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_site</span><span class="p">(</span><span class="n">f</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+                      <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">L_</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+        <span class="c1"># predictive: mean = k*ᵀ t, var = k** − ‖L⁻¹ √W k*‖²</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_coef</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chol</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">L_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sqrtW_</span>
+</code></pre>
+<p>EP's posterior is (12), computed without ever forming <span class="math inline">\(K^{-1}\)</span>: the shape is
+<span class="math inline">\(K - V^\top V\)</span> with <span class="math inline">\(V = L^{-1}T^{1/2}K\)</span>, which is the Woodbury identity applied
+to <span class="math inline">\((K^{-1}+T)^{-1}\)</span>.</p>
+<pre class="highlight"><code>        <span class="n">sT</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">tau</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">+</span> <span class="n">sT</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">K_</span> <span class="o">*</span> <span class="n">sT</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="n">V</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">sT</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">K_</span><span class="p">)</span>
+        <span class="n">Sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">K_</span> <span class="o">-</span> <span class="n">V</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">V</span>                      <span class="c1"># (K⁻¹ + diag τ)⁻¹</span>
+        <span class="k">return</span> <span class="n">Sigma</span><span class="p">,</span> <span class="n">Sigma</span> <span class="o">@</span> <span class="p">(</span><span class="n">tau</span> <span class="o">*</span> <span class="n">nu</span><span class="p">)</span>
+</code></pre>
+<p>The cavity and the site update are (13) and (15). The comment on <code>nu_i</code> is the
+one that matters — it is the line the demo's first version had wrong.</p>
+<pre class="highlight"><code>                <span class="n">s2</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">Sigma</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">tau</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="mf">1e-12</span><span class="p">)</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">s2</span> <span class="o">*</span> <span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="n">Sigma</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">nu</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">tau</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">m_t</span><span class="p">,</span> <span class="n">s2_t</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tilted</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">tau_i</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">s2_t</span><span class="p">,</span> <span class="mf">1e-300</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">s2</span>
+                <span class="c1"># natural-form site: precision `tau_i`, linear term `eta_i`.</span>
+                <span class="c1"># `nu` is stored as the *mean*, eta/tau, which is what makes</span>
+                <span class="c1"># `mu = Sigma @ (tau * nu)` one matrix-vector product.</span>
+                <span class="n">nu_i</span> <span class="o">=</span> <span class="p">(</span><span class="n">m_t</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">s2_t</span><span class="p">,</span> <span class="mf">1e-300</span><span class="p">)</span> <span class="o">-</span> <span class="n">m</span> <span class="o">/</span> <span class="n">s2</span><span class="p">)</span> <span class="o">/</span> <span class="n">tau_i</span>
+</code></pre>
+<p>The probit tilt is (16) written out. <code>r</code> is again <span class="math inline">\(\varphi/\Phi\)</span>, and the
+variance is the truncated-normal expression with the <span class="math inline">\(z + r\)</span> correction that
+makes the site <em>narrower</em> than the cavity — the term without it is the naive
+answer and it is wrong by a factor that grows in the tail.</p>
+<pre class="highlight"><code>            <span class="n">z</span> <span class="o">=</span> <span class="n">y</span> <span class="o">*</span> <span class="n">m</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">s2</span><span class="p">)</span>
+            <span class="n">lz</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_ndtr</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">z</span><span class="p">]))[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">z</span> <span class="o">*</span> <span class="n">z</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">LOG2PI</span> <span class="o">-</span> <span class="n">lz</span><span class="p">)</span>
+            <span class="n">mean</span> <span class="o">=</span> <span class="n">m</span> <span class="o">+</span> <span class="n">y</span> <span class="o">*</span> <span class="n">s2</span> <span class="o">*</span> <span class="n">r</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">s2</span><span class="p">)</span>
+            <span class="n">var</span> <span class="o">=</span> <span class="n">s2</span> <span class="o">-</span> <span class="n">s2</span> <span class="o">*</span> <span class="n">s2</span> <span class="o">*</span> <span class="n">r</span> <span class="o">*</span> <span class="p">(</span><span class="n">z</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">s2</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">mean</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">lz</span>
+</code></pre>
+<p>The amplitude fix (17) is the loop at the end of <code>_ep</code>: the tilted mass against
+the mass the site would have under the cavity. <code>log_zq</code> is the second term of
+(18), one Cholesky of <span class="math inline">\(K + S\)</span>.</p>
+<pre class="highlight"><code>            <span class="n">lz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tilted</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_</span><span class="p">[</span><span class="n">i</span><span class="p">])[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">s2</span> <span class="o">+</span> <span class="n">S</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>                                  <span class="c1"># variance of q_{-i} * site</span>
+            <span class="n">log_nu</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">LOG2PI</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">nu</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">v</span>
+            <span class="n">log_amp</span> <span class="o">+=</span> <span class="n">lz</span> <span class="o">-</span> <span class="n">log_nu</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logZ_</span> <span class="o">=</span> <span class="n">log_amp</span> <span class="o">+</span> <span class="n">log_zq</span>
+</code></pre>
+<p>Prediction is (21), three branches, and this is the whole of the <code>laplace</code> versus
+<code>logistic</code> variant difference:</p>
+<pre class="highlight"><code>        <span class="n">mean</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_latent</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictive</span> <span class="o">==</span> <span class="s2">"plug"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">mean</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictive</span> <span class="o">==</span> <span class="s2">"analytic"</span><span class="p">:</span>       <span class="c1"># probit: exact integral, no quadrature</span>
+            <span class="k">return</span> <span class="n">ndtr</span><span class="p">(</span><span class="n">mean</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">var</span><span class="p">))</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polynomial</span><span class="o">.</span><span class="n">hermite</span><span class="o">.</span><span class="n">hermgauss</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>
+        <span class="n">nodes</span> <span class="o">=</span> <span class="n">mean</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">var</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">nodes</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">INV_SQRT_PI</span>
+</code></pre>
+<p>The multiclass wrapper is (22), and the only subtlety is the clip: a classifier
+that says 0.9999 would otherwise produce an infinite log-odds.</p>
+<pre class="highlight"><code>            <span class="n">P</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">m</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">models_</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">logit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">P</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+            <span class="n">logit</span> <span class="o">-=</span> <span class="n">logit</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">E</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">logit</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">E</span> <span class="o">/</span> <span class="n">E</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(n\)</span> training points, <span class="math inline">\(m\)</span> test points, and <span class="math inline">\(T\)</span> EP sweeps:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Step</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">kernel matrix</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one Newton step</td>
+<td style="text-align:left"><span class="math inline">\(O(n^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">full Laplace fit</td>
+<td style="text-align:left"><span class="math inline">\(O(I n^3)\)</span>, <span class="math inline">\(I \approx 5\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one EP sweep</td>
+<td style="text-align:left"><span class="math inline">\(O(n^3 + n^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">full EP fit</td>
+<td style="text-align:left"><span class="math inline">\(O(Tn^3)\)</span>, <span class="math inline">\(T \approx 25\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">predictive</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2m)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>EP costs roughly five Laplace fits, and both are cubic for the same reason as in
+regression: the bottleneck is a Cholesky of an <span class="math inline">\(n\times n\)</span> dense matrix. The
+demo's numbers are 5 Newton steps and 25 damped EP sweeps for 60 points.</p>
+<p>The predictive is the part that scales badly in the wrong place. Every test point
+needs a row of <span class="math inline">\(K_*\)</span> and a triangular solve, so <span class="math inline">\(m\)</span> test points cost
+<span class="math inline">\(O(n^2m)\)</span> and <span class="math inline">\(O(nm)\)</span> memory — and at <span class="math inline">\(m = 10^5\)</span> that is the whole budget. The
+usual fix is the same as in regression: inducing points (a sparse GP), which
+replaces <span class="math inline">\(K\)</span> with <span class="math inline">\(K_{nm}K_{mm}^{-1}K_{mn}\)</span> everywhere here, and turns the cost
+into <span class="math inline">\(O(nm^2)\)</span>. With a non-Gaussian likelihood the sparse version needs the
+sites as well, and that is the sparse EP of Kuss (2006).</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>EP not converging.</strong> The site updates are a fixed-point iteration with no
+Lyapunov function; on some problems they oscillate, and the code's <code>damping = 0.7</code>
+is what makes the demo converge in 25 sweeps instead of never. EP's fixed points
+can also be multiple. <em>Diagnostic:</em> watch <code>delta</code> across sweeps; if it plateaus
+above <code>tol</code>, lower the damping and raise <code>n_iter</code>. A converged EP on a
+<em>misspecified</em> model is still wrong, and the failure is silent.</p>
+<p><strong>The cavity variance going negative.</strong> (13) has <span class="math inline">\(1/\Sigma_{ii} - \tau_i\)</span> in a
+denominator, and for a nearly-deterministic site the two terms are equal to
+within rounding. The code clamps at <span class="math inline">\(10^{-12}\)</span>; without a guard the sign flips
+and the next site update receives a negative precision. <em>Diagnostic:</em> any site
+with <span class="math inline">\(\tau_i \le 0\)</span> after <code>fit</code>, or <code>nan</code> in <code>Sigma_</code>.</p>
+<p><strong>EP being overconfident on the wrong model.</strong> EP matches moments of the
+approximation, not of the truth, and its variance estimates are famously too
+small when the likelihood does not fit the data — outliers, label noise, a
+Gaussian process whose kernel is wrong. Laplace errs in the same direction but by
+a different amount. <em>Diagnostic:</em> EP versus Laplace on the same data; a large
+disagreement in variance (not in mean) is the signature, and neither is
+trustworthy in that case.</p>
+<p><strong>Treating the evidence as a Bayes factor you can trust.</strong> (7) and (18) are both
+approximations to the same quantity, and they disagree by more than their
+individual errors would suggest. On the demo's two points they are 0.014 nats
+apart; on a misspecified model they can differ by tens. <em>Diagnostic:</em> compare
+with a nested estimate or a short MCMC run before reporting a Bayes factor
+difference below about 1 nat.</p>
+<p><strong>The plug-in predictive.</strong> <code>sigmoid(mean)</code> is the mode's opinion, and the mode's
+opinion is more extreme than the posterior's average, always. On the demo it is
+0.0087 too high, and the error grows with the predictive variance — so it is
+largest exactly where the model is least sure. <em>Diagnostic:</em> <code>integrate=True</code>
+versus <code>integrate=False</code>; if the two differ by more than the uncertainty you are
+reporting, the plug-in one is the wrong number.</p>
+<p><strong>Separable data.</strong> If the classes are separable, the likelihood has no maximum
+at any finite <span class="math inline">\(f\)</span> and the posterior is improper along a direction. Newton walks
+off, <code>W</code> collapses, and <code>B</code> becomes the identity — which is numerically stable
+and statistically meaningless. The kernel and the prior are what prevent this;
+there is no <code>prior_prec</code> knob here because the GP prior is the regulariser.
+<em>Diagnostic:</em> <span class="math inline">\(\lVert\hat f\rVert\)</span> growing without bound and <code>logZ_</code> increasing
+monotonically as the step count rises.</p>
+<p><strong>One-vs-rest incoherence.</strong> The <span class="math inline">\(k\)</span> binary classifiers are independent, so the
+combined probabilities are not those of any single generative model; a point can
+be far from all <span class="math inline">\(k\)</span> class means and still receive a confident label. This is not
+a bug to be fixed by better normalisation — normalising probabilities is just as
+incoherent — but a property of the approach. <em>Diagnostic:</em> the maximum
+probability on points far outside the training region, which should be near
+<span class="math inline">\(1/k\)</span> and will not be.</p>
+<p><strong><span class="math inline">\(n\)</span> above a few thousand.</strong> Dense <span class="math inline">\(O(n^3)\)</span> with <span class="math inline">\(n = 10^4\)</span> is <span class="math inline">\(10^{12}\)</span> flops
+per Newton step and 800 MB for the kernel matrix. Both approximations are exact
+algorithms with an exact cost; they do not degrade, they stop. Use inducing
+points or a variational bound.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Any binary classification with calibrated uncertainty.</strong> GP classification is
+the default when the answer is &quot;how likely&quot; rather than &quot;which&quot; — medical
+screening, credit risk, fault detection. The predictive variance is a real
+quantity here, not a by-product, and it is the reason to pay <span class="math inline">\(O(n^3)\)</span> instead of
+logistic regression.</p>
+<p><strong>Spatial and spatiotemporal data.</strong> Geo-referenced presence/absence records,
+species distribution modelling, air-quality threshold exceedance: a kernel on
+coordinates is a more honest prior than feature engineering, and the latent
+surface is the interpretable object. The regression version is
+<a href="gaussian_process.py.html"><code>gaussian_process.py</code></a>; this file is the same thing for
+counts that have been thresholded.</p>
+<p><strong>Bayesian optimisation with constraints.</strong> Constrained BO keeps two GPs — the
+objective and the feasibility classifier — and evaluates only where the
+expected improvement is high <em>and</em> the probability of feasibility is high. That
+probability is exactly <code>predict_proba</code> from this file.</p>
+<p><strong>Ordinal regression.</strong> Ratings, severity scores, Likert data: probit GP with
+<span class="math inline">\(K-1\)</span> ordered thresholds is the standard model, and it reduces to this file for
+<span class="math inline">\(K=2\)</span>.</p>
+<p><strong>Active learning.</strong> The predictive variance is the acquisition function. Points
+with <span class="math inline">\(v_*\)</span> large and <span class="math inline">\(\lvert\mu_*\rvert\)</span> near zero are where the model does not
+know, and the EP version's better-calibrated variances make it the better
+acquisition.</p>
+<p><strong>Where it is a trap.</strong> Multiclass problems where a coherent joint matters
+(use multinomial EP or a proper softmax GP), datasets where the labels are noisy
+in a way the likelihood does not model, and anything above a few thousand points
+without a sparse approximation. Also: using the evidence to compare a GP
+classifier with a non-probabilistic model, where the comparison is between two
+different notions of likelihood.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Opper &amp; Winther (2000). <em>Gaussian processes for classification: mean-field
+algorithms.</em> Neural Computation 12, 2655. EP for GP classification, and the
+mean-field alternative.</li>
+<li>Minka (2001). <em>Expectation propagation for approximate Bayesian inference.</em>
+UAI. EP as moment matching, and the fixed-point structure of (14)–(15).</li>
+<li>Williams &amp; Barber (1998). <em>Bayesian classification with Gaussian processes.</em>
+IEEE TPAMI 20, 1342. The Laplace approximation for GP classification, and the
+predictive formulas (8)–(9).</li>
+<li>Rasmussen &amp; Williams (2006). <em>Gaussian Processes for Machine Learning.</em> MIT
+Press, Chapter 3. Algorithm 3.1 (the stable Newton step), 3.5 (EP), and the
+evidence formulas (7) and (18).</li>
+<li>Nickisch &amp; Rasmussen (2008). <em>Approximations for binary Gaussian process
+classification.</em> JMLR 9, 2035. A systematic comparison of Laplace, EP and
+variational bounds — the source of the &quot;EP is better on marginals, Laplace is
+often as good on the evidence&quot; finding the demo reproduces.</li>
+<li>Seeger (2005). <em>Expectation propagation for exponential families.</em> Technical
+report. The general EP derivation, including the amplitude condition (17).</li>
+<li>Kuss &amp; Rasmussen (2005). <em>Assessing approximate inference for binary Gaussian
+process classification.</em> JMLR 6, 1679. What EP gets right and wrong, measured
+against MCMC.</li>
+<li>Kim &amp; Ghahramani (2006). <em>Bayesian Gaussian process classification with the
+EM-EP algorithm.</em> JMLR 7, 1949. Multiclass GP classification, and why
+one-vs-rest is an approximation of an approximation.</li>
+<li>Hensman, Matthews &amp; Ghahramani (2015). <em>Scalable variational Gaussian process
+classification.</em> AISTATS. The sparse version that makes <span class="math inline">\(n = 10^6\)</span> possible,
+and the bound that EP does not have.</li>
+<li>Kuss (2006). <em>Gaussian Process Models for Robust Regression, Classification,
+and Reinforcement Learning.</em> PhD thesis, TU Darmstadt. Sparse EP, and the
+practical damping schedules.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="pgm.html"><small>Previous</small><span>Graphical models</span></a><a class="next" href="dirichlet_process.html"><small>Next</small><span>Dirichlet process</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html" aria-current="page"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-model-and-the-integral-that-is-not-there">1. The model, and the integral that is not there</a></li><li class="lvl3"><a href="#2-laplace-quadratic-at-the-mode">2. Laplace: quadratic at the mode</a></li><li class="lvl3"><a href="#3-the-numerical-trick-that-makes-5-work">3. The numerical trick that makes (5) work</a></li><li class="lvl3"><a href="#4-ep-a-gaussian-site-per-data-point">4. EP: a Gaussian site per data point</a></li><li class="lvl3"><a href="#5-the-ep-evidence-and-the-amplitude-nobody-remembers">5. The EP evidence, and the amplitude nobody remembers</a></li><li class="lvl3"><a href="#6-two-likelihoods-one-difference">6. Two likelihoods, one difference</a></li><li class="lvl3"><a href="#7-more-than-two-classes">7. More than two classes</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/gp_classification.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

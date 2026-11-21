@@ -5,9 +5,10 @@ Every Markdown file in the repository becomes a page: the README as the home
 page, each chapter index, each atom companion and each document under `docs/`.
 Every implemented atom also gets a highlighted source listing.
 
-Nothing here is a framework. `build` writes a self-contained `_site/` with
+Nothing here is a framework. `build` writes a self-contained `docs/` tree with
 per-page metadata, Open Graph cards, a favicon, a search index, a sitemap and a
-404 page; `check` builds and then proves every internal link resolves.
+404 page; `check` builds and then proves every internal link resolves. That tree
+is committed, and GitHub Pages serves it from `main` / `docs`.
 
 Usage:
     uv run python tools/site.py build
@@ -39,7 +40,7 @@ from pygments.util import ClassNotFound
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "tools" / "site_assets"
-OUT = ROOT / "_site"
+OUT = ROOT / "docs"
 CATALOG = ROOT / "catalog.json"
 
 SITE = {
@@ -893,10 +894,25 @@ def write_assets(out: Path) -> list[str]:
 # --------------------------------------------------------------------------- #
 # Build
 # --------------------------------------------------------------------------- #
+def clean(out: Path) -> None:
+    """Empty the output directory but keep the Markdown the site is built from.
+
+    The site is published from `docs/`, so the output directory also holds the
+    repository's own documentation sources. Deleting them would delete the
+    input, so top-level `*.md` files survive the rebuild.
+    """
+    out.mkdir(parents=True, exist_ok=True)
+    for child in out.iterdir():
+        if child.is_file() and child.suffix == ".md":
+            continue
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+
+
 def build(out: Path = OUT) -> tuple[list[Page], list[Page]]:
-    if out.exists():
-        shutil.rmtree(out)
-    out.mkdir(parents=True)
+    clean(out)
     pages, sources = collect()
 
     write_assets(out)
@@ -1003,7 +1019,7 @@ REQUIRED = (
 
 
 def where(path: Path) -> str:
-    """`_site/` when it is inside the repo, an absolute path otherwise."""
+    """`docs/` when it is inside the repo, an absolute path otherwise."""
     try:
         return path.relative_to(ROOT).as_posix() + "/"
     except ValueError:
@@ -1034,7 +1050,12 @@ def check(out: Path = OUT) -> int:
             if target and not (path.parent / target).exists():
                 problems.append(f"{rel}: broken link → {url}")
 
+    # The documentation sources live in the published tree, so a `.md` file
+    # that collect() read is input, not escaped output.
+    doc_sources = {page.src.resolve() for page in pages if page.src is not None}
     for stray in out.rglob("*.md"):
+        if stray.resolve() in doc_sources:
+            continue
         problems.append(f"{stray.relative_to(out)}: raw Markdown in the output")
 
     sitemap = (out / "sitemap.xml").read_text()

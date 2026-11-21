@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Active learning · MLAtoms</title>
+<meta name="description" content="Label the points that teach the most. Labels cost money, so the interesting question is not &quot;how do I train on the data I have&quot; but &quot;which data should I pay…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/active_learning.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Active learning">
+<meta property="og:description" content="Label the points that teach the most. Labels cost money, so the interesting question is not &quot;how do I train on the data I have&quot; but &quot;which data should I pay…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/active_learning.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Active learning">
+<meta name="twitter:description" content="Label the points that teach the most. Labels cost money, so the interesting question is not &quot;how do I train on the data I have&quot; but &quot;which data should I pay…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Active learning", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/active_learning.html", "description": "Label the points that teach the most. Labels cost money, so the interesting question is not \"how do I train on the data I have\" but \"which data should I pay\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="active_learning.py.html">source</a></p><h1>Active learning — eight ways to choose the next label to buy</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Labels cost money, so the interesting question is not &quot;how do I train on the
+data I have&quot; but &quot;which data should I pay for next&quot;. Active learning answers it
+with a scoring rule: fit the model, score every unlabelled point, buy the top
+<code>batch</code>, repeat. The variants differ only in the score.</p>
+<p>Three scores read the same probability vector. Uncertainty takes one minus the
+largest class probability, margin takes the gap between the top two, and
+entropy sums the whole distribution. Two scores need more than one model: query
+by committee asks where the members' votes disagree, and BALD measures the
+mutual information between the prediction and the parameters. Expected model
+change asks how far one gradient step would move the weights. The last two
+ignore the model entirely and choose a batch that covers the input space.</p>
+<p>On the demo — 600 points in four quadrants, the four-way XOR — a random budget
+of 48 labels ends at 0.883 test accuracy. Uncertainty sampling reaches 0.957
+with the same 48 labels, margin 0.962, and expected model change 0.955. The
+coverage methods reach 0.942 and 0.952 without ever reading the model. The
+honest counterexample is BALD: 0.888 at this budget, below random's noise
+floor, because seven bootstrap members are not enough for the disagreement
+term to mean anything; at 128 labels it climbs to 0.965 while uncertainty
+reaches 0.992. Active learning is a large win here, and it is still a bet.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">score</th>
+<th style="text-align:left">needs</th>
+<th style="text-align:left">reads</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>uncertainty</code></td>
+<td style="text-align:left"><span class="math inline">\(1-\max_c p_c\)</span></td>
+<td style="text-align:left">one model</td>
+<td style="text-align:left">probabilities</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>margin</code></td>
+<td style="text-align:left"><span class="math inline">\(-(p_{(1)}-p_{(2)})\)</span></td>
+<td style="text-align:left">one model</td>
+<td style="text-align:left">probabilities</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>entropy</code></td>
+<td style="text-align:left"><span class="math inline">\(-\sum_c p_c\log p_c\)</span></td>
+<td style="text-align:left">one model</td>
+<td style="text-align:left">probabilities</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>diversity</code></td>
+<td style="text-align:left">distance to the k-means centres</td>
+<td style="text-align:left">one batch</td>
+<td style="text-align:left">inputs</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>qbc</code></td>
+<td style="text-align:left">entropy of the vote shares</td>
+<td style="text-align:left"><span class="math inline">\(M\)</span> models</td>
+<td style="text-align:left">labels</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bald</code></td>
+<td style="text-align:left">mutual information</td>
+<td style="text-align:left"><span class="math inline">\(M\)</span> models</td>
+<td style="text-align:left">probabilities</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>core_set</code></td>
+<td style="text-align:left">distance to the labelled set</td>
+<td style="text-align:left">nothing</td>
+<td style="text-align:left">inputs</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>expected_model_change</code></td>
+<td style="text-align:left">expected gradient norm</td>
+<td style="text-align:left">one model</td>
+<td style="text-align:left">probabilities</td>
+</tr>
+</tbody>
+</table>
+<p>One learner class, one pool, one budget. <code>variant=</code> selects the score; the
+training loop, the seed set and the budget accounting are shared, so the table
+at the end compares like with like.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-budget">The budget <a class="header-anchor" href="#the-budget">#</a></h3>
+<p>Let <span class="math inline">\(\mathcal U\)</span> be the unlabelled pool, <span class="math inline">\(\mathcal L\)</span> the labelled set, and <span class="math inline">\(B\)</span>
+the number of labels you can afford. Active learning chooses an ordering of
+<span class="math inline">\(\mathcal U\)</span> and trains on the first <span class="math inline">\(B\)</span> elements:</p>
+<div class="math block">
+\[S^\star=\arg\max_{S\subseteq\mathcal U,\ |S|\le B}
+\mathbb E\left[\mathbf{1}\{\hat y_S(x)=y\}\right],
+\qquad (1)\]
+</div>
+<p>where <span class="math inline">\(\hat y_S\)</span> is trained on <span class="math inline">\(\mathcal L\cup S\)</span>. Equation (1) is not
+differentiable, <span class="math inline">\(\hat y_S\)</span> changes discontinuously with <span class="math inline">\(S\)</span>, and the
+expectation is over the same distribution you are sampling from. Every method
+below is a proxy, and the demo's table is the only honest test of a proxy.</p>
+<h3 id="three-ways-to-read-one-distribution">Three ways to read one distribution <a class="header-anchor" href="#three-ways-to-read-one-distribution">#</a></h3>
+<p>With <span class="math inline">\(p_c(x)\)</span> the predicted probability of class <span class="math inline">\(c\)</span>:</p>
+<div class="math block">
+\[\alpha_{\mathrm{unc}}(x)=1-\max_c p_c(x),\qquad
+\alpha_{\mathrm{mar}}(x)=-\left(p_{(1)}(x)-p_{(2)}(x)\right),
+\qquad (2)\]
+</div>
+<div class="math block">
+\[\alpha_{\mathrm{ent}}(x)=-\sum_{c=1}^{C}p_c(x)\log p_c(x).
+\qquad (3)\]
+</div>
+<p>For <span class="math inline">\(C=4\)</span> all three peak at the uniform vector <span class="math inline">\(p=(1/4,\dots,1/4)\)</span>, and all
+three are near zero when one class dominates. They differ in the middle: the
+margin prefers two plausible classes over four, so it hugs the actual decision
+boundary, while entropy is happy with a four-way tie in a region no boundary
+touches. On the demo they are within 0.005 of each other (0.957, 0.962,
+0.962), which is the usual outcome when the model is reasonably calibrated.</p>
+<p>The demo's boundaries are the two axes, so the highest-scoring points sit along
+<span class="math inline">\(x=0\)</span> and <span class="math inline">\(y=0\)</span> and the interior of each quadrant is never queried. That is the
+whole mechanism: random sampling spends half its budget far from a boundary,
+uncertainty sampling spends almost none.</p>
+<h3 id="query-by-committee">Query by committee <a class="header-anchor" href="#query-by-committee">#</a></h3>
+<p>Train <span class="math inline">\(M\)</span> models on bootstrap resamples and turn their predictions into a
+distribution over labels:</p>
+<div class="math block">
+\[\bar v_c(x)=\frac{1}{M}\sum_{m=1}^{M}
+\mathbf{1}\{\hat y_m(x)=c\},\qquad
+\alpha_{\mathrm{qbc}}(x)=-\sum_c \bar v_c(x)\log \bar v_c(x).
+\qquad (4)\]
+</div>
+<p>The score is high where the committee splits, which is where the training data
+does not yet determine the answer. It costs <span class="math inline">\(M\)</span> fits per round, and on the
+demo it reaches 0.943 against uncertainty's 0.957. Committee methods are worth
+their cost when the models are genuinely diverse — different seeds, subsets,
+or architectures — and a bootstrap of the same model is a weak substitute.</p>
+<h3 id="bald">BALD <a class="header-anchor" href="#bald">#</a></h3>
+<p>BALD scores the mutual information between the label and the parameters:</p>
+<div class="math block">
+\[\alpha_{\mathrm{bald}}(x)=
+H\!\left[y\mid x,\mathcal L\right]
+-\mathbb E_{\theta\sim p(\theta\mid\mathcal L)}
+H\!\left[y\mid x,\theta\right].
+\qquad (5)\]
+</div>
+<p>The first term is the entropy of the committee's mean prediction; the second
+is the average entropy of the members. Subtracting removes the irreducible
+noise — a point that every member is unsure about for the same reason scores
+zero — and leaves only the part of the uncertainty that more labels could
+remove. The demo computes both terms from the same seven bootstrap models and
+reaches 0.888 at 48 labels: the epistemic estimate is too noisy to beat plain
+entropy. At 128 labels it is 0.965, still behind uncertainty's 0.992, which is
+the standard finding that BALD's advantage is asymptotic and modest.</p>
+<h3 id="expected-model-change">Expected model change <a class="header-anchor" href="#expected-model-change">#</a></h3>
+<p>A gradient step on <span class="math inline">\((x,y)\)</span> moves the weights by <span class="math inline">\(\eta\nabla_\theta\ell\)</span>. Take
+the expected squared length of that step under the model's own predictive
+distribution. For a softmax linear model with features <span class="math inline">\(\phi(x)\)</span>,</p>
+<div class="math block">
+\[\mathbb E\!\left[\lVert\nabla_W\ell\rVert^2\right]
+=\lVert\phi(x)\rVert^2
+\sum_{c=1}^{C}p_c(x)\left\lVert p(x)-e_c\right\rVert^2,
+\qquad (6)\]
+</div>
+<p>because the gradient of the cross-entropy is <span class="math inline">\(\phi(x)\,(p-e_c)^\top\)</span>. The
+factor <span class="math inline">\(\lVert\phi(x)\rVert^2\)</span> grows with distance from the feature centres, so
+the score prefers points that are both uncertain and far from anything the
+model has seen. The code takes the square root, which is monotone and keeps the
+numbers readable. It reaches 0.955 on the demo, essentially tied with entropy.</p>
+<h3 id="coverage-core-set-and-k-means">Coverage: core-set and k-means <a class="header-anchor" href="#coverage-core-set-and-k-means">#</a></h3>
+<p>Core-set ignores the model and solves a k-center problem over the labelled set:</p>
+<div class="math block">
+\[S^\star=\arg\min_{|S|\le b}\ \max_{x\in\mathcal U}\
+\min_{s\in S}\lVert\phi(x)-\phi(s)\rVert .
+\qquad (7)\]
+</div>
+<p>Greedy farthest-point selection — repeatedly add the point furthest from
+everything already chosen — is a 2-approximation to (7), which is what the code
+does. It never looks at a probability, so it cannot be fooled by a
+mis-calibrated model, and it cannot exploit the boundary either: the demo's
+0.952 says that covering the square is almost as good as covering the axes.</p>
+<p>Batch diversity runs k-means on the available pool and queries the point
+nearest each centroid:</p>
+<div class="math block">
+\[\min_{\{\mu_k\}}\sum_{x\in\mathcal U}\min_k\lVert x-\mu_k\rVert^2 .
+\qquad (8)\]
+</div>
+<p>The purpose is different from (7): core-set spreads labels over the whole
+history, k-means spreads one batch. The demo measures that directly. The mean
+distance between the four points bought in a round is 1.28 for uncertainty —
+four labels piled onto the same stretch of boundary — against 2.34 for k-means
+and 2.43 for core-set, which is what &quot;diverse batch&quot; means in numbers.</p>
+<h3 id="the-model">The model <a class="header-anchor" href="#the-model">#</a></h3>
+<p>The learner is multinomial logistic regression on Gaussian bumps:</p>
+<div class="math block">
+\[\phi_j(x)=\exp\!\left(-\frac{\lVert x-c_j\rVert^2}{2\sigma^2}\right),
+\qquad j=1,\dots,81,
+\qquad (9)\]
+</div>
+<p>with the <span class="math inline">\(c_j\)</span> on a fixed <span class="math inline">\(9\times9\)</span> grid over <span class="math inline">\([-2.2,2.2]^2\)</span>, <span class="math inline">\(\sigma=0.42\)</span>,
+and one extra feature equal to one. The bumps make the decision boundary
+flexible enough for the four quadrants, and the fixed grid means the features
+are identical at every round, which keeps the fit deterministic. Training is
+full-batch gradient descent from zero with weight decay:</p>
+<div class="math block">
+\[W\leftarrow W-\eta\left(\frac{1}{n}\Phi^\top(P-Y)+\lambda W\right),
+\qquad (10)\]
+</div>
+<p>for 500 steps at <span class="math inline">\(\eta=0.5\)</span> and <span class="math inline">\(\lambda=10^{-3}\)</span>. Starting from zero matters:
+it makes each fit a pure function of the labelled set, so a curious reader can
+reproduce every number in the table.</p>
+<h3 id="label-efficiency">Label efficiency <a class="header-anchor" href="#label-efficiency">#</a></h3>
+<p>The quantity that matters is not the final accuracy but the budget needed to
+reach a target:</p>
+<div class="math block">
+\[B_\tau=\min\{b:\ \mathrm{acc}(b)\ge\tau\}.
+\qquad (11)\]
+</div>
+<p>Equivalently, the area under the learning curve is the average accuracy over
+the budget. The demo prints five points of the curve for three methods. At 8
+labels every method is at 0.882 because the seed set is the same; uncertainty
+pulls ahead at 16 (0.927 against 0.870 and 0.872) and stays ahead to 48. The
+curves are noisy and non-monotone — uncertainty dips from 0.927 to 0.907 — and
+a single seed is a single sample.</p>
+<h3 id="why-the-seed-set-is-stratified">Why the seed set is stratified <a class="header-anchor" href="#why-the-seed-set-is-stratified">#</a></h3>
+<p>The demo labels two points per class before the loop starts. That is a choice,
+not a law: a purely random seed set can miss a class entirely, and then nothing
+downstream can recover it. Stratifying makes the comparison about the
+acquisition function rather than about luck, and it is what the demo's
+<code>initial</code> argument is for.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The features are a fixed RBF grid, so every acquisition sees the same
+representation and the model can bend around the quadrants:</p>
+<pre class="highlight"><code><span class="n">_AXIS</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mf">2.2</span><span class="p">,</span> <span class="mf">2.2</span><span class="p">,</span> <span class="mi">9</span><span class="p">)</span>
+<span class="n">_CENTRES</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">_AXIS</span><span class="p">,</span> <span class="n">_AXIS</span><span class="p">,</span> <span class="n">indexing</span><span class="o">=</span><span class="s2">"ij"</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+    <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">_WIDTH</span> <span class="o">=</span> <span class="mf">0.42</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_features</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""RBF features on a fixed 9x9 grid, plus an intercept."""</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">gap</span> <span class="o">=</span> <span class="p">((</span><span class="n">values</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">_CENTRES</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">gap</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">_WIDTH</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)),</span>
+                            <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">))])</span>
+</code></pre>
+<p>Training is (10) written out, with the gradient computed on the whole labelled
+set at once:</p>
+<pre class="highlight"><code>    <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">features</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">classes</span><span class="p">))</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">),</span> <span class="n">classes</span><span class="p">))</span>
+    <span class="n">target</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)),</span> <span class="n">labels</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+        <span class="n">probs</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">features</span> <span class="o">@</span> <span class="n">weights</span><span class="p">)</span>
+        <span class="n">gradient</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">probs</span> <span class="o">-</span> <span class="n">target</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+        <span class="n">gradient</span> <span class="o">+=</span> <span class="n">penalty</span> <span class="o">*</span> <span class="n">weights</span>
+        <span class="n">weights</span> <span class="o">-=</span> <span class="n">lr</span> <span class="o">*</span> <span class="n">gradient</span>
+    <span class="k">return</span> <span class="n">weights</span>
+</code></pre>
+<p>The three single-model scores are one-liners on the same probability matrix:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"uncertainty"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">probs</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"margin"</span><span class="p">:</span>
+            <span class="n">ordered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">probs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="o">-</span><span class="p">(</span><span class="n">ordered</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ordered</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"entropy"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_entropy</span><span class="p">(</span><span class="n">probs</span><span class="p">)</span>
+</code></pre>
+<p>The committee methods reuse the ensemble that <code>_fit_models</code> has already
+trained: QBC builds the vote shares, BALD subtracts the average member
+entropy from the entropy of the mean:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"qbc"</span><span class="p">:</span>
+            <span class="n">votes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">_predict</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                              <span class="k">for</span> <span class="n">weights</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">models</span><span class="p">])</span>
+            <span class="n">shares</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([(</span><span class="n">votes</span> <span class="o">==</span> <span class="n">label</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                               <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">classes</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_entropy</span><span class="p">(</span><span class="n">shares</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"bald"</span><span class="p">:</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">_predict</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+                                <span class="k">for</span> <span class="n">weights</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">models</span><span class="p">])</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">_entropy</span><span class="p">(</span><span class="n">probs</span><span class="p">)</span>
+                    <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">_entropy</span><span class="p">(</span><span class="n">member</span><span class="p">)</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span><span class="p">],</span>
+                              <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+</code></pre>
+<p>Expected model change is the same weighted residual as (6), multiplied by the
+feature norm and square-rooted:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"expected_model_change"</span><span class="p">:</span>
+            <span class="n">expected</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pool</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">classes</span><span class="p">):</span>
+                <span class="n">residual</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">residual</span><span class="p">[:,</span> <span class="n">label</span><span class="p">]</span> <span class="o">-=</span> <span class="mf">1.0</span>
+                <span class="n">expected</span> <span class="o">+=</span> <span class="n">probs</span><span class="p">[:,</span> <span class="n">label</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                    <span class="n">residual</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">expected</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">features</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+</code></pre>
+<p>Core-set is greedy farthest-point: score every candidate by its distance to
+the nearest labelled point, take the maximum, then update the distances with
+the point just bought. The <code>available</code> copy keeps the loop from reconsidering
+a point inside the same batch:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"core_set"</span><span class="p">:</span>
+            <span class="n">picked</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">scores</span> <span class="o">=</span> <span class="n">nearest</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">available</span><span class="p">))):</span>
+                <span class="n">candidates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">available</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">index</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="n">candidates</span><span class="p">]))]</span>
+                <span class="n">picked</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+                <span class="n">available</span> <span class="o">=</span> <span class="n">available</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">available</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">gap</span> <span class="o">=</span> <span class="n">pool</span> <span class="o">-</span> <span class="n">pool</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                <span class="n">scores</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span>
+                                    <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gap</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">picked</span><span class="p">)</span>
+</code></pre>
+<p>Diversity runs twenty Lloyd iterations from a random initialisation, then snaps
+each centroid to the nearest actual pool point, because a centroid is not a
+point you can label:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"diversity"</span><span class="p">:</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">available</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">))</span>
+            <span class="n">centres</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">),</span> <span class="n">width</span><span class="p">,</span>
+                                                 <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)]</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">):</span>
+                <span class="n">gap</span> <span class="o">=</span> <span class="n">pool</span><span class="p">[</span><span class="n">candidates</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">pool</span><span class="p">[</span><span class="n">centres</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+                <span class="n">near</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gap</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">):</span>
+                    <span class="n">members</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[</span><span class="n">near</span> <span class="o">==</span> <span class="n">cluster</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">members</span><span class="p">):</span>
+                        <span class="n">centroid</span> <span class="o">=</span> <span class="n">pool</span><span class="p">[</span><span class="n">members</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                        <span class="n">centres</span><span class="p">[</span><span class="n">cluster</span><span class="p">]</span> <span class="o">=</span> <span class="n">members</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span>
+                            <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">pool</span><span class="p">[</span><span class="n">members</span><span class="p">]</span> <span class="o">-</span> <span class="n">centroid</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)))]</span>
+</code></pre>
+<p>The loop is the whole experiment: fit, score the test set, buy a batch, record
+the spread of that batch. The last fit after the loop is what makes the final
+entry of <code>history</code> the accuracy at the full budget:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rounds</span><span class="p">):</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">labelled</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fit_models</span><span class="p">(</span><span class="n">_features</span><span class="p">(</span><span class="n">pool</span><span class="p">[</span><span class="n">index</span><span class="p">]),</span> <span class="n">pool_labels</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+            <span class="n">probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_probs</span><span class="p">(</span><span class="n">_features</span><span class="p">(</span><span class="n">test</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">probs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">test_labels</span><span class="p">)))</span>
+            <span class="n">chosen</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">labelled</span><span class="p">)</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">available</span><span class="p">,</span> <span class="n">chosen</span><span class="p">)</span>
+            <span class="n">gap</span> <span class="o">=</span> <span class="n">pool</span><span class="p">[</span><span class="n">query</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">pool</span><span class="p">[</span><span class="n">query</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+            <span class="n">upper</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spread</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gap</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">))[</span><span class="n">upper</span><span class="p">])))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">queried</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">query</span><span class="p">)</span>
+            <span class="n">available</span><span class="p">[</span><span class="n">query</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">labelled</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">query</span><span class="p">)</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(n\)</span> pool points, <span class="math inline">\(d\)</span> features (82 here), <span class="math inline">\(C\)</span> classes, <span class="math inline">\(M\)</span> ensemble
+members and <span class="math inline">\(R\)</span> rounds:</p>
+<ul>
+<li><strong>Uncertainty, margin, entropy:</strong> one predict pass, <span class="math inline">\(O(ndC)\)</span>, plus the fit
+<span class="math inline">\(O(ndC)\)</span> per round. These are the cheapest methods and the ones that usually
+win.</li>
+<li><strong>Expected model change:</strong> the same predict pass plus a loop over classes,
+still <span class="math inline">\(O(ndC^2)\)</span> at worst and <span class="math inline">\(O(ndC)\)</span> in practice.</li>
+<li><strong>QBC, BALD:</strong> <span class="math inline">\(M\)</span> fits and <span class="math inline">\(M\)</span> predict passes per round, so <span class="math inline">\(O(MndC)\)</span> for
+the ensemble and <span class="math inline">\(O(MndC)\)</span> for scoring. The demo uses seven members; the
+cost is linear in the committee size.</li>
+<li><strong>Core-set:</strong> the greedy pass keeps a distance vector and updates it once per
+selected point, <span class="math inline">\(O(nb)\)</span> for a batch of <span class="math inline">\(b\)</span>, with no model at all.</li>
+<li><strong>Diversity:</strong> twenty Lloyd iterations over the available pool, <span class="math inline">\(O(20\,nb)\)</span>,
+plus the same <span class="math inline">\(O(nb)\)</span> snapping step.</li>
+<li><strong>The demo:</strong> eight methods at 48 labels, one extra section at 128 labels,
+five learning-curve points. 500 gradient steps on at most 600 rows is the
+unit of work, and the whole run takes about seven seconds on one core. The
+BALD section is more than half of that, which is itself the point.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Uncertainty sampling can be confidently wrong.</strong> The score is computed from
+the model's own probabilities. A model that is confidently wrong assigns a low
+score to exactly the region where it needs labels. The demo avoids this because
+the RBF model is smooth, but it is the standard reason to mix in coverage or
+diversity.</p>
+<p><strong>The batch collapses onto one boundary.</strong> Four independent argmax queries in
+one round usually land within a few tenths of each other. The demo measures it:
+mean within-batch distance 1.28 for uncertainty against 2.34 for k-means.
+Sequential (one-at-a-time) selection with a re-fit after each label is the
+other cure, at four times the training cost.</p>
+<p><strong>A weak committee makes QBC and BALD noisy.</strong> Bootstrap resamples of the same
+model on a small labelled set produce members that agree almost everywhere, so
+the disagreement signal is a handful of points plus noise. BALD at 48 labels
+(0.888) is worse than random, and only reaches 0.965 at 128. Ensembles need
+genuine diversity — different seeds, subsets, or dropout masks.</p>
+<p><strong>BALD's two entropies are estimated from the same <span class="math inline">\(M\)</span> samples.</strong> With seven
+members the average member entropy is a noisy estimate, and the subtraction can
+go negative. The code does not clip, so an over-confident committee can produce
+small negative scores; they simply rank last, which is the right behaviour but
+not a meaningful number to report.</p>
+<p><strong>Core-set ignores the labels.</strong> It will happily spend the budget covering a
+region where the class is constant. On the demo it is only 0.005 behind
+uncertainty, because the quadrants are balanced; on an imbalanced or
+low-density-boundary problem the gap can be much larger.</p>
+<p><strong>The metric is the pool's metric.</strong> Core-set and k-means use the raw <span class="math inline">\((x,y)\)</span>
+distance; with features on different scales or a non-Euclidean input space the
+notion of &quot;coverage&quot; changes. The demo's inputs are both on <span class="math inline">\([-2,2]\)</span>, so the
+default is harmless, and a real application should standardise first.</p>
+<p><strong>The pool is finite and iid.</strong> Active learning's guarantees are about sampling
+from a distribution; with a fixed pool the best possible acquisition is a
+combinatorial problem, and pool bias becomes model bias. The demo's pool and
+test set are drawn from the same uniform square, which is the easy case.</p>
+<p><strong>The seed set is stratified.</strong> It is a convenience that removes the most
+dramatic failure mode (missing a class) and therefore makes every method look
+better than it would from a random start. A realistic budget must include the
+cost of finding each class at least once.</p>
+<p><strong>Learning curves are noisy and non-monotone.</strong> Uncertainty dips from 0.927 to
+0.907 between rounds two and three. A single run of a single seed is an
+anecdote; the ranking in the table is stable across the seeds tried here, but
+that is evidence, not proof.</p>
+<p><strong>A label is not always available.</strong> The demo assumes that any pool point can
+be labelled on demand. In practice labelling has latency and cost per item, and
+the batch size is a compromise between query quality and the number of fits.
+The same acquisition functions work, but the schedule matters.</p>
+<p><strong>Test accuracy is not the deployment metric.</strong> If one class is rare, overall
+accuracy hides the errors that matter; the acquisition function should score
+the same quantity you will be judged on. The demo's four balanced quadrants are
+the simplest possible case.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Uncertainty sampling is the default in production labelling tools — Prodigy,
+Label Studio, and most annotation platforms ship a variant of it. Margin
+sampling is common in text classification, where the top two classes are often
+genuinely close, and entropy is used when the number of classes is large and a
+two-way tie is not the only interesting case.</p>
+<p>Committee and BALD methods are standard in Bayesian deep learning and in drug
+discovery, where the model is expensive, the labels are expensive, and an
+ensemble is affordable. Batch diversity, core-set and BADGE are used for image
+and video annotation, where one round means a human session and the batch must
+span the visual space rather than cluster on one object.</p>
+<p>The same machinery appears outside labelling: Bayesian optimisation's
+acquisition functions are active learning over hyperparameters, experiment
+design in the natural sciences is active learning over measurements, and
+pool-based uncertainty sampling is how recommender systems decide which item to
+show next. The names change; the loop — fit, score, buy, refit — does not.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Lewis, D. D., Gale, W. A. (1994). <em>A sequential algorithm for training text
+classifiers.</em> SIGIR. Uncertainty sampling, (2).</li>
+<li>Settles, B. (2009). <em>Active learning literature survey.</em> University of
+Wisconsin–Madison. The taxonomy this atom follows.</li>
+<li>Seung, H. S., Opper, M., Sompolinsky, H. (1992). <em>Query by committee.</em>
+COLT. Vote entropy, (4).</li>
+<li>Houlsby, N., Huszár, F., Ghahramani, Z., Lengyel, M. (2011). <em>Bayesian
+active learning for classification and preference learning.</em>
+arXiv:1112.5745. BALD, (5).</li>
+<li>Roy, N., McCallum, A. (2001). <em>Toward optimal active learning through
+sampling estimation of error reduction.</em> ICML. Expected model change, (6).</li>
+<li>Sener, O., Savarese, S. (2018). <em>Active learning for convolutional neural
+networks: a core-set approach.</em> ICLR. Core-set, (7).</li>
+<li>Agarwal, S., Arora, H., Anand, A., Arora, C. (2020). <em>Contextual diversity
+for efficient active learning on deep networks.</em> CVPR. Batch diversity and
+the k-means objective, (8).</li>
+<li>Ash, J. T., Zhang, C., Krishnamurthy, A., Langford, J., Agarwal, A. (2020).
+<em>Deep batch active learning by diverse, uncertain gradient lower bounds.</em>
+ICLR. BADGE, the combination this atom keeps separate.</li>
+<li>Kirsch, A., van Amersfoort, J., Gal, Y. (2019). <em>BatchBALD: efficient and
+diverse batch acquisition for deep Bayesian active learning.</em> NeurIPS. The
+batch version of (5).</li>
+<li>Dasgupta, S. (2011). <em>Two faces of active learning.</em> Theoretical Computer
+Science. The coverage-versus-uncertainty split as a formal dichotomy.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="hyperparameter_search.html"><small>Previous</small><span>Hyperparameter search</span></a><a class="next" href="semi_supervised.html"><small>Next</small><span>Semi-supervised learning</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html" aria-current="page"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-budget">The budget</a></li><li class="lvl3"><a href="#three-ways-to-read-one-distribution">Three ways to read one distribution</a></li><li class="lvl3"><a href="#query-by-committee">Query by committee</a></li><li class="lvl3"><a href="#bald">BALD</a></li><li class="lvl3"><a href="#expected-model-change">Expected model change</a></li><li class="lvl3"><a href="#coverage-core-set-and-k-means">Coverage: core-set and k-means</a></li><li class="lvl3"><a href="#the-model">The model</a></li><li class="lvl3"><a href="#label-efficiency">Label efficiency</a></li><li class="lvl3"><a href="#why-the-seed-set-is-stratified">Why the seed set is stratified</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/active_learning.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

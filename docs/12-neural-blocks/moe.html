@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mixture of experts · MLAtoms</title>
+<meta name="description" content="Sparse capacity without sparse gradients. A mixture of experts replaces one wide feed-forward network with E narrow ones and a small router that sends each…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/moe.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Mixture of experts">
+<meta property="og:description" content="Sparse capacity without sparse gradients. A mixture of experts replaces one wide feed-forward network with E narrow ones and a small router that sends each…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/moe.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Mixture of experts">
+<meta name="twitter:description" content="Sparse capacity without sparse gradients. A mixture of experts replaces one wide feed-forward network with E narrow ones and a small router that sends each…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Mixture of experts", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/moe.html", "description": "Sparse capacity without sparse gradients. A mixture of experts replaces one wide feed-forward network with E narrow ones and a small router that sends each\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">12 · Neural blocks</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="moe.py.html">source</a></p><h1>Mixture of experts — sparse capacity without sparse gradients</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A mixture of experts replaces one wide feed-forward network with <span class="math inline">\(E\)</span> narrow
+ones and a small router that sends each token to a few of them. The capacity is
+sparse — a token touches <span class="math inline">\(k\)</span> experts, not <span class="math inline">\(E\)</span> — but the parameter gradients are
+not: every expert owns a full array, and the experts that were not selected
+simply receive zeros. That combination is the whole engineering story. The
+model has <span class="math inline">\(E\)</span> times more parameters but only <span class="math inline">\(k\)</span> times the arithmetic, and the
+arrays stay dense so the usual optimiser needs no special case.</p>
+<p>The trade is a new failure surface. The router makes a discrete choice, and a
+discrete choice has no derivative almost everywhere. A top-1 gate is the
+constant one, so the task loss sends <strong>no</strong> gradient to the router at all; only
+an auxiliary loss can train it. The demo measures this: with every token routed
+to expert 0, the gradients of experts 1–3 are zero <em>and</em> the router's gradient
+is zero, while the auxiliary loss still has a usable slope.</p>
+<p>Capacity is the second half. To keep a batch's expert computation bounded, each
+expert accepts at most <span class="math inline">\(C\)</span> tokens; the overflow is dropped and its output is
+zero. The variants divide along these two axes — how many experts per token,
+who chooses them, and what happens when an expert is full.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">token chooses</th>
+<th style="text-align:right">experts kept</th>
+<th style="text-align:left">capacity</th>
+<th style="text-align:left">aux loss</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>top1</code></td>
+<td style="text-align:left">argmax</td>
+<td style="text-align:right">1</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>topk</code></td>
+<td style="text-align:left">top-<span class="math inline">\(k\)</span> softmax</td>
+<td style="text-align:right"><span class="math inline">\(k\)</span></td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>expert_choice</code></td>
+<td style="text-align:left">experts choose tokens</td>
+<td style="text-align:right">variable</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>switch</code></td>
+<td style="text-align:left">argmax</td>
+<td style="text-align:right">1</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">yes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>soft_moe</code></td>
+<td style="text-align:left">all, weighted</td>
+<td style="text-align:right"><span class="math inline">\(E\)</span></td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">optional</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>capacity_factor</code></td>
+<td style="text-align:left">top-<span class="math inline">\(k\)</span></td>
+<td style="text-align:right"><span class="math inline">\(k\)</span></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>load_balance_loss</code></td>
+<td style="text-align:left">top-<span class="math inline">\(k\)</span></td>
+<td style="text-align:right"><span class="math inline">\(k\)</span></td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">yes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>shared_expert</code></td>
+<td style="text-align:left">top-<span class="math inline">\(k\)</span> plus a shared expert</td>
+<td style="text-align:right"><span class="math inline">\(k+1\)</span></td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">no</td>
+</tr>
+</tbody>
+</table>
+<p>The demo uses six input channels, eight hidden units, four experts and
+twenty-four tokens.</p>
+<p><strong><code>top1</code></strong> is the simplest useful mixture: one expert per token, output equal to
+that expert's output exactly. It has no router gradient from the task loss.</p>
+<p><strong><code>topk</code></strong> keeps the <span class="math inline">\(k\)</span> largest logits and renormalises their softmax, so the
+gates sum to one. With <span class="math inline">\(k=1\)</span> it is <code>top1</code>; with <span class="math inline">\(k=E\)</span> it is a dense mixture.</p>
+<p><strong><code>expert_choice</code></strong> flips the direction: each expert selects its <span class="math inline">\(C\)</span> favourite
+tokens. Every expert is full by construction, so load is perfectly balanced,
+but a token may be chosen zero, one or several times.</p>
+<p><strong><code>switch</code></strong> is top-1 routing plus the load-balance auxiliary loss. It is the
+recipe that made sparse mixtures trainable at scale; the capacity mechanism is
+separated into <code>capacity_factor</code> here so the two effects can be measured
+independently.</p>
+<p><strong><code>soft_moe</code></strong> weights every expert by its router probability, with no hard
+assignment. It has no arithmetic saving but no discrete choice either, so the
+gradient reaches every expert.</p>
+<p><strong><code>capacity_factor</code></strong> is top-<span class="math inline">\(k\)</span> routing with a hard quota
+<span class="math inline">\(C=\lceil \alpha n/E\rceil\)</span> per expert; assignments beyond the quota are
+dropped.</p>
+<p><strong><code>load_balance_loss</code></strong> is top-<span class="math inline">\(k\)</span> routing with the auxiliary term, without
+dropping.</p>
+<p><strong><code>shared_expert</code></strong> adds one always-on expert to the top-<span class="math inline">\(k\)</span> mixture, the
+DeepSeekMoE arrangement: a dense path for common features and sparse experts
+for the rest.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-mixture">The mixture <a class="header-anchor" href="#the-mixture">#</a></h3>
+<p>For a token <span class="math inline">\(x\)</span> with selected set <span class="math inline">\(S(x)\)</span> and gates <span class="math inline">\(g_e\)</span>,</p>
+<div class="math block">
+\[y=\sum_{e\in S(x)} g_e\,E_e(x),
+\qquad
+E_e(x)=\mathrm{gelu}(xW_1^e+b_1^e)W_2^e+b_2^e .
+\qquad (1)\]
+</div>
+<p>The router produces logits and probabilities,</p>
+<div class="math block">
+\[z=xW_r+b_r,\qquad p=\mathrm{softmax}(z),\qquad
+S=\mathrm{TopK}(z),\qquad g=\mathrm{softmax}(z_S),
+\qquad (2)\]
+</div>
+<p>so <span class="math inline">\(g_j=p_j/\sum_{l\in S}p_l\)</span> on the selected set. The token-wise structure is
+why the layer is easy to batch: every operation is a matrix product over rows,
+and no row mixes with another except through the router's normalisation.</p>
+<p>With <span class="math inline">\(k=1\)</span> the selected set has one element and <span class="math inline">\(g=1\)</span> identically. That is the
+key observation behind the Switch auxiliary loss: since <span class="math inline">\(y=E_{\arg\max z}(x)\)</span>,
+the derivative with respect to <span class="math inline">\(z\)</span> is zero wherever the argmax is locally
+constant, so the task loss cannot train the router at all.</p>
+<h3 id="capacity">Capacity <a class="header-anchor" href="#capacity">#</a></h3>
+<div class="math block">
+\[C=\left\lceil \alpha\,\frac{n}{E}\right\rceil,
+\qquad (3)\]
+</div>
+<p>where <span class="math inline">\(n\)</span> is the number of tokens and <span class="math inline">\(\alpha\)</span> the capacity factor. Each expert
+accepts the first <span class="math inline">\(C\)</span> assignments in token order and drops the rest; a dropped
+slot contributes nothing, so a top-1 token can disappear entirely. The demo
+sends all 24 tokens to expert 0 with <span class="math inline">\(\alpha=0.5\)</span> and <span class="math inline">\(E=4\)</span>, so <span class="math inline">\(C=3\)</span>: three
+outputs survive, twenty-one are exactly zero.</p>
+<h3 id="load-balancing">Load balancing <a class="header-anchor" href="#load-balancing">#</a></h3>
+<p>Let <span class="math inline">\(c_e\)</span> be the number of assignments expert <span class="math inline">\(e\)</span> received before dropping,
+<span class="math inline">\(f_e=c_e/(nk)\)</span> the fraction of all assignments, and
+<span class="math inline">\(P_e=\frac1n\sum_i p_{ie}\)</span> the mean router probability. The Switch auxiliary
+loss is</p>
+<div class="math block">
+\[L_{\mathrm{aux}}
+=E\sum_{e=1}^{E} f_e P_e .
+\qquad (4)\]
+</div>
+<p>At uniform routing <span class="math inline">\(f_e=1/E\)</span> and <span class="math inline">\(P_e=1/E\)</span>, so <span class="math inline">\(L_{\mathrm{aux}}=1\)</span>. At a
+collapse onto one expert <span class="math inline">\(f=(1,0,\dots)\)</span> and <span class="math inline">\(P\approx(1,0,\dots)\)</span>, so
+<span class="math inline">\(L_{\mathrm{aux}}=E\)</span>. Hence</p>
+<div class="math block">
+\[1\le L_{\mathrm{aux}}\le E,
+\qquad (5)\]
+</div>
+<p>with equality at the two extremes. Dividing <span class="math inline">\(c_e\)</span> by <span class="math inline">\(nk\)</span> rather than <span class="math inline">\(n\)</span> is
+what keeps the lower bound at one when <span class="math inline">\(k>1\)</span>; the original Switch statement is
+the <span class="math inline">\(k=1\)</span> case.</p>
+<p>The gradient passes through <span class="math inline">\(P\)</span> only, because <span class="math inline">\(f\)</span> is a hard count:</p>
+<div class="math block">
+\[\frac{\partial L_{\mathrm{aux}}}{\partial p_{ie}}=\frac{E f_e}{n},
+\qquad
+\frac{\partial L_{\mathrm{aux}}}{\partial z_{ie}}
+=p_{ie}\Bigl(\frac{\partial L}{\partial p_{ie}}
+-\sum_l p_{il}\frac{\partial L}{\partial p_{il}}\Bigr).
+\qquad (6)\]
+</div>
+<p>The second factor is the softmax Jacobian. The demo checks (6) against central
+differences to <span class="math inline">\(1.4\times10^{-10}\)</span> for <code>switch</code> and
+<span class="math inline">\(1.8\times10^{-10}\)</span> for <code>load_balance_loss</code>.</p>
+<h3 id="gradients-through-the-gate">Gradients through the gate <a class="header-anchor" href="#gradients-through-the-gate">#</a></h3>
+<p>For top-<span class="math inline">\(k\)</span>, let <span class="math inline">\(d_j=\partial L/\partial g_j\)</span> be the derivative arriving at
+the selected gates. The softmax over the selected logits gives</p>
+<div class="math block">
+\[\frac{\partial L}{\partial z_{S_j}}
+=g_j\Bigl(d_j-\sum_{l\in S}g_l d_l\Bigr),
+\qquad (7)\]
+</div>
+<p>and the unselected logits receive zero from this path. The expert gradient is
+the usual MLP backward pass multiplied by the gate:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial E_e(x)}=g_e\,\frac{\partial L}{\partial y}.
+\qquad (8)\]
+</div>
+<p>For <span class="math inline">\(k=1\)</span>, (7) is <span class="math inline">\(1\cdot(d-d)=0\)</span>, which is the zero router gradient the demo
+measures. For <span class="math inline">\(k>1\)</span> the gates move with the logits and the router does learn
+from the task, though the auxiliary term is still what keeps usage even.</p>
+<h3 id="expert-choice">Expert choice <a class="header-anchor" href="#expert-choice">#</a></h3>
+<p>Each expert ranks all tokens by its own logit and takes the top <span class="math inline">\(C\)</span>. Let
+<span class="math inline">\(m_i=\sum_{e\in S_i}p_{ie}\)</span> be the total probability mass a token received.
+The gate is the renormalised probability,</p>
+<div class="math block">
+\[g_{ie}=\frac{p_{ie}}{m_i}\,\mathbf 1[e\in S_i],
+\qquad (9)\]
+</div>
+<p>and the derivative with respect to the <em>full</em> probability vector is</p>
+<div class="math block">
+\[\frac{\partial L}{\partial p_{if}}
+=\frac{1}{m_i}\Bigl(d_{if}-\sum_{e\in S_i}d_{ie}g_{ie}\Bigr)
+\quad\text{for }f\in S_i,
+\qquad (10)\]
+</div>
+<p>with zero outside <span class="math inline">\(S_i\)</span>; the softmax Jacobian of (6) then maps it to the
+logits. Note that <span class="math inline">\(m_i\)</span> itself depends on <span class="math inline">\(p\)</span>, which is why (10) has the
+correction term rather than a plain division. The demo's finite differences
+agree to <span class="math inline">\(2.4\times10^{-10}\)</span>.</p>
+<p>Because each expert takes exactly <span class="math inline">\(C\)</span> tokens, the counts are balanced without
+any loss term. The price is collisions: with 24 tokens and <span class="math inline">\(E=4\)</span>, <span class="math inline">\(C=6\)</span> gives 24
+assignment slots for 24 tokens, and the demo finds that 10 tokens are chosen by
+no expert at all. Their output is zero.</p>
+<h3 id="soft-routing">Soft routing <a class="header-anchor" href="#soft-routing">#</a></h3>
+<p>With no selection, <span class="math inline">\(S_i\)</span> is every expert and <span class="math inline">\(g=p\)</span>:</p>
+<div class="math block">
+\[y_i=\sum_{e=1}^{E}p_{ie}E_e(x_i),
+\qquad
+\frac{\partial L}{\partial p_{ie}}
+=\frac{\partial L}{\partial y_i}\cdot E_e(x_i).
+\qquad (11)\]
+</div>
+<p>Every expert contributes to every token, so no capacity is needed and no
+assignment can be wasted. The auxiliary loss still applies, but now
+<span class="math inline">\(f_e=P_e\)</span>, so (4) becomes <span class="math inline">\(E\sum_e P_e^2\)</span>, which is minimised by uniform mean
+probability. Its gradient replaces the constant <span class="math inline">\(E f_e/n\)</span> in (6) with
+<span class="math inline">\(2E P_e/n\)</span>; the demo checks that case to <span class="math inline">\(3.6\times10^{-10}\)</span>.</p>
+<h3 id="shared-expert">Shared expert <a class="header-anchor" href="#shared-expert">#</a></h3>
+<div class="math block">
+\[y=\mathrm{Shared}(x)+\sum_{e\in S(x)}g_eE_e(x).
+\qquad (12)\]
+</div>
+<p>The shared branch sees every token, so it always receives gradient and acts as
+a dense residual path. Its parameters are one more expert's worth. The demo
+subtracts a plain <code>topk</code> model with the same seed and finds the difference is
+exactly the shared output, then perturbs the router and confirms the shared
+branch does not move.</p>
+<h3 id="parameter-and-arithmetic-counts">Parameter and arithmetic counts <a class="header-anchor" href="#parameter-and-arithmetic-counts">#</a></h3>
+<p>With input width <span class="math inline">\(d\)</span>, hidden width <span class="math inline">\(h\)</span> and <span class="math inline">\(E\)</span> experts,</p>
+<div class="math block">
+\[P_{\mathrm{expert}}=2dh+h+d,\qquad
+P_{\mathrm{router}}=dE+E,\qquad
+P_{\mathrm{total}}=EP_{\mathrm{expert}}+P_{\mathrm{router}} .
+\qquad (13)\]
+</div>
+<p>The small demo model has <span class="math inline">\(d=4\)</span>, <span class="math inline">\(h=5\)</span>, <span class="math inline">\(E=3\)</span>, so each expert owns
+<span class="math inline">\(40+5+4=49\)</span> parameters and the whole mixture owns <span class="math inline">\(3\cdot49+15=162\)</span>. A forward
+pass costs <span class="math inline">\(k\)</span> expert MLPs per token instead of <span class="math inline">\(E\)</span>; a dense soft mixture costs
+all <span class="math inline">\(E\)</span>. The router costs <span class="math inline">\(O(dE)\)</span> per token.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The auxiliary loss is the normalized product of hard usage and soft
+probability, and its lower bound is one exactly when both are uniform:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_load_balance</span><span class="p">(</span><span class="n">probability</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">fractions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Switch-style auxiliary loss, minimal at uniform routing."""</span>
+    <span class="n">experts</span> <span class="o">=</span> <span class="n">probability</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">experts</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">fractions</span> <span class="o">*</span> <span class="n">probability</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)))</span>
+</code></pre>
+<p>The top-<span class="math inline">\(k\)</span> router is three lines: rank, gather, renormalise. Nothing is
+computed for an expert that no token selected, which is where the arithmetic
+saving lives:</p>
+<pre class="highlight"><code>            <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="p">:</span><span class="n">width</span><span class="p">]</span>
+            <span class="n">selected</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">take_along_axis</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">gates</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">selected</span><span class="p">)</span>
+</code></pre>
+<p>Capacity is a greedy fill in token order, so a token that arrives late can be
+dropped even when its gate is large. This is deliberate: it makes the output
+independent of the gate magnitudes and keeps the batch order meaningful:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_keep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">indices</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">capacity</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Keep at most `capacity` assignments per expert, in token order."""</span>
+        <span class="n">used</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experts</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">kept</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">slot</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">):</span>
+                <span class="n">expert</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">indices</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">slot</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">used</span><span class="p">[</span><span class="n">expert</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">capacity</span><span class="p">:</span>
+                    <span class="n">kept</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">slot</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">used</span><span class="p">[</span><span class="n">expert</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">kept</span><span class="p">,</span> <span class="n">used</span>
+</code></pre>
+<p>An expert is a one-hidden-layer GELU network. It is deliberately identical in
+every variant, so the differences in the file are routing differences:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_expert_forward</span><span class="p">(</span><span class="n">parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                    <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+    <span class="n">pre</span> <span class="o">=</span> <span class="n">x</span> <span class="o">@</span> <span class="n">parameters</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.W1"</span><span class="p">]</span> <span class="o">+</span> <span class="n">parameters</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.b1"</span><span class="p">]</span>
+    <span class="n">hidden</span> <span class="o">=</span> <span class="n">_gelu</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">hidden</span> <span class="o">@</span> <span class="n">parameters</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.W2"</span><span class="p">]</span> <span class="o">+</span> <span class="n">parameters</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.b2"</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">pre</span><span class="p">,</span> <span class="n">hidden</span><span class="p">)</span>
+</code></pre>
+<p>Expert choice inverts the direction of selection. Each expert takes its own
+top-<span class="math inline">\(C\)</span> tokens, and the gate is the probability renormalised over whichever
+experts happened to choose that token:</p>
+<pre class="highlight"><code>            <span class="n">capacity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capacity</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+            <span class="n">chosen</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">experts</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">expert</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experts</span><span class="p">):</span>
+                <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">logits</span><span class="p">[:,</span> <span class="n">expert</span><span class="p">])</span>
+                <span class="n">chosen</span><span class="p">[</span><span class="n">order</span><span class="p">[:</span><span class="n">capacity</span><span class="p">],</span> <span class="n">expert</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">mass</span> <span class="o">=</span> <span class="p">(</span><span class="n">probability</span> <span class="o">*</span> <span class="n">chosen</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">gates</span> <span class="o">=</span> <span class="p">(</span><span class="n">probability</span> <span class="o">*</span> <span class="n">chosen</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">mass</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+</code></pre>
+<p>Soft routing is the dense limit: every expert is evaluated and the probability
+is the weight. There is no branch, no capacity and no zero:</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">expert</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experts</span><span class="p">):</span>
+                <span class="n">out</span><span class="p">,</span> <span class="n">cache</span> <span class="o">=</span> <span class="n">_expert_forward</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"expert</span><span class="si">{</span><span class="n">expert</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+                <span class="n">output</span> <span class="o">+=</span> <span class="n">probability</span><span class="p">[:,</span> <span class="n">expert</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">out</span>
+                <span class="n">caches</span><span class="p">[</span><span class="n">expert</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+</code></pre>
+<p>The backward pass through a softmax is the same identity in every variant. For
+top-<span class="math inline">\(k\)</span> the selected gate derivative is scattered back into the full logit
+matrix, and the unselected logits get nothing from this path:</p>
+<pre class="highlight"><code>            <span class="n">d_selected</span> <span class="o">=</span> <span class="n">gates</span> <span class="o">*</span> <span class="p">(</span><span class="n">d_gate</span> <span class="o">-</span> <span class="p">(</span><span class="n">gates</span> <span class="o">*</span> <span class="n">d_gate</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">slot</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">indices</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">dz</span><span class="p">,</span> <span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">indices</span><span class="p">[:,</span> <span class="n">slot</span><span class="p">]),</span> <span class="n">d_selected</span><span class="p">[:,</span> <span class="n">slot</span><span class="p">])</span>
+</code></pre>
+<p>Expert choice adds the correction for the token-dependent normaliser from
+(10). Without the second term the gradient of a gate would act as if the other
+gates were fixed, and the finite-difference check would fail by a visible
+margin:</p>
+<pre class="highlight"><code>            <span class="n">correction</span> <span class="o">=</span> <span class="p">(</span><span class="n">d_gate</span> <span class="o">*</span> <span class="n">gates</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">d_probability</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">info</span><span class="p">[</span><span class="s2">"chosen"</span><span class="p">],</span>
+                <span class="p">(</span><span class="n">d_gate</span> <span class="o">-</span> <span class="n">correction</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">mass</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>The auxiliary gradient is analytic rather than autograd: differentiate (4),
+apply the softmax Jacobian, and hand the result to the same optimiser update as
+the task gradient:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"soft_moe"</span><span class="p">:</span>
+            <span class="n">d_probability</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">experts</span> <span class="o">*</span> <span class="n">probability</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">/</span> <span class="n">n</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">d_probability</span> <span class="o">=</span> <span class="n">experts</span> <span class="o">*</span> <span class="n">info</span><span class="p">[</span><span class="s2">"fractions"</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">/</span> <span class="n">n</span>
+        <span class="n">dz</span> <span class="o">=</span> <span class="n">probability</span> <span class="o">*</span> <span class="p">(</span><span class="n">d_probability</span>
+                            <span class="o">-</span> <span class="p">(</span><span class="n">probability</span> <span class="o">*</span> <span class="n">d_probability</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                                <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+</code></pre>
+<p>The shared expert is added after the routed sum, so the backward pass sends the
+same upstream gradient down both branches. No gate multiplies it:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"shared_expert"</span><span class="p">:</span>
+            <span class="n">shared</span><span class="p">,</span> <span class="n">shared_cache</span> <span class="o">=</span> <span class="n">_expert_forward</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s2">"shared"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">+=</span> <span class="n">shared</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">shared</span><span class="o">=</span><span class="n">shared</span><span class="p">,</span> <span class="n">shared_cache</span><span class="o">=</span><span class="n">shared_cache</span><span class="p">)</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For <span class="math inline">\(n\)</span> tokens, width <span class="math inline">\(d\)</span>, hidden width <span class="math inline">\(h\)</span>, <span class="math inline">\(E\)</span> experts and <span class="math inline">\(k\)</span> selected
+experts:</p>
+<ul>
+<li><strong>Router:</strong> <span class="math inline">\(O(ndE)\)</span> time for the logits, and <span class="math inline">\(O(nE)\)</span> for the sort or top-<span class="math inline">\(k\)</span>
+pass. The router is tiny next to the experts.</li>
+<li><strong>Experts:</strong> <span class="math inline">\(O(nkdh)\)</span> time and <span class="math inline">\(O(kdh)\)</span> working memory per token. A dense
+mixture is <span class="math inline">\(E\)</span> times the expert cost; <code>soft_moe</code> is exactly that.</li>
+<li><strong>Parameters:</strong> <span class="math inline">\(E(2dh+h+d)+dE+E\)</span>, independent of <span class="math inline">\(n\)</span> and <span class="math inline">\(k\)</span>. Sparse
+capacity buys parameters, not a smaller state.</li>
+<li><strong>Capacity:</strong> the greedy fill is <span class="math inline">\(O(nk)\)</span> and the quota is
+<span class="math inline">\(O(\alpha n/E)\)</span> per expert. In this dense implementation dropped tokens are
+still evaluated and then multiplied by zero, so capacity bounds the output
+but not the wall-clock work; a real kernel skips the dropped rows.</li>
+<li><strong>Expert choice:</strong> an <span class="math inline">\(O(n\log n)\)</span> sort per expert, then <span class="math inline">\(O(E n)\)</span> to build the
+assignment matrix; the gates are one masked row-normalisation.</li>
+<li><strong>The demo:</strong> eleven sections over at most 24 tokens and 4 experts, plus a few
+thousand finite-difference forward passes on a 7-token model. It is
+deterministic and runs in well under a second.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A top-1 router gets no task gradient.</strong> The gate is the constant one, so
+<span class="math inline">\(y\)</span> is piecewise constant in <span class="math inline">\(z\)</span>; the derivative is zero except at ties. The
+demo confirms both the unselected experts' gradients and the router gradient
+are exactly zero. Switch's auxiliary loss is not a nicety: it is the only
+signal the router receives. A straight-through estimator is the other common
+patch.</p>
+<p><strong>Dropped tokens are silently lost.</strong> With capacity <span class="math inline">\(\alpha n/E\)</span> and a router
+that favours one expert, most of a batch can vanish. A top-1 token that is
+dropped produces a zero row, and the loss then trains on the surviving tokens
+only. Capacity factors above one and the auxiliary loss both reduce this, at
+the cost of more compute or a weaker router.</p>
+<p><strong>Expert choice collides.</strong> Every expert is full, but tokens are not covered.
+At 24 tokens, 4 experts and capacity 6, the demo finds 10 tokens chosen by no
+expert. Raising the capacity factor lowers the collision rate, but the total
+assignment slots must exceed the token count for coverage, and even then it is
+not guaranteed.</p>
+<p><strong>Batch composition changes the answer.</strong> Capacity and expert choice both
+depend on the whole batch. A token's output can change when other tokens join
+or leave, so per-example inference and training disagree. This is a real
+correctness hazard for serving, not just a numerical detail.</p>
+<p><strong>Dead experts never revive.</strong> An expert that is never selected gets zero
+gradient forever. The auxiliary loss discourages collapse but cannot guarantee
+that every expert is used, and a hard top-1 router can stay stuck in a
+self-reinforcing assignment.</p>
+<p><strong>Partial top-<span class="math inline">\(k\)</span> dropping changes the scale.</strong> If one of two selected slots is
+dropped, the remaining gate is not renormalised, so the output shrinks. Switch's
+top-1 has the cleaner behaviour: the whole token is dropped. A renormalising
+variant would keep the scale but change the gradient.</p>
+<p><strong>The shared expert can dominate.</strong> The shared branch is a dense path with a
+guaranteed gradient, and a large shared branch lets the routed experts idle.
+The DeepSeek recipe uses a small shared expert and a separate balance term; the
+demo shows the shared output unchanged when the router moves, which is exactly
+why it is a stable but potentially lazy path.</p>
+<p><strong>Soft routing saves no arithmetic.</strong> Every expert runs for every token, so the
+parameter count is large and the FLOP count is the dense one. It is a way to
+scale parameters and specialisation, not a way to scale compute.</p>
+<p><strong>The auxiliary loss balances probabilities more easily than assignments.</strong>
+Equation (4) contains <span class="math inline">\(P\)</span>, which is differentiable, and <span class="math inline">\(f\)</span>, which is a hard
+count. Gradient descent moves <span class="math inline">\(P\)</span> smoothly but <span class="math inline">\(f\)</span> only when an argmax flips;
+the demo needs 600 steps to even out the load. A very sharp router makes <span class="math inline">\(f\)</span>
+change in large jumps.</p>
+<p><strong>A gate can be large and still be dropped.</strong> Capacity fills in token order,
+not gate order, so a high-confidence token late in the batch can lose its slot
+to a low-confidence one that arrived earlier. This keeps the batching simple
+and the result reproducible, but it is not the max-weight assignment.</p>
+<p><strong>The dense implementation wastes work on dropped rows.</strong> <code>forward</code> evaluates
+every selected expert and multiplies the dropped slots by zero. The output is
+correct, but the arithmetic saving of the mixture is not realised; a production
+kernel gathers the kept rows first.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Switch Transformer, GShard and GLaM made top-1 and top-2 routing with capacity
+the standard recipe for scaling language models. Mixtral's decoder layers are
+top-2 mixtures with eight experts per block. DeepSeekMoE adds a shared expert
+and fine-grained expert segmentation, and its auxiliary-loss-free balancing
+replaces the term in (4) with a bias update on the router.</p>
+<p>Expert Choice is used where perfect expert balance matters more than token
+coverage — vision and speech towers with a fixed per-expert batch. Soft MoE
+targets the same setting with a fully differentiable assignment, and the
+Perceiver's latent cross-attention is the same idea without the expert
+ensemble.</p>
+<p>Outside language, V-MoE routes image patches and shows the capacity trade at
+inference time; multi-task mixtures route by task or by token. The shared-expert
+pattern also appears in adapters and conditional computation, where a dense
+path carries the common signal and small branches carry the specialisation.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Shazeer, N., Mirhoseini, A., Maziarz, K., Davis, A., Le, Q., Hinton, G.,
+Dean, J. (2017). <em>Outrageously large neural networks: the sparsely-gated
+mixture-of-experts layer.</em> ICLR.</li>
+<li>Lepikhin, D., Lee, H., Xu, Y., Chen, D., Firat, O., Huang, Y., Krikun, M.,
+Shazeer, N., Chen, Z. (2021). <em>GShard: scaling giant models with conditional
+computation and automatic sharding.</em> ICLR.</li>
+<li>Fedus, W., Zoph, B., Shazeer, N. (2022). <em>Switch Transformers: scaling to
+trillion parameter models with simple and efficient sparsity.</em> JMLR.
+Equations (4) and (5).</li>
+<li>Du, N. et al. (2022). <em>GLaM: efficient scaling of language models with
+mixture-of-experts.</em> ICML.</li>
+<li>Zhou, Y., Lei, T., Liu, H., Du, N., Huang, Y., Zhao, V., Dai, A., Le, Q.,
+Laudon, J., et al. (2022). <em>Mixture-of-experts with expert choice routing.</em>
+NeurIPS. Equations (9) and (10).</li>
+<li>Puigcerver, J., Riquelme, C., Mustafa, B., Houlsby, N. (2023). <em>From sparse
+to soft mixture-of-experts.</em> NeurIPS. Equation (11).</li>
+<li>Jiang, A. Q. et al. (2024). <em>Mixtral of experts.</em> arXiv:2401.04088.</li>
+<li>Dai, D., Deng, C., Zhao, C., Xu, R. X., Gao, H., Chen, D., Li, J., Zeng, W.,
+Yu, X., Wu, Y., Xie, Z., Li, Y. K., Huang, P., Luo, F., Ruan, C., Sui, Z.,
+Liang, W., Song, S. (2024). <em>DeepSeekMoE: towards ultimate expert
+specialization in mixture-of-experts language models.</em> ACL. Equation (12).</li>
+<li>Riquelme, C., Puigcerver, J., Mustafa, B., Neumann, M., Jenatton, R., Pinto,
+A. S., Keysers, D., Houlsby, N. (2021). <em>Scaling vision with sparse
+mixture-of-experts.</em> NeurIPS.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="positional.html"><small>Previous</small><span>Positional encoding</span></a><a class="next" href="dropout.html"><small>Next</small><span>Dropout family</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">12 · Neural blocks</p><ul class="rail-list"><li><a href="mlp.html"><span class="tick">✓</span><span>MLP</span></a></li><li><a href="conv.html"><span class="tick">✓</span><span>Convolution</span></a></li><li><a href="pooling.html"><span class="tick">✓</span><span>Pooling</span></a></li><li><a href="residual.html"><span class="tick">✓</span><span>Residual blocks</span></a></li><li><a href="transformer.html"><span class="tick">✓</span><span>Transformer block</span></a></li><li><a href="positional.html"><span class="tick">✓</span><span>Positional encoding</span></a></li><li><a href="moe.html" aria-current="page"><span class="tick">✓</span><span>Mixture of experts</span></a></li><li><a href="dropout.html"><span class="tick">✓</span><span>Dropout family</span></a></li><li><a href="embedding_layers.html"><span class="tick">✓</span><span>Embedding layers</span></a></li><li><a href="gnn_blocks.html"><span class="tick">✓</span><span>Graph neural blocks</span></a></li><li><a href="mixer.html"><span class="tick">✓</span><span>MLP-Mixer</span></a></li><li><a href="perceiver.html"><span class="tick">✓</span><span>Perceiver</span></a></li><li><a href="convnext.html"><span class="tick">✓</span><span>ConvNeXt</span></a></li><li><a href="hypernetwork.html"><span class="tick">✓</span><span>Hypernetworks</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../11-time-series/index.html"><span class="jump">← 11 · Time series</span></a></li><li><a href="../13-training/index.html"><span class="jump">13 · Training&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-mixture">The mixture</a></li><li class="lvl3"><a href="#capacity">Capacity</a></li><li class="lvl3"><a href="#load-balancing">Load balancing</a></li><li class="lvl3"><a href="#gradients-through-the-gate">Gradients through the gate</a></li><li class="lvl3"><a href="#expert-choice">Expert choice</a></li><li class="lvl3"><a href="#soft-routing">Soft routing</a></li><li class="lvl3"><a href="#shared-expert">Shared expert</a></li><li class="lvl3"><a href="#parameter-and-arithmetic-counts">Parameter and arithmetic counts</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/12-neural-blocks/moe.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

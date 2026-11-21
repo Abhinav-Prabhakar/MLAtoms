@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isolation forest — isolation_forest.py · MLAtoms</title>
+<meta name="description" content="Source of isolation_forest.py: Anomalies are isolated in fewer random splits.">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/isolation_forest.py.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Isolation forest — isolation_forest.py">
+<meta property="og:description" content="Source of isolation_forest.py: Anomalies are isolated in fewer random splits.">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/isolation_forest.py.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Isolation forest — isolation_forest.py">
+<meta name="twitter:description" content="Source of isolation_forest.py: Anomalies are isolated in fewer random splits.">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "SoftwareSourceCode", "name": "Isolation forest \u2014 isolation_forest.py", "programmingLanguage": "Python", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/isolation_forest.py.html", "description": "Source of isolation_forest.py: Anomalies are isolated in fewer random splits.", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout layout--wide"><div><div class="prose code-page"><p class="page-meta"><a href="./index.html">09 · Density &amp; anomaly</a><span class="page-meta__sep">/</span><a href="isolation_forest.html">Isolation forest</a><span class="page-meta__sep">/</span><span>source</span></p><h1>isolation_forest.py</h1><p class="code-page__bar"><span>458 lines</span><span>·</span><span>4 variants</span><a class="btn" href="isolation_forest.py">Raw file</a><a class="btn" href="isolation_forest.html">Companion</a></p><pre class="highlight"><code><span class="sd">"""Isolation forest — anomalies are the points a random tree isolates first.</span>
+
+<span class="sd">Chapter:   09-density-and-anomaly</span>
+<span class="sd">Companion: isolation_forest.md</span>
+<span class="sd">Tier 1 · 4 variants: iforest, extended, anomaly_score, max_samples</span>
+
+<span class="sd">    split:   pick a random direction n, cut at a uniform offset in the node   (1)</span>
+<span class="sd">    h(x)   = depth of the leaf x lands in + c(size of that leaf)              (2)</span>
+<span class="sd">    c(m)   = 2 H_{m−1} − 2(m−1)/m,   H_k = Σ_{j≤k} 1/j                        (3)</span>
+<span class="sd">    s(x)   = 2^{−E[h(x)] / c(ψ)}                                              (4)</span>
+
+<span class="sd">Every estimator in this chapter up to now has tried to say how dense the data is</span>
+<span class="sd">around a point. This one never estimates a density and never looks at distances.</span>
+<span class="sd">It asks a procedural question instead: if I cut the data set in half at random,</span>
+<span class="sd">over and over, how many cuts does it take before this point is alone? A point in</span>
+<span class="sd">the middle of a cloud survives many cuts because there is always more cloud</span>
+<span class="sd">around it. A point on the edge, or in a gap, is alone after three or four.</span>
+
+<span class="sd">That question has a closed-form answer for random data, and the answer is the</span>
+<span class="sd">whole algorithm. For `m` points, the expected depth at which a random binary</span>
+<span class="sd">search tree isolates one of them is `c(m)` in (3), so the ratio `E[h]/c(ψ)` is</span>
+<span class="sd">about one for a normal point and about zero for an isolated one. Feeding that</span>
+<span class="sd">ratio through `2^{−x}` maps it to `(0, 1]` with 0.5 at the expected path: the</span>
+<span class="sd">score is a calibrated probability-like number rather than an arbitrary distance,</span>
+<span class="sd">which is why thresholds transfer between data sets with different sizes and</span>
+<span class="sd">dimensions.</span>
+
+<span class="sd">Two properties follow and both are measured below. The method is *subsampling*</span>
+<span class="sd">by design: each tree sees `ψ = 256` points, not the data set, because a tree</span>
+<span class="sd">grown on `n` points spends its depth resolving the dense middle and the score</span>
+<span class="sd">`saturates` near 0.5 for everything outside. And it is *axis-parallel* by</span>
+<span class="sd">default, which biases the score: a point diagonal to the cloud is isolated later</span>
+<span class="sd">than a point on an axis at the same distance, because every cut is parallel to a</span>
+<span class="sd">coordinate. `extended` replaces the cuts with random hyperplanes and removes the</span>
+<span class="sd">bias; `max_samples` exposes the subsample size so the first property can be</span>
+<span class="sd">measured rather than believed.</span>
+
+<span class="sd">The variants are therefore not different algorithms. They are the four decisions</span>
+<span class="sd">in (1)-(4): which directions the cuts use, how many points a tree sees, and</span>
+<span class="sd">whether the output is the score `s` or the score centred on its own threshold.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">cache</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">VARIANTS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"iforest"</span><span class="p">,</span> <span class="s2">"extended"</span><span class="p">,</span> <span class="s2">"anomaly_score"</span><span class="p">,</span> <span class="s2">"max_samples"</span><span class="p">)</span>
+
+
+<span class="nd">@cache</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">average_path</span><span class="p">(</span><span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""`c(size)`: expected isolation depth of a random BST node, equation (3).</span>
+
+<span class="sd">    Exact harmonic numbers rather than the `log(size−1) + γ` approximation,</span>
+<span class="sd">    because the difference matters at the sizes that occur in leaves: at</span>
+<span class="sd">    `size = 2` the exact value is 1 and the approximation is 0.154.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">size</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="n">harmonic</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">size</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">harmonic</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">size</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_Node</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One split, or a leaf that stores only how many points reached it."""</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"size"</span><span class="p">,</span> <span class="s2">"depth"</span><span class="p">,</span> <span class="s2">"normal"</span><span class="p">,</span> <span class="s2">"offset"</span><span class="p">,</span> <span class="s2">"left"</span><span class="p">,</span> <span class="s2">"right"</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">IsolationForest</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Ensemble of random isolation trees.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    variant : {"iforest", "extended", "anomaly_score", "max_samples"}</span>
+<span class="sd">        `iforest` is the published algorithm, `extended` draws hyperplane normals</span>
+<span class="sd">        with `extension_level + 1` non-zero coordinates instead of one,</span>
+<span class="sd">        `anomaly_score` returns the score centred on the fitted threshold and</span>
+<span class="sd">        `max_samples` grows each tree on the whole data set when `max_samples`</span>
+<span class="sd">        is None.</span>
+<span class="sd">    n_estimators : int</span>
+<span class="sd">        Number of trees. The paper uses 100, and the score's variance falls like</span>
+<span class="sd">        `1/sqrt(t)` so more buys little.</span>
+<span class="sd">    max_samples : int or None</span>
+<span class="sd">        Points per tree. `None` means 256 for the first three variants and the</span>
+<span class="sd">        full sample for `max_samples`.</span>
+<span class="sd">    extension_level : int</span>
+<span class="sd">        For `extended`: the normal has `min(extension_level + 1, n_features)`</span>
+<span class="sd">        non-zero coordinates. 0 is axis-parallel, `n_features - 1` is a fully</span>
+<span class="sd">        extended hyperplane.</span>
+<span class="sd">    contamination : float in (0, 0.5]</span>
+<span class="sd">        Quantile of the training scores used as the decision threshold.</span>
+<span class="sd">    seed : int</span>
+<span class="sd">        Seeds the split sampling; two fits with the same seed are identical.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    trees_ : list of _Node</span>
+<span class="sd">    max_samples_ : int</span>
+<span class="sd">    threshold_ : float</span>
+<span class="sd">        The `1 - contamination` quantile of the training scores.</span>
+<span class="sd">    n_features_ : int</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"iforest"</span><span class="p">,</span> <span class="n">n_estimators</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+                 <span class="n">max_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">extension_level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                 <span class="n">contamination</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">variant</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VARIANTS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown variant </span><span class="si">{</span><span class="n">variant</span><span class="si">!r}</span><span class="s2">; choose from </span><span class="si">{</span><span class="n">VARIANTS</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n_estimators</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"n_estimators must be positive"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">max_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">max_samples</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"max_samples must be at least 2, or None"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">extension_level</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"extension_level must be non-negative"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;</span> <span class="n">contamination</span> <span class="o">&lt;=</span> <span class="mf">0.5</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"contamination must lie in (0, 0.5]"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">=</span> <span class="n">variant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_estimators</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_estimators</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_samples</span> <span class="o">=</span> <span class="n">max_samples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extension_level</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">extension_level</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">contamination</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">contamination</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="c1"># -- fitting ---------------------------------------------------------- #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IsolationForest</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"X must be two-dimensional"</span><span class="p">)</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"need at least two points"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_samples</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">n</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"max_samples"</span> <span class="k">else</span> <span class="mi">256</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_samples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_samples_</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span> <span class="o">=</span> <span class="n">d</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">depth_limit_</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_samples_</span><span class="p">)))</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trees_</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_estimators</span><span class="p">):</span>
+            <span class="n">sample</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_samples_</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trees_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grow</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">rng</span><span class="p">))</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibrated</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threshold_</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">contamination</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_grow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">indices</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+              <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_Node</span><span class="p">:</span>
+        <span class="n">node</span> <span class="o">=</span> <span class="n">_Node</span><span class="p">()</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">depth</span> <span class="o">=</span> <span class="n">depth</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">normal</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">depth</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">depth_limit_</span> <span class="ow">or</span> <span class="n">node</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">node</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">indices</span><span class="p">]</span>
+        <span class="n">normal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_normal</span><span class="p">(</span><span class="n">rng</span><span class="p">)</span>
+        <span class="n">projection</span> <span class="o">=</span> <span class="n">rows</span> <span class="o">@</span> <span class="n">normal</span>
+        <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">projection</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">projection</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">high</span> <span class="o">-</span> <span class="n">low</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">node</span>  <span class="c1"># every point projects to the same place: a leaf</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">normal</span> <span class="o">=</span> <span class="n">normal</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">))</span>
+        <span class="n">goes_left</span> <span class="o">=</span> <span class="n">projection</span> <span class="o">&lt;=</span> <span class="n">node</span><span class="o">.</span><span class="n">offset</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grow</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">indices</span><span class="p">[</span><span class="n">goes_left</span><span class="p">],</span> <span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grow</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">indices</span><span class="p">[</span><span class="o">~</span><span class="n">goes_left</span><span class="p">],</span> <span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">node</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_draw_normal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Equation (1)'s direction: `aim` non-zero coordinates, the rest zero."""</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span>
+        <span class="n">aim</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"extended"</span> <span class="k">else</span> <span class="nb">min</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">extension_level</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+        <span class="n">normal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="n">chosen</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">aim</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">normal</span><span class="p">[</span><span class="n">chosen</span><span class="p">]</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">aim</span><span class="p">)</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">normal</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">length</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>  <span class="c1"># measure-zero, but the caller must not divide by it</span>
+            <span class="n">normal</span><span class="p">[</span><span class="n">chosen</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">return</span> <span class="n">normal</span> <span class="o">/</span> <span class="n">length</span>
+
+    <span class="c1"># -- scoring ---------------------------------------------------------- #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">path_length</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Mean isolation depth over the ensemble, shape (m,)."""</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees_</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+                <span class="n">node</span> <span class="o">=</span> <span class="n">tree</span>
+                <span class="k">while</span> <span class="n">node</span><span class="o">.</span><span class="n">normal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">side</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span> <span class="o">@</span> <span class="n">node</span><span class="o">.</span><span class="n">normal</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">node</span><span class="o">.</span><span class="n">offset</span> <span class="k">else</span> <span class="n">node</span><span class="o">.</span><span class="n">right</span>
+                    <span class="n">node</span> <span class="o">=</span> <span class="n">side</span>
+                <span class="n">total</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">node</span><span class="o">.</span><span class="n">depth</span> <span class="o">+</span> <span class="n">average_path</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">total</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trees_</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calibrated</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Equation (4): the anomaly score in (0, 1], higher is stranger."""</span>
+        <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_length</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="n">depth</span> <span class="o">/</span> <span class="n">average_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_samples_</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">score_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Anomaly scores, higher meaning more anomalous.</span>
+
+<span class="sd">        The first three variants return (4) in `(0, 1]`; `anomaly_score` returns</span>
+<span class="sd">        it shifted by the fitted threshold, so that zero is the decision boundary</span>
+<span class="sd">        and the sign is the prediction.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"threshold_"</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"fit before scoring"</span><span class="p">)</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibrated</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"anomaly_score"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scores</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_</span>
+        <span class="k">return</span> <span class="n">scores</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""`-1` for an outlier, `1` for an inlier, at the fitted threshold."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"threshold_"</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"fit before predicting"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_calibrated</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"expected shape (m, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">X</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="c1"># Demo helpers</span>
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_auc</span><span class="p">(</span><span class="n">scores</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Area under the ROC curve, ties counted as half a win."""</span>
+    <span class="n">positive</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="n">labels</span><span class="p">]</span>
+    <span class="n">negative</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="o">~</span><span class="n">labels</span><span class="p">]</span>
+    <span class="n">wins</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">positive</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">negative</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="n">ties</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">positive</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">==</span> <span class="n">negative</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">wins</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">ties</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">positive</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">negative</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_planted</span><span class="p">(</span><span class="n">normal</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span> <span class="n">outliers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A Gaussian blob plus points on a ring far outside it."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+    <span class="n">blob</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">normal</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">outliers</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="mf">5.5</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">outliers</span><span class="p">)</span>
+    <span class="n">ring</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">radius</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span> <span class="n">radius</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)])</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">blob</span><span class="p">,</span> <span class="n">ring</span><span class="p">])</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="n">labels</span><span class="p">[</span><span class="n">normal</span><span class="p">:]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="n">X</span><span class="p">,</span> <span class="n">labels</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_calibration</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The path-length algebra, checked against its definitions."""</span>
+    <span class="k">assert</span> <span class="n">average_path</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">average_path</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mf">0.0</span>
+    <span class="k">assert</span> <span class="n">average_path</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="mf">1.0</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="mi">256</span>
+    <span class="n">approximate</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">euler_gamma</span><span class="p">)</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">size</span>
+    <span class="n">gap</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">average_path</span><span class="p">(</span><span class="n">size</span><span class="p">)</span> <span class="o">-</span> <span class="n">approximate</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">gap</span> <span class="o">&lt;</span> <span class="mf">5e-3</span>
+    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">average_path</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">-</span> <span class="n">average_path</span><span class="p">(</span><span class="n">m</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">/</span> <span class="n">m</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-12</span>
+
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">300</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">forest</span> <span class="o">=</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">again</span> <span class="o">=</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">forest</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">again</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>
+
+    <span class="n">origin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">ray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">9.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+    <span class="n">along</span> <span class="o">=</span> <span class="n">forest</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">ray</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">along</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">and</span> <span class="n">along</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">along</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">forest</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">scores</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">scores</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mf">1.0</span>
+    <span class="n">at_origin</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">forest</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">origin</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"calibration: c(2) = </span><span class="si">{</span><span class="n">average_path</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> exactly and c(256) = "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">average_path</span><span class="p">(</span><span class="mi">256</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> against the log approximation's "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">approximate</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, a gap of </span><span class="si">{</span><span class="n">gap</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2"> that is the harmonic sum's "</span>
+          <span class="sa">f</span><span class="s2">"tail. Two forests with the same seed score 300 points identically. "</span>
+          <span class="sa">f</span><span class="s2">"On a standard normal cloud the score is </span><span class="si">{</span><span class="n">at_origin</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> at the centre "</span>
+          <span class="sa">f</span><span class="s2">"and </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> averaged over the training set. 0.5 is "</span>
+          <span class="sa">f</span><span class="s2">"the value at the expected path length, so a typical point "</span>
+          <span class="sa">f</span><span class="s2">"sits just under it -- and it rises along a ray: "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">v</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">'</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">along</span><span class="p">)</span><span class="si">}</span><span class="s2"> at radii 0, 2, 5 and 9, then "</span>
+          <span class="sa">f</span><span class="s2">"saturates at the last two, because isolation counts cuts rather than "</span>
+          <span class="sa">f</span><span class="s2">"distance and a point outside the cloud is alone after the same number "</span>
+          <span class="sa">f</span><span class="s2">"of them however far outside it is. The "</span>
+          <span class="sa">f</span><span class="s2">"training scores stay inside (</span><span class="si">{</span><span class="n">scores</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">scores</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">], so the score is a bounded, calibrated number and "</span>
+          <span class="sa">f</span><span class="s2">"not a distance. The average is under 0.5 rather than on it because a "</span>
+          <span class="sa">f</span><span class="s2">"tree stops at ceil(log2 256) = 8 levels and the leaf correction "</span>
+          <span class="sa">f</span><span class="s2">"c(size) only approximates the depth an unlimited tree would have "</span>
+          <span class="sa">f</span><span class="s2">"used, so the normaliser is an anchor rather than an exact "</span>
+          <span class="sa">f</span><span class="s2">"probability."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_detection</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A planted anomaly ring, three ways of looking at it."""</span>
+    <span class="n">X</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">_planted</span><span class="p">()</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"iforest"</span><span class="p">,</span> <span class="s2">"extended"</span><span class="p">,</span> <span class="s2">"max_samples"</span><span class="p">,</span> <span class="s2">"anomaly_score"</span><span class="p">):</span>
+        <span class="n">forest</span> <span class="o">=</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="n">variant</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">forest</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">results</span><span class="p">[</span><span class="n">variant</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">_auc</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">labels</span><span class="p">),</span> <span class="n">scores</span><span class="p">,</span>
+                            <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">forest</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)),</span>
+                            <span class="n">forest</span><span class="o">.</span><span class="n">threshold_</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">results</span><span class="p">[</span><span class="s2">"anomaly_score"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">results</span><span class="p">[</span><span class="s2">"iforest"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s2">"anomaly_score"</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.02</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="n">auc</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">assert</span> <span class="n">auc</span> <span class="o">&gt;</span> <span class="mf">0.99</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">auc</span><span class="p">)</span>
+
+    <span class="n">far</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"detection: 300 standard normal points and 10 planted on a ring of "</span>
+          <span class="s2">"radius 5.5 to 6, contamination 0.1:"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">variant</span><span class="p">,</span> <span class="p">(</span><span class="n">auc</span><span class="p">,</span> <span class="n">scores</span><span class="p">,</span> <span class="n">flagged</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">centre</span> <span class="o">=</span> <span class="s2">""</span> <span class="k">if</span> <span class="n">variant</span> <span class="o">!=</span> <span class="s2">"anomaly_score"</span> <span class="k">else</span> <span class="s2">" (centred: score - threshold)"</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">variant</span><span class="si">:</span><span class="s2">14s</span><span class="si">}</span><span class="s2"> AUC </span><span class="si">{</span><span class="n">auc</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  score of the furthest point "</span>
+              <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">scores</span><span class="p">[</span><span class="n">far</span><span class="p">]</span><span class="si">:</span><span class="s2">+.3f</span><span class="si">}</span><span class="s2">  flagged </span><span class="si">{</span><span class="n">flagged</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}{</span><span class="n">centre</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Every variant finds the ring, which is the easy part. The "</span>
+          <span class="sa">f</span><span class="s2">"`anomaly_score` row is the same ranking as `iforest` -- same AUC to "</span>
+          <span class="sa">f</span><span class="s2">"the digit -- with every score shifted by the fitted threshold "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">'iforest'</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, so its decision boundary is at zero and "</span>
+          <span class="sa">f</span><span class="s2">"`predict` is the sign. "</span>
+          <span class="sa">f</span><span class="s2">"Exactly </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">'anomaly_score'</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.0%</span><span class="si">}</span><span class="s2"> of the training set is "</span>
+          <span class="sa">f</span><span class="s2">"flagged, because the threshold is that quantile by construction."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_artefact</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Axis-parallel cuts are not rotation invariant, and that is measurable."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">blob</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">720</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">circle</span> <span class="o">=</span> <span class="mf">4.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)])</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"iforest"</span><span class="p">,</span> <span class="s2">"extended"</span><span class="p">):</span>
+        <span class="n">forest</span> <span class="o">=</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="n">variant</span><span class="p">,</span> <span class="n">extension_level</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">blob</span><span class="p">)</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">forest</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">circle</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">variant</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">max</span><span class="p">())))</span>
+    <span class="c1"># In two dimensions extension_level=1 is already a fully extended</span>
+    <span class="c1"># hyperplane: min(1+1, 2) = 2 non-zero coordinates.</span>
+    <span class="n">repeats</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">IsolationForest</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"extended"</span><span class="p">,</span> <span class="n">extension_level</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                    <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">blob</span><span class="p">)</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">circle</span><span class="p">[:</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span>
+               <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">)]</span>
+    <span class="n">noise</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">repeats</span><span class="p">))</span>
+    <span class="n">axis_spread</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">hyper_spread</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">rows</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">hyper_spread</span> <span class="o">&lt;</span> <span class="n">axis_spread</span>
+
+    <span class="c1"># The circle is at a fixed radius, so every point is equally anomalous.</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"artefact: 400 normal points, then 720 points on a circle of radius 4 "</span>
+          <span class="sa">f</span><span class="s2">"-- a fair score is constant around the circle. Axis-parallel cuts "</span>
+          <span class="sa">f</span><span class="s2">"give a score that runs from </span><span class="si">{</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> "</span>
+          <span class="sa">f</span><span class="s2">"around it, a spread of </span><span class="si">{</span><span class="n">axis_spread</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, because a point on a "</span>
+          <span class="sa">f</span><span class="s2">"diagonal needs more cuts than a point on an axis at the same "</span>
+          <span class="sa">f</span><span class="s2">"distance. Fully extended hyperplane cuts run from </span><span class="si">{</span><span class="n">rows</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> to "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">rows</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, a spread of </span><span class="si">{</span><span class="n">hyper_spread</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">: two thirds of the "</span>
+          <span class="sa">f</span><span class="s2">"angular variation is the split geometry and is removed, and the rest "</span>
+          <span class="sa">f</span><span class="s2">"is </span><span class="si">{</span><span class="n">hyper_spread</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">noise</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> times the seed-to-seed noise of "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">noise</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> at a fixed point, so a little anisotropy survives -- some "</span>
+          <span class="sa">f</span><span class="s2">"of it the 400-point cloud's own asymmetry, which no split geometry "</span>
+          <span class="sa">f</span><span class="s2">"can average away."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_subsample</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""What the 256 buys, and what the full sample costs."""</span>
+    <span class="n">X</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">_planted</span><span class="p">(</span><span class="n">normal</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">outliers</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"max_samples"</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">max_samples_</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">report</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)):</span>
+        <span class="n">picks</span><span class="p">,</span> <span class="n">planted</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+            <span class="n">forest</span> <span class="o">=</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">max_samples</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+            <span class="n">scores</span> <span class="o">=</span> <span class="n">forest</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+            <span class="n">picks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_auc</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">labels</span><span class="p">))</span>
+            <span class="n">planted</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="n">labels</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()))</span>
+        <span class="n">report</span><span class="p">[</span><span class="n">size</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">picks</span><span class="p">)),</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">picks</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">picks</span><span class="p">)),</span>
+                        <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">planted</span><span class="p">)))</span>
+    <span class="n">smallest</span><span class="p">,</span> <span class="n">largest</span> <span class="o">=</span> <span class="n">report</span><span class="p">[</span><span class="mi">16</span><span class="p">],</span> <span class="n">report</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"subsample: 600 normal points and 12 planted, five seeds per row, "</span>
+          <span class="s2">"t = 100 trees:"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">size</span><span class="p">,</span> <span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="n">spread</span><span class="p">,</span> <span class="n">planted</span><span class="p">)</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="s2">"full"</span> <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  max_samples </span><span class="si">{</span><span class="n">label</span><span class="si">:</span><span class="s2">&gt;4s</span><span class="si">}</span><span class="s2">  AUC </span><span class="si">{</span><span class="n">mean</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  seed spread "</span>
+              <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">spread</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  mean score of the planted </span><span class="si">{</span><span class="n">planted</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Sixteen points per tree is too few: the AUC drops to "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">smallest</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> because a tree of sixteen cannot separate a ring "</span>
+          <span class="sa">f</span><span class="s2">"point from the cloud's edge, and the seed spread is </span><span class="si">{</span><span class="n">smallest</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">. "</span>
+          <span class="sa">f</span><span class="s2">"At the full sample the AUC is </span><span class="si">{</span><span class="n">largest</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> and the spread "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">largest</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">. The other cost is on the scale of the score: the "</span>
+          <span class="sa">f</span><span class="s2">"planted points average </span><span class="si">{</span><span class="n">smallest</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> at sixteen points per tree "</span>
+          <span class="sa">f</span><span class="s2">"and </span><span class="si">{</span><span class="n">largest</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> at the full sample, so a threshold fitted at one "</span>
+          <span class="sa">f</span><span class="s2">"sample size is not a threshold at another -- which is why the "</span>
+          <span class="sa">f</span><span class="s2">"normaliser is c(max_samples_) and not a constant. On this data the "</span>
+          <span class="sa">f</span><span class="s2">"default 256 is already at the full sample's AUC, and the paper's "</span>
+          <span class="sa">f</span><span class="s2">"argument for it is about cost as much as accuracy: each tree is "</span>
+          <span class="sa">f</span><span class="s2">"O(256 log 256) whatever n is, and swamping only appears when the "</span>
+          <span class="sa">f</span><span class="s2">"normal cloud is dense enough to bury the outliers, which this ring "</span>
+          <span class="sa">f</span><span class="s2">"is not."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_broken</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The inputs the ensemble refuses."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+    <span class="n">cases</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">"an unknown variant"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"lof"</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"no trees"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">n_estimators</span><span class="o">=</span><span class="mi">0</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"a sample of one"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">max_samples</span><span class="o">=</span><span class="mi">1</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"negative contamination"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">contamination</span><span class="o">=-</span><span class="mf">0.1</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"a negative extension level"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">extension_level</span><span class="o">=-</span><span class="mi">1</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"one point"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">IsolationForest</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="mi">1</span><span class="p">])),</span>
+        <span class="p">(</span><span class="s2">"a 1-D input"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">IsolationForest</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])),</span>
+        <span class="p">(</span><span class="s2">"scoring before fitting"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">IsolationForest</span><span class="p">()</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"the wrong width"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">IsolationForest</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">])),</span>
+    <span class="p">]</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">call</span> <span class="ow">in</span> <span class="n">cases</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">call</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> did not raise"</span><span class="p">)</span>
+
+    <span class="c1"># A duplicated point is not an error, and it is not harmless either.</span>
+    <span class="n">doubled</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+    <span class="n">forest</span> <span class="o">=</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">doubled</span><span class="p">)</span>
+    <span class="n">single</span> <span class="o">=</span> <span class="n">IsolationForest</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">moved</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">forest</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">doubled</span><span class="p">[:</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">single</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">hidden</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">single</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">forest</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">doubled</span><span class="p">[:</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">hidden</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"broken: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cases</span><span class="p">)</span><span class="si">}</span><span class="s2"> bad inputs raise -- "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">name</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">cases</span><span class="p">)</span><span class="si">}</span><span class="s2">. Duplicating one point is not "</span>
+          <span class="sa">f</span><span class="s2">"an error, and it is not harmless: the original is flagged at "</span>
+          <span class="sa">f</span><span class="s2">"contamination 0.1 before the copy is added, and neither copy is "</span>
+          <span class="sa">f</span><span class="s2">"flagged after, because the two sit on the same paths and the "</span>
+          <span class="sa">f</span><span class="s2">"pair behaves like a two-point cluster. The score moves by "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">moved</span><span class="si">:</span><span class="s2">+.4f</span><span class="si">}</span><span class="s2">. That is masking, and it is a density effect in a "</span>
+          <span class="sa">f</span><span class="s2">"method usually described as not having one: isolation is a property "</span>
+          <span class="sa">f</span><span class="s2">"of the sample, and duplicating a point changes the sample."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">_demo_calibration</span><span class="p">()</span>
+    <span class="n">_demo_detection</span><span class="p">()</span>
+    <span class="n">_demo_artefact</span><span class="p">()</span>
+    <span class="n">_demo_subsample</span><span class="p">()</span>
+    <span class="n">_demo_broken</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"isolation_forest demo passed"</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">09 · Density &amp; anomaly</p><ul class="rail-list"><li><a href="kde.html"><span class="tick">✓</span><span>Kernel density estimation</span></a></li><li><a href="isolation_forest.html" aria-current="page"><span class="tick">✓</span><span>Isolation forest</span></a></li><li><a href="lof.html"><span class="tick">✓</span><span>Local outlier factor</span></a></li><li><a href="histogram_density.html"><span class="tick">✓</span><span>Histogram density</span></a></li><li><a href="mahalanobis.html"><span class="tick">✓</span><span>Mahalanobis / MCD</span></a></li><li><a href="hbos.html"><span class="tick">✓</span><span>HBOS</span></a></li><li><a href="autoencoder_anomaly.html"><span class="tick">✓</span><span>Autoencoder anomaly</span></a></li><li><a href="change_point.html"><span class="tick">✓</span><span>Change-point detection</span></a></li><li><a href="elliptic_envelope.html"><span class="tick">✓</span><span>Elliptic envelope</span></a></li><li><a href="copod.html"><span class="tick">✓</span><span>COPOD</span></a></li><li><a href="extreme_value.html"><span class="tick">✓</span><span>Extreme value theory</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../08-manifold/index.html"><span class="jump">← 08 · Manifolds &amp; embeddings</span></a></li><li><a href="../10-sequences/index.html"><span class="jump">10 · Sequences&nbsp;→</span></a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/09-density-and-anomaly/isolation_forest.py">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

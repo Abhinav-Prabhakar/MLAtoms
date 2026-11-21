@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nystrom approximation — nystrom.py · MLAtoms</title>
+<meta name="description" content="Source of nystrom.py: Low-rank kernel approximation from a landmark subset.">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/nystrom.py.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Nystrom approximation — nystrom.py">
+<meta property="og:description" content="Source of nystrom.py: Low-rank kernel approximation from a landmark subset.">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/nystrom.py.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Nystrom approximation — nystrom.py">
+<meta name="twitter:description" content="Source of nystrom.py: Low-rank kernel approximation from a landmark subset.">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "SoftwareSourceCode", "name": "Nystrom approximation \u2014 nystrom.py", "programmingLanguage": "Python", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/nystrom.py.html", "description": "Source of nystrom.py: Low-rank kernel approximation from a landmark subset.", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout layout--wide"><div><div class="prose code-page"><p class="page-meta"><a href="./index.html">03 · Kernels &amp; instance-based</a><span class="page-meta__sep">/</span><a href="nystrom.html">Nystrom approximation</a><span class="page-meta__sep">/</span><span>source</span></p><h1>nystrom.py</h1><p class="code-page__bar"><span>597 lines</span><span>·</span><span>4 variants</span><a class="btn" href="nystrom.py">Raw file</a><a class="btn" href="nystrom.html">Companion</a></p><pre class="highlight"><code><span class="sd">"""Nyström approximation — read a kernel from a handful of its rows.</span>
+
+<span class="sd">Chapter:   03-kernels-and-instance</span>
+<span class="sd">Companion: nystrom.md</span>
+<span class="sd">Tier 3 · 4 variants: standard, ensemble, streaming, with_kernel_ridge</span>
+
+<span class="sd">    K  ≈  K_nm K_mm^{-1} K_mn  =  Φ Φᵀ,     Φ = K_nm K_mm^{-1/2}      (1)</span>
+
+<span class="sd">A kernel method needs the n × n Gram matrix, and that is the wall: memory</span>
+<span class="sd">O(n²), time O(n²d), and for kernel ridge a solve that is O(n³). The Nyström</span>
+<span class="sd">method keeps m rows of the matrix — the columns of m landmarks — and</span>
+<span class="sd">reconstructs the rest from them. It is the numerical analyst's quadrature rule</span>
+<span class="sd">applied to a kernel: sample the function, weight the samples by the inverse of</span>
+<span class="sd">their own Gram matrix, and integrate.</span>
+
+<span class="sd">Three things make it more than an approximation trick. First, Φ is a genuine</span>
+<span class="sd">feature map: any linear model on Φ is a kernel model with the kernel</span>
+<span class="sd">Φ Φᵀ, so the same m-dimensional matrix serves regression, classification and</span>
+<span class="sd">clustering. Second, the approximation is exact on the landmarks and never</span>
+<span class="sd">overstates a self-similarity, so it behaves like a shrinkage estimator rather</span>
+<span class="sd">than a noisy interpolant. Third, the landmarks are rows of the data, so the</span>
+<span class="sd">features are interpretable and the cost is one kernel evaluation per pair.</span>
+
+<span class="sd">The variants are four ways to spend the m landmarks. `standard` samples them</span>
+<span class="sd">uniformly. `ensemble` spends E times the memory on independent samples and</span>
+<span class="sd">averages, which leaves each map's bias alone and divides its seed-to-seed</span>
+<span class="sd">spread. `streaming` keeps a reservoir sample as the data arrives, so the Gram</span>
+<span class="sd">matrix is never formed and memory is O(md) rather than O(nd).</span>
+<span class="sd">`with_kernel_ridge` puts the features to work: a ridge readout on Φ is exactly</span>
+<span class="sd">kernel ridge with the approximated kernel, by the Woodbury identity, and the</span>
+<span class="sd">demo checks that equality rather than assuming it.</span>
+
+<span class="sd">The demo measures the wall and the escape. On 400 points from a two-dimensional</span>
+<span class="sd">cloud, the relative Frobenius error falls from 0.31 with 5 landmarks to 0.002</span>
+<span class="sd">with 160, and kernel ridge test error follows it from 0.086 to 0.0004. At the</span>
+<span class="sd">same total dimension, one 60-landmark map reconstructs at 0.0071 while four</span>
+<span class="sd">15-landmark maps averaged reach only 0.0596: the error is set by the landmarks</span>
+<span class="sd">per map, not by the total. A streaming pass over 600 points in chunks of 37</span>
+<span class="sd">holds 60 rows and matches the batch error distribution, 0.0059 against 0.0064.</span>
+<span class="sd">And the primal readout on Φ matches the dual readout on Φ Φᵀ to 7e-14, which</span>
+<span class="sd">is the identity that makes the variant worth having.</span>
+
+<span class="sd">Numbers to carry away (measured, see the demo):</span>
+
+<span class="sd">  - 400 points, RBF kernel: Frobenius error 0.3123 at m = 5, 0.0557 at m = 20,</span>
+<span class="sd">    0.0023 at m = 160, and 5.5e-13 at m = 400</span>
+<span class="sd">  - kernel ridge test error 0.08633 at m = 5, 0.00399 at m = 20, 0.00044 at</span>
+<span class="sd">    m = 160, against 0.00047 for the full 400-point solve</span>
+<span class="sd">  - ensemble at 15 landmarks per map: spread 0.0165 for one map and 0.0031 for</span>
+<span class="sd">    twelve, at twelve times the feature dimension</span>
+<span class="sd">  - equal total dimension: one 60-landmark map 0.0071, four 15-landmark maps</span>
+<span class="sd">    0.0596</span>
+<span class="sd">  - streaming 60 rows over 600 points: 0.0059 +/- 0.0014 against the batch</span>
+<span class="sd">    0.0064 +/- 0.0013</span>
+<span class="sd">  - feature readout against dual readout: 6.7e-14; all landmarks against the</span>
+<span class="sd">    exact 300 x 300 solve: 3.9e-11</span>
+
+<span class="sd">"""</span>  <span class="c1"># noqa: E501</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">VARIANTS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"standard"</span><span class="p">,</span> <span class="s2">"ensemble"</span><span class="p">,</span> <span class="s2">"streaming"</span><span class="p">,</span> <span class="s2">"with_kernel_ridge"</span><span class="p">)</span>
+<span class="n">KERNELS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"linear"</span><span class="p">,</span> <span class="s2">"rbf"</span><span class="p">,</span> <span class="s2">"laplacian"</span><span class="p">,</span> <span class="s2">"polynomial"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_sq_dists</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Z</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Squared Euclidean distances, shape ``(len(X), len(Z))``."""</span>
+    <span class="n">squared</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">X</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+               <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Z</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+               <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">X</span> <span class="o">@</span> <span class="n">Z</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">squared</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_kernel_matrix</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Z</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">gamma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                   <span class="n">degree</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">coef0</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A kernel between two point sets, with the bandwidth already resolved."""</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"linear"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">X</span> <span class="o">@</span> <span class="n">Z</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"polynomial"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">gamma</span> <span class="o">*</span> <span class="p">(</span><span class="n">X</span> <span class="o">@</span> <span class="n">Z</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">coef0</span><span class="p">)</span> <span class="o">**</span> <span class="n">degree</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"laplacian"</span><span class="p">:</span>
+        <span class="n">gaps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">Z</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">gaps</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">_sq_dists</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Z</span><span class="p">))</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Nystrom</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A rank-m feature map read off m rows of the kernel matrix.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    variant : str</span>
+<span class="sd">        One of `VARIANTS`.</span>
+<span class="sd">    n_components : int</span>
+<span class="sd">        Total feature dimension, equal to the number of landmarks for</span>
+<span class="sd">        `standard` and `with_kernel_ridge`. For `ensemble` it is rounded</span>
+<span class="sd">        down to a multiple of `n_ensemble`.</span>
+<span class="sd">    kernel : str</span>
+<span class="sd">        One of `KERNELS`.</span>
+<span class="sd">    gamma : float or None</span>
+<span class="sd">        Bandwidth; `None` means ``1 / n_features``.</span>
+<span class="sd">    degree, coef0 : float</span>
+<span class="sd">        Polynomial parameters, used by the `polynomial` kernel only.</span>
+<span class="sd">    n_ensemble : int</span>
+<span class="sd">        Independent landmark samples for `ensemble`.</span>
+<span class="sd">    lam : float</span>
+<span class="sd">        Ridge penalty for `with_kernel_ridge`.</span>
+<span class="sd">    chunk_size : int</span>
+<span class="sd">        Rows per call in the internal streaming loop of `fit`.</span>
+<span class="sd">    seed : int</span>
+<span class="sd">        Seed for landmark selection and for the reservoir.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    landmarks_ : ndarray</span>
+<span class="sd">        The selected rows, shape ``(m, d)``.</span>
+<span class="sd">    map_ : ndarray</span>
+<span class="sd">        The whitening matrix ``K_mm^{-1/2}`` in the eigenbasis, shape</span>
+<span class="sd">        ``(m, m)``; features are ``kernel(X, landmarks_) @ map_``.</span>
+<span class="sd">    coef_ : ndarray</span>
+<span class="sd">        Ridge readout in feature space, for `with_kernel_ridge` only.</span>
+<span class="sd">    parts_ : list of (ndarray, ndarray)</span>
+<span class="sd">        Per-model landmarks and maps, for `ensemble` only.</span>
+<span class="sd">    n_seen_ : int</span>
+<span class="sd">        Rows consumed by the reservoir, for `streaming` only.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"standard"</span><span class="p">,</span> <span class="n">n_components</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
+                 <span class="n">kernel</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"rbf"</span><span class="p">,</span> <span class="n">gamma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">degree</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">coef0</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">n_ensemble</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+                 <span class="n">lam</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-2</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+                 <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">variant</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VARIANTS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown variant </span><span class="si">{</span><span class="n">variant</span><span class="si">!r}</span><span class="s2">; choose from </span><span class="si">{</span><span class="n">VARIANTS</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kernel</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">KERNELS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown kernel </span><span class="si">{</span><span class="n">kernel</span><span class="si">!r}</span><span class="s2">; choose from </span><span class="si">{</span><span class="n">KERNELS</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_components</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span> <span class="ow">or</span> <span class="n">n_components</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"n_components must be a positive integer"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_ensemble</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span>
+                <span class="ow">or</span> <span class="n">n_ensemble</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"n_ensemble must be a positive integer"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span> <span class="ow">or</span> <span class="n">lam</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"lam must be finite and positive"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">coef0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"coef0 must be finite"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gamma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">gamma</span><span class="p">)</span> <span class="ow">or</span> <span class="n">gamma</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"gamma must be finite and positive"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">degree</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span> <span class="ow">or</span> <span class="n">degree</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"degree must be a positive integer"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span> <span class="ow">or</span> <span class="n">chunk_size</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"chunk_size must be a positive integer"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span> <span class="ow">or</span> <span class="n">seed</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"seed must be a non-negative integer"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">=</span> <span class="n">variant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_components</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">=</span> <span class="n">gamma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">degree</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">degree</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coef0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">coef0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_ensemble</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_ensemble</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lam</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="c1"># inputs and kernel</span>
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_X</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">array</span> <span class="o">=</span> <span class="n">array</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="nb">min</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"X must be a non-empty two-dimensional array"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">array</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"X must be finite"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">array</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_kernel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Z</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_kernel_matrix</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">degree</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">coef0</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_whitener</span><span class="p">(</span><span class="n">gram</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""``K^{-1/2}`` through an eigendecomposition with a floor."""</span>
+        <span class="n">values</span><span class="p">,</span> <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">gram</span><span class="p">)</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">values</span><span class="p">)))</span>
+        <span class="n">floor</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e-12</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">floor</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">vectors</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_landmarks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">points</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                       <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Choose ``n_components`` rows and factor their Gram matrix."""</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">,</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">chosen</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">size</span><span class="o">=</span><span class="n">count</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">chosen</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">chosen</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">map_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_whitener</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_kernel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_components_</span> <span class="o">=</span> <span class="n">count</span>
+
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="c1"># fitting</span>
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Nystrom</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Select landmarks, factor their Gram matrix, and fit the readout."""</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_X</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_features_in_</span> <span class="o">=</span> <span class="n">width</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma_</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">width</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="ow">is</span> <span class="kc">None</span>
+                       <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">targets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">targets</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">targets</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"y must have one target per row of X"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">targets</span><span class="p">)):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"y must be finite"</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">targets</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"ensemble"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fit_ensemble</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"streaming"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">targets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"streaming approximates the kernel; "</span>
+                                 <span class="s2">"use with_kernel_ridge for a readout"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_start_stream</span><span class="p">(</span><span class="n">width</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">partial_fit</span><span class="p">(</span><span class="n">points</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">start</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">])</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_landmarks</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"with_kernel_ridge"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">targets</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"with_kernel_ridge needs targets y"</span><span class="p">)</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+            <span class="n">system</span> <span class="o">=</span> <span class="p">(</span><span class="n">features</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">features</span>
+                      <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_components_</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">features</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">targets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"this variant approximates the kernel only; "</span>
+                             <span class="s2">"use with_kernel_ridge for a readout"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fit_ensemble</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">points</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Spend the budget on several independent landmark samples."""</span>
+        <span class="n">per</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_ensemble</span><span class="p">)</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parts_</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_ensemble</span><span class="p">):</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">per</span><span class="p">,</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">chosen</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">size</span><span class="o">=</span><span class="n">count</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">chosen</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+            <span class="n">landmarks</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">chosen</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parts_</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">landmarks</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">_whitener</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_kernel</span><span class="p">(</span><span class="n">landmarks</span><span class="p">,</span>
+                                                            <span class="n">landmarks</span><span class="p">))))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_components_</span> <span class="o">=</span> <span class="n">per</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_ensemble</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_start_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initialise the reservoir sampler without touching the data."""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">,</span> <span class="n">width</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">[:</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">map_</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_components_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_seen_</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_chunks_</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="c1"># streaming</span>
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">partial_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Nystrom</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Add a chunk to the reservoir, keeping at most m rows."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"streaming"</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"partial_fit is only for the streaming variant"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"_buffer"</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"call fit or _start_stream before partial_fit"</span><span class="p">)</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_X</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_in_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"X has the wrong number of features"</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">points</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_seen_</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">held</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">held</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">[</span><span class="n">held</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">[:</span><span class="n">held</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">map_</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">slot</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_seen_</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">slot</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">[</span><span class="n">slot</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">map_</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_chunks_</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="c1"># features and kernel</span>
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""The m-dimensional feature map, shape ``(len(X), n_components_)``."""</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_X</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_in_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"X has the wrong number of features"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"ensemble"</span><span class="p">:</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parts_</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_kernel</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">landmarks</span><span class="p">)</span> <span class="o">@</span> <span class="n">mapping</span>
+                 <span class="k">for</span> <span class="n">landmarks</span><span class="p">,</span> <span class="n">mapping</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parts_</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">width</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">map_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_whitener</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_kernel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">,</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kernel</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">)</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Fit and return the features of the training data."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">approximate_kernel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""``Φ(A) Φ(B)ᵀ``, the reconstructed kernel block."""</span>
+        <span class="n">left</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">A</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">B</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">left</span> <span class="o">@</span> <span class="n">left</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">return</span> <span class="n">left</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">B</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">reconstruction_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Relative Frobenius error of the reconstruction on ``X``."""</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_X</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">exact</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kernel</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">points</span><span class="p">)</span>
+        <span class="n">estimate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">approximate_kernel</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">exact</span> <span class="o">-</span> <span class="n">estimate</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">exact</span><span class="p">))</span>
+
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="c1"># readout</span>
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Ridge prediction in feature space, for `with_kernel_ridge`."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"coef_"</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"call fit with targets before predicting"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">n_stored</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Rows kept in memory: landmarks, not training points."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"ensemble"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"parts_"</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"call fit before asking"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">part</span><span class="p">,</span> <span class="n">mapping</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parts_</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"landmarks_"</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"call fit before asking"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------- #</span>
+<span class="c1"># demo</span>
+<span class="c1"># ---------------------------------------------------------------------- #</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_target</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The smooth 2-D function every regression demo fits."""</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="mf">0.2</span> <span class="o">*</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_exact_ridge</span><span class="p">(</span><span class="n">train</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">test</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                 <span class="n">gamma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">penalty</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Kernel ridge with the full Gram matrix, no intercept."""</span>
+    <span class="n">gram</span> <span class="o">=</span> <span class="n">_kernel_matrix</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">train</span><span class="p">,</span> <span class="s2">"rbf"</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">gram</span> <span class="o">+</span> <span class="n">penalty</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">train</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">targets</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_kernel_matrix</span><span class="p">(</span><span class="n">test</span><span class="p">,</span> <span class="n">train</span><span class="p">,</span> <span class="s2">"rbf"</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">@</span> <span class="n">weights</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_standard</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The rank of the approximation is the number of rows you keep."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">train</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">gamma</span><span class="p">,</span> <span class="n">penalty</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1e-2</span>
+    <span class="n">targets</span><span class="p">,</span> <span class="n">truth</span> <span class="o">=</span> <span class="n">_target</span><span class="p">(</span><span class="n">train</span><span class="p">),</span> <span class="n">_target</span><span class="p">(</span><span class="n">test</span><span class="p">)</span>
+    <span class="n">exact</span> <span class="o">=</span> <span class="n">_exact_ridge</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">test</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">penalty</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"400 points, RBF kernel with gamma 0.5, ridge penalty 0.01:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  exact kernel ridge, all 400 points   test MSE "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">exact</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">truth</span><span class="p">)</span><span class="w"> </span><span class="o">**</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  landmarks   Frobenius error   worst entry   test MSE"</span><span class="p">)</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">count</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span> <span class="mi">160</span><span class="p">,</span> <span class="mi">400</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="n">count</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train</span><span class="p">)</span>
+        <span class="n">error</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">train</span><span class="p">)</span>
+        <span class="n">worst</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">approximate_kernel</span><span class="p">(</span><span class="n">train</span><span class="p">)</span>
+                             <span class="o">-</span> <span class="n">_kernel_matrix</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">train</span><span class="p">,</span> <span class="s2">"rbf"</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span>
+                                              <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="n">ridge</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"with_kernel_ridge"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">count</span><span class="p">,</span>
+                        <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="n">penalty</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="n">mse</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">ridge</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">test</span><span class="p">)</span> <span class="o">-</span> <span class="n">truth</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">count</span><span class="si">:</span><span class="s2">&gt;9</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">error</span><span class="si">:</span><span class="s2">&gt;16.4f</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">worst</span><span class="si">:</span><span class="s2">&gt;11.4f</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">mse</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">model</span><span class="o">.</span><span class="n">n_stored</span><span class="p">()</span> <span class="o">==</span> <span class="n">count</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  the approximation is built from m rows, so its rank is at most m"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  and the error is the part of the kernel those rows cannot see"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">errors</span> <span class="o">==</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">errors</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">full</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">full</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">train</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-12</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">full</span><span class="o">.</span><span class="n">approximate_kernel</span><span class="p">(</span><span class="n">train</span><span class="p">)</span>
+                  <span class="o">-</span> <span class="n">_kernel_matrix</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">train</span><span class="p">,</span> <span class="s2">"rbf"</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">1e-10</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  with every point a landmark the reconstruction is exact to "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">full</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">train</span><span class="p">)</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">,"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  which is the check that the whitener and the kernel agree"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_ensemble</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Independent samples average out, and dimension is not free."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"400 points, 30 seeds, each map has 15 landmarks:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  maps   dimension   mean error   spread"</span><span class="p">)</span>
+    <span class="n">spreads</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">count</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">12</span><span class="p">):</span>
+        <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">):</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"ensemble"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">15</span> <span class="o">*</span> <span class="n">count</span><span class="p">,</span>
+                            <span class="n">n_ensemble</span><span class="o">=</span><span class="n">count</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+            <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">points</span><span class="p">))</span>
+        <span class="n">spreads</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">errors</span><span class="p">)))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">count</span><span class="si">:</span><span class="s2">&gt;4</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">n_components_</span><span class="si">:</span><span class="s2">&gt;9</span><span class="si">}</span><span class="s2">   "</span>
+              <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span><span class="si">:</span><span class="s2">&gt;10.4f</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">spreads</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">model</span><span class="o">.</span><span class="n">n_stored</span><span class="p">()</span> <span class="o">==</span> <span class="mi">15</span> <span class="o">*</span> <span class="n">count</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  each map is an independent draw, so averaging E of them leaves"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  each map's bias unchanged and divides its variance: the spread"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  falls from </span><span class="si">{</span><span class="n">spreads</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">spreads</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> at twelve times the"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  dimension, and the expected error falls with it"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">spreads</span> <span class="o">==</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">spreads</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">spreads</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">spreads</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"the same total dimension spent on one map is a different trade:"</span><span class="p">)</span>
+    <span class="n">single</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+    <span class="n">split</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"ensemble"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">n_ensemble</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+                    <span class="n">gamma</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  one map of 60 landmarks     </span><span class="si">{</span><span class="n">single</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">points</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  four maps of 15 landmarks   </span><span class="si">{</span><span class="n">split</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">points</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  the error is driven by the landmarks per map, not by the total,"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  so an ensemble costs E times the memory and buys variance only"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">single</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">points</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">split</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_streaming</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A reservoir keeps m rows, whatever the stream length."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">600</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">60</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"600 points in chunks of 37, a reservoir of 60 landmarks:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  landmarks   rows seen   chunks   rows held   error"</span><span class="p">)</span>
+    <span class="n">models</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">120</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"streaming"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                        <span class="n">chunk_size</span><span class="o">=</span><span class="mi">37</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+        <span class="n">models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">size</span><span class="si">:</span><span class="s2">&gt;9</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">n_seen_</span><span class="si">:</span><span class="s2">&gt;9</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">n_chunks_</span><span class="si">:</span><span class="s2">&gt;6</span><span class="si">}</span><span class="s2">   "</span>
+              <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">n_stored</span><span class="p">()</span><span class="si">:</span><span class="s2">&gt;9</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">points</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">model</span><span class="o">.</span><span class="n">n_stored</span><span class="p">()</span> <span class="o">==</span> <span class="n">size</span>
+        <span class="k">assert</span> <span class="n">model</span><span class="o">.</span><span class="n">n_seen_</span> <span class="o">==</span> <span class="mi">600</span>
+        <span class="k">assert</span> <span class="n">model</span><span class="o">.</span><span class="n">n_chunks_</span> <span class="o">==</span> <span class="mi">17</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  the last chunk has eight rows, which is why 600 / 37 is 17"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  chunks and not 16: the reservoir does not need equal chunks"</span><span class="p">)</span>
+
+    <span class="n">batch</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="n">count</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+        <span class="n">batch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">points</span><span class="p">))</span>
+    <span class="n">stream</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"streaming"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">count</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                        <span class="n">chunk_size</span><span class="o">=</span><span class="mi">37</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+        <span class="n">stream</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">reconstruction_error</span><span class="p">(</span><span class="n">points</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  the reservoir is a uniform sample, so the error distribution is"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  the batch one: streaming </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> +/- "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, batch </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> +/- "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">batch</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">0.002</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  and memory is 60 rows rather than 600, which is the point"</span><span class="p">)</span>
+
+    <span class="n">replay</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"streaming"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">count</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                     <span class="n">chunk_size</span><span class="o">=</span><span class="mi">37</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">replay</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+                          <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">models</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  the same seed replays the same reservoir"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_ridge</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A ridge readout on the features is kernel ridge on the kernel."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">train</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">300</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">targets</span><span class="p">,</span> <span class="n">truth</span> <span class="o">=</span> <span class="n">_target</span><span class="p">(</span><span class="n">train</span><span class="p">),</span> <span class="n">_target</span><span class="p">(</span><span class="n">test</span><span class="p">)</span>
+    <span class="n">gamma</span><span class="p">,</span> <span class="n">penalty</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1e-2</span>
+    <span class="n">exact</span> <span class="o">=</span> <span class="n">_exact_ridge</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">test</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">penalty</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"300 training points, the readout in the m-dimensional feature space:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  landmarks   test MSE   against exact"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">count</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span> <span class="mi">160</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"with_kernel_ridge"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">count</span><span class="p">,</span>
+                        <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="n">penalty</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="n">mse</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">test</span><span class="p">)</span> <span class="o">-</span> <span class="n">truth</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">count</span><span class="si">:</span><span class="s2">&gt;9</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">mse</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2">   "</span>
+              <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">mse</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">exact</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">truth</span><span class="p">)</span><span class="w"> </span><span class="o">**</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="si">:</span><span class="s2">&gt;13.2f</span><span class="si">}</span><span class="s2">x"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  no kernel matrix of the training set is ever formed: the solve"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  is m x m and the features are m columns"</span><span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"with_kernel_ridge"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">,</span>
+                    <span class="n">lam</span><span class="o">=</span><span class="n">penalty</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+    <span class="n">features</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">train</span><span class="p">)</span>
+    <span class="n">mapping</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">test</span><span class="p">)</span>
+    <span class="n">dual</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">features</span> <span class="o">@</span> <span class="n">features</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">penalty</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">300</span><span class="p">),</span>
+                           <span class="n">targets</span><span class="p">)</span>
+    <span class="n">primal</span> <span class="o">=</span> <span class="n">mapping</span> <span class="o">@</span> <span class="n">model</span><span class="o">.</span><span class="n">coef_</span>
+    <span class="n">through_dual</span> <span class="o">=</span> <span class="p">(</span><span class="n">mapping</span> <span class="o">@</span> <span class="n">features</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">@</span> <span class="n">dual</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"the feature readout and the dual readout are the same estimator:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  primal  Phi_t coef_             </span><span class="si">{</span><span class="n">primal</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.10f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  dual    K_tn (K_nn+lam)^-1 y  </span><span class="si">{</span><span class="n">through_dual</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.10f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  worst difference over 200 rows   "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">primal</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">through_dual</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  that is the Woodbury identity, and it is why a kernel method can"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  be served as a linear model once the landmarks are chosen"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">primal</span> <span class="o">-</span> <span class="n">through_dual</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">1e-10</span>
+
+    <span class="n">full</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"with_kernel_ridge"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+                   <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="n">penalty</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"with every point a landmark the readout is exact kernel ridge:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  worst difference from the 300 x 300 solve   "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">full</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">test</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">exact</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">full</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">test</span><span class="p">)</span> <span class="o">-</span> <span class="n">exact</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">1e-8</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_guards</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Malformed settings and inputs, all refused."""</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">40</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">ridge</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"with_kernel_ridge"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+    <span class="n">stream</span> <span class="o">=</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"streaming"</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">attempts</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"nope"</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">kernel</span><span class="o">=</span><span class="s2">"cosine"</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">n_ensemble</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">lam</span><span class="o">=</span><span class="mf">0.0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">lam</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">coef0</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">gamma</span><span class="o">=-</span><span class="mf">1.0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">degree</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">seed</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"with_kernel_ridge"</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">ridge</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">[:</span><span class="mi">3</span><span class="p">]),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">ridge</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]]),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">([[[</span><span class="mf">1.0</span><span class="p">]]]),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">()</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">()</span><span class="o">.</span><span class="n">n_stored</span><span class="p">(),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">partial_fit</span><span class="p">(</span><span class="n">X</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"streaming"</span><span class="p">)</span><span class="o">.</span><span class="n">partial_fit</span><span class="p">(</span><span class="n">X</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">stream</span><span class="o">.</span><span class="n">partial_fit</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Nystrom</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"streaming"</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
+    <span class="p">]</span>
+    <span class="n">refused</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">attempt</span> <span class="ow">in</span> <span class="n">attempts</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">attempt</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">refused</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">refused</span><span class="si">}</span><span class="s2"> malformed calls refused out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">attempts</span><span class="p">)</span><span class="si">}</span><span class="s2">: an unknown"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  variant or kernel, a zero dimension, zero ensemble members, a"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  zero or non-finite penalty, a non-finite offset, a non-positive"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  gamma, zero degree or chunk, a negative seed, targets given to a"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  kernel-only variant, no targets for the readout, a short or"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  non-finite target vector, a non-finite or three-dimensional"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  design, predict or the stored count before fit, a chunk given to"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  a batch variant, a chunk before the reservoir exists, a chunk of"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  the wrong width, a transform of the wrong width, and targets to"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  the streaming variant."</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">refused</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">attempts</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">_demo_standard</span><span class="p">()</span>
+    <span class="n">_demo_ensemble</span><span class="p">()</span>
+    <span class="n">_demo_streaming</span><span class="p">()</span>
+    <span class="n">_demo_ridge</span><span class="p">()</span>
+    <span class="n">_demo_guards</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"nystrom demo passed"</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">03 · Kernels &amp; instance-based</p><ul class="rail-list"><li><a href="svm.html"><span class="tick">✓</span><span>Support vector machine</span></a></li><li><a href="kernel_ridge.html"><span class="tick">✓</span><span>Kernel ridge</span></a></li><li><a href="knn.html"><span class="tick">✓</span><span>k-nearest neighbours</span></a></li><li><a href="svr.html"><span class="tick">✓</span><span>Support vector regression</span></a></li><li><a href="rbf_network.html"><span class="tick">✓</span><span>RBF networks</span></a></li><li><a href="random_features.html"><span class="tick">✓</span><span>Random features</span></a></li><li><a href="one_class.html"><span class="tick">✓</span><span>One-class models</span></a></li><li><a href="nearest_centroid.html"><span class="tick">✓</span><span>Nearest centroid</span></a></li><li><a href="nystrom.html" aria-current="page"><span class="tick">✓</span><span>Nystrom approximation</span></a></li><li><a href="metric_learning.html"><span class="tick">✓</span><span>Metric learning</span></a></li><li><a href="multiple_kernel.html"><span class="tick">✓</span><span>Multiple kernel learning</span></a></li><li><a href="mmd.html"><span class="tick">✓</span><span>MMD &amp; HSIC</span></a></li><li><a href="lvq.html"><span class="tick">✓</span><span>Learning vector quantisation</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../02-linear-models/index.html"><span class="jump">← 02 · Linear models</span></a></li><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">04 · Trees &amp; ensembles&nbsp;→</span></a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/03-kernels-and-instance/nystrom.py">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nearest centroid · MLAtoms</title>
+<meta name="description" content="Shrunken centroids and prototypes as a strong, fast baseline. Take the average of each class and send a new point to the nearest average. That is the whole…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/nearest_centroid.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Nearest centroid">
+<meta property="og:description" content="Shrunken centroids and prototypes as a strong, fast baseline. Take the average of each class and send a new point to the nearest average. That is the whole…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/nearest_centroid.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Nearest centroid">
+<meta name="twitter:description" content="Shrunken centroids and prototypes as a strong, fast baseline. Take the average of each class and send a new point to the nearest average. That is the whole…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Nearest centroid", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/nearest_centroid.html", "description": "Shrunken centroids and prototypes as a strong, fast baseline. Take the average of each class and send a new point to the nearest average. That is the whole\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">03 · Kernels &amp; instance-based</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="nearest_centroid.py.html">source</a></p><h1>Nearest centroid — the classifier you can fit with an average</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Take the average of each class and send a new point to the nearest average.
+That is the whole model, it costs one pass over the training set, and it stores
+<span class="math inline">\(K\)</span> vectors instead of <span class="math inline">\(n\)</span>:</p>
+<pre class="highlight"><code>       x₂
+        │        class 1
+        │       ·  ·  ·
+        │      ·  ·⊕·  ·        ⊕ = class mean, c₁
+        │       ·  ·  ·
+        │            ╲
+        │             ╲  the boundary is the perpendicular bisector
+        │              ╲
+        │   ·  ·  ·     ╲
+        │  ·  ·⊕·  ·     ╲      ⊕ = class mean, c₀
+        │   ·  ·  ·       ╲
+        └──────────────────────── x₁
+</code></pre>
+<p>The decision boundary is a straight line, always, because the rule compares two
+squared distances and their difference is linear in <span class="math inline">\(x\)</span>. It is therefore the
+cheapest linear classifier there is — cheaper than logistic regression and
+cheaper than a linear SVM, with no iterations and no margin parameter.</p>
+<p>The rule is not a heuristic. If every class is a Gaussian with the <em>same</em>
+covariance matrix, the Bayes-optimal classifier is a linear function of the
+distance to the mean, and when that covariance is the identity the optimal rule
+is exactly &quot;nearest mean&quot;. Nearest centroid is linear discriminant analysis with
+the covariance assumed away, which explains both why it is so cheap and where it
+fails: a class that is a banana, or two blobs, has a mean that is nowhere near
+its own points.</p>
+<p>The three other variants are the repairs, and each repairs a different lie:</p>
+<ul>
+<li><code>shrunken</code> repairs the lie that every feature is informative. It standardises
+each feature by its within-class spread and soft-thresholds the class means
+towards the overall mean, so a feature whose class means are within noise is
+set to the same value in every class and stops voting. This is the nearest
+shrunken centroid of Tibshirani and coauthors, and it is why the method worked
+on gene expression data with twenty thousand columns and sixty rows.</li>
+<li><code>nearest_subclass</code> repairs the lie that each class is one blob. It replaces a
+class by a small k-means mixture, so a class made of two clusters gets two
+centroids and the average stops lying.</li>
+<li><code>cosine</code> repairs the lie that distance is the right comparison. When the
+length of a vector is noise — document length, exposure time, embedding norm —
+the angle is the signal and the Euclidean distance is not.</li>
+</ul>
+<p>The demo is a sequence of failure and repair. On three separated blobs the plain
+rule is right 92.8 % of the time and a 1-nearest-neighbour baseline is at
+90.5 %, because one estimated mean has less variance than four hundred stored
+points. On a class made of two blobs the plain rule falls to 0.502 — a coin
+flip, and the centroids are both at the origin — while two subclasses reach
+1.000. On 600 features with 30 training points, shrinkage lifts held-out
+accuracy from 0.929 to 0.993 while the retained set falls from 600 features to
+11, and then, once the threshold passes the signal, the model collapses to the
+majority class, which is the correct behaviour of a rule that has been told
+every feature is noise. On documents of random length, Euclidean distance gets
+0.890 and cosine gets 1.000.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">replaces</th>
+<th style="text-align:left">parameter</th>
+<th style="text-align:left">fixes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>standard</code></td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">the baseline</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>shrunken</code></td>
+<td style="text-align:left">the mean by a thresholded mean</td>
+<td style="text-align:left"><code>shrinkage</code></td>
+<td style="text-align:left">uninformative features</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nearest_subclass</code></td>
+<td style="text-align:left">one mean by <span class="math inline">\(k\)</span> means</td>
+<td style="text-align:left"><code>n_subclasses</code></td>
+<td style="text-align:left">multimodal classes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cosine</code></td>
+<td style="text-align:left">the distance by the angle</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">magnitude as noise</td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid-source"><code class="language-mermaid">graph TD
+  A[class mean c_k] --&gt; B[standard: argmin distance]
+  A --&gt; C[shrunken: threshold each feature]
+  A --&gt; D[nearest_subclass: k-means per class]
+  A --&gt; E[cosine: argmax angle]
+  C --&gt; F[feature selection]
+  D --&gt; G[mixture of centroids]
+  E --&gt; H[length-invariant match]
+</code></pre>
+<p><strong><code>standard</code></strong> is the rule in the title: one mean per class, squared Euclidean
+distance, no parameters. Its <code>decision_function</code> returns the negative squared
+distance per class, so larger is better and <code>predict</code> is an <code>argmax</code>.</p>
+<p><strong><code>shrunken</code></strong> is the nearest shrunken centroid. It estimates a pooled
+within-class standard deviation per feature, converts each class mean into a
+standardised deviation from the overall mean, soft-thresholds that deviation at
+<code>shrinkage</code>, and reconstructs the centroid. The classifier then scores with the
+standardised distance and the class log-prior. Zero shrinkage reproduces the
+plain rule on standardised data; infinite shrinkage sends every centroid to the
+overall mean and the model to the majority class.</p>
+<p><strong><code>nearest_subclass</code></strong> runs k-means inside each class and keeps the resulting
+centres with a pointer back to their class. Scoring takes the best subclass per
+class. With <code>n_subclasses=1</code> and a fixed seed it is the plain rule; with two it
+is a piecewise-linear boundary that can carve out a class with two modes.</p>
+<p><strong><code>cosine</code></strong> normalises both the point and the centroid and scores with the dot
+product, which is the cosine of the angle between them. The centroid is still
+the arithmetic mean of the class, which is a subtle choice: the mean of
+unnormalised vectors is the direction of their sum, and that is exactly the
+Rocchio relevance centroid from information retrieval.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-rule">The rule <a class="header-anchor" href="#the-rule">#</a></h3>
+<p>Let class <span class="math inline">\(k\)</span> have <span class="math inline">\(n_k\)</span> points and mean</p>
+<div class="math block">
+\[c_k=\frac{1}{n_k}\sum_{j:\,y_j=k}x_j ,
+\qquad (1)\]
+</div>
+<p>and predict the class whose mean is closest, <span class="math inline">\(\hat y(x)=\arg\min_k\|x-c_k\|^2\)</span>.
+Expanding the square, <span class="math inline">\(\|x-c_k\|^2=\|x\|^2-2x^{\top}c_k+\|c_k\|^2\)</span>, and the
+<span class="math inline">\(\|x\|^2\)</span> term is the same for every class, so the rule is</p>
+<div class="math block">
+\[\hat y(x)=\arg\max_k\left(x^{\top}c_k-\tfrac12\|c_k\|^2\right).
+\qquad (2)\]
+</div>
+<p>The boundary between two classes is where the two scores are equal, which is a
+hyperplane with normal <span class="math inline">\(c_i-c_j\)</span>: nearest centroid is a linear classifier whose
+weights are differences of class means.</p>
+<h3 id="why-it-is-lda-without-the-covariance">Why it is LDA without the covariance <a class="header-anchor" href="#why-it-is-lda-without-the-covariance">#</a></h3>
+<p>Let class <span class="math inline">\(k\)</span> be Gaussian with mean <span class="math inline">\(\mu_k\)</span> and covariance <span class="math inline">\(\Sigma\)</span>, the same
+for every class, and prior <span class="math inline">\(\pi_k\)</span>. The discriminant is</p>
+<div class="math block">
+\[\log p(x\mid k)+\log\pi_k
+=-\tfrac12(x-\mu_k)^{\top}\Sigma^{-1}(x-\mu_k)+\log\pi_k+\mathrm{const} .
+\qquad (3)\]
+</div>
+<p>The quadratic term in <span class="math inline">\(x\)</span> does not depend on <span class="math inline">\(k\)</span>, so the comparison reduces to</p>
+<div class="math block">
+\[\hat y(x)=\arg\max_k\left(\mu_k^{\top}\Sigma^{-1}x
+-\tfrac12\mu_k^{\top}\Sigma^{-1}\mu_k+\log\pi_k\right),
+\qquad (4)\]
+</div>
+<p>which is LDA. Now write <span class="math inline">\(W=\Sigma^{-1/2}\)</span> and complete the square:</p>
+<div class="math block">
+\[\mu_k^{\top}\Sigma^{-1}x-\tfrac12\|\Sigma^{-1/2}\mu_k\|^2
+=\tfrac12\|Wx\|^2-\tfrac12\|Wx-W\mu_k\|^2 .
+\qquad (5)\]
+</div>
+<p>The first term is common to all classes, so the optimal rule is exactly
+nearest-centroid in whitened space: transform every point by <span class="math inline">\(W\)</span> and take the
+nearest mean. Nearest centroid is LDA with the whitening step skipped, which is
+optimal when <span class="math inline">\(\Sigma\)</span> is a multiple of the identity and otherwise merely cheap.</p>
+<p>With unequal priors the rule gains the term <span class="math inline">\(\log\pi_k\)</span>, and with a per-feature
+standard deviation <span class="math inline">\(s_i\)</span> it becomes the standardised distance the <code>shrunken</code>
+variant uses. The demo's closed-form LDA agrees with the whitened nearest
+centroid on every held-out point, which is a direct check of (5).</p>
+<h3 id="shrinkage">Shrinkage <a class="header-anchor" href="#shrinkage">#</a></h3>
+<p>The nearest shrunken centroid starts from a pooled within-class standard
+deviation per feature,</p>
+<div class="math block">
+\[s_i=\sqrt{\frac{1}{n-K}\sum_{k=1}^{K}\sum_{j:\,y_j=k}
+\left(x_{ji}-\bar x_{ki}\right)^2},
+\qquad (6)\]
+</div>
+<p>and the overall mean <span class="math inline">\(\bar x_i\)</span>. The class mean is turned into a standardised
+deviation from the overall mean, scaled by how much a mean of <span class="math inline">\(n_k\)</span> points can
+wander:</p>
+<div class="math block">
+\[d_{ik}=\frac{\bar x_{ki}-\bar x_i}{m_k\,s_i},
+\qquad m_k=\sqrt{\frac{1}{n_k}-\frac{1}{n}} .
+\qquad (7)\]
+</div>
+<p>The factor <span class="math inline">\(m_k\)</span> is the standard error of the difference between the class mean
+and the overall mean, so <span class="math inline">\(d_{ik}\)</span> is a <span class="math inline">\(t\)</span>-like statistic: how many standard
+errors the class sits away from the pool. Soft-thresholding it,</p>
+<div class="math block">
+\[d'_{ik}=\mathrm{sign}(d_{ik})\,\max\left(|d_{ik}|-\Delta,\,0\right),
+\qquad (8)\]
+</div>
+<p>sets to zero every feature whose class deviation is within <span class="math inline">\(\Delta\)</span> standard
+errors, and the shrunken centroid is the reconstruction</p>
+<div class="math block">
+\[\bar x'_{ik}=\bar x_i+m_k\,s_i\,d'_{ik} .
+\qquad (9)\]
+</div>
+<p>Classification uses the standardised distance and the log-prior,</p>
+<div class="math block">
+\[\hat y(x)=\arg\min_k\left(\sum_i\frac{(x_i-\bar x'_{ik})^2}{s_i^2}
+-2\log\pi_k\right),
+\qquad (10)\]
+</div>
+<p>which is (4) with a diagonal covariance and the shrunken means. The variant is
+therefore a feature selector and a classifier in one: a feature whose <span class="math inline">\(d'_{ik}\)</span>
+is zero in every class contributes the same value to every score and cannot
+change the answer. The demo measures the two ends of that trade: at <span class="math inline">\(\Delta=3\)</span>
+the model keeps 11 of 600 features and 11 of the 12 informative ones, and
+accuracy peaks; at <span class="math inline">\(\Delta=10\)</span> it keeps nothing, every centroid equals the
+overall mean, and the answer is the majority class.</p>
+<h3 id="subclasses">Subclasses <a class="header-anchor" href="#subclasses">#</a></h3>
+<p>For a class with several modes, replace one centroid by <span class="math inline">\(J\)</span> of them and solve</p>
+<div class="math block">
+\[\min_{\{c_{kj}\}}\sum_{k}\sum_{j:\,y_j=k}\min_{m}\|x_j-c_{km}\|^2 ,
+\qquad (11)\]
+</div>
+<p>which is <span class="math inline">\(K\)</span> independent k-means problems, each solved by Lloyd's algorithm from
+a k-means++ start. The decision rule becomes</p>
+<div class="math block">
+\[\hat y(x)=\arg\min_k\min_m\|x-c_{km}\|^2 ,
+\qquad (12)\]
+</div>
+<p>still piecewise linear, but with as many pieces as there are subclasses. This is
+a crude Gaussian mixture classifier: the mixture weights and covariances are
+dropped, and only the centres are kept.</p>
+<h3 id="cosine">Cosine <a class="header-anchor" href="#cosine">#</a></h3>
+<p>For the angle, score</p>
+<div class="math block">
+\[\hat y(x)=\arg\max_k\frac{x^{\top}c_k}{\|x\|\,\|c_k\|},
+\qquad (13)\]
+</div>
+<p>which ignores <span class="math inline">\(\|x\|\)</span> entirely. It is the right rule when a point's direction is
+its content and its length is an accident of how it was measured, and it costs
+one normalisation per row.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="the-distance-without-a-loop">The distance, without a loop <a class="header-anchor" href="#the-distance-without-a-loop">#</a></h3>
+<pre class="highlight"><code>    <span class="n">squared</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">X</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+               <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">C</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+               <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">X</span> <span class="o">@</span> <span class="n">C</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">squared</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>The expansion of <span class="math inline">\(\|x-c\|^2\)</span> as three matrix operations: the row norms of the
+points, the row norms of the centroids, and the cross term. It is the standard
+identity, and the <code>maximum</code> is not decoration — for nearly identical vectors the
+subtraction leaves a small negative number, and a negative squared distance
+would sort below zero and win an <code>argmax</code> it should not.</p>
+<h3 id="shrinkage-in-ten-lines">Shrinkage in ten lines <a class="header-anchor" href="#shrinkage-in-ten-lines">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+            <span class="n">centred</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">group</span><span class="p">]</span> <span class="o">-</span> <span class="n">points</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">centred</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">spread</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">total</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">rows</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">),</span> <span class="mi">1</span><span class="p">))</span>
+</code></pre>
+<p>The pooled within-class variance of (6), accumulated one class at a time: each
+class is centred on its own mean, so the class means themselves do not inflate
+the spread. The denominator is the residual degrees of freedom, <span class="math inline">\(n-K\)</span>.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">group</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">rows</span><span class="p">)</span>
+            <span class="n">deviation</span> <span class="o">=</span> <span class="p">(</span><span class="n">points</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="n">overall</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">scale</span> <span class="o">*</span> <span class="n">spread</span><span class="p">)</span>
+            <span class="n">keep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">deviation</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">deviation</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">shrinkage</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">centroids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">overall</span> <span class="o">+</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">spread</span> <span class="o">*</span> <span class="n">keep</span><span class="p">)</span>
+</code></pre>
+<p>(7), (8) and (9) in order. The <code>scale</code> is <span class="math inline">\(m_k\)</span>, which is where the method
+differs from naive thresholding of the means: a class with ten points is allowed
+to sit further from the pool before its deviation counts as real than a class
+with a thousand. <code>np.sign</code> times <code>maximum</code> is the soft threshold, and the
+reconstruction multiplies back by exactly the factor that standardised it, so a
+feature with <span class="math inline">\(d'=d\)</span> comes back unchanged.</p>
+<h3 id="scoring-the-shrunken-model">Scoring the shrunken model <a class="header-anchor" href="#scoring-the-shrunken-model">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"shrunken"</span><span class="p">:</span>
+            <span class="n">standardised</span> <span class="o">=</span> <span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+                            <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">centroids_</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">scales_</span>
+            <span class="k">return</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">standardised</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">priors_</span><span class="p">)</span>
+</code></pre>
+<p>(10) with the sign flipped so that larger is still better. The broadcasting
+builds an <span class="math inline">\((m, K, d)\)</span> array of differences — one temporary of size
+<span class="math inline">\(m\cdot K\cdot d\)</span> — and reduces it in one pass. The log-prior is the
+<span class="math inline">\(-\log\pi_k\)</span> of (10) moved to the left. The <code>standard</code> and <code>nearest_subclass</code>
+variants do not use priors, which is a deliberate asymmetry: they are the
+unregularised baseline, and adding a prior to them would hide the effect the
+demo is trying to measure.</p>
+<h3 id="subclass-scoring">Subclass scoring <a class="header-anchor" href="#subclass-scoring">#</a></h3>
+<pre class="highlight"><code>        <span class="n">scores</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">column</span><span class="p">,</span> <span class="n">owner</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">centroid_classes_</span><span class="p">):</span>
+            <span class="n">scores</span><span class="p">[:,</span> <span class="n">owner</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">scores</span><span class="p">[:,</span> <span class="n">owner</span><span class="p">],</span> <span class="n">distance</span><span class="p">[:,</span> <span class="n">column</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">scores</span>
+</code></pre>
+<p>(12): each subclass scores its own class, and the class takes the best of its
+subclasses. <code>-inf</code> is the identity for <code>maximum</code>, so a class with no centroid
+cannot accidentally win — impossible here, but the initialisation says what the
+reduction means. The cost is one pass over the subclass columns after the
+distance matrix, not a second distance matrix.</p>
+<h3 id="cosine-1">Cosine <a class="header-anchor" href="#cosine-1">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"cosine"</span><span class="p">:</span>
+            <span class="n">norms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">norms</span><span class="p">[</span><span class="n">norms</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">unit</span> <span class="o">=</span> <span class="n">points</span> <span class="o">/</span> <span class="n">norms</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">centroids_</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">centroids_</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">unit</span> <span class="o">@</span> <span class="n">target</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p>(13), with one guard: a zero vector has no angle, so its norm is replaced by one
+and the point is scored against the origin. Without the guard the division
+propagates <code>nan</code> into the <code>argmax</code>, and <code>nan</code> comparisons are false, so the
+prediction becomes the first class — a silent, data-dependent bug rather than an
+error. The centroids are normalised at predict time rather than stored
+normalised, because <code>centroids_</code> is part of the public state and should be the
+means, not a rescaled version of them.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(n\)</span> be the training count, <span class="math inline">\(d\)</span> the features, <span class="math inline">\(K\)</span> the classes, <span class="math inline">\(J\)</span> the
+subclasses per class, <span class="math inline">\(I\)</span> the k-means iterations, and <span class="math inline">\(m\)</span> the test count.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">fit, <code>standard</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(Kd)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">fit, <code>shrunken</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd+Kd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(Kd+d)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">fit, <code>nearest_subclass</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nKJI)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(KJd)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">fit, <code>cosine</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(Kd)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">predict on <span class="math inline">\(m\)</span> points</td>
+<td style="text-align:left"><span class="math inline">\(O(mKd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(mK)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">model size</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left"><span class="math inline">\(O(Kd)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Fitting is a single pass to accumulate sums, and prediction is one matrix
+product. That is the entire appeal: no Gram matrix, no iterations, no
+hyperparameters except the two the repairs introduce. The k-means inside
+<code>nearest_subclass</code> is the only part that iterates, and it is <span class="math inline">\(I\approx50\)</span> passes
+over one class at a time, so it stays linear in <span class="math inline">\(n\)</span> with a constant that depends
+on <span class="math inline">\(J\)</span>.</p>
+<p>The model is also small in the way that matters on a device: 600 features and
+three classes is 1 800 numbers plus the scales, against <span class="math inline">\(n\cdot d\)</span> for a
+nearest-neighbour rule and <span class="math inline">\(n\)</span> support vectors for an SVM. The demo's 1-NN
+baseline has to keep every training point to be beaten by a model with one mean
+per class.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A class that is not one blob.</strong> The mean of two separated clusters sits
+between them, where no sample lives. The demo's XOR geometry puts both class
+means within 0.1 of the origin and the plain rule at 0.502; two subclasses take
+it to 1.000. Any time the within-class scatter is larger than the
+between-class separation, suspect this before tuning anything.</p>
+<p><strong>Features on different scales.</strong> A feature measured in thousands dominates one
+measured in fractions, and the nearest mean is effectively chosen by the loudest
+column. Standardise first, or use <code>shrunken</code>, which divides by the within-class
+spread and is scale-invariant by construction. The plain variant has no such
+protection, and it is the most common reason nearest centroid loses to logistic
+regression on tabular data.</p>
+<p><strong>High dimensions and small samples.</strong> With <span class="math inline">\(d\)</span> comparable to <span class="math inline">\(n\)</span>, each class
+mean is estimated from a handful of points per coordinate, and the estimate's
+variance is <span class="math inline">\(O(d/n)\)</span>. Shrinkage is the fix, and the demo shows both sides: the
+optimum at <span class="math inline">\(\Delta=3\)</span> keeps 11 features and scores 0.993; <span class="math inline">\(\Delta=4\)</span> keeps 9 and
+drops to 0.969, because it has started to delete signal. The threshold is a
+hyperparameter and needs a validation split — the training accuracy is monotone
+in it and useless for choosing.</p>
+<p><strong>Magnitude that is not content.</strong> A long document and a short one on the same
+topic are far apart in Euclidean distance and identical in angle. The demo's
+short documents of the long class sit closer to the wrong centroid than to the
+right one, and Euclidean distance scores 0.890. <code>cosine</code> fixes it, but only if
+length really is noise; for measurements where magnitude carries information,
+cosine throws that information away.</p>
+<p><strong>Unequal class sizes and no priors.</strong> <code>standard</code> and <code>nearest_subclass</code> ignore
+<span class="math inline">\(n_k\)</span>, so a rare class with a noisy mean can lose to a common one that happens
+to be nearby. <code>shrunken</code> is the only variant that adds <span class="math inline">\(\log\pi_k\)</span>. If the
+priors matter, the fix is a line of code, but it has to be a deliberate one.</p>
+<p><strong>A single class, or a class with no points.</strong> Both are refused at <code>fit</code>. One
+class has nothing to compare against and the classifier would return that class
+for everything; the code raises rather than doing that quietly.</p>
+<p><strong>Ties.</strong> Two equidistant means resolve to the lower class index because
+<code>argmax</code> returns the first maximum. With continuous features this is measure
+zero; with integer or categorical features it is common, and the tie-break is
+documented by the code rather than chosen by the data.</p>
+<p><strong>Reading <code>decision_function</code> as a probability.</strong> The scores are negative
+squared distances, so they are unbounded below and have no calibration. A score
+of <span class="math inline">\(-0.3\)</span> and a score of <span class="math inline">\(-30\)</span> both mean &quot;closest so far&quot;. Only the ranking
+within one fitted model is meaningful, exactly as with the one-class decision
+values.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Text classification.</strong> The Rocchio classifier — centroid per category, cosine
+similarity — is the classic relevance-feedback method in information retrieval
+and remains a strong baseline for topic tagging. It needs no training loop, and
+it degrades gracefully as categories are added.</p>
+<p><strong>Gene expression and biomarkers.</strong> PAM (prediction analysis for microarrays)
+is the shrunken variant applied to expression data, where <span class="math inline">\(d\)</span> is in the
+thousands and <span class="math inline">\(n\)</span> in the dozens. It was designed for exactly the regime in which
+the plain rule fails, and the shrunken centroids double as a gene panel.</p>
+<p><strong>Speaker and writer identification.</strong> A centroid per speaker in MFCC or
+embedding space, scored by cosine, is a standard text-independent baseline and
+the fallback when an i-vector or neural system is unavailable.</p>
+<p><strong>Prototype networks and few-shot learning.</strong> A class mean of embedded examples
+is the nearest-centroid rule in a learned metric, and prototypical networks are
+its modern form: the embedding replaces the raw features and the rest of the
+algorithm is unchanged.</p>
+<p><strong>Retrieval over embeddings.</strong> For a fixed set of categories, one vector per
+category is an approximate index that fits in cache and answers in one matrix
+product, which is often the right trade against an exact nearest-neighbour
+search.</p>
+<p><strong>Anomaly triage.</strong> The distance to the nearest class centroid is a crude
+novelty score: a point far from every mean is worth a second look even if the
+<code>argmax</code> is confident. It is the cheapest version of the one-class idea in the
+previous atom.</p>
+<p><strong>A baseline that is hard to beat.</strong> On small, noisy, roughly Gaussian data the
+variance of the estimate matters more than its bias, and one mean per class
+beats <span class="math inline">\(k\)</span>-NN — the demo's 0.928 against 0.905 at 400 points. Reporting nearest
+centroid in a comparison is a service to the reader.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Tibshirani, R., Hastie, T., Narasimhan, B. &amp; Chu, G. (2002). Diagnosis of
+multiple cancer types by shrunken centroids of gene expression. <em>PNAS</em> 99(10),
+6567–6572. The nearest shrunken centroid, (6)–(10).</li>
+<li>Hastie, T., Tibshirani, R. &amp; Friedman, J. (2009). <em>The Elements of Statistical
+Learning</em>, 2nd ed., §4.3 and §18.3. Springer. Nearest centroid as LDA with a
+diagonal or skipped covariance, and the PAM algorithm.</li>
+<li>Rocchio, J. J. (1971). Relevance feedback in information retrieval. In
+<em>The SMART Retrieval System</em>, Prentice-Hall. The centroid classifier with
+cosine similarity.</li>
+<li>Manning, C. D., Raghavan, P. &amp; Schütze, H. (2008). <em>Introduction to
+Information Retrieval</em>, ch. 14. Cambridge University Press. Rocchio
+classification and its use in text.</li>
+<li>Cover, T. M. &amp; Hart, P. E. (1967). Nearest neighbor pattern classification.
+<em>IEEE Transactions on Information Theory</em> 13(1), 21–27. The baseline the
+centroid is compared against.</li>
+<li>Friedman, J. H. (1989). Regularized discriminant analysis. <em>JASA</em> 84(405),
+165–175. Shrinkage between a full and a diagonal covariance, the idea
+<code>shrunken</code> applies to the means.</li>
+<li>Snell, J., Swersky, K. &amp; Zemel, R. (2017). Prototypical networks for few-shot
+learning. <em>NeurIPS</em>. The class mean in a learned metric.</li>
+<li>Hand, D. J. &amp; Yu, K. (2001). Idiot's Bayes — not so stupid after all?
+<em>International Statistical Review</em> 69(3), 385–398. Why a naive, independence-
+assuming classifier so often wins.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="one_class.html"><small>Previous</small><span>One-class models</span></a><a class="next" href="nystrom.html"><small>Next</small><span>Nystrom approximation</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">03 · Kernels &amp; instance-based</p><ul class="rail-list"><li><a href="svm.html"><span class="tick">✓</span><span>Support vector machine</span></a></li><li><a href="kernel_ridge.html"><span class="tick">✓</span><span>Kernel ridge</span></a></li><li><a href="knn.html"><span class="tick">✓</span><span>k-nearest neighbours</span></a></li><li><a href="svr.html"><span class="tick">✓</span><span>Support vector regression</span></a></li><li><a href="rbf_network.html"><span class="tick">✓</span><span>RBF networks</span></a></li><li><a href="random_features.html"><span class="tick">✓</span><span>Random features</span></a></li><li><a href="one_class.html"><span class="tick">✓</span><span>One-class models</span></a></li><li><a href="nearest_centroid.html" aria-current="page"><span class="tick">✓</span><span>Nearest centroid</span></a></li><li><a href="nystrom.html"><span class="tick">✓</span><span>Nystrom approximation</span></a></li><li><a href="metric_learning.html"><span class="tick">✓</span><span>Metric learning</span></a></li><li><a href="multiple_kernel.html"><span class="tick">✓</span><span>Multiple kernel learning</span></a></li><li><a href="mmd.html"><span class="tick">✓</span><span>MMD &amp; HSIC</span></a></li><li><a href="lvq.html"><span class="tick">✓</span><span>Learning vector quantisation</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../02-linear-models/index.html"><span class="jump">← 02 · Linear models</span></a></li><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">04 · Trees &amp; ensembles&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-rule">The rule</a></li><li class="lvl3"><a href="#why-it-is-lda-without-the-covariance">Why it is LDA without the covariance</a></li><li class="lvl3"><a href="#shrinkage">Shrinkage</a></li><li class="lvl3"><a href="#subclasses">Subclasses</a></li><li class="lvl3"><a href="#cosine">Cosine</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#the-distance-without-a-loop">The distance, without a loop</a></li><li class="lvl3"><a href="#shrinkage-in-ten-lines">Shrinkage in ten lines</a></li><li class="lvl3"><a href="#scoring-the-shrunken-model">Scoring the shrunken model</a></li><li class="lvl3"><a href="#subclass-scoring">Subclass scoring</a></li><li class="lvl3"><a href="#cosine-1">Cosine</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/03-kernels-and-instance/nearest_centroid.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

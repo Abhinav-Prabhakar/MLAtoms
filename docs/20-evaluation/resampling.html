@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resampling · MLAtoms</title>
+<meta name="description" content="Holdout, k-fold, stratified/group/time-series and nested CV. A model&#x27;s score on the data it was trained on is a lie. It has already seen those rows, so the…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/20-evaluation/resampling.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Resampling">
+<meta property="og:description" content="Holdout, k-fold, stratified/group/time-series and nested CV. A model&#x27;s score on the data it was trained on is a lie. It has already seen those rows, so the…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/20-evaluation/resampling.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Resampling">
+<meta name="twitter:description" content="Holdout, k-fold, stratified/group/time-series and nested CV. A model&#x27;s score on the data it was trained on is a lie. It has already seen those rows, so the…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Resampling", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/20-evaluation/resampling.html", "description": "Holdout, k-fold, stratified/group/time-series and nested CV. A model's score on the data it was trained on is a lie. It has already seen those rows, so the\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">20 · Evaluation &amp; uncertainty</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="resampling.py.html">source</a></p><h1>Resampling</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A model's score on the data it was trained on is a lie. It has already seen those rows,
+so the number measures memory, not generalisation. Resampling is the machinery that
+manufactures the missing evidence: hold part of the data back, fit on the rest, score on
+the held-out part, and repeat with different parts.</p>
+<p>The variants are not different algorithms so much as different answers to <em>what is
+allowed to leak between the fit and the score</em>:</p>
+<ul>
+<li><strong><code>holdout</code></strong> — one cut. Cheapest, noisier than it looks: with <code>n = 200</code> and a 30% test
+set, the standard error of an MSE estimate is large enough that two models differing by
+10% can look identical.</li>
+<li><strong><code>kfold</code></strong> — cut into <code>k</code> pieces and score each piece once with the other <code>k−1</code> used to
+fit. Every row is a test row exactly once, so no data is wasted and the estimate uses
+the whole sample.</li>
+<li><strong><code>stratified</code></strong> — keep the class ratio inside every fold. An unstratified 5-fold split
+of 190 negatives and 10 positives can put all ten positives in one fold (the demo does
+exactly this by keeping the rows in class order: <code>[0, 0, 0, 0, 10]</code>), which makes four folds
+unable to measure the minority class at all.</li>
+<li><strong><code>group</code></strong> — no patient, user, device or document may appear on both sides of the cut.
+Otherwise the model memorises the group and the fold score measures recall of an
+identity, not skill.</li>
+<li><strong><code>time_series_split</code></strong> — the training set is always in the past. A random split of a
+time series trains on the future and tests on the past, which is not a question anyone
+can ask in production.</li>
+<li><strong><code>nested_cv</code></strong> — the inner folds choose hyperparameters, the outer folds score the
+whole procedure. Without the nesting, the selection step sees the scoring data and the
+reported number is optimistic.</li>
+<li><strong><code>repeated_cv</code></strong> — repeat the whole <code>k</code>-fold partition with different shuffles and
+average. The point estimate barely moves; the <em>variance</em> of the estimate drops like
+<code>1/R</code>, which is what lets you tell a real 1% difference from a lucky split.</li>
+<li><strong><code>leave_one_out</code></strong> — <code>k = n</code>. Nearly unbiased for the training-set size, but each fit
+differs from the final model by one point, so for unstable learners the estimate has
+high variance. For linear least squares it is free: one closed-form formula replaces
+<code>n</code> fits.</li>
+</ul>
+<p>The two that stop silent errors are <code>group</code> and <code>time_series_split</code>. The rest reduce
+variance; those two decide whether the number is measuring anything at all.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Assumption it protects</th>
+<th style="text-align:left">Cost</th>
+<th style="text-align:left">Estimate variance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>holdout</code></td>
+<td style="text-align:left">nothing</td>
+<td style="text-align:left">1 fit</td>
+<td style="text-align:left">high</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kfold</code></td>
+<td style="text-align:left">rows are i.i.d.</td>
+<td style="text-align:left"><code>k</code> fits</td>
+<td style="text-align:left">moderate</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>stratified</code></td>
+<td style="text-align:left">rows are i.i.d., classes imbalanced</td>
+<td style="text-align:left"><code>k</code> fits</td>
+<td style="text-align:left">moderate, lower on rare classes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>group</code></td>
+<td style="text-align:left">rows are i.i.d. <em>within</em> group</td>
+<td style="text-align:left"><code>k</code> fits</td>
+<td style="text-align:left">moderate, correct under dependence</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>time_series_split</code></td>
+<td style="text-align:left">train precedes test</td>
+<td style="text-align:left"><code>n_splits</code> fits</td>
+<td style="text-align:left">moderate, pessimistic</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nested_cv</code></td>
+<td style="text-align:left">hyperparameters are chosen, not given</td>
+<td style="text-align:left"><code>k·(1 + c·k_inner)</code> fits</td>
+<td style="text-align:left">low, unbiased for the procedure</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>repeated_cv</code></td>
+<td style="text-align:left">the partition is random</td>
+<td style="text-align:left"><code>k·R</code> fits</td>
+<td style="text-align:left"><code>≈ σ²/(kR)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>leave_one_out</code></td>
+<td style="text-align:left">rows are i.i.d.</td>
+<td style="text-align:left"><code>n</code> fits (<code>O(1)</code> for OLS)</td>
+<td style="text-align:left">low bias, high variance</td>
+</tr>
+</tbody>
+</table>
+<p><code>holdout</code> and <code>kfold</code> are the same idea at two granularities: holdout is <code>k = 2</code> with an
+unequal split. <code>kfold</code> with <code>k = n</code> is <code>leave_one_out</code>. The interesting cases are the
+conditioning ones — <code>stratified</code>, <code>group</code>, <code>time_series_split</code> — and <code>nested_cv</code>, which
+fixes a bias rather than a variance.</p>
+<p>One detail that catches people: <code>nested_cv</code> and <code>repeated_cv</code> reuse the machinery of
+<code>kfold</code>. In this file <code>repeated_cv</code> is literally <code>n_repeats</code> k-fold partitions with
+different seeds, and <code>nested_cv</code> is a k-fold outer loop plus an <code>inner</code> k-fold partitioner
+exposed as an attribute. That is not a shortcut; it is the definition.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>The estimand.</strong> Let <code>R(θ) = E_{(x,y)~P}[ℓ(y, f_θ(x))]</code> be the risk under the data
+distribution, and let <code>R̂_S(θ)</code> be the average loss on a finite sample <code>S</code>. Every
+resampling scheme is an attempt to estimate <code>R(θ)</code> using only one sample <code>D</code> of size <code>n</code>.</p>
+<p><strong>Holdout.</strong> Split <code>D = T ∪ V</code> with <code>|V| = m</code>. Then <code>R̂_V(θ_T)</code> is unbiased for the risk of
+a model trained on <code>n − m</code> points, and its variance is <code>Var(ℓ)/m</code>, estimated by the
+empirical variance of the test losses. Two problems are visible in that sentence: the
+training set is smaller than the final one (bias), and with <code>m = 0.3n</code> the variance is
+large. The bias is <code>O(1/n)</code> for a stable learner but can be substantial when the learning
+curve is steep.</p>
+<p><strong>k-fold.</strong> Partition into <code>K</code> folds <code>F_1…F_K</code> of size <code>≈ n/K</code>; for each <code>j</code>, fit on
+<code>D \ F_j</code> and score on <code>F_j</code>. Every row is scored exactly once, so the estimate uses all
+<code>n</code> scores:</p>
+<div class="math block">
+\[\hat R_{\text{cv}} = \frac{1}{n}\sum_{i=1}^{n} \ell\bigl(y_i, f_{\theta_{D\setminus F(i)}}(x_i)\bigr)\]
+</div>
+<p>with <code>F(i)</code> the fold containing <code>i</code>. The bias is that of a model trained on <code>n(1−1/K)</code>
+points, which shrinks as <code>K</code> grows; the variance comes from two sources — the test losses
+themselves and the correlation between the <code>K</code> fitted models, which share <code>n(1−2/K)</code>
+points. That correlation is why <code>k = 10</code> usually beats both <code>k = 5</code> and <code>k = n</code>: it trades
+bias down and correlation up, and the optimum is around 5–10 for most learners.</p>
+<p><strong>Stratification.</strong> Suppose the folds are formed by assigning each class's rows to folds
+independently. Then the number of minority rows in fold <code>j</code> is hypergeometric with mean
+<code>n_rare/K</code> and variance <code>n_rare (n−n_rare)/(K−1) · …</code>, so a fold can receive zero minority
+rows whenever <code>n_rare &lt; K</code>. Stratifying makes that count constant (<code>n_rare // K</code>, plus one
+for the first <code>n_rare % K</code> folds), which removes the between-fold variance of the class
+ratio entirely. The demo's 190/10 split gives <code>[2,2,2,2,2]</code> stratified and <code>[0,0,0,0,10]</code>
+unstratified — the first four folds of the unstratified split cannot compute a
+minority-class recall at all.</p>
+<p><strong>Groups.</strong> If rows are exchangeable only within a group <code>g</code> — repeated measurements of
+the same patient, multiple sessions of the same user — then a row from <code>g</code> in the test
+set is predictable from its siblings in the training set regardless of the target
+relationship. The fold score then estimates &quot;can the model identify the group&quot;, which is
+usually near-perfect and always useless. Grouped splitting makes the folds a partition of
+<em>groups</em>, so the test rows come from groups the model has never seen. The demo measures
+the leak directly: k-fold shares <code>133</code> groups between the training and test sides, grouped
+splitting shares <code>0</code>.</p>
+<p><strong>Time series.</strong> For a series <code>y_1…y_n</code>, the random-fold assumption fails twice: the rows
+are dependent (so test losses are correlated and the variance formula is wrong), and a
+random split lets the model fit on <code>y_{t+1}</code> to predict <code>y_t</code>. Forward chaining fixes
+both: window <code>i</code> trains on <code>[0, w(i+1))</code> and tests on the following block, so the training
+set only ever grows into the past. The <code>gap</code> parameter drops rows immediately before the
+test window — the forecast horizon, an embargo, or the label-delay window. Without it, the
+last training label may be computed from data that overlaps the test period, which is a
+leak that survives even forward chaining.</p>
+<p><strong>Nested CV.</strong> Let <code>c</code> index a candidate set and <code>S_j</code> be the outer fold. The flat
+procedure is</p>
+<div class="math block">
+\[\hat R_{\text{flat}} = \min_c \frac{1}{K}\sum_j \ell_{j}(c)\]
+</div>
+<p>and <code>min</code> is a nonlinear function, so it does not commute with expectation:</p>
+<div class="math block">
+\[\mathbb{E}\Bigl[\min_c \hat R(c)\Bigr] \;\le\; \min_c \mathbb{E}\bigl[\hat R(c)\bigr]\]
+</div>
+<p>The left side is what flat CV reports; the right side is the risk of the best candidate.
+The gap is the selection bias, and it grows with the number of candidates and with the
+noise in each estimate. Nested CV reports instead</p>
+<div class="math block">
+\[\hat R_{\text{nested}} = \frac{1}{K}\sum_j \ell_{j}\bigl(\hat c_{-j}\bigr),
+\qquad
+\hat c_{-j} = \arg\min_c \frac{1}{K_{\text{in}}}\sum_{i \in \text{inner}} \ell_i(c)\]
+</div>
+<p>where <code>ĉ_{−j}</code> is chosen without touching <code>S_j</code>. Each term is an honest score for the
+<em>procedure</em> that picks <code>c</code> from data, which is the thing that will run in production.</p>
+<p>The demo makes the bias visible with ten candidates that are all equally useless: ten
+disjoint pairs of pure-noise features, <code>y</code> independent of <code>X</code>. Every candidate has true
+risk exactly <code>1.0</code>. Flat CV's best of ten reports <code>0.984</code>; the nested estimate reports
+<code>1.089</code>, and it selects <code>3</code> different subsets across the five outer folds — the selection
+is unstable, which is precisely when the flat minimum is most optimistic.</p>
+<p><strong>Repeated CV.</strong> A single k-fold estimate is a random variable because the partition is
+random. If a repeat has variance <code>σ²</code>, then averaging <code>R</code> independent repeats has variance
+<code>σ²/R</code>, so the standard error falls by <code>√R</code>:</p>
+<div class="math block">
+\[\mathrm{se}\bigl(\hat R^{(R)}\bigr) = \frac{\sigma}{\sqrt{kR}}\]
+</div>
+<p>Two distinct 10-repeat estimates should therefore agree about three times more closely
+than two distinct 1-repeat estimates. The demo measures that directly: over 20 seeds the
+spread is <code>0.0039</code> for one repeat and <code>0.0011</code> for ten, a ratio of <code>0.29 ≈ 1/√10</code>.</p>
+<p><strong>Leave-one-out and the hat matrix.</strong> LOO is <code>K = n</code>: fit on all but row <code>i</code>, score row
+<code>i</code>. Naively that is <code>n</code> fits, but for linear least squares there is an identity. Let
+<code>β̂</code> be the full fit, <code>e_i = y_i − x_iᵀβ̂</code> the full residual, and
+<code>h_i = x_iᵀ(XᵀX)⁻¹x_i</code> the leverage (the <code>i</code>-th diagonal of the hat matrix <code>H = X(XᵀX)⁻¹Xᵀ</code>).
+Then</p>
+<div class="math block">
+\[\hat\beta_{-i} = \hat\beta - \frac{(X^\top X)^{-1}x_i\, e_i}{1-h_i},
+\qquad
+\hat y_{-i}(x_i) = x_i^\top\hat\beta_{-i}
+\;\Longrightarrow\;
+e_i^{(-i)} = \frac{e_i}{1-h_i}\]
+</div>
+<p>The second identity is the useful one: the LOO residual is the full residual inflated by
+<code>1/(1−h_i)</code>. So</p>
+<div class="math block">
+\[\text{LOO-MSE} = \frac{1}{n}\sum_i \Bigl(\frac{e_i}{1-h_i}\Bigr)^2\]
+</div>
+<p>with no refitting at all. The demo checks the implementation against it and gets
+<code>0.198063</code> from both routes to six decimals. The <code>h_i → 1</code> case is a high-leverage point:
+the inflation factor blows up, and the LOO estimate becomes unstable, which is LOO's
+known weakness rather than a bug.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>One <code>split</code> generator dispatches on the variant, so every consumer — the demo, the two
+scoring harnesses, any caller — sees the same <code>(train_idx, test_idx)</code> contract:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">"holdout"</span><span class="p">:</span>
+            <span class="k">yield from</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_holdout</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">rng</span><span class="p">)]</span>
+        <span class="k">elif</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">"kfold"</span><span class="p">:</span>
+            <span class="k">yield from</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kfold</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_splits</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+</code></pre>
+<p><code>yield from [... ]</code> with a one-element list is deliberate: <code>split</code> must always be a
+generator, otherwise callers that call <code>next(iter(...))</code> and callers that loop would need
+different code paths. <code>n</code> comes from the first axis of <code>X</code>, or from <code>X</code> itself when it is
+an integer, so index-only callers (the time-series demo) do not have to fabricate an
+array.</p>
+<p>The k-fold split is a permutation plus a size vector:</p>
+<pre class="highlight"><code>        <span class="n">perm</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shuffle</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="n">sizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">n</span> <span class="o">//</span> <span class="n">k</span><span class="p">)</span>
+        <span class="n">sizes</span><span class="p">[:</span> <span class="n">n</span> <span class="o">%</span> <span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">sizes</span><span class="p">:</span>
+            <span class="n">test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">perm</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">start</span> <span class="o">+</span> <span class="n">size</span><span class="p">])</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="n">mask</span><span class="p">[</span><span class="n">test</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">yield</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">mask</span><span class="p">),</span> <span class="n">test</span>
+            <span class="n">start</span> <span class="o">+=</span> <span class="n">size</span>
+</code></pre>
+<p><code>sizes[: n % k] += 1</code> is what makes folds differ by at most one row: with <code>n = 203</code>,
+<code>k = 5</code> the sizes are <code>[41, 41, 41, 40, 40]</code>. The mask-and-<code>flatnonzero</code> construction
+gives sorted train indices without <code>np.setdiff1d</code>, which would sort on every fold and is
+much slower. <code>np.sort(perm[...])</code> sorts the test indices too; callers index with them, so
+order does not matter, but reproducible output does.</p>
+<p>Stratification loops over classes and slices each one into <code>k</code> chunks:</p>
+<pre class="highlight"><code>        <span class="n">folds</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span>
+        <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+            <span class="n">ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="bp">cls</span><span class="p">)</span>
+            <span class="n">ids</span> <span class="o">=</span> <span class="n">ids</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">ids</span><span class="o">.</span><span class="n">size</span><span class="p">)]</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array_split</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">k</span><span class="p">)):</span>
+                <span class="n">folds</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+</code></pre>
+<p><code>np.array_split</code> splits into <code>k</code> nearly equal pieces, so a class with <code>m</code> rows puts
+<code>⌈m/k⌉</code> or <code>⌊m/k⌋</code> in each fold — the constant-proportion guarantee. Shuffling per class
+before the split is what makes it random rather than dependent on row order. Note the
+loop cannot produce an empty fold for a class with fewer than <code>k</code> rows; it produces
+folds with zero of that class, which is the unavoidable floor and exactly the case where
+stratification has nothing left to give.</p>
+<p>Grouped splitting is a greedy load-balance over whole groups:</p>
+<pre class="highlight"><code>        <span class="n">load</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">assign</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">uniq</span><span class="p">:</span>                       <span class="c1"># longest-processing-time: biggest first</span>
+            <span class="n">j</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">load</span><span class="p">))</span>
+            <span class="n">assign</span><span class="p">[</span><span class="n">g</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span>
+            <span class="n">load</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">((</span><span class="n">groups</span> <span class="o">==</span> <span class="n">g</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">fold_of</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">assign</span><span class="p">[</span><span class="n">g</span><span class="p">]</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">])</span>
+</code></pre>
+<p>This is longest-processing-time scheduling: each group goes to the currently lightest
+fold, which keeps fold sizes within one group's size of each other. Since the folds are a
+partition of <em>groups</em>, no group can appear on both sides of a cut — that is the whole
+guarantee, and it holds regardless of how balanced the folds are. <code>fold_of</code> is a
+per-row array, so the yielded train/test masks are computed by equality rather than by
+set operations.</p>
+<p>Time-series windows are an expanding prefix and a following block:</p>
+<pre class="highlight"><code>        <span class="n">width</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span> <span class="o">//</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_splits</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_splits</span><span class="p">):</span>
+            <span class="n">train_end</span> <span class="o">=</span> <span class="n">width</span> <span class="o">*</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">test_start</span> <span class="o">=</span> <span class="n">train_end</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">gap</span>
+            <span class="n">test_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">test_start</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">test_start</span> <span class="o">&gt;=</span> <span class="n">n</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">yield</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">train_end</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">test_start</span><span class="p">,</span> <span class="n">test_end</span><span class="p">)</span>
+</code></pre>
+<p><code>n // (n_splits + 1)</code> reserves one window for the first training block plus one test
+window per split, so the last test block ends at the data. <code>gap</code> is added between
+<code>train_end</code> and <code>test_start</code> and is <em>not</em> part of either side — those rows are dropped,
+which is the embargo. <code>np.arange(train_end)</code> is a prefix, so the training set grows by
+<code>width</code> each iteration and the test block slides forward: exactly forward chaining.</p>
+<p>The stratified holdout is the same idea at one cut, and its <code>max(1, ...)</code> guard is
+subtle:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+            <span class="n">ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="bp">cls</span><span class="p">)</span>
+            <span class="n">take</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_size</span> <span class="o">*</span> <span class="n">ids</span><span class="o">.</span><span class="n">size</span><span class="p">)))</span>
+            <span class="n">test</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">ids</span><span class="p">)[:</span><span class="n">take</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+</code></pre>
+<p>Without <code>max(1, ...)</code>, a class with two rows and <code>test_size = 0.25</code> contributes
+<code>round(0.5) = 0</code> rows and disappears from the test set entirely. The guarantee that every
+class is represented costs one row of imbalance — a class with one row ends up in the
+test set regardless of <code>test_size</code>, which is why the demo's split has 60 test rows rather
+than 59.</p>
+<p>The scoring harness rebuilds the model for every fold:</p>
+<pre class="highlight"><code>    <span class="n">scores</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">train</span><span class="p">,</span> <span class="n">test</span> <span class="ow">in</span> <span class="n">resampling</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">make_model</span><span class="p">()</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">train</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">train</span><span class="p">])</span>
+        <span class="n">scores</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scoring</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">test</span><span class="p">],</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">test</span><span class="p">])))</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+</code></pre>
+<p><code>make_model()</code> must be a factory, not an instance: reusing a fitted estimator across
+folds keeps the state from the previous fit, so fold 2 would start from fold 1's
+coefficients. This is the most common bug in hand-rolled CV, and it is silent — the scores
+still look plausible.</p>
+<p>Nested CV is the outer loop plus an inner selection, and the inner partition is taken
+from the <em>outer training rows</em>:</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">itr</span><span class="p">,</span> <span class="n">ite</span> <span class="ow">in</span> <span class="n">resampling</span><span class="o">.</span><span class="n">inner</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">Xtr</span><span class="p">,</span> <span class="n">ytr</span><span class="p">):</span>
+                <span class="n">model</span> <span class="o">=</span> <span class="n">make_model</span><span class="p">(</span><span class="o">**</span><span class="n">params</span><span class="p">)</span>
+                <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Xtr</span><span class="p">[</span><span class="n">itr</span><span class="p">],</span> <span class="n">ytr</span><span class="p">[</span><span class="n">itr</span><span class="p">])</span>
+                <span class="n">inner_scores</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scoring</span><span class="p">(</span><span class="n">ytr</span><span class="p">[</span><span class="n">ite</span><span class="p">],</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">Xtr</span><span class="p">[</span><span class="n">ite</span><span class="p">])))</span>
+            <span class="n">mean</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">inner_scores</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">best</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">mean</span> <span class="o">&lt;</span> <span class="n">best</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">best</span> <span class="o">=</span> <span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">params</span><span class="p">))</span>
+</code></pre>
+<p><code>Xtr[itr]</code> — not <code>X[itr]</code> — is the load-bearing line. Splitting the inner fold over the
+full dataset would put outer-test rows into the inner training set, and the selection
+would see the data it is later scored on. That single indexing mistake reintroduces the
+exact bias nesting exists to remove. <code>dict(params)</code> copies the candidate so a later
+mutation cannot change the record of what was chosen.</p>
+<p>The LOO branch is two lines, and its cost profile is the reason the closed form matters:</p>
+<pre class="highlight"><code>        <span class="k">else</span><span class="p">:</span>                                   <span class="c1"># leave_one_out</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">i</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">i</span><span class="p">])</span>
+</code></pre>
+<p><code>np.delete</code> allocates a new array of length <code>n−1</code> per iteration, so the generator alone is
+<code>O(n²)</code> memory traffic before any fitting. For <code>n = 10⁴</code> that is 800 MB of copying; for
+linear models use the hat-matrix formula instead, and for anything else use <code>k = 10</code> and
+accept the bias.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Fits</th>
+<th style="text-align:left">Total cost</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>holdout</code></td>
+<td style="text-align:left">1</td>
+<td style="text-align:left"><code>T(n(1−p))</code></td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kfold</code></td>
+<td style="text-align:left"><code>k</code></td>
+<td style="text-align:left"><code>k·T(n(1−1/k))</code></td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>stratified</code></td>
+<td style="text-align:left"><code>k</code></td>
+<td style="text-align:left"><code>k·T(n(1−1/k))</code> + <code>O(n log n)</code> sort</td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>group</code></td>
+<td style="text-align:left"><code>k</code></td>
+<td style="text-align:left"><code>k·T(·)</code> + <code>O(G log G)</code> for the group sort</td>
+<td style="text-align:left"><code>O(n + G)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>time_series_split</code></td>
+<td style="text-align:left"><code>s</code></td>
+<td style="text-align:left"><code>Σ_i T(w(i+1))</code> — cheapest early, dearest late</td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nested_cv</code></td>
+<td style="text-align:left"><code>k(1 + c·k_in)</code></td>
+<td style="text-align:left"><code>k·T(·) + k·c·k_in·T(·)</code></td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>repeated_cv</code></td>
+<td style="text-align:left"><code>kR</code></td>
+<td style="text-align:left"><code>R</code>× k-fold</td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>leave_one_out</code></td>
+<td style="text-align:left"><code>n</code></td>
+<td style="text-align:left"><code>n·T(n−1)</code>; <code>O(nd²)</code> for OLS via <code>H</code></td>
+<td style="text-align:left"><code>O(n²)</code> naive, <code>O(n)</code> closed form</td>
+</tr>
+</tbody>
+</table>
+<p><code>T(m)</code> is the cost of one fit on <code>m</code> rows. Nested CV is the expensive one: with <code>k = 5</code>,
+<code>k_in = 4</code> and 10 candidates it is <code>5 + 200 = 205</code> fits, which is why people nest only the
+few hyperparameters that matter. Repeated CV is embarrassingly parallel across repeats.
+The LOO row is the interesting one: for OLS the closed form makes <code>n</code> apparent fits cost
+one <code>d×d</code> inverse, so the &quot;expensive&quot; variant becomes the cheapest per unit of
+information.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Leakage through preprocessing.</strong> Scaling, imputing, feature selection or target
+encoding fitted on the full dataset before splitting leaks test information into
+training. Put every transformation inside the fold: fit on train, apply to test. This
+is the single most common way a CV score is spectacularly wrong.</li>
+<li><strong>Grouped data split randomly.</strong> The demo's k-fold shares <code>133</code> of <code>40</code> groups across
+cuts — every fold has seen siblings of its test rows. Scores look excellent and
+deployment collapses. Any column that identifies a repeated unit (patient, session,
+device) belongs in <code>groups</code>.</li>
+<li><strong>Time leakage.</strong> Random splits, <code>shuffle=True</code> on ordered data, or features computed
+over the full series (a rolling mean that includes future rows) all train on the
+future. Use <code>time_series_split</code> with a <code>gap</code> at least as large as the label horizon.</li>
+<li><strong>Tuning and scoring on the same folds.</strong> Flat CV's <code>min</code> over candidates is biased
+low by construction; the demo's best-of-ten reports <code>0.984</code> when the truth is <code>1.000</code>.
+The bias is largest exactly when the candidates are near-tied and the estimates are
+noisy — the situation where choosing matters most.</li>
+<li><strong><code>k</code> too small or too large.</strong> <code>k = 2</code> wastes half the data per fit and has high
+variance; <code>k = n</code> makes the fits almost identical to each other (high correlation) and
+for unstable learners has <em>higher</em> variance than <code>k = 10</code>. Five or ten is the default
+for a reason.</li>
+<li><strong>A single split reported as a result.</strong> <code>holdout</code> with <code>test_size = 0.2</code> has a standard
+error several times larger than 10-fold on the same data. Report the spread across
+folds, not just the mean; a bare mean invites over-reading.</li>
+<li><strong>Class imbalance without stratification.</strong> As above: folds with zero minority rows
+make per-class metrics undefined or <code>nan</code>, and the mean over folds silently ignores
+them.</li>
+<li><strong>LOO with high leverage.</strong> <code>1/(1−h_i)</code> explodes for a point that nearly determines its
+own fit, so the LOO estimate is dominated by a few rows. If <code>max(h_i)</code> is close to 1,
+prefer <code>k</code>-fold.</li>
+<li><strong>Reusing a fitted model across folds.</strong> Passing an instance instead of a factory keeps
+warm-started state and quietly reports the score of a model trained on the union of
+folds. <code>make_model()</code> every fold.</li>
+<li><strong><code>n_splits</code> larger than the data.</strong> <code>k &gt; n</code> produces empty test folds and division by
+zero in the mean. The constructor rejects <code>k &lt; 2</code>; it cannot know <code>n</code>, so guard at the
+call site.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Model selection.</strong> Compare candidate models on the same folds and report mean ± standard
+error across folds; with <code>repeated_cv</code> the error bar is small enough to resolve 1%
+differences.</li>
+<li><strong>Hyperparameter search.</strong> <code>nested_cv</code> is the only honest way to report the score of a
+tuned model; flat CV is for ranking candidates, not for publishing a number.</li>
+<li><strong>Clinical and user-level prediction.</strong> Grouped splitting is mandatory whenever a patient
+or user contributes multiple rows, and it is the difference between a paper that
+replicates and one that does not.</li>
+<li><strong>Forecasting.</strong> Forward chaining is the standard backtest for time-series models, and
+the <code>gap</code> encodes the forecast horizon.</li>
+<li><strong>Rare-event detection.</strong> Stratified folds keep fraud, failure and disease rates
+measurable in every fold, which is what per-class metrics need.</li>
+<li><strong>Cheap model diagnostics.</strong> LOO via the hat matrix gives a per-row error estimate in
+one fit, useful for spotting influential points and for comparing linear models on small
+data.</li>
+<li><strong>Baseline establishment.</strong> A plain 5-fold CV with a fixed seed is the minimum evidence
+any new model should beat before it is worth deploying.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Kohavi, <em>A Study of Cross-Validation and Bootstrap for Accuracy Estimation and Model
+Selection</em>, 1995, IJCAI — the <code>k = 10</code> recommendation and the bias-variance comparison
+with holdout and bootstrap.</li>
+<li>Stone, <em>Cross-Validatory Choice and Assessment of Statistical Predictions</em>, 1974,
+JRSS-B — the original cross-validation formulation and LOO.</li>
+<li>Geisser, <em>The Predictive Sample Reuse Method with Applications</em>, 1975, JASA — LOO as an
+estimate of predictive risk.</li>
+<li>Varma &amp; Simon, <em>Bias in Error Estimation When Using Cross-Validation for Model
+Selection</em>, 2006, BMC Bioinformatics — the nested-CV selection bias quantified.</li>
+<li>Cawley &amp; Talbot, <em>On Over-fitting in Model Selection and Subsequent Selection Bias in
+Performance Evaluation</em>, 2010, JMLR — why the flat minimum is optimistic and how to nest.</li>
+<li>Bergmeir &amp; Benítez, <em>On the Use of Cross-Validation for Time Series Predictor
+Evaluation</em>, 2012, Information Sciences — when blocked CV is valid and why random folds
+are not.</li>
+<li>Roberts et al., <em>Cross-Validation Strategies for Data with Temporal, Spatial,
+Hierarchical, or Phylogenetic Structure</em>, 2017, Ecography — grouped and blocked splitting
+under dependence.</li>
+<li>Cook, <em>Detection of Influential Observation in Linear Regression</em>, 1977,
+Technometrics — leverage and the <code>e_i/(1−h_i)</code> identity this file checks against.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="index.html"><small>Previous</small><span>20 · Evaluation &amp; uncertainty</span></a><a class="next" href="bootstrap.html"><small>Next</small><span>Bootstrap</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">20 · Evaluation &amp; uncertainty</p><ul class="rail-list"><li><a href="resampling.html" aria-current="page"><span class="tick">✓</span><span>Resampling</span></a></li><li><a href="bootstrap.html"><span class="tick">✓</span><span>Bootstrap</span></a></li><li><a href="calibration.html"><span class="tick">✓</span><span>Calibration</span></a></li><li><a href="interpretability.html"><span class="tick">✓</span><span>Interpretability</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Conformal prediction</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Uncertainty estimation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Drift detection</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>A/B testing</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Hypothesis tests</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Selective prediction</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Fairness metrics</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../19-tabular/index.html"><span class="jump">← 19 · Tabular frontier</span></a></li><li><a href="../21-causality/index.html"><span class="jump">21 · Causality&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/20-evaluation/resampling.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

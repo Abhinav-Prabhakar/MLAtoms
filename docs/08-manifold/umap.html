@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UMAP · MLAtoms</title>
+<meta name="description" content="Fuzzy simplicial sets, negative sampling and cross-entropy. t-SNE in this chapter answers &quot;which points are neighbours?&quot; with a probability and then scores a…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/08-manifold/umap.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="UMAP">
+<meta property="og:description" content="Fuzzy simplicial sets, negative sampling and cross-entropy. t-SNE in this chapter answers &quot;which points are neighbours?&quot; with a probability and then scores a…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/08-manifold/umap.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="UMAP">
+<meta name="twitter:description" content="Fuzzy simplicial sets, negative sampling and cross-entropy. t-SNE in this chapter answers &quot;which points are neighbours?&quot; with a probability and then scores a…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "UMAP", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/08-manifold/umap.html", "description": "Fuzzy simplicial sets, negative sampling and cross-entropy. t-SNE in this chapter answers \"which points are neighbours?\" with a probability and then scores a\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">08 · Manifolds &amp; embeddings</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="umap.py.html">source</a></p><h1>UMAP</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>t-SNE in this chapter answers &quot;which points are neighbours?&quot; with a probability
+and then scores a layout with a KL divergence. UMAP asks the same question and
+then scores the layout with <strong>cross entropy</strong>, which is the one substantive
+difference between the two methods.</p>
+<p>The KL of t-SNE is one-sided. If a pair is an edge in the graph and the layout
+puts the points far apart, the KL is large; if the layout invents an edge the
+graph does not have, the KL is nearly free. That is why t-SNE plots look like
+archipelagos: clusters are tight and the space between them is whatever the
+optimiser happened to leave. Cross entropy charges for both mistakes. A spurious
+edge costs, a missing edge costs, and the balance is what makes UMAP's layouts
+hold their global arrangement better — and what makes its mid-range
+neighbourhoods survive, which is measurable: on the demo's swiss roll UMAP keeps
+<span class="math inline">\(0.834\)</span> of each point's forty nearest neighbours where t-SNE keeps <span class="math inline">\(0.769\)</span>.</p>
+<p>The other half is the <strong>fuzzy graph</strong>. A k-nearest-neighbour graph is a hard
+object: an edge exists or it does not. UMAP gives every edge a membership in
+<span class="math inline">\([0, 1]\)</span> and normalises each point's row so that it carries a fixed amount of
+mass, which makes the graph a <em>fuzzy simplicial set</em> — a simplicial complex whose
+simplices have memberships instead of existence.</p>
+<pre class="highlight"><code>   kNN graph, hard                    fuzzy graph, memberships
+   ·───·                                  1.00
+   │  ╱                               ╱        ╲ 0.42
+   ·─·   ·                          0.83   0.07
+</code></pre>
+<p>That construction is what makes the method density-agnostic in the input and
+density-destroying in the output. Every point's row carries <span class="math inline">\(\log_2 k\)</span> of mass,
+so a dense region and a sparse region are described by the <em>same</em> amount of
+graph, and the layout allocates them the same area. That is a feature for
+visualisation and a bug for anything that cares about density — which is what the
+<code>densmap</code> variant exists to fix.</p>
+<pre class="mermaid-source"><code class="language-mermaid">graph LR
+    A[&quot;X ∈ ℝⁿˣᵈ&quot;] --&gt; B[&quot;kNN graph&quot;]
+    B --&gt; C[&quot;memberships w_{i|j}&lt;br/&gt;row sum = log₂ k&quot;]
+    C --&gt; D[&quot;fuzzy union&lt;br/&gt;w = a + b − ab&quot;]
+    D --&gt; E[&quot;spectral init&quot;]
+    E --&gt; F[&quot;cross entropy on Y&lt;br/&gt;negatives sampled&quot;]
+    F --&gt; G[&quot;Y ∈ ℝⁿˣ²&quot;]
+</code></pre>
+<p>The demo measures the claim and the bill. On 250 points from a swiss roll — a
+surface that is <em>exactly</em> isometric to a flat rectangle — the layout keeps
+<span class="math inline">\(0.833\)</span> of each point's eight true neighbours, against <span class="math inline">\(0.489\)</span> for the leading
+two principal components. Its distance correlation with the rectangle is
+<span class="math inline">\(0.534\)</span>, so it is a neighbour map and not a ruler, and it is a better ruler than
+t-SNE's <span class="math inline">\(0.335\)</span> without being a good one: Isomap, in this same chapter, reaches
+<span class="math inline">\(0.9996\)</span>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">The objective</th>
+<th style="text-align:left">What changes</th>
+<th style="text-align:left">Cost per epoch</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>umap</code></td>
+<td style="text-align:left">(4), complement sampled</td>
+<td style="text-align:left">the reference</td>
+<td style="text-align:left"><span class="math inline">\(O(nk\cdot r)\)</span> terms</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>fuzzy_simplicial</code></td>
+<td style="text-align:left">(4), complement enumerated</td>
+<td style="text-align:left">exact gradient, dense</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>supervised</code></td>
+<td style="text-align:left">(4) with label targets</td>
+<td style="text-align:left">weights become agreements</td>
+<td style="text-align:left"><span class="math inline">\(O(nk\cdot r)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>densmap</code></td>
+<td style="text-align:left">(4) plus a radius term</td>
+<td style="text-align:left">local density survives</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span> for the radii</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>parametric</code></td>
+<td style="text-align:left">(4), then distilled</td>
+<td style="text-align:left">a network replaces the free points</td>
+<td style="text-align:left">training only</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>umap</code></strong> is the published optimiser: positives from the graph, negatives
+sampled uniformly per edge, per-coordinate gradient clipped to <span class="math inline">\(\pm 4\)</span>, learning
+rate decaying linearly to zero. The demo's fit reaches cross entropy <span class="math inline">\(528\)</span> from
+<span class="math inline">\(1905\)</span> in <span class="math inline">\(500\)</span> epochs.</p>
+<p><strong><code>fuzzy_simplicial</code></strong> is the same objective with no sampling — every pair, once
+per iteration, as one product with the coefficient matrix. The demo validates
+the two implementations against each other: the matrix form and the per-pair
+form agree to <span class="math inline">\(8.8 \times 10^{-12}\)</span>, six finite-difference probes against the
+objective agree to <span class="math inline">\(4.4 \times 10^{-7}\)</span>, and the two solvers reach <span class="math inline">\(531\)</span> and
+<span class="math inline">\(528\)</span> with layouts that share <span class="math inline">\(0.891\)</span> of their eight-neighbourhoods. The price
+is exact: <span class="math inline">\(31125\)</span> pairs per iteration against <span class="math inline">\(13122\)</span> sampled terms per epoch,
+and the ratio grows with <span class="math inline">\(n\)</span> because the graph stays at <span class="math inline">\(O(nk)\)</span>.</p>
+<p><strong><code>supervised</code></strong> replaces each edge's fuzzy weight with the label agreement: 1
+within a class, 0 across. The kNN support still comes from the geometry, so the
+weights are &quot;these points are eligible to be neighbours, and here is whether
+they should be&quot;. The demo uses five 8-dimensional Gaussian clusters whose
+centres are <span class="math inline">\(1.5\)</span> apart and whose standard deviation is <span class="math inline">\(1.1\)</span> — close enough
+that the plain graph mixes them — and the purity of the eight layout neighbours
+goes from <span class="math inline">\(0.386\)</span> to <span class="math inline">\(1.000\)</span>. Nothing about the geometry changes; only the
+target the cross entropy is measured against.</p>
+<p><strong><code>densmap</code></strong> (Narayan, Berger &amp; Menon 2021) adds a term on the <em>radius</em> of each
+point's neighbourhood, so that regions the input sampling made dense stay dense.
+The demo's curve has its parameter drawn from a Beta distribution, and the
+correlation between log input radius and log embedding radius goes from <span class="math inline">\(0.054\)</span>
+to <span class="math inline">\(0.786\)</span> at a cross-entropy cost of <span class="math inline">\(362 \to 412\)</span>. The term here is a 1-D
+optimal transport of the radii rather than the published regression — see §11,
+where the regression is measured failing.</p>
+<p><strong><code>parametric</code></strong> replaces the <span class="math inline">\(n\)</span> free coordinates with a function of the input.
+Fit the ordinary layout as a teacher, then regress it through a small network;
+new points are placed by evaluating the network. The demo's teacher separates
+its six clusters at <span class="math inline">\(0.922\)</span>, the network reproduces it on training points at
+<span class="math inline">\(0.955\)</span> eight-neighbour overlap, and the held-out points land in the right
+cluster <span class="math inline">\(0.767\)</span> of the time against the <span class="math inline">\(0.967\)</span> of a 10-neighbour average of the
+fitted coordinates. Distillation works; <code>transform</code> is not a substitute for
+refitting.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p>Write the input as <span class="math inline">\(X = (x_1, \dots, x_n) \subset \mathbb{R}^d\)</span> and the layout as
+<span class="math inline">\(Y = (y_1, \dots, y_n) \subset \mathbb{R}^2\)</span>, and let <span class="math inline">\(d_{ij} = \lVert x_i - x_j \rVert\)</span>.</p>
+<h3 id="1-a-fuzzy-neighbourhood-per-point">1. A fuzzy neighbourhood per point <a class="header-anchor" href="#1-a-fuzzy-neighbourhood-per-point">#</a></h3>
+<p>For each point, take its <span class="math inline">\(k\)</span> nearest neighbours and give the <span class="math inline">\(j\)</span>-th one the
+membership</p>
+<div class="math block">
+\[w_{j|i} \;=\; \exp\!\left(-\frac{d_{ij} - \rho_i}{\sigma_i}\right), \qquad (1)\]
+</div>
+<p>where <span class="math inline">\(\rho_i\)</span> is the distance to <span class="math inline">\(i\)</span>'s nearest neighbour and <span class="math inline">\(\sigma_i\)</span> is chosen
+so that the row sums to a fixed amount:</p>
+<div class="math block">
+\[\sum_{j \in \mathrm{kNN}(i)} w_{j|i} \;=\; \log_2 k. \qquad (2)\]
+</div>
+<p>Subtracting <span class="math inline">\(\rho_i\)</span> is not cosmetic. It makes the nearest neighbour's
+membership <em>exactly</em> 1, so every point is connected to the graph with full
+strength and no point can be isolated by a bandwidth choice. It also makes the
+exponent non-positive for every term, so the exponential cannot overflow.</p>
+<p>The target <span class="math inline">\(\log_2 k\)</span> is the fuzzy analogue of t-SNE's perplexity: it fixes how
+much neighbourhood a point is allowed to have, regardless of how dense the
+sampling is around it. In a dense region <span class="math inline">\(\sigma_i\)</span> comes out small, in a sparse
+region large, and both rows carry the same mass.</p>
+<h3 id="2-solving-for-the-bandwidth">2. Solving for the bandwidth <a class="header-anchor" href="#2-solving-for-the-bandwidth">#</a></h3>
+<p>The mass is monotone decreasing in <span class="math inline">\(\sigma_i\)</span> — wider kernel, more spread, more
+mass — so a one-dimensional search suffices:</p>
+<div class="math block">
+\[M_i(\sigma) \;=\; \sum_{j} \exp\!\left(-\frac{d_{ij} - \rho_i}{\sigma}\right),
+\qquad M_i(\sigma) \downarrow 1 \text{ as } \sigma \to 0,\quad
+M_i(\sigma) \uparrow k \text{ as } \sigma \to \infty. \qquad (3)\]
+</div>
+<p>Bisection on <span class="math inline">\(\sigma\)</span> with a doubling search for the upper bracket. In the code
+all <span class="math inline">\(n\)</span> searches run at once: the bracket is two vectors, and each iteration is
+one exponential and one sum over the <span class="math inline">\(n \times k\)</span> neighbour block. Sixty-four
+iterations take the row sums to <span class="math inline">\(\log_2 k\)</span> to machine precision, which the demo
+asserts.</p>
+<h3 id="3-the-fuzzy-union">3. The fuzzy union <a class="header-anchor" href="#3-the-fuzzy-union">#</a></h3>
+<p>The directed memberships <span class="math inline">\(w_{j|i}\)</span> are not symmetric: <span class="math inline">\(j\)</span> can be among <span class="math inline">\(i\)</span>'s
+neighbours while <span class="math inline">\(i\)</span> is not among <span class="math inline">\(j\)</span>'s. The undirected graph is their fuzzy
+union,</p>
+<div class="math block">
+\[w_{ij} \;=\; w_{j|i} + w_{i|j} - w_{j|i}\, w_{i|j}, \qquad (4)\]
+</div>
+<p>which is the probabilistic t-conorm &quot;i or j is a neighbour&quot;. It is not the
+average: if either direction is certain, the union is certain, so a one-sided
+edge survives at full strength. That is what keeps the graph from developing
+direction-dependent holes at the edge of a sample.</p>
+<h3 id="4-the-layout-kernel">4. The layout kernel <a class="header-anchor" href="#4-the-layout-kernel">#</a></h3>
+<p>The layout's membership for a pair is</p>
+<div class="math block">
+\[q_{ij} \;=\; \left(1 + a\, \lVert y_i - y_j \rVert^{2b}\right)^{-1}, \qquad (5)\]
+</div>
+<p>with <span class="math inline">\(a, b\)</span> fitted so that (5) matches a target curve: membership 1 up to
+<code>min_dist</code>, then <span class="math inline">\(\exp(-(r - \mathrm{min\_dist})/\mathrm{spread})\)</span>. Two
+parameters for a curve with one knee is enough because the fitted function is
+itself a two-parameter family; for the default <code>(0.1, 1.0)</code> the fit gives
+<span class="math inline">\(a = 1.5770\)</span>, <span class="math inline">\(b = 0.8951\)</span>, matching the constants in the reference
+implementation to four digits, and the demo checks them.</p>
+<p><code>min_dist</code> is the smallest distance the layout is willing to give two
+neighbours. It is the knob between &quot;clusters are dots&quot; and &quot;clusters are
+blobs&quot;, and it is <em>not</em> a metric parameter: changing it changes how much room
+the optimiser may leave between points that the graph says are neighbours.</p>
+<h3 id="5-cross-entropy">5. Cross entropy <a class="header-anchor" href="#5-cross-entropy">#</a></h3>
+<p>The objective is</p>
+<div class="math block">
+\[\mathcal{L} \;=\; \sum_{i<j} \left[ w_{ij} \log \frac{w_{ij}}{q_{ij}}
++ (1 - w_{ij}) \log \frac{1 - w_{ij}}{1 - q_{ij}} \right]. \qquad (6)\]
+</div>
+<p>Both terms matter. The first pulls edges together; the second pushes non-edges
+apart, and it is the term t-SNE's KL does not have. For an edge with
+<span class="math inline">\(w_{ij} = 0.42\)</span>, the first term is satisfied by a short layout distance and the
+second is satisfied by a long one — the pair's equilibrium distance is where the
+two balance, which is exactly how a membership strength becomes a length. That
+is why the graph's weights, not just its edges, carry information.</p>
+<p>The constants are dropped in the optimiser: <span class="math inline">\(\sum w \log w\)</span> and
+<span class="math inline">\(\sum (1-w)\log(1-w)\)</span> do not depend on <span class="math inline">\(Y\)</span>. What is left is</p>
+<div class="math block">
+\[\min_Y \; -\sum_{i<j} w_{ij} \log q_{ij} - \sum_{i<j} (1 - w_{ij}) \log(1 - q_{ij}), \qquad (7)\]
+</div>
+<p>which is the form the demo's finite-difference check differentiates.</p>
+<h3 id="6-the-gradient">6. The gradient <a class="header-anchor" href="#6-the-gradient">#</a></h3>
+<p>Differentiate (7) with respect to <span class="math inline">\(y_i\)</span>. For a pair at squared distance
+<span class="math inline">\(d^2 = \lVert y_i - y_j \rVert^2\)</span> with <span class="math inline">\(A = a (d^2)^b\)</span>,</p>
+<div class="math block">
+\[\frac{\partial}{\partial d^2}\left(-w \log q\right) = \frac{w a b (d^2)^{b-1}}{1 + A},
+\qquad
+\frac{\partial}{\partial d^2}\left(-(1-w)\log(1-q)\right) = -\frac{(1-w)b}{d^2 (1 + A)}, \qquad (8)\]
+</div>
+<p>and <span class="math inline">\(\partial d^2/\partial y_i = 2(y_i - y_j)\)</span>, so the <em>force</em> — the direction to
+move <span class="math inline">\(y_i\)</span> in a descent step — is</p>
+<div class="math block">
+\[F_{ij} \;=\; \left[-\frac{2 w a b (d^2)^{b-1}}{1 + A} + \frac{2(1-w)b}{d^2(1+A)}\right](y_i - y_j). \qquad (9)\]
+</div>
+<p>The first coefficient is negative and points from <span class="math inline">\(i\)</span> towards <span class="math inline">\(j\)</span>; the second is
+positive and pushes away. A weak edge with <span class="math inline">\(w = 0.3\)</span> has a small pull and a large
+push, so it is only satisfied at a distance where the two balance — the
+equilibrium length in §5, now as an explicit force balance.</p>
+<h3 id="7-negative-sampling">7. Negative sampling <a class="header-anchor" href="#7-negative-sampling">#</a></h3>
+<p>The second sum in (7) runs over <span class="math inline">\(n(n-1)/2\)</span> pairs, of which only <span class="math inline">\(O(nk)\)</span> have
+<span class="math inline">\(w > 0\)</span>. Enumerating it is what <code>fuzzy_simplicial</code> does; <code>umap</code> samples it,
+drawing <code>negative_rate</code> uniform indices per edge and rejecting draws that hit
+either endpoint. The estimator is unbiased for the complement's sum, and its
+variance is what the learning-rate decay is there to absorb.</p>
+<h3 id="8-the-optimiser">8. The optimiser <a class="header-anchor" href="#8-the-optimiser">#</a></h3>
+<p>Three practices, none of them in the objective:</p>
+<ul>
+<li><strong>Spectral initialisation.</strong> The leading eigenvectors of the normalised
+affinity <span class="math inline">\(D^{-1/2} W D^{-1/2}\)</span> are the low-frequency modes of the graph, and
+starting there is both cheap and deterministic. Each eigenvector's sign is
+fixed by making its largest absolute entry positive, because <span class="math inline">\(\pm v\)</span> are
+equally valid and a LAPACK build may return either.</li>
+<li><strong>Per-chunk updates.</strong> Edges are visited in random order and applied in
+chunks of 64. Summing a whole epoch and applying it once makes a point with
+17 incident edges move by 17 times a single edge's step; the demo's first
+version did that and the layout left its initial standard deviation of 10 for
+87 in one epoch, where the kernel is flat and the run freezes at an
+eight-neighbour overlap of <span class="math inline">\(0.22\)</span>.</li>
+<li><strong>Clipping and decay.</strong> Each per-coordinate force is clipped to <span class="math inline">\(\pm 4\)</span> and
+the learning rate falls linearly to zero. The clip is the only regularisation;
+the decay is what makes a fixed epoch budget converge rather than oscillate.</li>
+</ul>
+<h3 id="9-supervised-targets">9. Supervised targets <a class="header-anchor" href="#9-supervised-targets">#</a></h3>
+<p>With labels <span class="math inline">\(c_i\)</span>, replace the membership in (6) by</p>
+<div class="math block">
+\[w_{ij} \;=\; \mathbb{1}[c_i = c_j] \cdot \mathbb{1}[(i,j) \in E], \qquad (10)\]
+</div>
+<p>where <span class="math inline">\(E\)</span> is the kNN support. Positives are same-class edges; the complement is
+everything else, sampled as before. The geometry of <span class="math inline">\(X\)</span> now only decides which
+pairs are <em>eligible</em>; the objective decides where they go. That is why the
+result is a picture of the labels rather than of the data, and why the demo's
+purity reaches <span class="math inline">\(1.000\)</span> while the layout's distances stop meaning anything.</p>
+<h3 id="10-density-preservation">10. Density preservation <a class="header-anchor" href="#10-density-preservation">#</a></h3>
+<p>UMAP's membership normalisation (2) is exactly what makes the layout
+density-blind, so preserving density needs a second term. DensMAP's is built on
+the mean radius of each point's <span class="math inline">\(k\)</span>-neighbourhood,</p>
+<div class="math block">
+\[r_i \;=\; \frac{1}{k}\sum_{j \in \mathrm{kNN}(i)} \lVert y_i - y_j \rVert, \qquad (11)\]
+</div>
+<p>and asks that the <span class="math inline">\(r_i\)</span> keep the relative order and spacing they have in the
+input. The published form regresses <span class="math inline">\(\log r_i\)</span> on the input's log radius and
+penalises the residual. That objective has a degenerate optimum: the regression
+is free to choose slope zero, and then flattening every radius drives the
+penalty to zero. Measured, the correlation goes from <span class="math inline">\(-0.14\)</span> to <span class="math inline">\(-0.01\)</span> while
+the cross entropy rises — uniform density, not preserved density, and the layout
+gets worse.</p>
+<p>What is implemented is the 1-D optimal transport of the same idea: sort the
+embedding's log radii and give point <span class="math inline">\(i\)</span> the radius at its input rank,</p>
+<div class="math block">
+\[t_i \;=\; \left(\mathrm{sort}(\log r)\right)_{\mathrm{rank}(\log r_i^{\text{in}})},
+\qquad
+\mathcal{L}_{\text{dens}} \;=\; \lambda \sum_i \left(\log r_i - t_i\right)^2. \qquad (12)\]
+</div>
+<p>The multiset of radii is then driven to the input's multiset up to a monotone
+transform, which is what &quot;the relative densities are preserved&quot; means, and no
+flat solution satisfies it. Its gradient is (11) differentiated through the
+radius, with the sign that <em>shrinks</em> a radius that is too large — a sign the
+first version of this file had backwards, which is why the demo's early attempt
+at a strong weight gave a correlation of <span class="math inline">\(-0.64\)</span>.</p>
+<h3 id="11-parametric">11. Parametric <a class="header-anchor" href="#11-parametric">#</a></h3>
+<p>Replace <span class="math inline">\(y_i\)</span> by <span class="math inline">\(f_\theta(x_i)\)</span> with a one-hidden-layer network</p>
+<div class="math block">
+\[f_\theta(x) \;=\; W_2 \tanh(W_1 x + b_1) + b_2, \qquad (13)\]
+</div>
+<p>fit to the teacher's coordinates by least squares and then Adam. The demo's
+result is the honest one: reproduction <span class="math inline">\(0.955\)</span> on training points, <span class="math inline">\(0.767\)</span>
+purity on held-out points against the neighbour average's <span class="math inline">\(0.967\)</span>. A layout is
+not a smooth function of <span class="math inline">\(x\)</span>; a network that is smooth can memorise the
+training layout and still be a poor interpolator, and adding capacity moves the
+two numbers in opposite directions.</p>
+<h3 id="12-what-is-identified">12. What is identified <a class="header-anchor" href="#12-what-is-identified">#</a></h3>
+<p><span class="math inline">\(Y\)</span> is identified up to rotation, reflection and translation, and the scale is
+fixed only weakly by <code>min_dist</code>. Cluster areas and inter-cluster distances are
+artefacts of the optimiser and the initialisation, not properties of the data —
+the same caveat as t-SNE, with a different constant. The graph's weights are
+identified up to the choice of <span class="math inline">\(k\)</span>, which changes what &quot;neighbour&quot; means.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>UMAP(n_components=2, *, variant=&quot;umap&quot;, n_neighbors=15, min_dist=0.1, spread=1.0, n_epochs=200, learning_rate=1.0, negative_rate=5, dens_lambda=10.0, hidden=64, seed=0)</code> with <code>fit(X, y=None)</code>,
+<code>fit_transform(X, y=None)</code> and <code>transform(X_new)</code> for <code>parametric</code> only.
+Attributes: <code>embedding_</code>, <code>graph_</code>, <code>a_</code>, <code>b_</code>, <code>ce_</code>, <code>history_</code>, and
+<code>teacher_</code> for <code>parametric</code>.</p>
+<h3 id="1-the-bandwidth-search">1. The bandwidth search <a class="header-anchor" href="#1-the-bandwidth-search">#</a></h3>
+<pre class="highlight"><code>    <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">lo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">hi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">64</span><span class="p">):</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">diff</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">sigma</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">EPS</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">too_wide</span> <span class="o">=</span> <span class="n">mass</span> <span class="o">&gt;</span> <span class="n">target</span>                    <span class="c1"># needs a smaller sigma</span>
+        <span class="n">hi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">too_wide</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">hi</span><span class="p">)</span>
+        <span class="n">lo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">too_wide</span><span class="p">,</span> <span class="n">lo</span><span class="p">,</span> <span class="n">sigma</span><span class="p">)</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">hi</span><span class="p">),</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">lo</span> <span class="o">+</span> <span class="n">hi</span><span class="p">),</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">sigma</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">diff</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">sigma</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">EPS</span><span class="p">))</span>
+</code></pre>
+<p>(3), for all points at once. <code>diff</code> is <code>dk - rho[:, None]</code>, already sorted in
+each row, and <code>target</code> is <span class="math inline">\(\log_2 k\)</span>. The bracket per point is two scalars in
+two vectors; a point that has not yet found a finite upper bound doubles, and
+the rest bisect. The returned block is (1); the caller scatters it into a
+matrix by neighbour index.</p>
+<h3 id="2-the-graph-and-its-union">2. The graph, and its union <a class="header-anchor" href="#2-the-graph-and-its-union">#</a></h3>
+<pre class="highlight"><code>    <span class="n">dk</span><span class="p">,</span> <span class="n">idx</span> <span class="o">=</span> <span class="n">_knn</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">n_neighbors</span><span class="p">)</span>
+    <span class="n">memberships</span> <span class="o">=</span> <span class="n">_smooth_knn</span><span class="p">(</span><span class="n">dk</span><span class="p">)</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">D</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">put_along_axis</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">memberships</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">A</span> <span class="o">+</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">-</span> <span class="n">A</span> <span class="o">*</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p>(4), one line. <code>A</code> is the directed membership matrix; the union is its sum minus
+the product, which is the t-conorm. <code>put_along_axis</code> writes each row's sorted
+memberships at the neighbour indices returned by <code>_knn</code>, and the <code>D</code> the caller
+passes has an infinite diagonal, so no point is its own neighbour.</p>
+<h3 id="3-fitting-the-kernel">3. Fitting the kernel <a class="header-anchor" href="#3-fitting-the-kernel">#</a></h3>
+<pre class="highlight"><code>    <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">]))</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">64</span><span class="p">):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">residual</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">J</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">step</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-6</span>
+            <span class="n">J</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">residual</span><span class="p">(</span><span class="n">p</span> <span class="o">+</span> <span class="n">step</span><span class="p">)</span> <span class="o">-</span> <span class="n">r</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1e-6</span>
+        <span class="n">move</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">J</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">p</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">move</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span> <span class="p">[</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">])</span>
+</code></pre>
+<p>Gauss–Newton on <span class="math inline">\(\log a, \log b\)</span>, so positivity is automatic. The step is
+clipped to half a log-unit and the parameters are clamped: without that, a
+Newton step from a bad start makes <span class="math inline">\(x^{2b}\)</span> overflow and the least-squares solve
+fails outright. The starting point <code>(1.5, 0.9)</code> is a warm start near the answer
+for the usual <code>min_dist</code>; from a point further away the iteration still converges
+but needs more of the 64 steps, and from the wrong sign it walks into the clamp.</p>
+<h3 id="4-the-objective">4. The objective <a class="header-anchor" href="#4-the-objective">#</a></h3>
+<pre class="highlight"><code>    <span class="n">pos</span> <span class="o">=</span> <span class="n">w</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
+    <span class="n">neg</span> <span class="o">=</span> <span class="n">w</span> <span class="o">&lt;</span> <span class="mf">1.0</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">if</span> <span class="n">pos</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="n">total</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">((</span><span class="n">w</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">/</span> <span class="n">q</span><span class="p">[</span><span class="n">pos</span><span class="p">]))</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">neg</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="n">total</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">w</span><span class="p">[</span><span class="n">neg</span><span class="p">])</span>
+                        <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">w</span><span class="p">[</span><span class="n">neg</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">q</span><span class="p">[</span><span class="n">neg</span><span class="p">])))</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">total</span>
+</code></pre>
+<p>(6), evaluated densely over the upper triangle. The two masks are the limits
+that keep the logs finite: a pair with <span class="math inline">\(w = 0\)</span> contributes only the second term
+and a pair with <span class="math inline">\(w = 1\)</span> only the first, so neither needs a <span class="math inline">\(0 \log 0\)</span>. <code>q</code> is
+clipped away from both 0 and 1 first, because a pair of coincident layout points
+has <span class="math inline">\(q = 1\)</span> exactly and would otherwise return an infinity that a caller cannot
+recover a gradient from.</p>
+<h3 id="5-the-per-pair-gradient">5. The per-pair gradient <a class="header-anchor" href="#5-the-per-pair-gradient">#</a></h3>
+<pre class="highlight"><code>    <span class="n">d</span> <span class="o">=</span> <span class="n">Y</span><span class="p">[</span><span class="n">rows</span><span class="p">]</span> <span class="o">-</span> <span class="n">Y</span><span class="p">[</span><span class="n">cols</span><span class="p">]</span>
+    <span class="n">d2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"ij,ij-&gt;i"</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+    <span class="n">denom</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">a</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">**</span> <span class="n">b</span>
+    <span class="n">safe</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+    <span class="n">pull</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">w</span> <span class="o">*</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="o">*</span> <span class="n">safe</span> <span class="o">**</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">denom</span>
+    <span class="n">push</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">w</span><span class="p">)</span> <span class="o">*</span> <span class="n">b</span> <span class="o">/</span> <span class="p">(</span><span class="n">safe</span> <span class="o">*</span> <span class="n">denom</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="p">(</span><span class="n">pull</span> <span class="o">+</span> <span class="n">push</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">d</span>
+    <span class="k">return</span> <span class="n">g</span> <span class="k">if</span> <span class="n">clip</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="o">-</span><span class="n">clip</span><span class="p">,</span> <span class="n">clip</span><span class="p">)</span>
+</code></pre>
+<p>(9), for a batch of pairs. <code>safe</code> guards <span class="math inline">\(d^{2(b-1)}\)</span> at coincidence, where
+<span class="math inline">\(b < 1\)</span> makes the attraction's derivative infinite; <code>clip</code> is the optimiser's
+<span class="math inline">\(\pm 4\)</span> and is <code>None</code> in the demo's gradient check, which is what lets the
+check reproduce the objective's derivative exactly.</p>
+<h3 id="6-the-dense-gradient">6. The dense gradient <a class="header-anchor" href="#6-the-dense-gradient">#</a></h3>
+<pre class="highlight"><code>    <span class="n">C</span> <span class="o">=</span> <span class="p">(</span><span class="n">W</span> <span class="o">*</span> <span class="p">(</span><span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="o">*</span> <span class="n">safe</span> <span class="o">**</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">denom</span><span class="p">)</span>
+         <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">W</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">b</span> <span class="o">/</span> <span class="p">(</span><span class="n">safe</span> <span class="o">*</span> <span class="n">denom</span><span class="p">)))</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">C</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">Y</span> <span class="o">*</span> <span class="n">C</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">C</span> <span class="o">@</span> <span class="n">Y</span><span class="p">,</span> <span class="o">-</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">)</span>
+</code></pre>
+<p>(9) for all pairs, as a matrix product: <span class="math inline">\(F_i = \sum_j c_{ij}(y_i - y_j)\)</span> is
+<span class="math inline">\(y_i \sum_j c_{ij} - (C Y)_i\)</span>. The diagonal is zeroed because <span class="math inline">\(c_{ii}\)</span> would be
+the repulsion of a point from itself, which is infinite at zero distance. This
+is the whole of <code>fuzzy_simplicial</code> — one product per iteration, quadratic, and
+the reference the sampled variant is checked against.</p>
+<h3 id="7-spectral-initialisation">7. Spectral initialisation <a class="header-anchor" href="#7-spectral-initialisation">#</a></h3>
+<pre class="highlight"><code>    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">W</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">EPS</span><span class="p">)</span>
+    <span class="n">dinv</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="n">dinv</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">W</span> <span class="o">*</span> <span class="n">dinv</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">vals</span><span class="p">,</span> <span class="n">vecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">M</span><span class="p">)</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">vals</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">take</span> <span class="o">=</span> <span class="n">order</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">n_components</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>        <span class="c1"># drop the constant eigenvector</span>
+    <span class="n">V</span> <span class="o">=</span> <span class="n">vecs</span><span class="p">[:,</span> <span class="n">take</span><span class="p">]</span>
+    <span class="n">signs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">V</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">V</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">V</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])])</span>
+    <span class="n">V</span> <span class="o">=</span> <span class="n">V</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">signs</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">signs</span><span class="p">)</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">V</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="n">EPS</span><span class="p">)</span> <span class="o">*</span> <span class="mf">10.0</span>
+</code></pre>
+<p>The normalised affinity, its leading eigenvectors, and a sign convention. The
+<code>order[1:]</code> is the part that was wrong first: <code>eigh</code> returns eigenvalues
+ascending, so the <em>last</em> column is the constant eigenvector and taking
+<code>range(1, ...)</code> selects the highest-frequency modes — noise. Starting there
+gave a layout whose standard deviation was <span class="math inline">\(0.9\)</span> instead of <span class="math inline">\(10\)</span>, most points
+piled at the origin, and an eight-neighbour overlap of <span class="math inline">\(0.22\)</span>; the fix moved the
+same demo to <span class="math inline">\(0.83\)</span>. Scale to a maximum absolute coordinate of 10, which is the
+reference implementation's convention.</p>
+<h3 id="8-the-density-term">8. The density term <a class="header-anchor" href="#8-the-density-term">#</a></h3>
+<pre class="highlight"><code>    <span class="n">log_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">EPS</span><span class="p">))</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">log_r</span><span class="p">)[</span><span class="n">ranks</span><span class="p">]</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="o">-</span><span class="n">weight</span> <span class="o">*</span> <span class="p">(</span><span class="n">log_r</span> <span class="o">-</span> <span class="n">target</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">EPS</span><span class="p">)</span> <span class="o">*</span> <span class="n">k</span><span class="p">)</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="n">Y</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">Y</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="n">step</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">near</span><span class="p">,</span> <span class="n">EPS</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">c</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">unit</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">force</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">k</span><span class="p">),</span> <span class="n">g</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">force</span><span class="p">,</span> <span class="n">idx</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="o">-</span><span class="n">g</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">force</span>
+</code></pre>
+<p>(12). <code>ranks</code> is the input radius rank of each point, computed once; <code>target</code> is
+the embedding radius that currently sits at that rank. The minus sign is the
+difference between a gradient and its negative: with <code>+</code>, a point whose radius
+is too large is pushed further out and the demo's correlation went to <span class="math inline">\(-0.64\)</span>.
+The scatter adds each point's contribution to the radius of its own
+neighbourhood and subtracts it from each neighbour's, because <span class="math inline">\(r_i\)</span> depends on
+every <span class="math inline">\(y_j\)</span> in <span class="math inline">\(i\)</span>'s neighbourhood.</p>
+<h3 id="9-the-sampled-loop">9. The sampled loop <a class="header-anchor" href="#9-the-sampled-loop">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_epochs</span><span class="p">):</span>
+            <span class="n">lr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">epoch</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_epochs</span><span class="p">)</span>
+            <span class="n">order</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">rows</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">rows</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">chunk</span><span class="p">):</span>
+                <span class="n">take</span> <span class="o">=</span> <span class="n">order</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">start</span> <span class="o">+</span> <span class="n">chunk</span><span class="p">]</span>
+                <span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">wt</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="n">take</span><span class="p">],</span> <span class="n">cols</span><span class="p">[</span><span class="n">take</span><span class="p">],</span> <span class="n">w</span><span class="p">[</span><span class="n">take</span><span class="p">]</span>
+                <span class="n">neg</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">negative_rate</span><span class="p">))</span>
+                <span class="n">neg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">neg</span> <span class="o">==</span> <span class="n">r</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="p">(</span><span class="n">neg</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">n</span><span class="p">,</span> <span class="n">neg</span><span class="p">)</span>
+                <span class="n">neg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">neg</span> <span class="o">==</span> <span class="n">c</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="p">(</span><span class="n">neg</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">n</span><span class="p">,</span> <span class="n">neg</span><span class="p">)</span>
+                <span class="n">heads</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">r</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">negative_rate</span><span class="p">)])</span>
+                <span class="n">tails</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">c</span><span class="p">,</span> <span class="n">neg</span><span class="o">.</span><span class="n">ravel</span><span class="p">()])</span>
+                <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">wt</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">negative_rate</span><span class="p">)])</span>
+                <span class="n">g</span> <span class="o">=</span> <span class="n">_pair_gradients</span><span class="p">(</span><span class="n">heads</span><span class="p">,</span> <span class="n">tails</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">a_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">b_</span><span class="p">)</span>
+                <span class="n">_apply</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">heads</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">lr</span><span class="p">)</span>
+                <span class="n">_apply</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">tails</span><span class="p">,</span> <span class="o">-</span><span class="n">g</span><span class="p">,</span> <span class="n">lr</span><span class="p">)</span>
+</code></pre>
+<p>The optimiser. Each chunk holds its positives and their sampled negatives in one
+pair list — <code>weights</code> is the fuzzy weight for a positive and zero for a
+negative, which is all the difference (9) needs. <code>_apply</code> scatters with
+<code>bincount</code>, so a point that appears twice in a chunk gets both contributions;
+fancy assignment would silently keep only the last. The learning rate decays
+across the outer loop, and <code>chunk = 64</code> is the sequential coupling that keeps
+one epoch from moving a point by the sum of all its forces.</p>
+<h3 id="10-the-parametric-readout">10. The parametric readout <a class="header-anchor" href="#10-the-parametric-readout">#</a></h3>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sd</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">EPS</span>
+        <span class="n">Xs</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sd</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">Xs</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W1</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b2</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">W2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">Y</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p>(13), with the readout solved rather than trained. <code>W1</code> is random and fixed, so
+<code>tanh(W1 x)</code> is a fixed feature map and the best linear function of it is one
+<code>lstsq</code>; Adam then moves the features themselves. Centring <code>Y</code> before the solve
+is what makes the intercept meaningful — fitting <code>Y</code> directly and adding the
+mean afterwards overshoots, which is a real mistake the first version made.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><span class="math inline">\(n\)</span> samples, <span class="math inline">\(d\)</span> input dimensions, <span class="math inline">\(k\)</span> neighbours, <span class="math inline">\(r\)</span> negatives per edge, <span class="math inline">\(T\)</span>
+epochs, <span class="math inline">\(E \approx nk\)</span> edges.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Operation</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:left">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">pairwise distances</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">Gram identity</td>
+</tr>
+<tr>
+<td style="text-align:left">kNN</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2\log k)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left"><code>argpartition</code> per row</td>
+</tr>
+<tr>
+<td style="text-align:left">bandwidth search</td>
+<td style="text-align:left"><span class="math inline">\(O(64\,nk)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nk)\)</span></td>
+<td style="text-align:left">vectorised bisection</td>
+</tr>
+<tr>
+<td style="text-align:left">fuzzy union</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">one masked update</td>
+</tr>
+<tr>
+<td style="text-align:left">spectral init</td>
+<td style="text-align:left"><span class="math inline">\(O(n^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">dense <code>eigh</code>; a Lanczos solver is <span class="math inline">\(O(n^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">sampled epoch</td>
+<td style="text-align:left"><span class="math inline">\(O(E(1+r))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+<td style="text-align:left">one chunk at a time</td>
+</tr>
+<tr>
+<td style="text-align:left">dense iteration</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">two matrix products</td>
+</tr>
+<tr>
+<td style="text-align:left">density term</td>
+<td style="text-align:left"><span class="math inline">\(O(nk)\)</span> after <span class="math inline">\(O(n^2)\)</span> radii</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">radii recomputed each epoch</td>
+</tr>
+<tr>
+<td style="text-align:left">parametric readout</td>
+<td style="text-align:left"><span class="math inline">\(O(nh^2 + h^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nh)\)</span></td>
+<td style="text-align:left">one <code>lstsq</code> plus Adam</td>
+</tr>
+<tr>
+<td style="text-align:left">full demo</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">10 fits, 11.1 s</td>
+</tr>
+</tbody>
+</table>
+<p>The <span class="math inline">\(O(n^2)\)</span> rows are the fixed cost and the reason UMAP, like t-SNE, is a
+visualisation method. The spectral initialisation is the one that surprises
+people: a dense eigendecomposition is cubic, and at <span class="math inline">\(10^5\)</span> points it is the
+bottleneck even though the optimiser is linear per epoch. Production
+implementations use a sparse Lanczos solver on the graph, which is what makes
+the whole pipeline near-linear.</p>
+<p><code>fuzzy_simplicial</code> is the honest statement of the objective: <span class="math inline">\(O(n^2)\)</span> per
+iteration, no sampling variance, and the demo measures <span class="math inline">\(2.4\)</span> times more terms
+per pass at <span class="math inline">\(n = 250\)</span> than the sampled variant. The ratio grows with <span class="math inline">\(n\)</span>,
+because the graph's support stays at <span class="math inline">\(O(nk)\)</span> while the complement does not.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>1. Treating the target as an average instead of a log.</strong> The row sum in (2) is
+<span class="math inline">\(\log_2 k\)</span>, not <span class="math inline">\(k\)</span>. Setting it to <span class="math inline">\(k\)</span> makes every membership larger — at
+<span class="math inline">\(k = 15\)</span> the graph's total weight goes from <span class="math inline">\(1463\)</span> to <span class="math inline">\(4374\)</span> — so the cross
+entropy's first term dominates, the layout contracts to a standard deviation of
+<span class="math inline">\(3\)</span> where the correct run keeps <span class="math inline">\(10\)</span>, and the eight-neighbour overlap falls from
+<span class="math inline">\(0.833\)</span> to <span class="math inline">\(0.693\)</span> with the cross entropy <em>rising</em> from <span class="math inline">\(528\)</span> to <span class="math inline">\(3261\)</span>. The
+optimiser cannot satisfy the inflated weights at any layout, so it settles for a
+tight picture with the wrong neighbourhoods in it.</p>
+<p><strong>2. Summing a whole epoch's forces.</strong> The per-edge update is a step; the sum of
+an epoch's per-edge steps is not. Doing it in one batch moved the demo's layout
+from a standard deviation of 10 to 87 in a single epoch, past the scale where the
+kernel has structure, and the run then froze at an eight-neighbour overlap of
+<span class="math inline">\(0.22\)</span>. The chunks in §9 exist because of this measurement, and the fact that a
+larger chunk (512 edges) reproduces the same failure is the demonstration that
+it is about coupling, not about vectorisation.</p>
+<p><strong>3. A spectral initialisation that selects noise.</strong> <code>eigh</code> returns ascending
+eigenvalues, so the constant eigenvector is the <em>last</em> column. Taking the first
+<span class="math inline">\(k\)</span> after index 1 selects the highest-frequency modes, piles most points near
+the origin, and costs <span class="math inline">\(0.6\)</span> of eight-neighbour overlap — with no error and no
+warning, just a bad picture.</p>
+<p><strong>4. A regression with a flat optimum.</strong> The published density term's best
+slope can be zero, and then uniform density satisfies it. Measured here, the
+correlation between input and embedding local radius went from <span class="math inline">\(-0.14\)</span> to
+<span class="math inline">\(-0.01\)</span> at the cost of a worse cross entropy, which looks like a working
+regulariser and is not one. The rank-matching form in §10 has no such solution.</p>
+<p><strong>5. A sign error in the density gradient.</strong> In the first version the force
+grew the radius that was already too large. At a strong weight the layout
+inverted: the correlation was <span class="math inline">\(-0.64\)</span> rather than <span class="math inline">\(+0.8\)</span>. A regulariser that
+makes its own metric worse is always a sign error, never a tuning problem.</p>
+<p><strong>6. A floor that is not in the objective.</strong> The reference implementation's
+<span class="math inline">\(1/(0.001 + d^2)\)</span> in the repulsion is a regularisation, not the derivative of
+the cross entropy. It is fine for the optimiser and it breaks any gradient check
+at the <span class="math inline">\(5\%\)</span> level — which is how it was found here: the finite-difference check
+disagreed by <span class="math inline">\(0.4\%\)</span> of the force's scale on every entry until the floor was
+removed and replaced by a guard at <span class="math inline">\(10^{-12}\)</span>.</p>
+<p><strong>7. Supervised mode read as an embedding.</strong> The demo's purity reaches <span class="math inline">\(1.000\)</span>
+by construction: the objective is built from the labels, so the layout is a
+picture of them. Using it for anything beyond classification triage — cluster
+sizes, distances, &quot;how separate are these classes really&quot; — reads information
+into the picture that the optimiser put there.</p>
+<p><strong>8. <code>min_dist</code> read as a metric property.</strong> It controls how tightly the layout
+packs neighbours, not how faithful it is. Lower is not better: it makes clusters
+dots and the space between them arbitrary, which is fine for a picture and wrong
+for any downstream distance.</p>
+<p><strong>9. Trusting <code>transform</code>.</strong> The demo's network reproduces its teacher at
+<span class="math inline">\(0.955\)</span> on the training points and places <span class="math inline">\(0.767\)</span> of held-out points correctly,
+against <span class="math inline">\(0.967\)</span> for a 10-neighbour average. Adding capacity raises the first and
+lowers the second. A parametric variant is for placing many new points cheaply,
+not for a better map.</p>
+<p><strong>10. Reading density off the default layout.</strong> Membership normalisation (2) is
+designed to make the layout density-blind, so the area a cluster gets says
+nothing about how many points are in it. <code>densmap</code> is the fix and it is partial:
+the demo moves the radius correlation from <span class="math inline">\(0.054\)</span> to <span class="math inline">\(0.786\)</span>, not to 1.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Single-cell genomics.</strong> The second canonical use after t-SNE, and now the
+default in several pipelines: the graph is built on a PCA of the expression
+matrix, <code>n_neighbors</code> around 15, and the layout is used to look at cell types
+and trajectories. The <code>densmap</code> variant is used when the question is about
+population sizes rather than cluster identity.</li>
+<li><strong>Feature-space audit before modelling.</strong> The supervised variant is a quick
+way to ask whether a label is learnable from a representation at all: if the
+supervised layout cannot separate the classes, no downstream classifier will.</li>
+<li><strong>Topic and document maps.</strong> <code>n_neighbors</code> in the tens and <code>min_dist</code> around
+<span class="math inline">\(0.1\)</span> gives the standard &quot;map of the corpus&quot; picture, with the same caveat as
+t-SNE about distances.</li>
+<li><strong>Embedding quality comparisons.</strong> Because the cross entropy charges for
+spurious edges, UMAP layouts are a better instrument than t-SNE for &quot;does
+this representation preserve mid-range structure&quot; — the demo's <span class="math inline">\(0.834\)</span> against
+<span class="math inline">\(0.769\)</span> at forty neighbours is the measurement.</li>
+<li><strong>Interactive exploration at scale.</strong> The sampled optimiser is linear per
+epoch and the graph is <span class="math inline">\(O(nk)\)</span>, which is why UMAP is the method most often
+used on million-point datasets where t-SNE needs the FFT or Barnes–Hut
+machinery in the sibling atom.</li>
+<li><strong>Density-aware embeddings.</strong> <code>densmap</code> is used where cluster <em>size</em> is a
+biological or physical signal — cell population frequency, cluster mass in a
+particle detector — and where the default layout's density blindness would
+silently destroy it.</li>
+</ul>
+<p>Not for: distance-based downstream tasks, cluster-size estimation without the
+density term, or any pipeline where the layout must be a deterministic function
+of new data (<code>transform</code> is an approximation, and the ordinary variants have no
+transform at all).</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li><strong>McInnes, Healy &amp; Melville (2018),</strong> <em>UMAP: Uniform Manifold Approximation
+and Projection for dimension reduction</em> — the paper: fuzzy simplicial sets,
+the membership construction of (1)–(4), the cross entropy of (6), and the
+negative-sampling optimiser.</li>
+<li><strong>McInnes, Healy, Saul &amp; Großberger (2018),</strong> <em>UMAP: Uniform Manifold
+Approximation and Projection</em> — the software paper, with the implementation
+details and the parameter advice that §9 follows.</li>
+<li><strong>Narayan, Berger &amp; Menon (2021),</strong> <em>DensMAP: Improved local density
+preservation in UMAP embeddings</em> — the radius term, the variance
+regularisation, and the experiments that show UMAP's density blindness.</li>
+<li><strong>Sainburg, McInnes &amp; Gentner (2021),</strong> <em>Parametric UMAP embeddings for
+representation learning</em> — the parametric variant, and the argument that a
+parametric map is a representation-learning method rather than a faster
+optimiser.</li>
+<li><strong>Damrich &amp; Hamprecht (2021),</strong> <em>On UMAP's true loss function</em> — the
+derivation showing that UMAP's sampler does not optimise exactly the stated
+cross entropy, and what the effective objective is. §7's sampling caveat is
+this paper's subject.</li>
+<li><strong>Böhm, Berens &amp; Kobak (2022),</strong> <em>Attraction-repulsion spectrum in neighbor
+embeddings</em> — where UMAP sits relative to t-SNE on the attraction/repulsion
+axis, and why the two-sided charge changes the global arrangement.</li>
+<li><strong>Kobak &amp; Linderman (2021),</strong> <em>Initialization is critical for preserving
+global data structure in both t-SNE and UMAP</em> — the experiment that made
+spectral and PCA initialisation standard, and the source of the practice in
+§8.</li>
+<li><strong>Coenen &amp; Pearce (2019),</strong> <em>Understanding UMAP</em> — the interactive
+explanation of the fuzzy graph and the cross entropy, and the best account of
+why <code>min_dist</code> behaves the way it does.</li>
+<li><strong>Wang, Huang, Rudin &amp; Shaposhnik (2021),</strong> <em>Understanding how dimension
+reduction algorithms work via data gradients</em> — the analysis of what each
+method preserves and what its gradients respond to.</li>
+<li><strong>Trofimov, Cherniavskii &amp; Dylov (2023),</strong> <em>Learning topology-preserving
+projections with UMAP</em> — the topological reading of the fuzzy graph, and the
+cases where the simplicial-set construction is what makes or breaks the
+embedding.</li>
+<li><strong>Healy &amp; McInnes (2024),</strong> <em>Uniform Manifold Approximation and Projection for
+dimension reduction</em> (review) — the current statement of the method, its
+guarantees and its open problems.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="tsne.html"><small>Previous</small><span>t-SNE</span></a><a class="next" href="isomap.html"><small>Next</small><span>Isomap</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">08 · Manifolds &amp; embeddings</p><ul class="rail-list"><li><a href="tsne.html"><span class="tick">✓</span><span>t-SNE</span></a></li><li><a href="umap.html" aria-current="page"><span class="tick">✓</span><span>UMAP</span></a></li><li><a href="isomap.html"><span class="tick">✓</span><span>Isomap</span></a></li><li><a href="random_projection.html"><span class="tick">✓</span><span>Random projection</span></a></li><li><a href="pacmap.html"><span class="tick">✓</span><span>PaCMAP</span></a></li><li><a href="lle.html"><span class="tick">✓</span><span>Locally linear embedding</span></a></li><li><a href="laplacian_eigenmaps.html"><span class="tick">✓</span><span>Laplacian eigenmaps</span></a></li><li><a href="mds.html"><span class="tick">✓</span><span>Classical MDS</span></a></li><li><a href="autoencoder_dr.html"><span class="tick">✓</span><span>Autoencoder embedding</span></a></li><li><a href="trimap.html"><span class="tick">✓</span><span>TriMap</span></a></li><li><a href="diffusion_maps.html"><span class="tick">✓</span><span>Diffusion maps</span></a></li><li><a href="phate.html"><span class="tick">✓</span><span>PHATE</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../07-clustering/index.html"><span class="jump">← 07 · Clustering</span></a></li><li><a href="../09-density-and-anomaly/index.html"><span class="jump">09 · Density &amp; anomaly&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-a-fuzzy-neighbourhood-per-point">1. A fuzzy neighbourhood per point</a></li><li class="lvl3"><a href="#2-solving-for-the-bandwidth">2. Solving for the bandwidth</a></li><li class="lvl3"><a href="#3-the-fuzzy-union">3. The fuzzy union</a></li><li class="lvl3"><a href="#4-the-layout-kernel">4. The layout kernel</a></li><li class="lvl3"><a href="#5-cross-entropy">5. Cross entropy</a></li><li class="lvl3"><a href="#6-the-gradient">6. The gradient</a></li><li class="lvl3"><a href="#7-negative-sampling">7. Negative sampling</a></li><li class="lvl3"><a href="#8-the-optimiser">8. The optimiser</a></li><li class="lvl3"><a href="#9-supervised-targets">9. Supervised targets</a></li><li class="lvl3"><a href="#10-density-preservation">10. Density preservation</a></li><li class="lvl3"><a href="#11-parametric">11. Parametric</a></li><li class="lvl3"><a href="#12-what-is-identified">12. What is identified</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-the-bandwidth-search">1. The bandwidth search</a></li><li class="lvl3"><a href="#2-the-graph-and-its-union">2. The graph, and its union</a></li><li class="lvl3"><a href="#3-fitting-the-kernel">3. Fitting the kernel</a></li><li class="lvl3"><a href="#4-the-objective">4. The objective</a></li><li class="lvl3"><a href="#5-the-per-pair-gradient">5. The per-pair gradient</a></li><li class="lvl3"><a href="#6-the-dense-gradient">6. The dense gradient</a></li><li class="lvl3"><a href="#7-spectral-initialisation">7. Spectral initialisation</a></li><li class="lvl3"><a href="#8-the-density-term">8. The density term</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/08-manifold/umap.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

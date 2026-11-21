@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DBSCAN · MLAtoms</title>
+<meta name="description" content="Density reachability, border points and the eps/minPts trade-off. DBSCAN answers a different question from k-means. Instead of asking &quot;which centre is this…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/dbscan.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="DBSCAN">
+<meta property="og:description" content="Density reachability, border points and the eps/minPts trade-off. DBSCAN answers a different question from k-means. Instead of asking &quot;which centre is this…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/dbscan.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DBSCAN">
+<meta name="twitter:description" content="Density reachability, border points and the eps/minPts trade-off. DBSCAN answers a different question from k-means. Instead of asking &quot;which centre is this…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "DBSCAN", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/dbscan.html", "description": "Density reachability, border points and the eps/minPts trade-off. DBSCAN answers a different question from k-means. Instead of asking \"which centre is this\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">07 · Clustering</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="dbscan.py.html">source</a></p><h1>DBSCAN</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>DBSCAN answers a different question from k-means. Instead of asking &quot;which centre is
+this point closest to?&quot;, it asks &quot;is this point sitting in a dense region, and what is
+that region connected to?&quot;. A cluster is a maximal set of points connected through
+dense neighbourhoods — a <em>connected component of the density landscape</em>. Points in
+sparse regions are labelled noise and left alone.</p>
+<p>That one change buys the properties k-means cannot offer:</p>
+<ul>
+<li><strong><code>K</code> is discovered, not specified.</strong> The number of clusters is however many
+components the data has.</li>
+<li><strong>Arbitrary shapes.</strong> Two interleaved crescents, a ring around a hole, a spiral — all
+are single clusters if the density along them stays above the threshold. k-means would
+cut them into convex pieces.</li>
+<li><strong>Explicit noise.</strong> Sparse points get label <code>-1</code> instead of being forced into the
+nearest blob, which is why DBSCAN is a standard anomaly detector.</li>
+</ul>
+<p>The two parameters are a radius <code>eps</code> and a count <code>min_samples</code>. A point is <em>core</em> when
+its <code>eps</code>-ball contains at least <code>min_samples</code> points. Core points within <code>eps</code> of each
+other are in the same cluster; non-core points within <code>eps</code> of a core point are
+<em>border</em>; everything else is noise. The demo's two blobs plus uniform background come
+out as exactly two clusters and 48 noise points, with <code>0.992</code> accuracy on the inliers.</p>
+<p>The four variants are about <em>how</em> that definition is evaluated. <code>with_index</code> replaces
+the brute-force scan with a grid, <code>weighted</code> replaces the row count with a weight sum,
+and <code>fuzzy_dbscan</code> replaces the hard label with a membership degree.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Neighbourhood</th>
+<th style="text-align:left">Density test</th>
+<th style="text-align:left">Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>standard</code></td>
+<td style="text-align:left">scan all rows</td>
+<td style="text-align:left"><code>count ≥ min_samples</code></td>
+<td style="text-align:left">hard labels</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>with_index</code></td>
+<td style="text-align:left">grid of <code>eps</code> cells</td>
+<td style="text-align:left">same</td>
+<td style="text-align:left">identical hard labels</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>weighted</code></td>
+<td style="text-align:left">scan all rows</td>
+<td style="text-align:left"><code>Σ weights ≥ min_samples</code></td>
+<td style="text-align:left">hard labels</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>fuzzy_dbscan</code></td>
+<td style="text-align:left">scan all rows</td>
+<td style="text-align:left">same, plus a second radius</td>
+<td style="text-align:left">membership matrix</td>
+</tr>
+</tbody>
+</table>
+<p><code>with_index</code> is an <em>exact</em> accelerator: it must return bit-identical labels, and the
+demo asserts <code>array_equal</code> on both <code>labels_</code> and <code>core_sample_indices_</code>. The only thing
+that changes is the number of distance evaluations — <code>67818</code> instead of <code>435600</code> on
+660 points, and the gap grows with <code>n</code> and shrinks with <code>d</code>.</p>
+<p><code>weighted</code> matters because <code>min_samples</code> is otherwise a count of <em>rows</em>, and rows are
+not always equally informative. A dataset that oversampled a region, or joined a
+denormalised table, can have sixty identical rows where the original data had one
+distinct point. Under row counting those duplicates are a dense region and become a
+spurious cluster; the weighted variant gives each duplicate <code>1/60</code> and sees total mass
+<code>1 &lt; min_samples</code>. The demo shows exactly this: three clusters by row count, two when
+weighted, with every duplicated row labelled noise.</p>
+<p><code>fuzzy_dbscan</code> is the soft version. With an inner radius <code>eps</code> and an outer radius
+<code>eps2</code>, a point within <code>eps</code> of a cluster's core is a full member (<code>μ = 1</code>), a point
+between the radii gets a linear membership <code>μ = (eps2 − d)/(eps2 − eps)</code>, and a point
+beyond <code>eps2</code> gets zero. Because a point can sit inside two outer balls, memberships are
+normalised to sum to at most one and the remainder is a <em>noise degree</em>. On the demo data
+the noise points average <code>0.59</code> noise degree against <code>0.01</code> for inliers, and 15 points
+have partial membership — the ones near a cluster boundary whose assignment is genuinely
+ambiguous.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Core, border, noise.</strong> Fix <code>eps</code> and <code>min_samples</code>. Define the neighbourhood
+<code>N_eps(x) = {y : d(x,y) ≤ eps}</code>. Then</p>
+<div class="math block">
+\[x \text{ is core} \iff |N_\epsilon(x)| \ge \text{min\_samples}\]
+</div>
+<p>and the relation <em>directly density-reachable</em> is <code>y ∈ N_eps(x)</code> with <code>x</code> core.
+Density-reachability is not symmetric (a border point reaches nothing), so clustering
+uses its symmetric closure: <code>p</code> and <code>q</code> are <em>density-connected</em> if some core <code>o</code> has
+both density-reachable. A cluster is a maximal density-connected set. This definition is
+the original Ester et al. one, and it is why the algorithm needs no <code>K</code>: the clusters
+are the connected components of the core graph under <code>eps</code> adjacency.</p>
+<p><strong>Why border points attach to the first cluster.</strong> A border point can be within <code>eps</code> of
+core points from two different components — a thin bridge between two dense regions. The
+definition says it joins <em>a</em> cluster that reaches it, and DBSCAN's scan order decides
+which. This is a real non-determinism in the original algorithm (the demo's
+<code>standard</code> and <code>with_index</code> runs are identical only because the candidate list is
+sorted), and it is one of the reasons the fuzzy variant exists.</p>
+<p><strong>Complexity.</strong> Without an index, each point needs one pass over the data:
+<code>O(n² d)</code> distance work and <code>O(n)</code> neighbourhood queries per expansion. In low
+dimensions the grid gives <code>O(n · c · d)</code> where <code>c</code> is the number of candidates in the
+27 neighbouring cells — for uniformly spread data <code>c ≈ n · (3·eps)^d / volume</code>, which is
+constant in <code>n</code> when the density is fixed. The catch is the exponent: <code>3^d</code> cells must be
+visited, so the index stops helping around <code>d = 8–10</code>.</p>
+<p><strong>Why the two radii give a membership.</strong> The fuzzy extension keeps the core/border
+structure but replaces the binary decision at the boundary with a grade. For a point
+<code>x</code> and cluster <code>c</code> with core set <code>C_c</code>:</p>
+<div class="math block">
+\[d_c(x) = \min_{a \in C_c} \|x - a\|,
+\qquad
+\mu_c(x) =
+\begin{cases}
+1 & x \in C_c \\[2pt]
+\mathrm{clip}\!\left(\dfrac{\epsilon_2 - d_c(x)}{\epsilon_2 - \epsilon},\,0,\,1\right) & \text{otherwise}
+\end{cases}\]
+</div>
+<p><code>eps2</code> is the <em>outer</em> radius: at <code>d = eps</code> the formula gives 1, at <code>d = eps2</code> it gives 0,
+and between them it is linear. This is a deliberate simplification of the Ienco–Bordogna
+construction, which grades the density itself (how many neighbours fall between the two
+radii) rather than the distance to the nearest core; both produce a soft boundary and
+the same qualitative behaviour.</p>
+<p>Memberships from different clusters can overlap, so the vector is rescaled when
+<code>Σ_c μ_c &gt; 1</code>:</p>
+<div class="math block">
+\[\mu_c \leftarrow \frac{\mu_c}{\sum_j \mu_j},
+\qquad
+\nu(x) = 1 - \sum_c \mu_c\]
+</div>
+<p><code>ν</code> is the noise degree: 1 for a point no cluster claims, 0 for a core point. The hard
+label is the argmax, kept only when it clears <code>0.5</code> — which is what makes
+<code>fuzzy_dbscan</code> comparable to <code>standard</code> on the same data (<code>0.995</code> vs <code>0.992</code> inlier
+accuracy) while exposing the boundary cases as numbers.</p>
+<p><strong>Weighted density.</strong> Replace the count with the total mass of the neighbourhood:</p>
+<div class="math block">
+\[x \text{ is core} \iff \sum_{y \in N_\epsilon(x)} w_y \ge \text{min\_samples}\]
+</div>
+<p>With <code>w ≡ 1</code> this is exactly DBSCAN, so the weighted variant is a strict generalisation.
+The natural weight for deduplicated data is <code>w_i = 1/m</code> for each of <code>m</code> copies of a
+point: the copies then contribute mass 1 in total, as one observation should.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>Every neighbourhood question goes through one function, which is also where the
+distance counter lives:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_region</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">i</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">use_index</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_queries_</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">cand</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_candidates</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_index</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_dist_</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cand</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">cand</span><span class="p">]</span> <span class="o">-</span> <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">keep</span> <span class="o">=</span> <span class="n">d</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">+</span> <span class="n">EPS</span>
+        <span class="k">return</span> <span class="n">cand</span><span class="p">[</span><span class="n">keep</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span>
+</code></pre>
+<p><code>n_dist_</code> counts <em>candidates</em>, not survivors, because the filtering itself is the cost
+being measured. Returning <code>cand[keep]</code> rather than just the mask matters: neighbourhoods
+are used as index lists immediately, and recomputing the mask at the call site would
+double the work. The <code>+ EPS</code> is a tolerance for points exactly <code>eps</code> apart, which
+otherwise flip in and out depending on rounding and can make labels order-dependent.</p>
+<p>The grid index is a dictionary of cells:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_build_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">X</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">grid</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="n">keys</span><span class="p">)):</span>
+            <span class="n">grid</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span> <span class="o">=</span> <span class="n">grid</span>
+</code></pre>
+<p>Cells are <code>eps</code> wide, so a point's neighbours can only be in its own cell or the 26
+adjacent ones — that is the whole correctness argument for the index. <code>np.floor</code> is the
+right operation (not integer division), because it behaves correctly for negative
+coordinates: floor division would put <code>-0.1/0.35</code> in cell <code>0</code> and merge it with <code>0.1</code>.
+The cell size is exactly <code>eps</code> rather than <code>2·eps</code> for the same reason: at <code>2·eps</code> the
+<code>3^d</code> neighbourhood would have to be <code>5^d</code>.</p>
+<p>Candidate collection enumerates those adjacent cells:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">repeat</span><span class="o">=</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">cell</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">k</span> <span class="o">+</span> <span class="n">o</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">o</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cell</span><span class="p">,</span> <span class="p">()))</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+</code></pre>
+<p><code>strict=True</code> is not decoration: if <code>X.shape[1]</code> ever stopped matching the length of
+<code>key</code>, <code>zip</code> would silently truncate and the index would return the wrong cells.
+<code>np.sort</code> is what makes <code>with_index</code> produce <em>identical</em> labels to <code>standard</code> — border
+points attach to the first cluster that reaches them, so candidate order is
+semantically relevant here even though the neighbourhood set is not.</p>
+<p>The expansion is the original algorithm, written as a queue with an index:</p>
+<pre class="highlight"><code>            <span class="n">seeds</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+            <span class="n">head</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">while</span> <span class="n">head</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">):</span>
+                <span class="n">j</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">seeds</span><span class="p">[</span><span class="n">head</span><span class="p">])</span>
+                <span class="n">head</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">visited</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                    <span class="n">visited</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">nbr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_region</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">use_index</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_core</span><span class="p">(</span><span class="n">nbr</span><span class="p">):</span>
+                        <span class="n">core</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="n">seeds</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">nbr</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">labels</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">labels</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">cluster</span>
+</code></pre>
+<p><code>visited</code> is set when a point is <em>popped</em>, not when it is pushed into <code>seeds</code>; that is
+what allows a border point to be reached by a later cluster before it is processed, and
+it is the source of the first-come-first-served behaviour. <code>labels[j] &lt; 0</code> re-labels a
+point that is still noise, but never overwrites an assignment — that single condition is
+the difference between &quot;border points join the first cluster that reaches them&quot; and
+&quot;the last cluster wins&quot;. The <code>head</code> index implements a queue over a growing list; using
+<code>pop(0)</code> would be <code>O(len(seeds))</code> per step and quadratic overall.</p>
+<p>The density test is the only line the weighted variant changes:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_is_core</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"weighted"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_w</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_samples</span>
+        <span class="k">return</span> <span class="n">idx</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_samples</span>
+</code></pre>
+<p>Note that <code>_w</code> is populated for every variant in <code>fit</code>, so the branch is a policy
+switch, not a separate code path. Because the weighted test can be satisfied by a single
+heavily weighted point, a core set is no longer &quot;at least <code>min_samples</code> distinct rows&quot; —
+document that, or a caller will be surprised that <code>min_samples=5</code> accepted one row.</p>
+<p>Fuzzy clustering first finds the core components by breadth-first search over core
+points:</p>
+<pre class="highlight"><code>        <span class="n">comp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">core</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">comp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">k</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">comp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">k</span>
+            <span class="n">stack</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
+            <span class="k">while</span> <span class="n">stack</span><span class="p">:</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">nbrs</span><span class="p">[</span><span class="n">a</span><span class="p">]:</span>
+                    <span class="n">b</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">core</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="ow">and</span> <span class="n">comp</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">comp</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">=</span> <span class="n">k</span>
+                        <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+</code></pre>
+<p><code>nbrs</code> was computed once for all points, so this pass is pure graph traversal. Only core
+points are enqueued: a border point must not propagate a component, which is exactly the
+asymmetry of density-reachability. This also gives <code>n_clusters_</code> directly, before any
+membership is computed — a useful check that the fuzzy and hard versions agree on the
+number of components.</p>
+<p>Membership is a clipped linear ramp, then a normalisation:</p>
+<pre class="highlight"><code>        <span class="n">span</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps2</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">eps2</span> <span class="o">-</span> <span class="n">d</span><span class="p">)</span> <span class="o">/</span> <span class="n">span</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">mu</span><span class="p">[</span><span class="n">core</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">mu</span><span class="p">[</span><span class="n">core</span><span class="p">,</span> <span class="n">comp</span><span class="p">[</span><span class="n">core</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="n">mu</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">over</span> <span class="o">=</span> <span class="n">total</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
+        <span class="n">mu</span><span class="p">[</span><span class="n">over</span><span class="p">]</span> <span class="o">/=</span> <span class="n">total</span><span class="p">[</span><span class="n">over</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre>
+<p><code>mu[core] = 0.0</code> clears whatever the ramp gave a core point — including its membership in
+<em>other</em> clusters — and the next line sets its own cluster to exactly 1. A core point is
+unambiguously in its own cluster by definition, so the ramp should not be allowed to
+dilute it. <code>mu[core, comp[core]] = 1.0</code> uses boolean-mask row indexing with an integer
+column array, which is the vectorised form of &quot;for each core point, set its own column&quot;.
+The <code>over</code> guard is needed because overlapping outer balls can give a row sum above 1,
+and a membership matrix whose rows exceed 1 is not a distribution.</p>
+<p>The hard label is a thresholded argmax:</p>
+<pre class="highlight"><code>        <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p><code>0.5</code> is a choice, not a theorem: it makes a point belong to a cluster when it is at
+least halfway inside the outer band, and points below it become noise. Lower it to grow
+clusters at the cost of absorbing background; raise it for conservative assignments.
+<code>np.where</code> evaluates both branches, so <code>argmax</code> runs even for noise rows — harmless
+here, and cheaper than a masked write.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Extra memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>standard</code></td>
+<td style="text-align:left"><code>O(n² d)</code></td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>with_index</code></td>
+<td style="text-align:left"><code>O(n · c · d)</code> with <code>c</code> candidates per cell block</td>
+<td style="text-align:left"><code>O(n)</code> plus the grid</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>weighted</code></td>
+<td style="text-align:left"><code>O(n² d)</code></td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>fuzzy_dbscan</code></td>
+<td style="text-align:left"><code>O(n² d + n · n_core)</code> for the distance-to-core matrix</td>
+<td style="text-align:left"><code>O(n K)</code> memberships</td>
+</tr>
+</tbody>
+</table>
+<p><code>c</code> is constant in <code>n</code> for fixed density and dimension, so the index changes the
+asymptotic class in low <code>d</code>. In <code>d</code> dimensions it visits <code>3^d</code> cells per query, so the
+practical crossover is around <code>d = 8</code>; beyond that the brute-force scan is competitive
+and a k-d tree (which prunes by coordinate) is better. The fuzzy variant's second pass is
+<code>n</code> distances per core point — <code>O(n·n_core)</code> — which is why it is the slowest variant
+here; a real implementation would query the index per point instead.</p>
+<p>Memory is the reason DBSCAN scales further than it looks: it never materialises an
+<code>n×n</code> distance matrix, and the neighbourhoods are recomputed rather than stored.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Varying density.</strong> One global <code>eps</code> cannot serve a tight cluster and a diffuse one.
+Set <code>eps</code> for the sparsest cluster you care about and accept that the tight one may
+merge with its neighbours, or move to HDBSCAN, which varies the threshold per point.</li>
+<li><strong>Parameter sensitivity.</strong> <code>eps</code> and <code>min_samples</code> interact: raising <code>min_samples</code>
+shrinks the neighbourhoods that qualify, and the pair must be tuned together. The
+standard heuristic is <code>min_samples ≈ d + 1</code> and <code>eps</code> from the knee of the
+k-distance plot.</li>
+<li><strong>Bridging.</strong> A thin chain of points between two blobs — duplicated rows, a data
+pipeline artefact, a genuine continuum — makes them one cluster, because connectivity
+is transitive. The demo's duplicate experiment is the synthetic version; weighted
+density and higher <code>min_samples</code> are the fixes.</li>
+<li><strong>Duplicates inflate density.</strong> Sixty copies of one point are a core neighbourhood
+under row counting. Deduplicate, or weight by <code>1/m</code>, as in the weighted variant.</li>
+<li><strong>High dimensions.</strong> Distance concentration makes every point roughly equidistant, so
+<code>eps</code> stops separating dense from sparse. Reduce dimensionality first; DBSCAN's
+premise is that &quot;near&quot; is meaningful.</li>
+<li><strong>Border non-determinism.</strong> A border point reachable from two clusters joins whichever
+the scan reaches first, so the partition can change under row reordering. Sorting
+candidates (as <code>with_index</code> does) makes it reproducible, and <code>fuzzy_dbscan</code> makes the
+ambiguity visible instead of silently resolving it.</li>
+<li><strong><code>min_samples</code> includes the point itself.</strong> The neighbourhood of <code>x</code> contains <code>x</code>
+when <code>eps &gt; 0</code>, so <code>min_samples=1</code> makes every point core and the whole dataset one
+cluster. The usual convention is <code>min_samples ≥ 3</code> for 2-D data.</li>
+<li><strong>No <code>predict</code>.</strong> A new point cannot be assigned without rerunning the clustering,
+because &quot;is this region dense?&quot; is a property of the fitted data. Production systems
+approximate it by keeping the core points and assigning to the nearest core within
+<code>eps</code>, which is exactly the fuzzy membership rule with <code>eps2 = eps</code>.</li>
+<li><strong>Fuzzy threshold drift.</strong> The <code>0.5</code> cut and the <code>eps2</code> choice jointly determine how
+many points are called noise; changing <code>eps2</code> changes the hard labels too, not just
+the degrees. Report the degrees, not only <code>labels_</code>, when the boundary matters.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Anomaly and fraud detection.</strong> Noise label as the alert, no supervision needed. The
+demo's background points are a stand-in for transactions that fit no spending pattern.</li>
+<li><strong>Spatial clustering.</strong> Earthquake epicentres, crime incidents, GPS traces: DBSCAN is
+the default because clusters are geographic blobs of arbitrary shape and noise is
+meaningful.</li>
+<li><strong>Image and point-cloud segmentation.</strong> Density in colour or coordinate space
+separates objects from speckle; <code>with_index</code> is what makes it usable on LiDAR clouds.</li>
+<li><strong>Customer behaviour.</strong> Sessions in feature space with <code>-1</code> as &quot;atypical user&quot;, which
+is often the segment a fraud or support team wants.</li>
+<li><strong>Scientific event detection.</strong> Particle tracks, gene-expression clusters, star
+catalogues — any setting where the number of groups is unknown and outliers are data,
+not errors.</li>
+<li><strong>As a labelling step before supervision.</strong> Cluster the unlabelled pool, then label
+each cluster; the noise set is the part of the pool that needs human review.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Ester, Kriegel, Sander &amp; Xu, <em>A Density-Based Algorithm for Discovering Clusters in
+Large Spatial Databases with Noise</em>, 1996, KDD — the original DBSCAN, including the
+core/border/noise definitions.</li>
+<li>Schubert, Sander, Ester, Kriegel &amp; Xu, <em>DBSCAN Revisited, Revisited: Why and How You
+Should (Still) Use DBSCAN</em>, 2017, ACM TODS — parameter heuristics, the <code>min_samples</code>
+convention, and the border-point non-determinism.</li>
+<li>Campello, Moulavi &amp; Sander, <em>Density-Based Clustering Based on Hierarchical Density
+Estimates</em>, 2013, PAKDD — HDBSCAN, the answer to failure mode 1.</li>
+<li>Ienco &amp; Bordogna, <em>Fuzzy Extensions of the DBSCAN Clustering Algorithm</em>, 2018, Soft
+Computing — the two-radius fuzzy core and the membership construction this file
+simplifies.</li>
+<li>Gan &amp; Tao, <em>DBSCAN Revisited: Mis-Claim, Un-Fixability, and Approximation</em>, 2015,
+SIGMOD — why exact DBSCAN is hard to scale and what the approximations cost.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="gmm.html"><small>Previous</small><span>Gaussian mixture</span></a><a class="next" href="hdbscan.html"><small>Next</small><span>HDBSCAN</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">07 · Clustering</p><ul class="rail-list"><li><a href="kmeans.html"><span class="tick">✓</span><span>k-means</span></a></li><li><a href="gmm.html"><span class="tick">✓</span><span>Gaussian mixture</span></a></li><li><a href="dbscan.html" aria-current="page"><span class="tick">✓</span><span>DBSCAN</span></a></li><li><a href="hdbscan.html"><span class="tick">✓</span><span>HDBSCAN</span></a></li><li><a href="spectral_clustering.html"><span class="tick">✓</span><span>Spectral clustering</span></a></li><li><a href="agglomerative.html"><span class="tick">✓</span><span>Hierarchical clustering</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>k-medoids</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>OPTICS</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Mean shift</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Fuzzy c-means</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Cluster validity</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BIRCH</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Affinity propagation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Density peaks</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Self-organising maps</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Subspace clustering</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../06-latent-factorization/index.html"><span class="jump">← 06 · Latent structure &amp; factorisation</span></a></li><li><a href="../08-manifold/index.html"><span class="jump">08 · Manifolds &amp; embeddings&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/07-clustering/dbscan.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

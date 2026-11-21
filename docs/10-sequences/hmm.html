@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hidden Markov models · MLAtoms</title>
+<meta name="description" content="Forward-backward, Viterbi and Baum-Welch in one file. In a Markov chain you watch the state. Here you watch what the state emits. The state sequence is…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/hmm.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Hidden Markov models">
+<meta property="og:description" content="Forward-backward, Viterbi and Baum-Welch in one file. In a Markov chain you watch the state. Here you watch what the state emits. The state sequence is…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/hmm.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hidden Markov models">
+<meta name="twitter:description" content="Forward-backward, Viterbi and Baum-Welch in one file. In a Markov chain you watch the state. Here you watch what the state emits. The state sequence is…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Hidden Markov models", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/hmm.html", "description": "Forward-backward, Viterbi and Baum-Welch in one file. In a Markov chain you watch the state. Here you watch what the state emits. The state sequence is\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">10 · Sequences</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="hmm.py.html">source</a></p><h1>Hidden Markov models — the chain you cannot see</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>In a Markov chain you watch the state. Here you watch what the state emits. The
+state sequence is latent, the observations are conditionally independent given
+it, and every question you can ask splits into two halves: what the chain did,
+and what each state sounds like.</p>
+<p>That split is what makes the model useful. Weather is a two-state chain you
+cannot observe directly; what you observe is whether people carry umbrellas.
+Speech is a chain of phonemes you cannot observe directly; what you observe is a
+waveform. A genome is a chain of CpG islands and background you cannot observe
+directly; what you observe is a sequence of nucleotides. In each case the
+interesting object is hidden and the observed object is noisy, and an HMM is the
+smallest model that respects both facts.</p>
+<p>Everything follows from three sets of numbers: where the chain starts, how it
+moves, and what each state emits. Given those numbers, two matrix recursions
+answer the inference questions — the forward pass for the likelihood and the
+smoothed posteriors, the Viterbi pass for the single best path. Given only
+observations, one algorithm estimates the numbers: Baum–Welch, which is
+expectation–maximisation applied to the latent path.</p>
+<pre class="highlight"><code>          hidden:   ●───────●───────●───────●
+                    │       │       │       │
+                    ▼       ▼       ▼       ▼
+          observed: x₁      x₂      x₃      x₄
+
+          A: state → state       π: where it starts
+          b: state → observation  the only part you can see
+</code></pre>
+<p>The seven variants slice the same object along two axes. Three of them name the
+emission model: symbols (<code>discrete</code>), a diagonal Gaussian per state
+(<code>gaussian</code>), or a mixture of Gaussians per state (<code>gmm_hmm</code>). Four of them name
+the algorithm on the surface: exact posterior marginals (<code>forward_backward</code>),
+maximum-probability paths (<code>viterbi</code>), multi-restart training with a likelihood
+trace (<code>baum_welch</code>), or the scaled linear-domain recursions (<code>scaling</code>). The
+axes compose, because none of the algorithms cares what the emission model is.</p>
+<p>What the demos establish, beyond the usual parameter recovery, is that the three
+claims in the file are true rather than plausible. On a seven-symbol sequence
+the forward recursion agrees with enumeration over all <span class="math inline">\(128\)</span> state paths to ten
+digits. On a ten-symbol sequence Viterbi agrees with the best of <span class="math inline">\(1024\)</span>
+enumerated paths exactly. And the scaled fit reaches the same likelihood as
+the log-space fit to <span class="math inline">\(8\times10^{-11}\)</span>, while the unscaled linear recursion
+returns exactly zero.</p>
+<p>The number worth remembering from the fits is <span class="math inline">\(352\)</span>. That is how many nats a
+two-component mixture per state gains over a single Gaussian per state on four
+well-separated clusters. Choosing the emission model is not a detail; it is the
+difference between modelling the data and modelling its average.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">emission</th>
+<th style="text-align:left">fit</th>
+<th style="text-align:left">surface</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>discrete</code></td>
+<td style="text-align:left">categorical symbols</td>
+<td style="text-align:left">Baum–Welch</td>
+<td style="text-align:left">score</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gaussian</code></td>
+<td style="text-align:left">diagonal Gaussian</td>
+<td style="text-align:left">Baum–Welch</td>
+<td style="text-align:left">score</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gmm_hmm</code></td>
+<td style="text-align:left">Gaussian mixture per state</td>
+<td style="text-align:left">Baum–Welch</td>
+<td style="text-align:left">score</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>forward_backward</code></td>
+<td style="text-align:left">inferred from the data</td>
+<td style="text-align:left">Baum–Welch</td>
+<td style="text-align:left"><code>posterior_marginals</code>, <code>pairwise_posteriors</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>viterbi</code></td>
+<td style="text-align:left">inferred from the data</td>
+<td style="text-align:left">Baum–Welch</td>
+<td style="text-align:left"><code>predict</code>, <code>viterbi_score_</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>baum_welch</code></td>
+<td style="text-align:left">inferred from the data</td>
+<td style="text-align:left">multi-restart EM</td>
+<td style="text-align:left"><code>history_</code>, <code>n_iter_</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>scaling</code></td>
+<td style="text-align:left">inferred from the data</td>
+<td style="text-align:left">scaled linear EM</td>
+<td style="text-align:left"><code>scaling_factors_</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>discrete</code></strong> is the classical HMM of the speech and bioinformatics literature:
+a finite alphabet, a table of emission probabilities per state, and counting as
+the estimator. Its M-step is the simplest in the file: no responsibilities, no
+variance floor, no moments.</p>
+<p><strong><code>gaussian</code></strong> replaces the table with one mean and one variance per state per
+feature, so the M-step becomes weighted moments. It is the workhorse for
+real-valued sequences and the model to try first when the state means are what
+distinguish the states.</p>
+<p><strong><code>gmm_hmm</code></strong> gives every state a mixture instead of a single Gaussian, which is
+the right model when a state is itself multimodal — a phoneme with several
+allophones, a regime with two operating points. It costs a set of mixture
+responsibilities per state and turns the M-step into a weighted soft-clustering.</p>
+<p><strong><code>forward_backward</code></strong> exposes the smoothing recursions: the posterior
+probability of each state at each time, and of each transition. These are what
+you plot, what you threshold, and what the other variants use internally.</p>
+<p><strong><code>viterbi</code></strong> exposes the max-product recursion and the score of the path it
+returns. It answers &quot;what is the single most likely explanation&quot;, which is a
+different question from &quot;what is each state's marginal&quot; and can have a different
+answer.</p>
+<p><strong><code>baum_welch</code></strong> is the training variant: it allows several random restarts,
+keeps the best, and exposes the likelihood after every iteration. The trace is
+the model's own convergence diagnostic and the restarts are the only defence
+against local optima.</p>
+<p><strong><code>scaling</code></strong> runs the same EM in the linear domain with one normalising factor
+per step, the technique that predates log-space arithmetic and is still how most
+production implementations work. It is also the clearest demonstration of why
+the factors are necessary.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-model-and-the-forward-recursion">The model and the forward recursion <a class="header-anchor" href="#the-model-and-the-forward-recursion">#</a></h3>
+<p>Let <span class="math inline">\(z_{1:T}\)</span> be the hidden states and <span class="math inline">\(x_{1:T}\)</span> the observations. The chain is
+first-order and the emissions are conditionally independent given the state:</p>
+<div class="math block">
+\[p(z_{1:T}, x_{1:T}) = \pi_{z_1} b_{z_1}(x_1)\prod_{t=2}^{T} A_{z_{t-1}z_t}b_{z_t}(x_t).\]
+</div>
+<p>Summing over paths is exponential, but the sum factorises. Define the forward
+variable <span class="math inline">\(\alpha_t(k) = p(x_{1:t}, z_t = k)\)</span>; then</p>
+<div class="math block">
+\[\alpha_t(k) = b_k(x_t)\sum_{j} \alpha_{t-1}(j) A_{jk},
+\qquad (1)\]
+</div>
+<p>with <span class="math inline">\(\alpha_1(k)=\pi_k b_k(x_1)\)</span> and <span class="math inline">\(p(x_{1:T})=\sum_k \alpha_T(k)\)</span>. The
+recursion has the shape of the chain: one <span class="math inline">\(K\times K\)</span> matrix product per
+observation, <span class="math inline">\(O(TK^2)\)</span> in total, and the exponential disappears.</p>
+<p>In log space the sum becomes a log-sum-exp, and the code is (1) with that
+substitution:</p>
+<pre class="highlight"><code>        <span class="n">log_alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_states</span><span class="p">))</span>
+        <span class="n">log_alpha</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">log_pi</span> <span class="o">+</span> <span class="n">log_b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">log_alpha</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">log_b</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">+</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">log_alpha</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">log_a</span><span class="p">,</span>
+                                                 <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</code></pre>
+<p><code>_logsumexp</code> subtracts the row maximum before exponentiating. Without that, a
+log-probability of <span class="math inline">\(-2000\)</span> underflows to zero and the sum is wrong; with it, the
+only quantities that ever get exponentiated are at most one in magnitude.</p>
+<p>The backward variable is the same idea run in reverse,
+<span class="math inline">\(\beta_t(j) = p(x_{t+1:T}\mid z_t=j)\)</span>:</p>
+<div class="math block">
+\[\beta_t(j) = \sum_k A_{jk} b_k(x_{t+1}) \beta_{t+1}(k),
+\qquad (2)\]
+</div>
+<p>with <span class="math inline">\(\beta_T(k)=1\)</span>. It does not depend on the past, which is why it can be
+computed once and reused for every time step:</p>
+<pre class="highlight"><code>        <span class="n">log_beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_states</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">log_beta</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">log_a</span> <span class="o">+</span> <span class="p">(</span><span class="n">log_b</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">log_beta</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span>
+                                     <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<h3 id="posteriors">Posteriors <a class="header-anchor" href="#posteriors">#</a></h3>
+<p>Multiplying the two messages and normalising gives the smoothed state
+probability, and adding the transition in the middle gives the smoothed
+transition probability:</p>
+<div class="math block">
+\[\gamma_t(k) = \frac{\alpha_t(k)\beta_t(k)}{p(x)},
+\qquad
+\xi_t(j,k) = \frac{\alpha_t(j)A_{jk}b_k(x_{t+1})\beta_{t+1}(k)}{p(x)}.
+\qquad (3)\]
+</div>
+<p>Both are exact under the model: no sampling, no approximation, no iteration. The
+same quantities computed from the scaled recursions are what every EM step
+consumes.</p>
+<p>The vectorised computation is worth showing because it removes a loop over the
+sequence, which is where a naive implementation spends most of its time:</p>
+<pre class="highlight"><code>        <span class="n">future</span> <span class="o">=</span> <span class="n">log_b</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+</span> <span class="n">log_beta</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">log_xi</span> <span class="o">=</span> <span class="p">(</span><span class="n">log_alpha</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">][:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">log_a</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+                  <span class="o">+</span> <span class="n">future</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">likelihood</span><span class="p">)</span>
+        <span class="n">xi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_xi</span><span class="p">)</span>
+</code></pre>
+<p>The three factors broadcast against each other into a
+<span class="math inline">\((T-1)\times K\times K\)</span> array, one slice per transition. Memory is the price:
+<span class="math inline">\(O(TK^2)\)</span> floats, which is fine for a few thousand observations and a handful of
+states and is the reason long-sequence implementations use the
+forward-only formulation of the M-step instead.</p>
+<h3 id="the-m-step">The M-step <a class="header-anchor" href="#the-m-step">#</a></h3>
+<p>Baum–Welch maximises the expected complete-data log-likelihood. The expectation
+is over the posterior of the hidden path, which (3) gives exactly, and the
+maximisation separates because the complete-data likelihood is a sum of
+independent terms. The result is counting with soft assignments:</p>
+<div class="math block">
+\[\pi_k = \gamma_1(k), \qquad
+A_{jk} = \frac{\sum_t \xi_t(j,k)}{\sum_t \gamma_t(j)},
+\qquad (4)\]
+</div>
+<p>and for symbols <span class="math inline">\(b_k(v) = \sum_{t:x_t=v}\gamma_t(k) \big/ \sum_t \gamma_t(k)\)</span>.
+The Gaussian and mixture updates are the same weighted moments with
+<span class="math inline">\(\gamma_t(k)\)</span> as the weight; for the mixture, an extra responsibility
+<span class="math inline">\(r_t(k,m)\)</span> splits each state's mass between its components.</p>
+<p>Two implementation details make (4) survive real data. A row with no mass would
+divide by zero, so it falls back to the uniform distribution — a state that died
+is given no information rather than a NaN. And the emission estimate is a
+weighted count, which the categorical branch computes directly:</p>
+<pre class="highlight"><code>            <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">emission_</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+                <span class="n">counts</span><span class="p">[:,</span> <span class="n">symbol</span><span class="p">]</span> <span class="o">=</span> <span class="n">gamma</span><span class="p">[</span><span class="n">values</span> <span class="o">==</span> <span class="n">symbol</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">emission_</span> <span class="o">=</span> <span class="n">_normalise_rows</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="mf">1e-300</span><span class="p">))</span>
+</code></pre>
+<p><code>_normalise_rows</code> is the guard in one place:</p>
+<pre class="highlight"><code>    <span class="n">totals</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">live</span> <span class="o">=</span> <span class="n">totals</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
+    <span class="n">out</span><span class="p">[</span><span class="n">live</span><span class="p">]</span> <span class="o">=</span> <span class="n">matrix</span><span class="p">[</span><span class="n">live</span><span class="p">]</span> <span class="o">/</span> <span class="n">totals</span><span class="p">[</span><span class="n">live</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre>
+<p>The small floor on the counts is not there to avoid the division —
+<code>_normalise_rows</code> masks empty rows — but to keep every entry strictly positive,
+so that <code>np.log</code> of the emission table never returns a negative infinity. A
+symbol the model considers impossible then costs about <span class="math inline">\(690\)</span> nats, which is the
+intended penalty rather than a special case.</p>
+<p>The monotonicity of EM is the one guarantee worth stating. Each iteration
+maximises a lower bound on the log-likelihood (Jensen's inequality gives the
+bound), so the likelihood cannot decrease. The demo checks every fitted history for
+monotonicity, and that is a property of the algorithm, not of the data.</p>
+<h3 id="viterbi">Viterbi <a class="header-anchor" href="#viterbi">#</a></h3>
+<p>The most probable path is the maximum over paths of the same joint probability
+that (1) summed. Swapping sum for max gives the max-product recursion</p>
+<div class="math block">
+\[\delta_t(k) = b_k(x_t)\max_j \delta_{t-1}(j)A_{jk},
+\qquad (5)\]
+</div>
+<p>with <span class="math inline">\(\delta_1(k)=\pi_k b_k(x_1)\)</span> and the path recovered by backtracking through
+the argmax at each step. It is dynamic programming over the same trellis as the
+forward pass, with the same <span class="math inline">\(O(TK^2)\)</span> cost, and the log-domain version is
+numerically identical to the linear one because there are no sums to underflow.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">length</span><span class="p">):</span>
+            <span class="n">candidate</span> <span class="o">=</span> <span class="n">delta</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">log_a</span>
+            <span class="n">back</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">delta</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">log_b</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">+</span> <span class="n">candidate</span><span class="p">[</span><span class="n">back</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_states</span><span class="p">)]</span>
+</code></pre>
+<p>The <code>candidate[back[t], np.arange(self.n_states)]</code> indexing is the vectorised
+&quot;take the maximum along each column&quot;; writing it as a loop would be clearer and
+twice as slow. The backtracking pass then walks <code>back</code> from the best final state
+to the start.</p>
+<p>The distinction from posterior decoding matters. Viterbi maximises
+<span class="math inline">\(p(z_{1:T}\mid x_{1:T})\)</span> over whole paths. Posterior decoding picks
+<span class="math inline">\(\arg\max_k \gamma_t(k)\)</span> at each <span class="math inline">\(t\)</span> independently, which maximises the expected
+number of correctly labelled positions but can return a path the model considers
+impossible. The demo's two decodings differ at three of twelve hundred
+positions, which is typical when the posteriors are decisive and a warning when
+they are not.</p>
+<h3 id="scaling">Scaling <a class="header-anchor" href="#scaling">#</a></h3>
+<p>The linear-domain forward pass has the same recursion but no logs, and after a
+few hundred observations it underflows: <span class="math inline">\(p(x_{1:T})\)</span> is a product of <span class="math inline">\(T\)</span>
+numbers smaller than one, and the smallest double is about <span class="math inline">\(10^{-308}\)</span>. The fix
+is to renormalise at every step and remember the factors:</p>
+<div class="math block">
+\[\hat\alpha_t = \frac{\alpha_t}{c_t}, \qquad c_t = \sum_k \alpha_t(k),
+\qquad \log p(x_{1:T}) = \sum_t \log c_t.
+\qquad (6)\]
+</div>
+<p>The normalised vector stays a probability distribution, so nothing underflows;
+the product of the factors is the likelihood, and the sum of their logs is the
+log-likelihood. It is exactly the same information as the log-space recursion,
+carried in a different representation.</p>
+<pre class="highlight"><code>        <span class="n">alpha</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_b</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">factors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">alpha</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="mf">1e-300</span><span class="p">)</span>
+        <span class="n">alpha</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/=</span> <span class="n">factors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">length</span><span class="p">):</span>
+            <span class="n">alpha</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">alpha</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">@</span> <span class="n">a</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_b</span><span class="p">[</span><span class="n">t</span><span class="p">])</span>
+            <span class="n">factors</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">alpha</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="mf">1e-300</span><span class="p">)</span>
+            <span class="n">alpha</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">/=</span> <span class="n">factors</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+</code></pre>
+<p>The backward pass must use the same factors, dividing by <span class="math inline">\(c_{t+1}\)</span> at each step,
+or the product <span class="math inline">\(\hat\alpha\hat\beta\)</span> is not <span class="math inline">\(\gamma\)</span>. That consistency condition
+is the fiddly part of the classical algorithm and the reason log-space
+implementations became popular.</p>
+<h3 id="emission-models">Emission models <a class="header-anchor" href="#emission-models">#</a></h3>
+<p>For a diagonal Gaussian, the log density is a sum over features; the reshape is
+what lets one expression serve both the per-state and the per-component case:</p>
+<pre class="highlight"><code>        <span class="n">diff</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="n">axis</span> <span class="o">+</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],))</span> <span class="o">-</span> <span class="n">means</span>
+</code></pre>
+<p>With <code>axis=1</code> the result is <span class="math inline">\((T,K,d)\)</span> and sums to a <span class="math inline">\((T,K)\)</span> table; with <code>axis=2</code>
+it is <span class="math inline">\((T,K,M,d)\)</span> and sums to <span class="math inline">\((T,K,M)\)</span>, one column per mixture component. The
+mixture then needs a log-sum-exp over components and a responsibility per
+component, which is where the mixture M-step gets its extra factor.</p>
+<p>The Gaussian M-step is weighted moments with <span class="math inline">\(\gamma\)</span> as the weight, and the
+variance is floored at a tiny fraction of the global variance. The floor is a
+guard against a component collapsing onto a single observation, where the
+likelihood is infinite and EM would happily go there.</p>
+<h3 id="initialisation">Initialisation <a class="header-anchor" href="#initialisation">#</a></h3>
+<p>EM is local, so the starting point decides which optimum is found. The
+initialisation here is deliberately structured rather than random: sort the
+sample along its first principal axis, cut it into equal-frequency chunks, use
+the chunk means as the state means, add a small jitter, and start the transition
+matrix sticky. The jitter and the seed are what make a restart a restart; the
+structure is what keeps most restarts out of the degenerate optima.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="the-likelihood-and-the-state-marginals">The likelihood and the state marginals <a class="header-anchor" href="#the-likelihood-and-the-state-marginals">#</a></h3>
+<p><code>score</code> runs the recursion of (1) and nothing else, which makes it the cheapest
+thing in the file and the natural place to check a fit. The <code>_require</code> gate is
+not cosmetic: calling <code>predict</code> on the <code>forward_backward</code> variant, or
+<code>posterior_marginals</code> on the <code>viterbi</code> variant, raises rather than silently
+returning something that looks like an answer.</p>
+<h3 id="the-scaled-pass">The scaled pass <a class="header-anchor" href="#the-scaled-pass">#</a></h3>
+<pre class="highlight"><code>            <span class="n">beta</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span> <span class="o">@</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_b</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">beta</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+                       <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">factors</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="mf">1e-300</span><span class="p">))</span>
+</code></pre>
+<p>This is the backward half of (6). The division by <code>factors[t + 1]</code> is the
+consistency condition: the forward vector was divided by that same number, so
+the backward vector must be too, and then their product is a posterior instead
+of a product of unrelated scalings.</p>
+<h3 id="mixture-responsibilities">Mixture responsibilities <a class="header-anchor" href="#mixture-responsibilities">#</a></h3>
+<pre class="highlight"><code>        <span class="n">log_resp</span> <span class="o">=</span> <span class="n">weighted</span> <span class="o">-</span> <span class="n">log_b</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_resp</span><span class="p">)</span> <span class="o">*</span> <span class="n">gamma</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">totals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="mf">1e-300</span><span class="p">)</span>
+</code></pre>
+<p><code>weighted</code> holds <span class="math inline">\(\log w_{km} + \log N(x_t;\mu_{km},\sigma^2_{km})\)</span> and <code>log_b</code>
+holds the log-sum-exp over <span class="math inline">\(m\)</span>, so the difference is the log responsibility.
+Multiplying by the state posterior gives the joint responsibility of state <span class="math inline">\(k\)</span>
+and component <span class="math inline">\(m\)</span> at time <span class="math inline">\(t\)</span>, which is exactly the weight the mixture M-step
+needs. The <code>1e-300</code> floor is there because a component can, in principle, be
+responsible for nothing.</p>
+<h3 id="choosing-the-emission-model">Choosing the emission model <a class="header-anchor" href="#choosing-the-emission-model">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">emission</span> <span class="o">==</span> <span class="s2">"unknown"</span><span class="p">:</span>
+            <span class="n">emission</span> <span class="o">=</span> <span class="s2">"categorical"</span> <span class="k">if</span> <span class="p">(</span><span class="n">integer_like</span> <span class="ow">and</span> <span class="n">values</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="k">else</span> <span class="s2">"gaussian"</span>
+</code></pre>
+<p>The three emission variants fix their family in the constructor; the four
+algorithm variants infer it. A one-dimensional array of integers is read as
+symbols, anything else as measurements — which is a heuristic, and the reason
+<code>discrete</code> exists as an explicit variant for the case where a float array really
+does hold codes. The guards on length are the other half of <code>_prepare</code>: an empty
+sequence has no first observation, so <span class="math inline">\(\alpha_1\)</span> is undefined, and a scalar has
+no time axis at all.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(T\)</span> be the sequence length, <span class="math inline">\(K\)</span> the number of states, <span class="math inline">\(d\)</span> the number of
+features, <span class="math inline">\(M\)</span> the mixture components and <span class="math inline">\(I\)</span> the EM iterations.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">one E-step, symbols or Gaussians</td>
+<td style="text-align:left"><span class="math inline">\(O(TK^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TK^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one E-step, mixture</td>
+<td style="text-align:left"><span class="math inline">\(O(TK^2 + TKMd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TK^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one M-step, symbols</td>
+<td style="text-align:left"><span class="math inline">\(O(TK)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(K^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one M-step, mixture</td>
+<td style="text-align:left"><span class="math inline">\(O(TKMd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(KMd)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">fit</td>
+<td style="text-align:left"><span class="math inline">\(O(I\,T K^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TK^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>score</code></td>
+<td style="text-align:left"><span class="math inline">\(O(TK^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TK)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>predict</code></td>
+<td style="text-align:left"><span class="math inline">\(O(TK^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TK)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>posterior_marginals</code></td>
+<td style="text-align:left"><span class="math inline">\(O(TK^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TK^2)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The <span class="math inline">\(O(TK^2)\)</span> memory for the pairwise posteriors is the only avoidable term.
+The standard alternative computes the M-step's transition counts in a single
+forward pass over <span class="math inline">\(\hat\alpha\)</span>, the transition matrix and <span class="math inline">\(\hat\beta\)</span>, never
+materialising <span class="math inline">\(\xi\)</span>; that is what production implementations do, and it is
+worth doing when <span class="math inline">\(T\)</span> is in the millions. Here the explicit array is what makes
+the code readable.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The likelihood is multimodal and EM finds one mode.</strong> With <span class="math inline">\(K\)</span> states there
+are <span class="math inline">\(K!\)</span> labellings of the same model, all with identical likelihood, so the
+fitted state numbering means nothing. That is why the demos relabel before
+comparing. Less benign are genuinely different optima: fitting four states to
+data from three, the demo's restarts disagree by <span class="math inline">\(0.74\)</span> nats while the
+likelihood itself differs from the three-state fit by only <span class="math inline">\(3\)</span>. The parameters
+differ completely; the likelihood barely notices.</p>
+<p><strong>More states is not more model.</strong> The same demo fits three and four states to
+three-state data. Training likelihood improves from <span class="math inline">\(-1784.2\)</span> to <span class="math inline">\(-1781.2\)</span>,
+while held-out likelihood degrades from <span class="math inline">\(-1839.2\)</span> to <span class="math inline">\(-1845.4\)</span>. The extra state
+is fitting noise. The number of states is a model-selection decision and needs
+held-out data or a criterion, not the training likelihood.</p>
+<p><strong>Underflow, if you skip the scaling.</strong> The unscaled linear recursion in the
+demo returns exactly <span class="math inline">\(0.0\)</span> after two thousand observations, while the
+log-likelihood the model reports is <span class="math inline">\(-2690.7\)</span>. The failure is silent: a zero
+likelihood looks like a very bad model, not a broken implementation. If a
+likelihood is exactly zero on a long sequence, this is the first thing to check.</p>
+<p><strong>A dead state takes its row with it.</strong> If no observation is ever assigned to a
+state, its <span class="math inline">\(\gamma\)</span> column is zero, and the transition row becomes <span class="math inline">\(0/0\)</span>. The
+code falls back to uniform, which keeps the fit running but leaves a state that
+means nothing. The symptom is a state with a uniform transition row and a
+flat emission; the fix is fewer states or a better initialisation, not more
+iterations.</p>
+<p><strong>A Gaussian component can collapse onto one point.</strong> The likelihood of a
+Gaussian with <span class="math inline">\(\sigma\to0\)</span> at an observation goes to infinity, so the M-step
+would happily set the variance to zero. The variance floor prevents the
+singularity and keeps the model honest; without it, the fit can drive one
+variance to zero within a few iterations and report a likelihood that is
+infinite and meaningless. The same issue appears in
+<code>gmm_hmm</code> and is the reason the floor is relative to the data's own variance.</p>
+<p><strong>The emission model is a modelling assumption, not a detail.</strong> On four
+well-separated clusters, a single Gaussian per state loses <span class="math inline">\(352\)</span> nats to a
+two-component mixture per state. In the other direction, a mixture with too many
+components will split a unimodal state into two identical halves and call the
+split structure. Compare emission families on held-out data, as the demo does.</p>
+<p><strong>Viterbi and posterior decoding can disagree, and Viterbi can be worse by the
+metric you care about.</strong> Viterbi maximises the probability of the whole path;
+posterior decoding maximises per-position accuracy. If the downstream task scores
+positions, posterior decoding is the right decoder even though its path is less
+probable. The three differing positions in twelve hundred are a reminder that
+the two answers are answers to different questions.</p>
+<p><strong>Conditional independence is doing a lot of work.</strong> The model assumes the
+observations are independent given the state. Correlated noise, overlapping
+windows or a slowly varying measurement scale all violate that, and the fitted
+states will encode the correlation rather than the phenomenon. The usual fixes
+are richer emissions (full-covariance Gaussians, autoregressive HMMs) or a
+different model class entirely.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Speech recognition.</strong> The classical system was an HMM per phone, with Gaussian
+mixture emissions over cepstral features, and the Viterbi and Baum–Welch
+algorithms in this file are the ones that made it work. Modern recognisers
+replaced the emission model with neural networks but kept the HMM decoding
+layer for decades, and CTC — the <code>ctc</code> atom in this chapter — is the alignment
+machinery that made the frame-level layer optional.</p>
+<p><strong>Bioinformatics.</strong> CpG islands, gene finding and copy-number segmentation are
+all hidden-state problems over nucleotide or probe sequences; the <code>discrete</code>
+demo is the toy version of a CpG-island model, and the forward–backward
+posteriors are how the island boundaries are drawn.</p>
+<p><strong>Regime switching in finance and economics.</strong> Returns switch between
+low-volatility and high-volatility regimes; a two-state Gaussian HMM with
+time-varying variance is the standard starting point, and the smoothed
+probability of the high-volatility state is a widely published risk indicator.</p>
+<p><strong>Human activity and gesture recognition.</strong> Sensor streams from phones and
+wearables are segmented into activities by an HMM whose emissions are summary
+features per window; the state sequence is the activity label and the transition
+matrix encodes which activities follow which.</p>
+<p><strong>Natural language processing.</strong> Part-of-speech tagging was an HMM over word
+emissions before it was a CRF, and the <code>crf</code> atom is its discriminative
+successor. The Viterbi recursion is the same in the two models; only the
+features change.</p>
+<p><strong>Fault detection and predictive maintenance.</strong> Machine condition is a hidden
+state, sensor readings are the emissions, and the filtered state probability is
+the alarm signal. The <code>change_point</code> atom is the alternative when the state is
+persistent and the question is &quot;when did it change&quot; rather than &quot;which state is
+it in&quot;.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Baum, L. E. &amp; Petrie, T. (1966). Statistical inference for probabilistic
+functions of finite state Markov chains. <em>Annals of Mathematical Statistics</em>
+37(6), 1554–1563. The estimation algorithm.</li>
+<li>Baum, L. E., Petrie, T., Soules, G. &amp; Weiss, N. (1970). A maximization
+technique occurring in the statistical analysis of probabilistic functions of
+Markov chains. <em>Annals of Mathematical Statistics</em> 41(1), 164–171. The
+Baum–Welch form and its monotonicity.</li>
+<li>Viterbi, A. J. (1967). Error bounds for convolutional codes and an
+asymptotically optimum decoding algorithm. <em>IEEE Transactions on Information
+Theory</em> 13(2), 260–269. The max-product recursion.</li>
+<li>Forney, G. D. (1973). The Viterbi algorithm. <em>Proceedings of the IEEE</em> 61(3),
+268–278. The trellis picture and the backtracking.</li>
+<li>Dempster, A. P., Laird, N. M. &amp; Rubin, D. B. (1977). Maximum likelihood from
+incomplete data via the EM algorithm. <em>Journal of the Royal Statistical
+Society B</em> 39(1), 1–38. Why the likelihood is monotone.</li>
+<li>Levinson, S. E., Rabiner, L. R. &amp; Sondhi, M. M. (1983). An introduction to the
+application of the theory of probabilistic functions of a Markov process to
+automatic speech recognition. <em>Bell System Technical Journal</em> 62(4),
+1035–1074. Scaling and the practical recursions.</li>
+<li>Rabiner, L. R. (1989). A tutorial on hidden Markov models and selected
+applications in speech recognition. <em>Proceedings of the IEEE</em> 77(2), 257–286.
+The canonical reference for everything in this file.</li>
+<li>Ephraim, Y. &amp; Merhav, N. (2002). Hidden Markov processes. <em>IEEE Transactions
+on Information Theory</em> 48(6), 1518–1569. The modern statistical account.</li>
+<li>Bishop, C. M. (2006). <em>Pattern Recognition and Machine Learning</em>, chapter 13.
+Springer. The EM derivation and the scaling discussion.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="markov_chain.html"><small>Previous</small><span>Markov chains</span></a><a class="next" href="dtw.html"><small>Next</small><span>Dynamic time warping</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">10 · Sequences</p><ul class="rail-list"><li><a href="markov_chain.html"><span class="tick">✓</span><span>Markov chains</span></a></li><li><a href="hmm.html" aria-current="page"><span class="tick">✓</span><span>Hidden Markov models</span></a></li><li><a href="dtw.html"><span class="tick">✓</span><span>Dynamic time warping</span></a></li><li><a href="rnn.html"><span class="tick">✓</span><span>Recurrent networks</span></a></li><li><a href="lstm_gru.html"><span class="tick">✓</span><span>LSTM &amp; GRU</span></a></li><li><a href="attention.html"><span class="tick">✓</span><span>Attention</span></a></li><li><a href="crf.html"><span class="tick">✓</span><span>Conditional random fields</span></a></li><li><a href="ctc.html"><span class="tick">✓</span><span>Connectionist temporal classification</span></a></li><li><a href="tcn.html"><span class="tick">✓</span><span>Temporal convnets</span></a></li><li><a href="beam_search.html"><span class="tick">✓</span><span>Beam search</span></a></li><li><a href="ngram_lm.html"><span class="tick">✓</span><span>N-gram language models</span></a></li><li><a href="ssm.html"><span class="tick">✓</span><span>State-space models</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../09-density-and-anomaly/index.html"><span class="jump">← 09 · Density &amp; anomaly</span></a></li><li><a href="../11-time-series/index.html"><span class="jump">11 · Time series&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-model-and-the-forward-recursion">The model and the forward recursion</a></li><li class="lvl3"><a href="#posteriors">Posteriors</a></li><li class="lvl3"><a href="#the-m-step">The M-step</a></li><li class="lvl3"><a href="#viterbi">Viterbi</a></li><li class="lvl3"><a href="#scaling">Scaling</a></li><li class="lvl3"><a href="#emission-models">Emission models</a></li><li class="lvl3"><a href="#initialisation">Initialisation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#the-likelihood-and-the-state-marginals">The likelihood and the state marginals</a></li><li class="lvl3"><a href="#the-scaled-pass">The scaled pass</a></li><li class="lvl3"><a href="#mixture-responsibilities">Mixture responsibilities</a></li><li class="lvl3"><a href="#choosing-the-emission-model">Choosing the emission model</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/10-sequences/hmm.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

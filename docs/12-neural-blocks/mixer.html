@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MLP-Mixer · MLAtoms</title>
+<meta name="description" content="Token-mixing and channel-mixing without attention or convolution. A vision transformer splits an image into patches and mixes information in two directions…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/mixer.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="MLP-Mixer">
+<meta property="og:description" content="Token-mixing and channel-mixing without attention or convolution. A vision transformer splits an image into patches and mixes information in two directions…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/mixer.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MLP-Mixer">
+<meta name="twitter:description" content="Token-mixing and channel-mixing without attention or convolution. A vision transformer splits an image into patches and mixes information in two directions…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "MLP-Mixer", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/mixer.html", "description": "Token-mixing and channel-mixing without attention or convolution. A vision transformer splits an image into patches and mixes information in two directions\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">12 · Neural blocks</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="mixer.py.html">source</a></p><h1>Token-mixing blocks — Mixer, gMLP, ConvMixer and ResMLP</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A vision transformer splits an image into patches and mixes information in two
+directions: across patches, by attention, and across channels, by an MLP. The
+four blocks here keep that two-stage recipe and replace attention with
+something cheaper. The question every variant answers is: how do patches talk
+to each other, and at what cost?</p>
+<p><code>mlp_mixer</code> lets a small MLP do the talking, applied along the token axis. That
+is a dense, position-specific linear map followed by a nonlinearity — no
+convolution, no attention, <span class="math inline">\(O(T^2)\)</span> weights per block. <code>gmlp</code> gates one half of
+the channels by a token-mixed version of the other half, with the mixing matrix
+initialised at zero so the gate starts as the identity. <code>convmixer</code> uses a
+depthwise convolution over the token axis, which restores locality: a patch
+only sees its neighbours within the kernel radius. <code>resmlp</code> drops the
+nonlinearity from the token mixer entirely and uses an affine norm, leaving a
+linear map across patches and a GELU MLP across channels.</p>
+<p>Three of the four are pure token-sequence models; <code>convmixer</code> is the only one
+with a locality prior. The demo measures the parameter bill, checks the
+identity gate, measures the exact receptive field of a two-layer ConvMixer, and
+checks every gradient against finite differences.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">token mixer</th>
+<th style="text-align:left">channel mixer</th>
+<th style="text-align:left">norm</th>
+<th style="text-align:left">locality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>mlp_mixer</code></td>
+<td style="text-align:left"><span class="math inline">\(\mathrm{MLP}\)</span> on <span class="math inline">\(X^{\top}\)</span></td>
+<td style="text-align:left"><span class="math inline">\(\mathrm{MLP}\)</span></td>
+<td style="text-align:left">LayerNorm</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gmlp</code></td>
+<td style="text-align:left">spatial gating unit</td>
+<td style="text-align:left"><span class="math inline">\(\mathrm{MLP}\)</span></td>
+<td style="text-align:left">LayerNorm</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>convmixer</code></td>
+<td style="text-align:left">depthwise <span class="math inline">\(k\)</span></td>
+<td style="text-align:left">pointwise</td>
+<td style="text-align:left">none</td>
+<td style="text-align:left"><span class="math inline">\(d\lfloor k/2\rfloor\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>resmlp</code></td>
+<td style="text-align:left">linear map <span class="math inline">\(W_t\)</span></td>
+<td style="text-align:left"><span class="math inline">\(\mathrm{MLP}\)</span></td>
+<td style="text-align:left">affine</td>
+<td style="text-align:left">none</td>
+</tr>
+</tbody>
+</table>
+<p>The input is always <code>(batch, tokens, dim)</code>. For images, tokens are flattened
+patches; for audio, frames; for text, a sequence of embeddings. None of these
+blocks carries a position table, because the token mixer itself is
+position-specific: weight <span class="math inline">\(W_t[i,j]\)</span> belongs to the pair of positions <span class="math inline">\(i\)</span> and
+<span class="math inline">\(j\)</span> and is learned, which is how order enters without an embedding.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-shared-block-template">The shared block template <a class="header-anchor" href="#the-shared-block-template">#</a></h3>
+<p>Every variant is a residual stack of two sub-blocks,</p>
+<div class="math block">
+\[X\leftarrow X+\mathcal T\bigl(\mathrm{LN}(X)\bigr),\qquad
+X\leftarrow X+\mathcal C\bigl(\mathrm{LN}(X)\bigr),
+\qquad (1)\]
+</div>
+<p>where <span class="math inline">\(\mathcal T\)</span> mixes along the token axis and <span class="math inline">\(\mathcal C\)</span> mixes along the
+channel axis. The pre-norm placement keeps the residual path an identity, so a
+deep stack starts as a shallow one; the final output is an affine head. The
+demo's two-block models at <span class="math inline">\(T=8\)</span>, <span class="math inline">\(d=6\)</span>, hidden 12 and token-hidden 4 cost 464,
+648, 144 and 512 parameters respectively.</p>
+<h3 id="mlp-mixer">MLP-Mixer <a class="header-anchor" href="#mlp-mixer">#</a></h3>
+<p>The token step transposes the sequence so that the MLP acts on positions:</p>
+<div class="math block">
+\[U=\sigma\bigl(\mathrm{LN}(X)^{\top}W_1+b_1\bigr),\qquad
+M=\bigl(UW_2+b_2\bigr)^{\top},
+\qquad (2)\]
+</div>
+<p>with <span class="math inline">\(W_1\in\mathbb R^{T\times h_t}\)</span> and <span class="math inline">\(W_2\in\mathbb R^{h_t\times T}\)</span>. The
+two transposes are the whole trick: the same code path that mixes channels can
+mix tokens if the axes are swapped. Nothing in (2) is shared across positions —
+<span class="math inline">\(W_1[i,:]\)</span> is the feature built for position <span class="math inline">\(i\)</span> — so the parameter count grows
+with <span class="math inline">\(T\)</span> and the model is not permutation-equivariant.</p>
+<p>The channel step is the usual pre-norm MLP on the last axis. In the demo the
+token matrices are <span class="math inline">\(8\times4\)</span> and <span class="math inline">\(4\times8\)</span> for all six channels, which is 64
+numbers per block against 162 for the channel MLP.</p>
+<h3 id="gmlp-a-gate-built-from-the-other-half">gMLP: a gate built from the other half <a class="header-anchor" href="#gmlp-a-gate-built-from-the-other-half">#</a></h3>
+<div class="math block">
+\[[A,B]=\sigma\bigl(\mathrm{LN}(X)W+b\bigr),\qquad
+S=A\odot\bigl(BW_g+\beta\bigr),\qquad
+M=SW_o+b_o,
+\qquad (3)\]
+</div>
+<p>with <span class="math inline">\(W_g\in\mathbb R^{T\times T}\)</span> shared across channels and <span class="math inline">\(\beta\)</span> a
+per-token bias. The initialisation is the interesting part: <span class="math inline">\(W_g=0\)</span> and
+<span class="math inline">\(\beta=\mathbf 1\)</span>, so the gate is exactly one at step zero and the block opens
+as a plain channel MLP. The demo checks <code>gate == 1.0</code> and
+<code>s == activated</code> before any training. The gate then learns which positions
+should modulate which features, and <span class="math inline">\(W_g\)</span> is the only <span class="math inline">\(T^2\)</span> object in the
+block.</p>
+<h3 id="convmixer-a-depthwise-convolution-over-tokens">ConvMixer: a depthwise convolution over tokens <a class="header-anchor" href="#convmixer-a-depthwise-convolution-over-tokens">#</a></h3>
+<div class="math block">
+\[X\leftarrow X+\mathrm{DWConv}_k(X),\qquad
+X\leftarrow X+W_p\,\sigma(X),
+\qquad (4)\]
+</div>
+<p>where the depthwise convolution runs along the token axis with zero padding
+<span class="math inline">\(k/2\)</span> and one <span class="math inline">\(k\)</span>-tap filter per channel:</p>
+<div class="math block">
+\[\mathrm{DWConv}_k(X)[b,t,c]=\sum_{j=0}^{k-1}w[c,j]\,
+X[b,\,t+j-k/2,\,c].
+\qquad (5)\]
+</div>
+<p>The second step is a <span class="math inline">\(1\times1\)</span> convolution, which is a linear map across
+channels. ConvMixer's selling point is that (5) is local: information travels at
+most <span class="math inline">\(\lfloor k/2\rfloor\)</span> positions per layer, so after <span class="math inline">\(d\)</span> layers the receptive
+field has radius <span class="math inline">\(d\lfloor k/2\rfloor\)</span>. The demo perturbs one token with
+<span class="math inline">\(d=2\)</span> and <span class="math inline">\(k=3\)</span> and finds a change at tokens 0 through 4 and nowhere else —
+exactly radius 2. The reference implementation adds batch norm after both
+steps; this version omits it because batch statistics make a single-example
+demo ambiguous, and the block algebra is unchanged.</p>
+<h3 id="resmlp-linear-token-mixing-and-an-affine-norm">ResMLP: linear token mixing and an affine norm <a class="header-anchor" href="#resmlp-linear-token-mixing-and-an-affine-norm">#</a></h3>
+<div class="math block">
+\[X\leftarrow X+(Xa_1+b_1)W_t,\qquad
+X\leftarrow X+\mathcal C(Xa_2+b_2),
+\qquad (6)\]
+</div>
+<p>with <span class="math inline">\(W_t\in\mathbb R^{T\times T}\)</span> and per-channel scales and biases. There is
+no nonlinearity on the token path, so this mixer is a genuine linear operator
+on the token axis. The norm is affine rather than LayerNorm: no mean is
+subtracted and no variance divides, which is cheaper and, empirically, enough
+when the residual stream carries the normalisation. A consequence is visible
+in the demo: adding a constant vector <span class="math inline">\(c\)</span> to every token shifts the normalised
+input by exactly <span class="math inline">\(a_1\odot c\)</span>, whereas a mean-centred norm would remove <span class="math inline">\(c\)</span>
+entirely.</p>
+<h3 id="layernorm-and-its-backward-pass">LayerNorm and its backward pass <a class="header-anchor" href="#layernorm-and-its-backward-pass">#</a></h3>
+<p>With <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma^2\)</span> over the channel axis and
+<span class="math inline">\(\hat x=(x-\mu)/\sigma\)</span>,</p>
+<div class="math block">
+\[\frac{\partial L}{\partial x}
+=\frac{1}{\sigma}\Bigl(g-\bar g-\hat x\,\overline{g\hat x}\Bigr),
+\qquad (7)\]
+</div>
+<p>where the bars are means over channels. The three terms are the direct path,
+the shift created by moving the mean, and the scale created by moving the
+variance. The demo's LayerNorm probe matches central differences to
+<span class="math inline">\(7.4\times10^{-10}\)</span>.</p>
+<h3 id="why-the-depthwise-backward-is-a-scatter">Why the depthwise backward is a scatter <a class="header-anchor" href="#why-the-depthwise-backward-is-a-scatter">#</a></h3>
+<p>For (5), the weight gradient sums over batch, token and channel positions:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial w[c,j]}
+=\sum_{b,t}\frac{\partial L}{\partial y[b,t,c]}\,
+X[b,t+j-k/2,c],
+\qquad
+\frac{\partial L}{\partial X[b,s,c]}
+=\sum_{j}\frac{\partial L}{\partial y[b,s-j+k/2,c]}\,w[c,j].
+\qquad (8)\]
+</div>
+<p>The second sum is an overlap-add: each of the <span class="math inline">\(k\)</span> taps writes its gradient back
+into a shifted copy of the input. The implementation keeps the padded windows
+from the forward pass and adds each tap into <code>d_padded</code>, which is why the
+padding offset reappears on the way out.</p>
+<h3 id="parameter-counts">Parameter counts <a class="header-anchor" href="#parameter-counts">#</a></h3>
+<p>At <span class="math inline">\(T\)</span> tokens, <span class="math inline">\(d\)</span> channels, channel hidden <span class="math inline">\(h\)</span>, token hidden <span class="math inline">\(h_t\)</span> and depth
+<span class="math inline">\(L\)</span>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">per block</th>
+<th style="text-align:right">total, <span class="math inline">\(T{=}8,d{=}6,h{=}12,h_t{=}4,L{=}2\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>mlp_mixer</code></td>
+<td style="text-align:left"><span class="math inline">\(2Th_t+(dh+h)+(hd+d)\)</span></td>
+<td style="text-align:right">464</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gmlp</code></td>
+<td style="text-align:left"><span class="math inline">\((2dh+2h)+T^2+T+(hd+d)\)</span></td>
+<td style="text-align:right">648</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>convmixer</code></td>
+<td style="text-align:left"><span class="math inline">\((dk+d)+(d^2+d)\)</span></td>
+<td style="text-align:right">144</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>resmlp</code></td>
+<td style="text-align:left"><span class="math inline">\(2d+T^2+(d^2+d)+(hd+d)\)</span></td>
+<td style="text-align:right">512</td>
+</tr>
+</tbody>
+</table>
+<p>Every total adds the affine head, <span class="math inline">\(2d\)</span>. The ordering is a price list for the
+token mixer: a depthwise convolution costs <span class="math inline">\(dk+d\)</span> and buys locality; a Mixer
+MLP costs <span class="math inline">\(2Th_t\)</span>; a gMLP gate costs <span class="math inline">\(T^2+T\)</span>; ResMLP's linear mixer costs
+<span class="math inline">\(T^2\)</span> and gives up the nonlinearity.</p>
+<h3 id="the-fit">The fit <a class="header-anchor" href="#the-fit">#</a></h3>
+<p>The demo trains one Mixer for 300 steps of plain gradient descent at step size
+0.02 on a random target, taking the loss from 160.67 to 0.0060. That is not a
+claim about convergence speed — the target is random and the model is
+over-parameterised for it — but it does show that the hand-written backward
+pass is coherent enough to descend.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The normalisation is shared by both non-affine variants, so it lives at module
+level. Storing the mean and inverse standard deviation is enough to rebuild the
+backward pass without recomputing anything:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_layer_norm</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Normalise over the channel axis, the last one."""</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">inv</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var</span> <span class="o">+</span> <span class="n">eps</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">*</span> <span class="n">inv</span>
+    <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="p">{</span><span class="s2">"x"</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="s2">"mean"</span><span class="p">:</span> <span class="n">mean</span><span class="p">,</span> <span class="s2">"inv"</span><span class="p">:</span> <span class="n">inv</span><span class="p">}</span>
+</code></pre>
+<p>The backward pass is (7) verbatim. The two mean reductions are over channels,
+the same axis the forward pass normalised:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_layer_norm_backward</span><span class="p">(</span><span class="n">gradient</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">inv</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"x"</span><span class="p">],</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"mean"</span><span class="p">],</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"inv"</span><span class="p">]</span>
+    <span class="n">centred</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">mean</span>
+    <span class="n">shift</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">gradient</span> <span class="o">*</span> <span class="n">centred</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">inv</span> <span class="o">*</span> <span class="p">(</span><span class="n">gradient</span> <span class="o">-</span> <span class="n">shift</span> <span class="o">-</span> <span class="n">centred</span> <span class="o">*</span> <span class="n">inv</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span>
+</code></pre>
+<p>Mixer's two stages are the template (1) with a transpose on the token path. The
+pre-activation is cached, not just the activation, because the GELU derivative
+needs its input:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"mlp_mixer"</span><span class="p">:</span>
+            <span class="n">norm</span><span class="p">,</span> <span class="n">norm_cache</span> <span class="o">=</span> <span class="n">_layer_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">flat</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">inner</span> <span class="o">=</span> <span class="n">flat</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.token.in"</span><span class="p">]</span>
+            <span class="n">hidden</span> <span class="o">=</span> <span class="n">_gelu</span><span class="p">(</span><span class="n">inner</span><span class="p">)</span>
+            <span class="n">mixed</span> <span class="o">=</span> <span class="p">(</span><span class="n">hidden</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.token.out"</span><span class="p">])</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">first</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">mixed</span>
+</code></pre>
+<p>The gMLP gate is one matrix product plus a per-token bias. The bias broadcast
+is written explicitly with <code>[None, None, :]</code> because the product lives in the
+transposed layout, before the transpose back:</p>
+<pre class="highlight"><code>            <span class="n">gate</span> <span class="o">=</span> <span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.gate"</span><span class="p">]</span>
+                    <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.gate.b"</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">gated</span> <span class="o">=</span> <span class="n">activated</span> <span class="o">*</span> <span class="n">gate</span>
+            <span class="n">mixed</span> <span class="o">=</span> <span class="n">gated</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.out"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.out.b"</span><span class="p">]</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">mixed</span>
+</code></pre>
+<p>ResMLP's token mixer is the same transpose without the MLP. Its norm is two
+elementwise operations, and the backward pass has no mean to correct:</p>
+<pre class="highlight"><code>        <span class="n">scale</span><span class="p">,</span> <span class="n">bias</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.token.scale"</span><span class="p">],</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.token.bias"</span><span class="p">]</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">scale</span> <span class="o">+</span> <span class="n">bias</span>
+        <span class="n">mixed</span> <span class="o">=</span> <span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                 <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.token.mix"</span><span class="p">])</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">first</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">mixed</span>
+</code></pre>
+<p>ConvMixer's forward keeps the padded windows, since both the weight gradient
+and the input gradient read them. The einsum is (5) with the kernel axis made
+explicit:</p>
+<pre class="highlight"><code>            <span class="n">_</span><span class="p">,</span> <span class="n">window</span> <span class="o">=</span> <span class="n">_windows</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+            <span class="n">depth</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"btck,ck-&gt;btc"</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span>
+                              <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.depth"</span><span class="p">])</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.depth.b"</span><span class="p">]</span>
+            <span class="n">first</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">depth</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="n">_gelu</span><span class="p">(</span><span class="n">first</span><span class="p">)</span>
+            <span class="n">point</span> <span class="o">=</span> <span class="n">norm</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.point"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.point.b"</span><span class="p">]</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">first</span> <span class="o">+</span> <span class="n">point</span>
+</code></pre>
+<p>The depthwise backward scatters each of the <span class="math inline">\(k\)</span> taps into a shifted slice of
+the padded input. The <code>d_padded</code> buffer is one token longer at each end, and
+the unpadding happens on the return:</p>
+<pre class="highlight"><code>            <span class="n">d_window</span> <span class="o">=</span> <span class="n">d_first</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.depth"</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+            <span class="n">pad</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">//</span> <span class="mi">2</span>
+            <span class="n">d_padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">gradient</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">tokens</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">pad</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">):</span>
+                <span class="n">d_padded</span><span class="p">[:,</span> <span class="n">start</span><span class="p">:</span><span class="n">start</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokens</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+=</span> \
+                    <span class="n">d_window</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">start</span><span class="p">]</span>
+            <span class="n">g</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.depth"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span>
+                <span class="s2">"btck,btc-&gt;ck"</span><span class="p">,</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"window"</span><span class="p">],</span> <span class="n">d_first</span><span class="p">)</span>
+            <span class="n">g</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.depth.b"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">d_first</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">d_first</span> <span class="o">+</span> <span class="n">d_padded</span><span class="p">[:,</span> <span class="n">pad</span><span class="p">:</span><span class="n">pad</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokens</span><span class="p">,</span> <span class="p">:]</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For <span class="math inline">\(T\)</span> tokens, <span class="math inline">\(d\)</span> channels, channel hidden <span class="math inline">\(h\)</span>, token hidden <span class="math inline">\(h_t\)</span>, <span class="math inline">\(L\)</span>
+blocks and kernel <span class="math inline">\(k\)</span>:</p>
+<ul>
+<li><strong>Mixer token step:</strong> <span class="math inline">\(O(Td h_t + T h_t d)=O(Td h_t)\)</span> per block and
+<span class="math inline">\(O(Th_t+h_tT)\)</span> parameters. The transpose is a view in NumPy.</li>
+<li><strong>Mixer channel step:</strong> <span class="math inline">\(O(Tdh)\)</span> time and <span class="math inline">\(O(dh)\)</span> parameters per block.</li>
+<li><strong>gMLP:</strong> the channel projection is <span class="math inline">\(O(Td\cdot 2h)\)</span>; the gate is <span class="math inline">\(O(ThT)\)</span>
+because <span class="math inline">\(W_g\)</span> is dense over positions. That <span class="math inline">\(T^2h\)</span> term is the expensive one
+for long sequences.</li>
+<li><strong>ConvMixer:</strong> <span class="math inline">\(O(Tdk)\)</span> for the depthwise convolution and <span class="math inline">\(O(Td^2)\)</span> for the
+pointwise one, with only <span class="math inline">\(O(dk+d^2)\)</span> parameters. Cost grows linearly in <span class="math inline">\(T\)</span>,
+which is why it is attractive for high-resolution patches.</li>
+<li><strong>ResMLP:</strong> <span class="math inline">\(O(T^2d)\)</span> for the linear token mixer and <span class="math inline">\(O(Tdh)\)</span> for the
+channel MLP; the token matrix alone is <span class="math inline">\(T^2\)</span> parameters.</li>
+<li><strong>Backward:</strong> the same order in every case. ConvMixer's overlap-add is <span class="math inline">\(k\)</span>
+slices of <span class="math inline">\(O(Td)\)</span>; gMLP's gate backward is another <span class="math inline">\(O(ThT)\)</span> product.</li>
+<li><strong>The demo:</strong> widths of 6 and 8 tokens, so every product is tiny; the
+finite-difference loop over four variants and the 300-step fit dominate the
+file's runtime, which is still well under a second.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Token mixing is position-specific, not permutation-equivariant.</strong> Unlike the
+graph blocks, Mixer and ResMLP learn a different weight for every pair of
+positions. Feeding a permuted sequence does not permute the output. The model
+therefore learns order from the mixer, and it cannot generalise to a longer
+sequence without resizing <span class="math inline">\(W_t\)</span> or <span class="math inline">\(W_g\)</span>.</p>
+<p><strong>ConvMixer's locality is also a limit.</strong> With <span class="math inline">\(k=3\)</span>, information needs
+<span class="math inline">\(T/2\)</span> layers to cross a sequence. For long-range tasks this is worse than
+attention; for images with local structure it is exactly the prior wanted. The
+demo's radius of 2 over two layers is the property, not a bug.</p>
+<p><strong>The gMLP gate can collapse.</strong> Zero-init <span class="math inline">\(W_g\)</span> and a bias of one make the gate
+the identity, but nothing keeps it near one during training. If the gate
+saturates at zero, the block's token path is switched off and gradients to
+<span class="math inline">\(W_g\)</span> vanish. Weight decay or a gate regulariser is common; neither is here.</p>
+<p><strong>ResMLP's affine norm does not remove offsets.</strong> A constant added to every
+token survives into the next block, scaled by <span class="math inline">\(a_1\)</span>. That is fine in a residual
+stack, but it means the block is not invariant to the mean of its input the way
+a LayerNorm block is. It also has no variance control, so large activations
+pass through untouched.</p>
+<p><strong>ConvMixer without batch norm changes the optimisation problem.</strong> The
+reference uses batch norm after both steps, which normalises across the batch
+and the token axis. Removing it, as here, keeps the algebra readable but makes
+the block sensitive to the input scale. The gradients are still correct for the
+block that is implemented.</p>
+<p><strong>The depthwise convolution assumes an odd kernel.</strong> <code>_windows</code> pads by
+<code>kernel // 2</code> on both sides; an even kernel would need asymmetric padding to
+keep the token count. The constructor rejects even kernels rather than
+silently returning a shorter sequence.</p>
+<p><strong>A dense token mixer is quadratic in the token count.</strong> For <span class="math inline">\(T=1024\)</span> patches,
+<span class="math inline">\(W_t\)</span> alone is a million parameters per block. Mixer and ResMLP are practical
+at patch counts in the low hundreds; beyond that the token step dominates both
+memory and compute.</p>
+<p><strong>The channel MLP is the parameter hog.</strong> At <span class="math inline">\(d=6\)</span>, <span class="math inline">\(h=12\)</span> the channel path is
+162 of Mixer's 226 parameters per block, and the ratio grows with <span class="math inline">\(d\)</span>. The
+token path is the architectural novelty; the capacity is still in the MLP.</p>
+<p><strong>The residual stream carries the scale.</strong> Because both sub-blocks are added to
+<span class="math inline">\(X\)</span>, the output magnitude grows with depth unless a norm sits on the residual
+path. Pre-norm blocks mitigate this but do not eliminate it, and the affine head
+is the only final normalisation.</p>
+<p><strong>Small batch shapes are easy to get wrong.</strong> A transposed MLP over tokens
+silently mixes the batch axis if the reshape is applied to the wrong layout.
+The demo checks shapes at every stage, and the validation rejects a
+two-dimensional input rather than treating it as a batch of one.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>MLP-Mixer showed that attention is not required for competitive image
+classification at moderate resolution; its token MLP is the direct ancestor of
+several efficient vision backbones. gMLP's gating unit is used where a cheap
+token interaction is wanted and the <span class="math inline">\(T^2\)</span> gate is affordable. ConvMixer is a
+strong patch-based baseline for small images and a common component in
+efficient segmentation heads, because its cost is linear in the token count.
+ResMLP's affine norm and linear token mixer appear in fast vision models and in
+audio taggers, where the residual stream already carries the normalisation.</p>
+<p>The same four mixers are used outside vision: on spectrogram frames, on
+time-series windows, and as the cross-patch layer in diffusion models, where
+the token count is modest and a dense mixer is cheaper than attention.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Tolstikhin, I., Houlsby, N., Kolesnikov, A., Beyer, L., Zhai, X., Unterthiner,
+T., Yung, J., Steiner, A., Keysers, D., Uszkoreit, J., Lucic, M., Dosovitskiy,
+A. (2021). <em>MLP-Mixer: an all-MLP architecture for vision.</em> NeurIPS.
+Equation (2).</li>
+<li>Liu, H., Dai, Z., So, D. R., Le, Q. V. (2021). <em>Pay attention to MLPs.</em>
+NeurIPS. gMLP and the spatial gating unit, equation (3).</li>
+<li>Trockman, A., Kolter, J. Z. (2022). <em>Patches are all you need?</em> arXiv.
+ConvMixer, equations (4) and (5).</li>
+<li>Touvron, H., Bojanowski, P., Caron, M., Cord, M., El-Nouby, A., Grave, E.,
+Izacard, G., Joulin, A., Synnaeve, G., Verbeek, J., Jégou, H. (2021).
+<em>ResMLP: feedforward networks for image classification with data-efficient
+training.</em> arXiv. Equations (6) and the affine norm.</li>
+<li>Ba, J. L., Kiros, J. R., Hinton, G. E. (2016). <em>Layer normalization.</em> arXiv.
+Equation (7).</li>
+<li>Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X.,
+Unterthiner, T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S.,
+Uszkoreit, J., Houlsby, N. (2021). <em>An image is worth 16x16 words.</em> ICLR. The
+patch-token view these blocks replace.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="gnn_blocks.html"><small>Previous</small><span>Graph neural blocks</span></a><a class="next" href="perceiver.html"><small>Next</small><span>Perceiver</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">12 · Neural blocks</p><ul class="rail-list"><li><a href="mlp.html"><span class="tick">✓</span><span>MLP</span></a></li><li><a href="conv.html"><span class="tick">✓</span><span>Convolution</span></a></li><li><a href="pooling.html"><span class="tick">✓</span><span>Pooling</span></a></li><li><a href="residual.html"><span class="tick">✓</span><span>Residual blocks</span></a></li><li><a href="transformer.html"><span class="tick">✓</span><span>Transformer block</span></a></li><li><a href="positional.html"><span class="tick">✓</span><span>Positional encoding</span></a></li><li><a href="moe.html"><span class="tick">✓</span><span>Mixture of experts</span></a></li><li><a href="dropout.html"><span class="tick">✓</span><span>Dropout family</span></a></li><li><a href="embedding_layers.html"><span class="tick">✓</span><span>Embedding layers</span></a></li><li><a href="gnn_blocks.html"><span class="tick">✓</span><span>Graph neural blocks</span></a></li><li><a href="mixer.html" aria-current="page"><span class="tick">✓</span><span>MLP-Mixer</span></a></li><li><a href="perceiver.html"><span class="tick">✓</span><span>Perceiver</span></a></li><li><a href="convnext.html"><span class="tick">✓</span><span>ConvNeXt</span></a></li><li><a href="hypernetwork.html"><span class="tick">✓</span><span>Hypernetworks</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../11-time-series/index.html"><span class="jump">← 11 · Time series</span></a></li><li><a href="../13-training/index.html"><span class="jump">13 · Training&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-shared-block-template">The shared block template</a></li><li class="lvl3"><a href="#mlp-mixer">MLP-Mixer</a></li><li class="lvl3"><a href="#gmlp-a-gate-built-from-the-other-half">gMLP: a gate built from the other half</a></li><li class="lvl3"><a href="#convmixer-a-depthwise-convolution-over-tokens">ConvMixer: a depthwise convolution over tokens</a></li><li class="lvl3"><a href="#resmlp-linear-token-mixing-and-an-affine-norm">ResMLP: linear token mixing and an affine norm</a></li><li class="lvl3"><a href="#layernorm-and-its-backward-pass">LayerNorm and its backward pass</a></li><li class="lvl3"><a href="#why-the-depthwise-backward-is-a-scatter">Why the depthwise backward is a scatter</a></li><li class="lvl3"><a href="#parameter-counts">Parameter counts</a></li><li class="lvl3"><a href="#the-fit">The fit</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/12-neural-blocks/mixer.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

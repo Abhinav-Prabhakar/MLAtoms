@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Random features · MLAtoms</title>
+<meta name="description" content="Random kitchen sinks: Monte Carlo kernel approximation at scale. A kernel method never looks at the features. It looks at one number per pair of points, so…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/random_features.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Random features">
+<meta property="og:description" content="Random kitchen sinks: Monte Carlo kernel approximation at scale. A kernel method never looks at the features. It looks at one number per pair of points, so…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/random_features.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Random features">
+<meta name="twitter:description" content="Random kitchen sinks: Monte Carlo kernel approximation at scale. A kernel method never looks at the features. It looks at one number per pair of points, so…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Random features", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/random_features.html", "description": "Random kitchen sinks: Monte Carlo kernel approximation at scale. A kernel method never looks at the features. It looks at one number per pair of points, so\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">03 · Kernels &amp; instance-based</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="random_features.py.html">source</a></p><h1>Random features — a kernel replaced by a finite inner product</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A kernel method never looks at the features. It looks at one number per pair of
+points, so before it can fit anything it needs the whole <span class="math inline">\(n\times n\)</span> Gram
+matrix, and before it can predict it needs the training set. That is a hard
+ceiling: at <span class="math inline">\(n=10^{6}\)</span> the matrix is <span class="math inline">\(10^{12}\)</span> numbers.</p>
+<p>Random features remove the ceiling by giving the kernel a feature map:</p>
+<pre class="highlight"><code> x ──▶ ω₁, …, ω_D  ──▶  cos(ωᵀx + b)  ──▶  z(x) ∈ ℝ^D  ──▶  wᵀ z(x)
+
+ kernel method:  K(x, z)          needs the n × n matrix and the data
+ random features: z(x)ᵀ z(z)      needs D numbers and a weight vector
+</code></pre>
+<p>If a map <span class="math inline">\(z\)</span> exists with <span class="math inline">\(z(x)^{\top}z(z)\approx K(x,z)\)</span> then every kernel
+algorithm becomes a linear algorithm on <span class="math inline">\(D\)</span> columns: kernel ridge becomes ridge,
+the kernel expansion becomes a weight vector, and prediction costs <span class="math inline">\(O(D)\)</span>
+instead of <span class="math inline">\(O(n)\)</span>. The map is chosen at random, so the approximation is
+different every run, but its average is the kernel exactly.</p>
+<p>For a kernel that depends only on <span class="math inline">\(x-z\)</span> there is a theorem that hands you the
+map. Bochner's theorem says such a kernel is the Fourier transform of a
+probability measure, so it is an average of cosines over frequencies drawn from
+that measure — and an average over a measure is what a Monte Carlo estimate
+does. The whole family follows from that one observation, plus the detail that
+matters most in practice: the measure <em>is</em> the kernel. Draw Gaussian frequencies
+and you get the Gaussian kernel; draw them for a Laplacian kernel and you get a
+different function, and the demo measures the difference as a bias of <span class="math inline">\(0.34\)</span>
+that no number of features removes.</p>
+<p>Two kernels do not fit. The polynomial kernel is not shift-invariant, so it has
+no spectral measure, and the only route is to write it as an inner product of
+explicit tensors and then sketch the tensor. That works, and it is the noisiest
+map in the file: at <span class="math inline">\(D=256\)</span> a degree-two sketch has a spread of <span class="math inline">\(0.82\)</span> against
+true entries whose mean size is <span class="math inline">\(4.1\)</span>. The linear kernel is the opposite
+extreme — its
+feature map is the identity, so &quot;random features&quot; means a random projection, and
+the interesting question is how sparse that projection can be.</p>
+<p>The last variant abandons randomness for the features and takes them from the
+data. A Nyström map needs <span class="math inline">\(m\)</span> landmarks, computes the kernel between them, and
+uses its inverse square root as a whitener. It is a low-rank approximation
+rather than a Monte Carlo one, and it comes with a signature failure: the
+approximation can never overstate a self-similarity, so far from a landmark the
+diagonal of the approximate kernel is below one. The demo shows it falling to
+<span class="math inline">\(0.0068\)</span> with five landmarks.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">feature map</th>
+<th style="text-align:left">target kernel</th>
+<th style="text-align:left">uses the data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rff</code></td>
+<td style="text-align:left"><span class="math inline">\(\sqrt{2/D}\cos(\Omega x+b)\)</span>, <span class="math inline">\(\omega\sim N(0,2\gamma)\)</span></td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>orf</code></td>
+<td style="text-align:left">the same, with <span class="math inline">\(\Omega\)</span> orthogonalised</td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>laplacian</code></td>
+<td style="text-align:left">the same, <span class="math inline">\(\omega\sim\mathrm{Cauchy}(0,1/\sigma)\)</span></td>
+<td style="text-align:left">Laplacian</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>polynomial</code></td>
+<td style="text-align:left">sketch of <span class="math inline">\([x;\sqrt{c}]^{\otimes d}\)</span></td>
+<td style="text-align:left"><span class="math inline">\((x^{\top}z+c)^{d}\)</span></td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sparse_jlt</code></td>
+<td style="text-align:left"><span class="math inline">\(s\)</span> signed entries per column</td>
+<td style="text-align:left">linear</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nystrom</code></td>
+<td style="text-align:left"><span class="math inline">\(K_{nm}K_{mm}^{-1/2}\)</span></td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">yes</td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid-source"><code class="language-mermaid">graph TD
+  A[kernel] --&gt; B[shift invariant]
+  A --&gt; C[not shift invariant]
+  A --&gt; D[linear]
+  B --&gt; E[Bochner: sample the spectral density]
+  E --&gt; F[rff: Gaussian density]
+  E --&gt; G[orf: orthogonalised]
+  E --&gt; H[laplacian: Cauchy density]
+  C --&gt; I[polynomial: sketch the tensor]
+  D --&gt; J[sparse_jlt: sparse projection]
+  A --&gt; K[data dependent]
+  K --&gt; L[nystrom: landmarks]
+</code></pre>
+<p><strong><code>rff</code></strong> draws <span class="math inline">\(D\)</span> frequencies from the spectral density, pairs each with a
+uniform phase, and takes cosines. It is the original random kitchen sink and the
+default.</p>
+<p><strong><code>orf</code></strong> draws the same frequencies and then orthogonalises them in blocks,
+rescaling each row to keep the marginal Gaussian. Orthogonal directions cannot
+clump, which is the one source of variance the <span class="math inline">\(1/D\)</span> bound does not control.</p>
+<p><strong><code>laplacian</code></strong> keeps the estimator and changes the density to a Cauchy, which
+is the Fourier transform of <span class="math inline">\(e^{-\|x-z\|_1/\sigma}\)</span>. The variant exists to make
+the point that the density is part of the model.</p>
+<p><strong><code>polynomial</code></strong> replaces the whole construction with a tensor sketch: hash each
+copy of the input, convolve the sketches, and get an unbiased estimate of
+<span class="math inline">\((x^{\top}z+c)^{d}\)</span>.</p>
+<p><strong><code>sparse_jlt</code></strong> treats the linear kernel, whose feature map is the identity, and
+replaces it with a projection that has only <span class="math inline">\(s\)</span> non-zeros per column.</p>
+<p><strong><code>nystrom</code></strong> selects landmarks and factorises their Gram matrix. It is the only
+variant whose feature map depends on the training data, and the only one that is
+a projection rather than an average.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="bochners-theorem">Bochner's theorem <a class="header-anchor" href="#bochners-theorem">#</a></h3>
+<p>A continuous function <span class="math inline">\(k:\mathbb{R}^{d}\to\mathbb{R}\)</span> with <span class="math inline">\(k(0)=1\)</span> is positive
+definite and shift-invariant exactly when it is the characteristic function of a
+probability measure <span class="math inline">\(p\)</span>:</p>
+<div class="math block">
+\[k(x-z)=\int e^{i\omega^{\top}(x-z)}\,dp(\omega)
+=\mathbb{E}_{\omega\sim p}\big[\cos\big(\omega^{\top}(x-z)\big)\big],
+\qquad (1)\]
+</div>
+<p>where the second equality uses <span class="math inline">\(k\)</span> real and even: the sine part integrates to
+zero because <span class="math inline">\(p\)</span> is symmetric, and the cosine part is real. Two densities are
+needed in this file. For the Gaussian kernel with bandwidth <span class="math inline">\(\gamma\)</span>,</p>
+<div class="math block">
+\[k(\Delta)=e^{-\gamma\|\Delta\|^2}
+\quad\Longleftarrow\quad
+p=N(0,\,2\gamma I),
+\qquad (2)\]
+</div>
+<p>which is the Fourier transform pair <span class="math inline">\(\int e^{i\omega^{\top}\Delta}
+e^{-\|\omega\|^2/(4\gamma)}\,d\omega = e^{-\gamma\|\Delta\|^2}\)</span> after rescaling.
+For the Laplacian kernel with scale <span class="math inline">\(\sigma\)</span> the coordinates separate,</p>
+<div class="math block">
+\[k(\Delta)=\prod_{j=1}^{d}e^{-|\Delta_j|/\sigma}
+\quad\Longleftarrow\quad
+p(\omega)=\prod_{j=1}^{d}\frac{\sigma}{\pi\,(1+\sigma^2\omega_j^2)},
+\qquad (3)\]
+</div>
+<p>which is a Cauchy density of scale <span class="math inline">\(1/\sigma\)</span> in every coordinate.</p>
+<h3 id="the-estimator-and-its-variance">The estimator and its variance <a class="header-anchor" href="#the-estimator-and-its-variance">#</a></h3>
+<p>Draw <span class="math inline">\(\omega_1,\ldots,\omega_D\)</span> independently from <span class="math inline">\(p\)</span> and <span class="math inline">\(b_1,\ldots,b_D\)</span>
+independently uniform on <span class="math inline">\([0,2\pi)\)</span>, and set</p>
+<div class="math block">
+\[z(x)=\sqrt{\frac{2}{D}}\,
+\big(\cos(\omega_1^{\top}x+b_1),\ldots,\cos(\omega_D^{\top}x+b_D)\big).
+\qquad (4)\]
+</div>
+<p>Write <span class="math inline">\(A=\omega^{\top}x+b\)</span> and <span class="math inline">\(B=\omega^{\top}z+b\)</span>. The product identity
+<span class="math inline">\(2\cos A\cos B=\cos(A-B)+\cos(A+B)\)</span> together with
+<span class="math inline">\(\mathbb{E}_b[\cos(A+B)]=0\)</span> gives</p>
+<div class="math block">
+\[\mathbb{E}\big[2\cos A\cos B\big]
+=\mathbb{E}_\omega\big[\cos\big(\omega^{\top}(x-z)\big)\big]=k(x-z),
+\qquad (5)\]
+</div>
+<p>so <span class="math inline">\(D\)</span> such terms averaged with the <span class="math inline">\(1/D\)</span> from (4) are unbiased:
+<span class="math inline">\(\mathbb{E}[z(x)^{\top}z(z)]=k(x-z)\)</span>. The variance is small enough to be useful.
+Squaring the product identity and using independence of <span class="math inline">\(\omega\)</span> and <span class="math inline">\(b\)</span>,</p>
+<div class="math block">
+\[\mathrm{Var}\big[2\cos A\cos B\big]
+=1+\tfrac12 k(2(x-z))-k(x-z)^2\ \le\ 1 ,
+\qquad (6)\]
+</div>
+<p>so <span class="math inline">\(\mathrm{Var}[z(x)^{\top}z(z)]\le 1/D\)</span> and the standard deviation is
+<span class="math inline">\(1/\sqrt{D}\)</span>. That is the whole accuracy story: four times the features halves
+the error, which is what the demo's <span class="math inline">\(0.127\to0.058\to0.029\)</span> table measures. To
+control a whole Gram matrix at once the union bound needs <span class="math inline">\(D\)</span> larger by a
+<span class="math inline">\(\log\)</span> of the number of entries, which is why the bound is stated per entry.</p>
+<h3 id="orthogonal-frequencies">Orthogonal frequencies <a class="header-anchor" href="#orthogonal-frequencies">#</a></h3>
+<p>The bound in (6) is an average over directions, and it is loose when the draws
+happen to cluster. Orthogonal random features replace the independent rows of
+<span class="math inline">\(\Omega\)</span> by rows of a random orthogonal matrix, rescaled to keep the right
+marginal:</p>
+<div class="math block">
+\[G\in\mathbb{R}^{D\times d},\quad
+G=QR,\quad
+\Omega=\sqrt{2\gamma}\,\mathrm{diag}(s)\,Q^{\top},
+\qquad s_i=\|g_i\| , \qquad (7)\]
+</div>
+<p>where <span class="math inline">\(g_i\)</span> is the <span class="math inline">\(i\)</span>-th row of a fresh Gaussian matrix. The <span class="math inline">\(i\)</span>-th frequency
+is <span class="math inline">\(s_i\)</span> times a unit vector, so its marginal is still <span class="math inline">\(N(0,2\gamma I)\)</span>, but two
+frequencies are now orthogonal instead of independent. When <span class="math inline">\(D>d\)</span> there are not
+<span class="math inline">\(D\)</span> orthogonal directions in <span class="math inline">\(\mathbb{R}^{d}\)</span>, so the code orthogonalises blocks
+of <span class="math inline">\(d\)</span> rows independently and permutes the result. The demo measures the payoff
+at <span class="math inline">\(D=100\)</span>: the spread falls from <span class="math inline">\(0.0911\)</span> to <span class="math inline">\(0.0849\)</span>, a <span class="math inline">\(7\%\)</span> reduction, and
+the reduction is between <span class="math inline">\(6\%\)</span> and <span class="math inline">\(13\%\)</span> across the sizes measured.</p>
+<h3 id="the-polynomial-kernel">The polynomial kernel <a class="header-anchor" href="#the-polynomial-kernel">#</a></h3>
+<p>The polynomial kernel is not shift-invariant, so there is no measure to sample.
+What exists is an exact expansion: with <span class="math inline">\(\tilde x=(x,\sqrt{c})\)</span>,</p>
+<div class="math block">
+\[(\tilde x^{\top}\tilde z)^{d}=\langle \tilde x^{\otimes d},\tilde z^{\otimes d}\rangle
+=\sum_{\alpha:\,|\alpha|=d}\binom{d}{\alpha}\prod_i (x_iz_i)^{\alpha_i},
+\qquad (8)\]
+</div>
+<p>which is a feature map of dimension <span class="math inline">\(\binom{d+r-1}{r}\)</span> for inputs of dimension
+<span class="math inline">\(r\)</span> — exponential in the degree. TensorSketch computes the count sketch of the
+tensor without ever forming it. For each of the <span class="math inline">\(d\)</span> tensor copies choose a hash
+<span class="math inline">\(h_j:[r]\to[D]\)</span> and a sign <span class="math inline">\(s_j\)</span>, build the sketched vector</p>
+<div class="math block">
+\[u_j(x)_{h_j(i)}\mathrel{+}=s_j(i)\,x_i ,
+\qquad (9)\]
+</div>
+<p>and combine the copies by circular convolution, which the FFT does in
+<span class="math inline">\(O(D\log D)\)</span>:</p>
+<div class="math block">
+\[\phi(x)=u_1(x)*u_2(x)*\cdots*u_d(x)
+=\mathcal{F}^{-1}\Big(\prod_{j=1}^{d}\mathcal{F}u_j(x)\Big).
+\qquad (10)\]
+</div>
+<p>Because a count sketch is unbiased for the inner product and the tensor hash is
+the sum of the per-copy hashes, <span class="math inline">\(\mathbb{E}[\phi(x)^{\top}\phi(z)]
+=(x^{\top}z)^{d}\)</span>; adding <span class="math inline">\(\sqrt{c}\)</span> as one more coordinate gives the constant.
+The variance is much worse than the Fourier maps — the demo measures a spread of
+<span class="math inline">\(0.82\)</span> at <span class="math inline">\(D=256\)</span> for degree two and <span class="math inline">\(4.89\)</span> for degree three — because a
+convolution of sketches is a much noisier estimator than an average of cosines.
+The bias is zero, which is why averaging 300 seeds lands within <span class="math inline">\(0.036\)</span> of the
+truth.</p>
+<h3 id="sparse-projections">Sparse projections <a class="header-anchor" href="#sparse-projections">#</a></h3>
+<p>The linear kernel <span class="math inline">\(K(x,z)=x^{\top}z\)</span> already has a feature map: the identity. A
+random projection replaces it with <span class="math inline">\(R\in\mathbb{R}^{d\times D}\)</span> and
+<span class="math inline">\(z(x)=R^{\top}x\)</span>, and the only requirement is <span class="math inline">\(\mathbb{E}[RR^{\top}]=I\)</span> so that
+<span class="math inline">\(\mathbb{E}[z(x)^{\top}z(z)]=x^{\top}z\)</span>. The sparse choice puts <span class="math inline">\(s\)</span> signed
+entries in each column,</p>
+<div class="math block">
+\[R_{ij}\in\Big\{0,\ \pm\sqrt{\tfrac{d}{sD}}\Big\},
+\qquad
+\mathbb{P}(R_{ij}\ne0)=\frac{s}{d},
+\qquad (11)\]
+</div>
+<p>with exactly <span class="math inline">\(s\)</span> non-zeros per column. The scale is what makes it unbiased: each
+column has squared norm <span class="math inline">\(d/D\)</span>, so <span class="math inline">\(\mathbb{E}[RR^{\top}]=I\)</span>. This is the Johnson-
+Lindenstrauss transform, and the classical statement is that with
+<span class="math inline">\(D=O(\varepsilon^{-2}\log n)\)</span> every pairwise distance is preserved to a factor
+<span class="math inline">\(1\pm\varepsilon\)</span>. Sparsity buys speed, not accuracy: at <span class="math inline">\(s=1\)</span> the map keeps
+<span class="math inline">\(200\)</span> non-zeros where the dense projection needs <span class="math inline">\(12800\)</span>, and the demo's bias
+stays at <span class="math inline">\(0.0093\)</span> against true entries of size one. The variance grows as <span class="math inline">\(s\)</span>
+falls, which is the trade.</p>
+<h3 id="nyström-features">Nyström features <a class="header-anchor" href="#nyström-features">#</a></h3>
+<p>The data-dependent route starts from a low-rank factorisation of the Gram
+matrix. Choose <span class="math inline">\(m\)</span> landmarks, and note that for any matrix <span class="math inline">\(B\)</span> with
+<span class="math inline">\(BB^{\top}=K_{mm}\)</span>,</p>
+<div class="math block">
+\[K\approx K_{nm}K_{mm}^{-1}K_{mn}
+=\big(K_{nm}K_{mm}^{-1/2}\big)\big(K_{nm}K_{mm}^{-1/2}\big)^{\top},
+\qquad (12)\]
+</div>
+<p>so <span class="math inline">\(z(x)=K(x,\text{landmarks})\,K_{mm}^{-1/2}\)</span> is a feature map of dimension <span class="math inline">\(m\)</span>.
+The inverse square root is computed by eigendecomposition of the symmetric
+positive semi-definite <span class="math inline">\(K_{mm}\)</span>, with the eigenvalues floored at <span class="math inline">\(10^{-10}\)</span> times
+the largest so that a nearly singular landmark set does not overflow. On the
+landmarks themselves the approximation is exact, because
+<span class="math inline">\(K_{mm}K_{mm}^{-1}K_{mm}=K_{mm}\)</span>; away from them it is a projection of the kernel
+onto the span of the landmark features, and a projection cannot increase a
+diagonal, so the approximate self-similarity is at most one. The demo uses that
+as an assertion.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="the-two-spectral-densities">The two spectral densities <a class="header-anchor" href="#the-two-spectral-densities">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"laplacian"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">omega_</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_cauchy</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="p">,</span> <span class="n">width</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">omega_</span> <span class="o">/=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"orf"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">omega_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orthogonal_frequencies</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">omega_</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma_</span><span class="p">),</span>
+                                     <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="p">,</span> <span class="n">width</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phase_</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="p">)</span>
+</code></pre>
+<p>Three lines, three kernels, and the only difference is which measure is being
+sampled. The Gaussian draw is scaled by <span class="math inline">\(\sqrt{2\gamma}\)</span>, not <span class="math inline">\(\sqrt{\gamma}\)</span>:
+the extra factor of two comes from the Fourier transform in (2) and getting it
+wrong estimates <span class="math inline">\(e^{-\|\Delta\|^2/2\gamma}\)</span>, a kernel with half the bandwidth.
+The Laplacian draw is a standard Cauchy divided by the bandwidth, which is (3)
+read as a sampling instruction. The phase is uniform on a full turn, not a half,
+because <span class="math inline">\(\cos(A+B)\)</span> must average to zero for (5) to hold.</p>
+<h3 id="orthogonal-blocks">Orthogonal blocks <a class="header-anchor" href="#orthogonal-blocks">#</a></h3>
+<pre class="highlight"><code>        <span class="n">blocks</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features</span> <span class="o">//</span> <span class="n">width</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">blocks</span><span class="p">):</span>
+            <span class="n">draw</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">width</span><span class="p">))</span>
+            <span class="n">orthogonal</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">qr</span><span class="p">(</span><span class="n">draw</span><span class="p">)</span>
+            <span class="n">norms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">width</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">orthogonal</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="n">norms</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])</span>
+        <span class="n">stacked</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="p">]</span>
+        <span class="n">stacked</span> <span class="o">=</span> <span class="n">stacked</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma_</span><span class="p">)</span> <span class="o">*</span> <span class="n">stacked</span>
+</code></pre>
+<p><code>-(-a // b)</code> is ceiling division: the number of blocks of <span class="math inline">\(d\)</span> rows needed to
+cover <span class="math inline">\(D\)</span> features. Each block is an orthogonal matrix from a QR decomposition
+of a Gaussian draw, which is the Haar distribution on the orthogonal group, and
+each row is then rescaled by the norm of an independent Gaussian vector so that
+the marginal of every row is <span class="math inline">\(N(0,I)\)</span>. The permutation at the end matters when
+<span class="math inline">\(D\)</span> is not a multiple of <span class="math inline">\(d\)</span>: without it the truncated tail of the last block
+would be a systematically different set of directions.</p>
+<h3 id="the-tensor-sketch">The tensor sketch <a class="header-anchor" href="#the-tensor-sketch">#</a></h3>
+<pre class="highlight"><code>        <span class="n">copies</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">degree</span><span class="p">,</span> <span class="n">rows</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="p">))</span>
+        <span class="n">slot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">rows</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">copy</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">degree</span><span class="p">):</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hashes_</span><span class="p">[</span><span class="n">copy</span><span class="p">],</span>
+                                    <span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">augmented</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">copies</span><span class="p">[</span><span class="n">copy</span><span class="p">],</span> <span class="p">(</span><span class="n">slot</span><span class="p">,</span> <span class="n">index</span><span class="p">),</span>
+                      <span class="n">augmented</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">signs_</span><span class="p">[</span><span class="n">copy</span><span class="p">])</span>
+        <span class="n">spectrum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">copies</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">product</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">spectrum</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">irfft</span><span class="p">(</span><span class="n">product</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>One count sketch per tensor copy, built with <code>np.add.at</code> because several input
+coordinates can hash to the same bucket and the additions must accumulate rather
+than overwrite. The convolution in (10) is the product of the spectra: <code>rfft</code>
+over the last axis, multiply across copies, <code>irfft</code> back. The <code>n=</code> argument is
+required — without it <code>irfft</code> returns <code>D//2+1</code> samples and the map silently has
+the wrong width. For real inputs the DC and Nyquist entries of each <code>rfft</code> are
+real, so their product is too and the transform is the exact circular
+convolution, not an approximation of it.</p>
+<h3 id="the-sparse-projection">The sparse projection <a class="header-anchor" href="#the-sparse-projection">#</a></h3>
+<pre class="highlight"><code>        <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">values_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">result</span> <span class="o">+=</span> <span class="n">points</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rows_</span><span class="p">[</span><span class="n">entry</span><span class="p">]]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">values_</span><span class="p">[</span><span class="n">entry</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">result</span>
+</code></pre>
+<p><span class="math inline">\(s\)</span> vectorised gathers and <span class="math inline">\(s\)</span> scaled additions, so the transform costs
+<span class="math inline">\(O(nDs)\)</span> multiplications and never materialises the <span class="math inline">\(d\times D\)</span> matrix. The
+index array <code>rows_[entry]</code> has one entry per output column — the input
+coordinate that feeds it — which is exactly the column-sparse structure of (11),
+and <code>values_[entry]</code> carries the signs and the <span class="math inline">\(\sqrt{d/(sD)}\)</span> scale. At <span class="math inline">\(s=1\)</span>
+this is a signed subsampling of coordinates and every output column is a
+multiple of a single input column.</p>
+<h3 id="the-landmark-whitener">The landmark whitener <a class="header-anchor" href="#the-landmark-whitener">#</a></h3>
+<pre class="highlight"><code>        <span class="n">count</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="p">,</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">chosen</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">count</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">chosen</span><span class="p">)]</span>
+        <span class="n">gram</span> <span class="o">=</span> <span class="n">gaussian_kernel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma_</span><span class="p">)</span>
+        <span class="n">eigenvalues</span><span class="p">,</span> <span class="n">eigenvectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">gram</span><span class="p">)</span>
+        <span class="n">floor</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">eigenvalues</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span> <span class="mf">1e-12</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e-10</span>
+        <span class="n">eigenvalues</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">eigenvalues</span><span class="p">,</span> <span class="n">floor</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">whitener_</span> <span class="o">=</span> <span class="p">(</span><span class="n">eigenvectors</span> <span class="o">*</span> <span class="n">eigenvalues</span> <span class="o">**</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">@</span> <span class="n">eigenvectors</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p><code>eigh</code> rather than <code>svd</code> because the matrix is symmetric; the reconstruct is
+<span class="math inline">\(U\Lambda^{-1/2}U^{\top}\)</span> written as a scaled product, which is <span class="math inline">\(O(m^{3})\)</span> once
+and then <span class="math inline">\(O(m^{2})\)</span> per transformed row. The floor is the difference between a
+map and a <code>nan</code>: a Gaussian Gram matrix on clustered landmarks has eigenvalues
+that are numerically zero, and their inverse square root is enormous. Clipping
+turns those directions into a projection onto the numerically positive
+eigenspace, which is the same thing a pseudo-inverse would do.</p>
+<h3 id="prediction-through-the-map">Prediction through the map <a class="header-anchor" href="#prediction-through-the-map">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"nystrom"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">gaussian_kernel</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">landmarks_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma_</span><span class="p">)</span> \
+                <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">whitener_</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fourier</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+</code></pre>
+<p>The dispatch at the end of <code>transform</code> is the claim of the whole atom in three
+lines: a Nyström map is a kernel evaluation against landmarks followed by a
+matrix, a Fourier map is a matrix product followed by a cosine, and everything
+downstream sees only a feature matrix. That is why a kernel ridge regression, a
+linear SVM, or a neural network can all be trained on the same object.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(n\)</span> be the training count, <span class="math inline">\(d\)</span> the input dimension, <span class="math inline">\(D\)</span> the feature count,
+and <span class="math inline">\(m\)</span> the landmark count.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">draw the map</td>
+<td style="text-align:left"><span class="math inline">\(O(Dd)\)</span> or <span class="math inline">\(O(Dd^{2})\)</span> for <code>orf</code></td>
+<td style="text-align:left"><span class="math inline">\(O(Dd)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">transform <span class="math inline">\(n\)</span> points, Fourier</td>
+<td style="text-align:left"><span class="math inline">\(O(nDd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nD)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">transform <span class="math inline">\(n\)</span> points, tensor sketch</td>
+<td style="text-align:left"><span class="math inline">\(O(nDd + nD\log D)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nD)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">transform <span class="math inline">\(n\)</span> points, sparse</td>
+<td style="text-align:left"><span class="math inline">\(O(nDs)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nD)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">transform <span class="math inline">\(n\)</span> points, Nyström</td>
+<td style="text-align:left"><span class="math inline">\(O(ndm + nm^{2})\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">ridge on the features</td>
+<td style="text-align:left"><span class="math inline">\(O(nD^{2}+D^{3})\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nD)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">prediction on <span class="math inline">\(M\)</span> points</td>
+<td style="text-align:left"><span class="math inline">\(O(MD)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(D)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">exact kernel ridge, for comparison</td>
+<td style="text-align:left"><span class="math inline">\(O(n^{2}d+n^{3})\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^{2})\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The crossover is the whole point. Exact kernel ridge pays <span class="math inline">\(n^{2}\)</span> in memory and
+<span class="math inline">\(n^{3}\)</span> in time; the feature version pays <span class="math inline">\(nD^{2}+D^{3}\)</span> and <span class="math inline">\(nD\)</span>. At <span class="math inline">\(n=10^{5}\)</span>
+and <span class="math inline">\(D=10^{3}\)</span> that is a factor of <span class="math inline">\(10^{5}\)</span> in memory and a factor of <span class="math inline">\(10^{2}\)</span> in
+time, and the model shrinks from a stored dataset to a vector of <span class="math inline">\(D\)</span> weights.
+The cost that does not vanish is the <span class="math inline">\(O(nDd)\)</span> transform, and for the polynomial
+sketch it is the FFT that dominates. Nyström is cheaper than a Fourier map when
+<span class="math inline">\(m<D\)</span> but needs the kernel evaluated against every landmark at prediction time,
+so it gives back some of the serving advantage.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Using the wrong spectral density.</strong> The most common bug by far, and the only
+one that no amount of data fixes. A Gaussian draw on a Laplacian kernel is
+biased by <span class="math inline">\(0.34\)</span> at <span class="math inline">\(D=800\)</span>, against <span class="math inline">\(0.0023\)</span> for the matched Cauchy draw, and
+the bias does not shrink with <span class="math inline">\(D\)</span> because it is not variance. If the kernel has
+no closed-form transform, the density has to be sampled numerically or the
+kernel has to be approximated by one that does.</p>
+<p><strong>Forgetting the <span class="math inline">\(\sqrt{2/D}\)</span>.</strong> Drop it and the feature map estimates
+<span class="math inline">\((D/2)K\)</span> instead of <span class="math inline">\(K\)</span>. Every downstream model then trains on a kernel with the
+wrong scale, which is invisible in a training error and shows up as a badly
+tuned regulariser: the penalty is now competing with a kernel twenty times too
+large.</p>
+<p><strong>Confusing &quot;unbiased&quot; with &quot;accurate&quot;.</strong> At <span class="math inline">\(D=50\)</span> the kernel estimate has an
+RMSE of <span class="math inline">\(0.127\)</span>; a ridge regression fitted on those features is a genuinely
+different estimator from the exact one, not a noisy copy of it. The demo's
+regression table has the error climbing from <span class="math inline">\(0.0309\)</span> at <span class="math inline">\(D=64\)</span> to <span class="math inline">\(0.0364\)</span> at
+<span class="math inline">\(D=512\)</span> towards the exact <span class="math inline">\(0.0408\)</span>, because a low-rank fit regularises more than
+the full kernel does. More features means closer to the kernel, and closer to
+the kernel is not always closer to the truth.</p>
+<p><strong>A feature count too small for the kernel's effective rank.</strong> A narrow Gaussian
+kernel has an effective dimension that grows with <span class="math inline">\(n\)</span>; <span class="math inline">\(D=100\)</span> features cannot
+represent it, and the error plateaus instead of falling like <span class="math inline">\(1/\sqrt{D}\)</span>. The
+symptom is a learning curve that flattens early. The cure is a wider kernel or
+more features, and the first is usually cheaper.</p>
+<p><strong>Reading the Nyström diagonal as a bug.</strong> <span class="math inline">\(K_{nm}K_{mm}^{-1}K_{mn}\)</span> has diagonal
+at most one, because it is a projection. With five landmarks on eighty points
+the smallest diagonal is <span class="math inline">\(0.0068\)</span> and the worst entry error is <span class="math inline">\(0.99\)</span>. That is
+the method behaving correctly; it is also why a Nyström approximation is a bad
+choice for a kernel that is used as a similarity score rather than as a
+regulariser.</p>
+<p><strong>A tensor sketch with too few buckets.</strong> The polynomial sketch is unbiased at
+any <span class="math inline">\(D\)</span> and usable at none of the small ones: at <span class="math inline">\(D=64\)</span> the spread is <span class="math inline">\(1.61\)</span>
+against true entries of mean size <span class="math inline">\(4.1\)</span>, and at degree three it is <span class="math inline">\(4.89\)</span>. The
+variance is a convolution of <span class="math inline">\(d\)</span> sketches, so it grows with the degree. For
+small degrees the explicit feature map in (8) is exact and often smaller than a
+sketch large enough to be accurate; the sketch is for when it is not.</p>
+<p><strong>Assuming the features are data-independent when they are not.</strong> For all the
+Fourier variants the map is drawn before the data is seen, so it can be fitted on
+one batch and applied to another, and the variance is a property of the kernel
+alone. Nyström breaks that: its landmarks come from the training set, a test
+point far from every landmark gets an uninformative row, and refitting on a new
+batch changes the map. Anything that caches transformed features has to know
+which kind it has.</p>
+<p><strong>A sparse projection with <span class="math inline">\(s=1\)</span> on wide data.</strong> One non-zero per column means
+each output coordinate sees exactly one input coordinate. Distances are still
+preserved in expectation, but the variance is the largest the family allows and
+correlated coordinates are reconstructed poorly. The theory allows <span class="math inline">\(s=1\)</span> for
+<span class="math inline">\(D\)</span> large enough; the demo's <span class="math inline">\(0.0093\)</span> bias is at <span class="math inline">\(D=200\)</span> on 64 dimensions, which
+is a regime where it happens to work.</p>
+<p><strong>Comparing against the exact solver with a different regulariser.</strong> The
+feature-space ridge with <span class="math inline">\(D<n\)</span> is a rank-<span class="math inline">\(D\)</span> estimator and the dual ridge is a
+full-rank one. On the demo's data the rank-<span class="math inline">\(D\)</span> version wins, which makes the
+&quot;approximation&quot; look better than the thing it approximates. That is not a
+property of random features; it is what shrinkage does.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Large-scale kernel machines.</strong> Kernel approximations were invented for this:
+an SVM or a kernel ridge on millions of points is impossible in the dual and
+routine on a few thousand random features. The <code>nystrom</code> variant of this atom is
+the usual choice when the data is clustered and landmarks can be sampled
+cheaply.</p>
+<p><strong>Gaussian processes at scale.</strong> A GP with a Nyström or Fourier feature map is a
+Bayesian linear model on those features, so the posterior is a <span class="math inline">\(D\times D\)</span>
+system instead of an <span class="math inline">\(n\times n\)</span> one. The predictive variance is then an
+approximation too, which is the part people forget.</p>
+<p><strong>Implicit neural representations and positional encodings.</strong> The Fourier
+features of a NeRF are exactly (4) with fixed frequencies, and the random
+version is used as a kernel-like embedding for tabular and time-series models. A
+cosine of a random frequency is a cheap way to give a linear model a notion of
+distance.</p>
+<p><strong>Efficient attention.</strong> The Performer replaces the softmax kernel with a
+positive random feature map so that attention becomes a matrix product
+associativity trick, and linear attention in general is a kernel feature map
+applied to the keys and queries. The same variance analysis governs the quality
+of the approximation.</p>
+<p><strong>Sketching and streaming.</strong> Sparse JL projections are how a covariance matrix
+or a least-squares problem is compressed without storing the data, and the
+tensor sketch is how a polynomial kernel is evaluated on a stream when the
+feature dimension rules out the explicit map.</p>
+<p><strong>Fastfood and structured projections.</strong> Replacing a dense Gaussian matrix by a
+product of sparse and diagonal ones gives a map that can be applied in
+<span class="math inline">\(O(D\log d)\)</span> instead of <span class="math inline">\(O(Dd)\)</span>. It is the same approximation with a cheaper
+multiply, and the variance analysis is unchanged.</p>
+<p><strong>Kernel two-sample tests.</strong> An MMD test with a random feature map is an
+<span class="math inline">\(O(nD)\)</span> test instead of an <span class="math inline">\(O(n^{2})\)</span> one, and the approximation error is a
+well-understood additive term rather than an unknown. This is the approximation
+behind most large-scale distribution comparisons.</p>
+<p><strong>Teaching kernel methods.</strong> The whole chapter is one idea seen three ways:
+a kernel is an inner product in some space, random features exhibit the space,
+and Nyström exhibits it from the data. Working through the four derivations in
+one file makes the &quot;kernel trick&quot; stop being a trick.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Rahimi, A. &amp; Recht, B. (2007). Random features for large-scale kernel
+machines. <em>NeurIPS</em>. The estimator in (4) and the Bochner argument.</li>
+<li>Rahimi, A. &amp; Recht, B. (2008). Weighted sums of random kitchen sinks:
+replacing minimization with randomization in learning. <em>NeurIPS</em>. The
+convergence bound and the ridge application.</li>
+<li>Rahimi, A. &amp; Recht, B. (2009). Random features for large-scale kernel
+machines. <em>IEEE Transactions on Information Theory</em> 55(10). The full analysis,
+including the variance in (6).</li>
+<li>Bochner, S. (1932). <em>Vorlesungen über Fouriersche Integrale</em>. Akademische
+Verlagsgesellschaft. The theorem behind (1).</li>
+<li>Yu, F. X., Suresh, A. T., Choromanski, K., Holtmann-Rice, D. &amp; Kumar, S.
+(2016). Orthogonal random features. <em>NeurIPS</em>. The construction in (7) and the
+variance reduction the demo measures.</li>
+<li>Pham, N. &amp; Pagh, R. (2013). Fast and scalable polynomial kernels via explicit
+feature maps. <em>KDD</em>. TensorSketch, (9) and (10).</li>
+<li>Kar, P. &amp; Karnick, H. (2012). Random feature maps for dot product kernels.
+<em>AISTATS</em>. The positive-definite argument that makes the polynomial sketch
+work at all.</li>
+<li>Achlioptas, D. (2003). Database-friendly random projections. <em>Journal of
+Computer and System Sciences</em> 66(4), 671–687. The sparse projection family.</li>
+<li>Li, P., Hastie, T. J. &amp; Church, K. W. (2006). Very sparse random projections.
+<em>KDD</em>. The <span class="math inline">\(s\)</span>-sparse variant in (11) and the variance analysis.</li>
+<li>Kane, D. M. &amp; Nelson, J. (2014). Sparser Johnson-Lindenstrauss transforms.
+<em>Journal of the ACM</em> 61(1). How sparse a JL transform can be and stay a JL
+transform.</li>
+<li>Williams, C. K. I. &amp; Seeger, M. (2001). Using the Nyström method to speed up
+kernel machines. <em>NeurIPS</em>. The factorisation in (12).</li>
+<li>Drineas, P. &amp; Mahoney, M. W. (2005). On the Nyström method for approximating a
+Gram matrix for improved kernel-based learning. <em>COLT</em>. The error analysis and
+the role of the landmark sample.</li>
+<li>Choromanski, K. et al. (2021). Rethinking attention with performers. <em>ICLR</em>.
+Positive random features for the softmax kernel.</li>
+<li>Le, Q. V., Sarlós, T. &amp; Smola, A. J. (2013). Fastfood: approximating kernel
+expansions in loglinear time. <em>ICML</em>. Structured projections for the same
+estimator.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="rbf_network.html"><small>Previous</small><span>RBF networks</span></a><a class="next" href="one_class.html"><small>Next</small><span>One-class models</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">03 · Kernels &amp; instance-based</p><ul class="rail-list"><li><a href="svm.html"><span class="tick">✓</span><span>Support vector machine</span></a></li><li><a href="kernel_ridge.html"><span class="tick">✓</span><span>Kernel ridge</span></a></li><li><a href="knn.html"><span class="tick">✓</span><span>k-nearest neighbours</span></a></li><li><a href="svr.html"><span class="tick">✓</span><span>Support vector regression</span></a></li><li><a href="rbf_network.html"><span class="tick">✓</span><span>RBF networks</span></a></li><li><a href="random_features.html" aria-current="page"><span class="tick">✓</span><span>Random features</span></a></li><li><a href="one_class.html"><span class="tick">✓</span><span>One-class models</span></a></li><li><a href="nearest_centroid.html"><span class="tick">✓</span><span>Nearest centroid</span></a></li><li><a href="nystrom.html"><span class="tick">✓</span><span>Nystrom approximation</span></a></li><li><a href="metric_learning.html"><span class="tick">✓</span><span>Metric learning</span></a></li><li><a href="multiple_kernel.html"><span class="tick">✓</span><span>Multiple kernel learning</span></a></li><li><a href="mmd.html"><span class="tick">✓</span><span>MMD &amp; HSIC</span></a></li><li><a href="lvq.html"><span class="tick">✓</span><span>Learning vector quantisation</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../02-linear-models/index.html"><span class="jump">← 02 · Linear models</span></a></li><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">04 · Trees &amp; ensembles&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#bochners-theorem">Bochner&#x27;s theorem</a></li><li class="lvl3"><a href="#the-estimator-and-its-variance">The estimator and its variance</a></li><li class="lvl3"><a href="#orthogonal-frequencies">Orthogonal frequencies</a></li><li class="lvl3"><a href="#the-polynomial-kernel">The polynomial kernel</a></li><li class="lvl3"><a href="#sparse-projections">Sparse projections</a></li><li class="lvl3"><a href="#nyström-features">Nyström features</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#the-two-spectral-densities">The two spectral densities</a></li><li class="lvl3"><a href="#orthogonal-blocks">Orthogonal blocks</a></li><li class="lvl3"><a href="#the-tensor-sketch">The tensor sketch</a></li><li class="lvl3"><a href="#the-sparse-projection">The sparse projection</a></li><li class="lvl3"><a href="#the-landmark-whitener">The landmark whitener</a></li><li class="lvl3"><a href="#prediction-through-the-map">Prediction through the map</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/03-kernels-and-instance/random_features.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

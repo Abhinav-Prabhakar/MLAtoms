@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connectionist temporal classification · MLAtoms</title>
+<meta name="description" content="Marginalising over alignments for unsegmented labels. A frame-level sequence model says something at every frame, but the training data for speech…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/ctc.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Connectionist temporal classification">
+<meta property="og:description" content="Marginalising over alignments for unsegmented labels. A frame-level sequence model says something at every frame, but the training data for speech…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/ctc.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Connectionist temporal classification">
+<meta name="twitter:description" content="Marginalising over alignments for unsegmented labels. A frame-level sequence model says something at every frame, but the training data for speech…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Connectionist temporal classification", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/ctc.html", "description": "Marginalising over alignments for unsegmented labels. A frame-level sequence model says something at every frame, but the training data for speech\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">10 · Sequences</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="ctc.py.html">source</a></p><h1>Connectionist temporal classification — summing over alignments</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A frame-level sequence model says something at every frame, but the training data
+for speech, handwriting or gesture gives one transcription for a whole recording
+and no idea where each character starts. CTC makes that mismatch into a
+definition: a label sequence is produced by <em>every</em> frame path that reduces to
+it, and its probability is the sum of those paths' probabilities. Reduce means
+merge runs of the same symbol and delete the blank.</p>
+<pre class="highlight"><code> frames   f0     f1     f2     f3     f4     f5
+ symbols  a      a     •      b      •      a
+
+ collapse: merge aa -&gt; a, drop blanks      -&gt;   a  b  a
+</code></pre>
+<p>The blank is the part that is easy to miss. Without it, <code>a a</code> at two frames
+collapses to a single <code>a</code>, so a model could never emit a doubled letter. With it,
+the path <code>a • a</code> has a blank separator and collapses to <code>a a</code>. The blank is also
+where the model puts &quot;nothing is happening here&quot;, which is most frames of most
+recordings.</p>
+<p>The sum over paths looks exponential, and it is: there are <span class="math inline">\(C^T\)</span> frame paths for
+<span class="math inline">\(T\)</span> frames and <span class="math inline">\(C\)</span> channels. But the paths that collapse to a fixed target form a
+lattice with <span class="math inline">\(2S+1\)</span> states, and the sum over lattice paths is two linear
+recursions. That is the whole algorithm. Forward gives the likelihood, backward
+gives the posterior over lattice states, and their product gives the gradient
+with respect to the frame logits, which is exactly the expected count minus the
+observed count at every frame and symbol.</p>
+<p>Decoding is a separate question. The most likely frame path — take the argmax at
+every frame and collapse — is not the most likely label sequence, because one
+label sequence owns many frame paths. A beam over collapsed prefixes, keeping
+separate probabilities for prefixes that end in a blank and in a label, is the
+standard answer. The demos measure the difference rather than assert it: on
+<span class="math inline">\(24\)</span> random problems greedy decoding matches the exact marginal decoder <span class="math inline">\(9\)</span>
+times, a width-eight beam over extended paths matches it <span class="math inline">\(13\)</span> times, and a
+width-eight prefix beam <span class="math inline">\(23\)</span> times.</p>
+<p>Everything is numpy. The loss matches the enumeration of all <span class="math inline">\(81\)</span> frame paths on
+a small lattice to <span class="math inline">\(4\times10^{-16}\)</span>, the symbol marginals to <span class="math inline">\(2.2\times10^{-16}\)</span>,
+and the gradient through a softmax to <span class="math inline">\(8.4\times10^{-10}\)</span>. On that lattice the
+best single alignment carries only <span class="math inline">\(7.1\%\)</span> of the target's probability, which is
+the cleanest statement of what the sum is doing.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">what it computes</th>
+<th style="text-align:left">cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ctc_loss</code></td>
+<td style="text-align:left">likelihood, posterior and gradient</td>
+<td style="text-align:left"><span class="math inline">\(O(T S)\)</span> per sequence</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>greedy_decode</code></td>
+<td style="text-align:left">argmax per frame, collapsed</td>
+<td style="text-align:left"><span class="math inline">\(O(T C)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>beam_decode</code></td>
+<td style="text-align:left">beam over extended paths</td>
+<td style="text-align:left"><span class="math inline">\(O(T B C)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>prefix_beam</code></td>
+<td style="text-align:left">beam over collapsed prefixes</td>
+<td style="text-align:left"><span class="math inline">\(O(T B C)\)</span></td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid-source"><code class="language-mermaid">graph TD
+  A[CTC] --&gt; B[the loss]
+  A --&gt; C[decoding]
+  B --&gt; B1[ctc_loss]
+  C --&gt; C1[greedy_decode]
+  C --&gt; C2[beam_decode]
+  C --&gt; C3[prefix_beam]
+</code></pre>
+<p><strong><code>ctc_loss</code></strong> is the forward-backward pass over the extended lattice. It is the
+only variant that trains: given frame probabilities and target sequences, it
+returns the mean negative log-likelihood and the gradient with respect to the
+frame logits. Its <code>decode</code> is greedy, so it is a complete model on its own.</p>
+<p><strong><code>greedy_decode</code></strong> takes the most likely channel at each frame and applies the
+collapse rule. It is exact for the best <em>path</em>, not for the best <em>label
+sequence</em>, and it is the baseline that everything else is measured against.</p>
+<p><strong><code>beam_decode</code></strong> keeps the best <code>beam</code> extended paths at each frame, then
+collapses them at the end and sums the probabilities of paths that agree. It is a
+beam over alignments, so its slots are spent on different phrasings of the same
+output.</p>
+<p><strong><code>prefix_beam</code></strong> searches over collapsed prefixes instead. Each prefix carries
+two probabilities — the mass of paths ending in a blank and the mass ending in
+the last label — which lets one beam entry stand for every alignment of that
+prefix. It is the same search with the alignments merged online.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-alignment-sum">The alignment sum <a class="header-anchor" href="#the-alignment-sum">#</a></h3>
+<p>Let <span class="math inline">\(x\)</span> be <span class="math inline">\(T\)</span> frames, <span class="math inline">\(y_t\in\mathbb{R}^{C}\)</span> the model's distribution at frame
+<span class="math inline">\(t\)</span>, and <span class="math inline">\(\ell=(\ell_1,\ldots,\ell_S)\)</span> a target with <span class="math inline">\(S\le T\)</span>. A frame path
+<span class="math inline">\(\pi\in\{0,\ldots,C-1\}^T\)</span> collapses to <span class="math inline">\(\ell\)</span> if merging runs and deleting the
+blank symbol <span class="math inline">\(b\)</span> gives <span class="math inline">\(\ell\)</span>. Then</p>
+<div class="math block">
+\[p(\ell\mid x)=\sum_{\pi\,:\,\mathrm{collapse}(\pi)=\ell}\ \prod_{t=1}^{T}y_t(\pi_t),
+\qquad (1)\]
+</div>
+<p>and training minimises <span class="math inline">\(-\log p(\ell\mid x)\)</span>. The number of terms is the number
+of alignments, which the atom counts exactly with a small dynamic program; for
+two channels and five frames the counts for <span class="math inline">\(1\)</span>, <span class="math inline">\(1\,1\)</span> and <span class="math inline">\(1\,1\,1\)</span> are <span class="math inline">\(15\)</span>,
+<span class="math inline">\(15\)</span> and <span class="math inline">\(1\)</span>. Three runs of one label can only be written as <code>1 blank 1 blank 1</code>,
+so there is exactly one alignment left.</p>
+<h3 id="the-extended-lattice">The extended lattice <a class="header-anchor" href="#the-extended-lattice">#</a></h3>
+<p>Interleave the target with blanks:</p>
+<div class="math block">
+\[\ell'=(b,\ell_1,b,\ell_2,\ldots,b,\ell_S,b)\in\mathbb{N}^{2S+1}.
+\qquad (2)\]
+</div>
+<p>A path through the lattice visits states in order, may stay, may advance one, and
+may advance two — the last move skips the blank between two different labels. It
+may not advance two into a blank, and it may not skip over a repeated label,
+because the two copies would merge. The condition for entering state <span class="math inline">\(s\)</span> from
+<span class="math inline">\(s-2\)</span> is therefore</p>
+<div class="math block">
+\[\ell'_s\ne b \quad\text{and}\quad \ell'_s\ne \ell'_{s-2}.
+\qquad (3)\]
+</div>
+<p>The code builds that condition once and reuses it in the forward pass, the
+backward pass, the Viterbi alignment and the alignment count.</p>
+<h3 id="forward-and-backward">Forward and backward <a class="header-anchor" href="#forward-and-backward">#</a></h3>
+<p>Let <span class="math inline">\(\alpha_t(s)\)</span> be the log of the total probability of every lattice path that
+ends in state <span class="math inline">\(s\)</span> at frame <span class="math inline">\(t\)</span> and has emitted frames <span class="math inline">\(1\)</span> to <span class="math inline">\(t\)</span>. Then</p>
+<div class="math block">
+\[\alpha_1(1)=y_1(b),\quad \alpha_1(2)=y_1(\ell_1),
+\qquad (4)\]
+</div>
+<div class="math block">
+\[\alpha_t(s)=y_t(\ell'_s)+\log\!\sum_{s'\in\{s,s-1,s-2\}}
+\exp\alpha_{t-1}(s'),
+\qquad (5)\]
+</div>
+<p>with the terms for <span class="math inline">\(s-1\)</span> and <span class="math inline">\(s-2\)</span> dropped at the boundary and <span class="math inline">\(s-2\)</span> dropped when
+(3) fails. The likelihood is the sum over the two final states, the last blank
+and the last label:</p>
+<div class="math block">
+\[\log p(\ell\mid x)=\log\big(\exp\alpha_T(2S+1)+\exp\alpha_T(2S)\big).
+\qquad (6)\]
+</div>
+<p>The backward table is the same recursion read from the end, and it deliberately
+<em>excludes</em> the emission at frame <span class="math inline">\(t\)</span>:</p>
+<div class="math block">
+\[\beta_T(2S+1)=\beta_T(2S)=0,\qquad
+\beta_t(s)=\log\!\sum_{s'\in\{s,s+1,s+2\}}
+\exp\big(\beta_{t+1}(s')+y_{t+1}(\ell'_{s'})\big).
+\qquad (7)\]
+</div>
+<p>With both tables the posterior over lattice states at frame <span class="math inline">\(t\)</span> is</p>
+<div class="math block">
+\[\gamma_t(s)=\frac{\exp\big(\alpha_t(s)+\beta_t(s)\big)}{p(\ell\mid x)},
+\qquad (8)\]
+</div>
+<p>and, unlike a hidden Markov model, the two tables multiply rather than one being
+a conditional of the other. Summing <span class="math inline">\(\gamma_t(s)\)</span> over the states whose symbol is
+<span class="math inline">\(k\)</span> gives the posterior mass on channel <span class="math inline">\(k\)</span> at frame <span class="math inline">\(t\)</span>.</p>
+<h3 id="the-gradient">The gradient <a class="header-anchor" href="#the-gradient">#</a></h3>
+<p>Let <span class="math inline">\(z_t(k)\)</span> be the logit behind <span class="math inline">\(y_t(k)\)</span>, so <span class="math inline">\(y_t=\mathrm{softmax}(z_t)\)</span>.
+Differentiating <span class="math inline">\(-\log p\)</span> through the softmax gives the usual form,</p>
+<div class="math block">
+\[\frac{\partial(-\log p)}{\partial z_t(k)}
+=y_t(k)-\sum_{s:\,\ell'_s=k}\gamma_t(s),
+\qquad (9)\]
+</div>
+<p>which is the model's probability minus the posterior mass that the target puts on
+that channel at that frame. The first term is local; the second is the entire
+sequence's opinion about that frame, delivered by the backward pass.</p>
+<p>The code scatters the posterior back onto symbols and subtracts:</p>
+<pre class="highlight"><code>            <span class="n">mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">frames</span><span class="p">,</span> <span class="n">channels</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">extended</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+                <span class="n">mass</span><span class="p">[:,</span> <span class="n">extended</span><span class="p">[</span><span class="n">state</span><span class="p">]]</span> <span class="o">+=</span> <span class="n">posterior</span><span class="p">[:,</span> <span class="n">state</span><span class="p">]</span>
+            <span class="n">gradient</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">-</span> <span class="n">mass</span>
+</code></pre>
+<p>Summing (9) over <span class="math inline">\(k\)</span> gives zero, because both terms sum to one. The demo checks
+that the frame columns of the gradient sum to <span class="math inline">\(4.4\times10^{-16}\)</span>, and that every
+entry matches a central difference through the softmax.</p>
+<h3 id="collapse-and-greedy-decoding">Collapse and greedy decoding <a class="header-anchor" href="#collapse-and-greedy-decoding">#</a></h3>
+<p>The collapse rule is a single pass with one piece of state, the previous symbol:</p>
+<div class="math block">
+\[\mathrm{collapse}(\pi)_i=\pi_t
+\quad\text{if}\quad \pi_t\ne\pi_{t-1}\ \text{and}\ \pi_t\ne b.
+\qquad (10)\]
+</div>
+<p>Greedy decoding applies it to the per-frame argmax. It is exactly the best path
+through the lattice with the target left free, which is why it is cheap and why
+it is not the best label sequence.</p>
+<h3 id="beam-search">Beam search <a class="header-anchor" href="#beam-search">#</a></h3>
+<p>A frame-synchronous beam over <em>extended</em> paths keeps the best <span class="math inline">\(B\)</span> paths at each
+frame and extends each by every channel. At the end the paths are collapsed and
+the ones that agree are summed. Its weakness is visible in the cost: two paths
+that differ only by a blank in a place that does not change the collapse occupy
+two beam slots for one output.</p>
+<p>Prefix search fixes that by making the beam entry a collapsed prefix and
+carrying two masses, <span class="math inline">\(p_b\)</span> for paths that end in a blank and <span class="math inline">\(p_{nb}\)</span> for paths
+that end in the last label. For a prefix <span class="math inline">\(\ell\)</span> and a channel <span class="math inline">\(k\ne b\)</span> with
+<span class="math inline">\(p=p_b+p_{nb}\)</span>,</p>
+<div class="math block">
+\[\begin{aligned}
+k=b:&\quad p_b'(\ell)\mathrel{+}=p\,y_t(b),\\
+k=\ell_{|\ell|}:&\quad p_{nb}'(\ell)\mathrel{+}=p_{nb}\,y_t(k),\quad
+p_{nb}'(\ell k)\mathrel{+}=p_b\,y_t(k),\\
+\text{otherwise}:&\quad p_{nb}'(\ell k)\mathrel{+}=p\,y_t(k).
+\end{aligned}
+\qquad (11)\]
+</div>
+<p>The middle line is the whole trick: emitting the same label twice in a row merges
+into the same prefix only if the previous frame was a blank, and otherwise starts
+a new run. The code is those three cases:</p>
+<pre class="highlight"><code>                        <span class="k">elif</span> <span class="n">prefix</span> <span class="ow">and</span> <span class="n">symbol</span> <span class="o">==</span> <span class="n">last</span><span class="p">:</span>
+                            <span class="n">blank</span><span class="p">,</span> <span class="n">nonblank</span> <span class="o">=</span> <span class="n">updated</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="p">(</span><span class="n">NEG</span><span class="p">,</span> <span class="n">NEG</span><span class="p">))</span>
+                            <span class="n">merged</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logaddexp</span><span class="p">(</span><span class="n">nonblank</span><span class="p">,</span> <span class="n">p_nonblank</span> <span class="o">+</span> <span class="n">score</span><span class="p">))</span>
+                            <span class="n">updated</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">blank</span><span class="p">,</span> <span class="n">merged</span><span class="p">)</span>
+                            <span class="n">longer</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="p">(</span><span class="n">symbol</span><span class="p">,)</span>
+                            <span class="n">blank</span><span class="p">,</span> <span class="n">nonblank</span> <span class="o">=</span> <span class="n">updated</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">longer</span><span class="p">,</span> <span class="p">(</span><span class="n">NEG</span><span class="p">,</span> <span class="n">NEG</span><span class="p">))</span>
+                            <span class="n">reopened</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logaddexp</span><span class="p">(</span><span class="n">nonblank</span><span class="p">,</span> <span class="n">p_blank</span> <span class="o">+</span> <span class="n">score</span><span class="p">))</span>
+                            <span class="n">updated</span><span class="p">[</span><span class="n">longer</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">blank</span><span class="p">,</span> <span class="n">reopened</span><span class="p">)</span>
+</code></pre>
+<p>With enough width the prefix beam is exact, and the demo checks that width <span class="math inline">\(32\)</span>
+matches the enumerated marginal decoder on all <span class="math inline">\(24\)</span> problems.</p>
+<h3 id="the-best-alignment">The best alignment <a class="header-anchor" href="#the-best-alignment">#</a></h3>
+<p>Replacing the log-sum-exp in (5) with a max and keeping an argmax gives the
+single best path that collapses to a fixed target:</p>
+<div class="math block">
+\[\delta_t(s)=y_t(\ell'_s)+\max_{s'\in\{s,s-1,s-2\}}
+\big(\delta_{t-1}(s')\big).
+\qquad (12)\]
+</div>
+<p>The demo's best alignment carries <span class="math inline">\(7.1\%\)</span> of the target's probability, and the
+remaining <span class="math inline">\(92.9\%\)</span> is spread over other alignments of the same labels. That ratio
+is the difference between a path and a sequence, and it is why CTC needs a sum.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="interleaving-the-blank">Interleaving the blank <a class="header-anchor" href="#interleaving-the-blank">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_extended</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Interleave blanks: blank, l1, blank, l2, ..., lS, blank."""</span>
+        <span class="n">extended</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">target</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">blank</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">extended</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">target</span>
+        <span class="k">return</span> <span class="n">extended</span>
+</code></pre>
+<p>The odd positions receive the labels and every even position is a blank, so the
+lattice has a blank before the first label, between every pair, and after the
+last. The two sentinel blanks are what let the model emit silence at either end
+without inventing a label for it.</p>
+<h3 id="the-skip-condition">The skip condition <a class="header-anchor" href="#the-skip-condition">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_skip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extended</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""May state s be reached from s - 2, skipping the symbol between?"""</span>
+        <span class="n">allowed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">extended</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">extended</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">later</span> <span class="o">=</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="mi">2</span>
+        <span class="n">allowed</span><span class="p">[</span><span class="n">later</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="n">extended</span><span class="p">[</span><span class="n">later</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blank</span><span class="p">)</span>
+                          <span class="o">&amp;</span> <span class="p">(</span><span class="n">extended</span><span class="p">[</span><span class="n">later</span><span class="p">]</span> <span class="o">!=</span> <span class="n">extended</span><span class="p">[</span><span class="n">index</span><span class="p">[</span><span class="n">later</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="n">allowed</span>
+</code></pre>
+<p>A jump into a blank would skip a label, and a jump between two equal labels
+would skip the blank that keeps them separate. Both are excluded, and because
+the vector is built once, the four algorithms cannot disagree about the lattice.
+Getting this condition wrong is the classic CTC bug: the likelihood still runs,
+the numbers still look plausible, and repeated letters are silently impossible.</p>
+<h3 id="the-forward-pass">The forward pass <a class="header-anchor" href="#the-forward-pass">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="p">):</span>
+            <span class="n">previous</span> <span class="o">=</span> <span class="n">alpha</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">stay</span> <span class="o">=</span> <span class="n">previous</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(([</span><span class="n">NEG</span><span class="p">],</span> <span class="n">previous</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="n">jump</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(([</span><span class="n">NEG</span><span class="p">,</span> <span class="n">NEG</span><span class="p">],</span> <span class="n">previous</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]))</span> <span class="k">if</span> <span class="n">width</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="k">else</span> <span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">NEG</span><span class="p">))</span>
+            <span class="n">jump</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">skip</span><span class="p">,</span> <span class="n">jump</span><span class="p">,</span> <span class="n">NEG</span><span class="p">)</span>
+            <span class="n">alpha</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">log_probs</span><span class="p">[</span><span class="n">t</span><span class="p">,</span> <span class="n">extended</span><span class="p">]</span> <span class="o">+</span> <span class="n">_lse_rows</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">stay</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">jump</span><span class="p">]))</span>
+</code></pre>
+<p>The three candidates are one row of the previous table shifted by zero, one and
+two places. Stacking them into a <code>(3, width)</code> array and taking a log-sum-exp along
+axis zero is the vectorised form of the three-term sum in (5). Masked candidates
+are <span class="math inline">\(-\infty\)</span>, so they vanish from the sum without a branch.</p>
+<h3 id="the-backward-pass">The backward pass <a class="header-anchor" href="#the-backward-pass">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">frames</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">following</span> <span class="o">=</span> <span class="n">beta</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">log_probs</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">extended</span><span class="p">]</span>
+            <span class="n">stay</span> <span class="o">=</span> <span class="n">following</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">following</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="p">[</span><span class="n">NEG</span><span class="p">]))</span>
+            <span class="n">jump</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">following</span><span class="p">[</span><span class="mi">2</span><span class="p">:],</span> <span class="p">[</span><span class="n">NEG</span><span class="p">,</span> <span class="n">NEG</span><span class="p">]))</span> <span class="k">if</span> <span class="n">width</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="k">else</span> <span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">NEG</span><span class="p">))</span>
+</code></pre>
+<p>The shifts run the other way and the emission is folded into <code>following</code>, so
+<code>beta[t]</code> never contains frame <span class="math inline">\(t\)</span>'s own symbol. That convention is what makes
+<span class="math inline">\(\alpha_t+\beta_t\)</span> the probability of every path <em>through</em> state <span class="math inline">\(s\)</span> at frame <span class="math inline">\(t\)</span>
+without double-counting the frame.</p>
+<h3 id="collapsing-a-path">Collapsing a path <a class="header-anchor" href="#collapsing-a-path">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_collapse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Merge repeats, then delete the blank."""</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">previous</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">symbol</span> <span class="o">!=</span> <span class="n">previous</span> <span class="ow">and</span> <span class="n">symbol</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blank</span><span class="p">:</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">symbol</span><span class="p">))</span>
+            <span class="n">previous</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+</code></pre>
+<p><code>previous</code> starts at <span class="math inline">\(-1\)</span>, outside the channel range, so the first frame is never
+mistaken for a repeat. Merging and deleting in one pass is equivalent to the
+textbook two-pass definition, and it is the function the decoders and the
+alignment counter share, which is why the loss and the search cannot disagree
+about what a path means.</p>
+<h3 id="extending-the-beam">Extending the beam <a class="header-anchor" href="#extending-the-beam">#</a></h3>
+<pre class="highlight"><code>                <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">score</span> <span class="ow">in</span> <span class="n">beams</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">channels</span><span class="p">):</span>
+                        <span class="n">extension</span> <span class="o">=</span> <span class="n">path</span> <span class="o">+</span> <span class="p">(</span><span class="n">symbol</span><span class="p">,)</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="n">score</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="n">symbol</span><span class="p">])</span>
+                        <span class="n">old</span> <span class="o">=</span> <span class="n">candidates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">extension</span><span class="p">)</span>
+                        <span class="n">candidates</span><span class="p">[</span><span class="n">extension</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="n">value</span> <span class="k">if</span> <span class="n">old</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logaddexp</span><span class="p">(</span><span class="n">old</span><span class="p">,</span> <span class="n">value</span><span class="p">)))</span>
+</code></pre>
+<p>A tuple is the path, so two extensions that produce the same tuple hash together
+and their probabilities merge with <code>logaddexp</code>. The beam then keeps the best <code>B</code>
+tuples. This is a correct beam over alignments and a wasteful one: entries that
+collapse to the same output stay separate, which is exactly what the prefix
+version avoids.</p>
+<h3 id="counting-the-alignments">Counting the alignments <a class="header-anchor" href="#counting-the-alignments">#</a></h3>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">extended</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+                <span class="n">total</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="n">state</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">state</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">total</span> <span class="o">+=</span> <span class="n">counts</span><span class="p">[</span><span class="n">state</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">state</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">skip</span><span class="p">[</span><span class="n">state</span><span class="p">]:</span>
+                    <span class="n">total</span> <span class="o">+=</span> <span class="n">counts</span><span class="p">[</span><span class="n">state</span> <span class="o">-</span> <span class="mi">2</span><span class="p">]</span>
+                <span class="n">following</span><span class="p">[</span><span class="n">state</span><span class="p">]</span> <span class="o">=</span> <span class="n">total</span>
+</code></pre>
+<p>The same lattice, with sums of counts instead of log-probabilities, gives the
+exact number of frame paths. It is a useful sanity check and a useful warning:
+the count is binomial-ish and grows fast, so enumeration is only a reference for
+tiny cases.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(T\)</span> be the frames, <span class="math inline">\(C\)</span> the channels, <span class="math inline">\(S\)</span> the target length, <span class="math inline">\(B\)</span> the beam
+width and <span class="math inline">\(N\)</span> the batch size.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">loss and gradient</td>
+<td style="text-align:left"><span class="math inline">\(O(NTC + NTS)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(NTS)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">greedy decode</td>
+<td style="text-align:left"><span class="math inline">\(O(NTC)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(NT)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">beam over alignments</td>
+<td style="text-align:left"><span class="math inline">\(O(NTBC)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(NTB)\)</span> paths</td>
+</tr>
+<tr>
+<td style="text-align:left">prefix beam</td>
+<td style="text-align:left"><span class="math inline">\(O(NTBC)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(NTB)\)</span> prefixes</td>
+</tr>
+<tr>
+<td style="text-align:left">best alignment</td>
+<td style="text-align:left"><span class="math inline">\(O(NTS)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(NTS)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">exact marginal decode</td>
+<td style="text-align:left"><span class="math inline">\(O(C^T)\)</span></td>
+<td style="text-align:left">exponential</td>
+</tr>
+</tbody>
+</table>
+<p>The loss is linear in the length because the lattice has <span class="math inline">\(2S+1\)</span> states and each
+state has three predecessors. The extended sequence is only twice the target
+length, so the cost is dominated by the frame-by-channel matrix rather than by
+the target.</p>
+<h3 id="where-the-time-goes">Where the time goes <a class="header-anchor" href="#where-the-time-goes">#</a></h3>
+<p>The two searches share an asymptotic bound and differ by a large constant in
+quality. On one problem the exact answer has log probability <span class="math inline">\(-2.311\)</span>; a beam
+over alignments never finds it at widths <span class="math inline">\(1\)</span> through <span class="math inline">\(32\)</span> and keeps returning a
+sequence with <span class="math inline">\(86\%\)</span> of that probability, while the prefix beam finds it at width
+<span class="math inline">\(4\)</span>. The alignment beam is spending its slots on different placements of blanks
+inside the same output; the prefix beam spends one slot per output.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The blank at the wrong index.</strong> The blank is a channel like any other, and the
+constructor lets it be any index, but every collapse, target check and lattice
+builder has to agree on which one. Passing a target that contains the blank is a
+silent corruption in a careless implementation: here it raises.</p>
+<p><strong>Skipping a repeated label.</strong> If the skip transition is allowed between two
+equal labels, the lattice claims that <code>a • a</code> and <code>a a</code> are the same path, and
+the model loses the ability to represent doubled letters. The condition in (3) is
+easy to write as &quot;the destination is not blank&quot; and forget the second half.</p>
+<p><strong>Too few frames for the target.</strong> A target of length <span class="math inline">\(S\)</span> with repeats needs at
+least <span class="math inline">\(S\)</span> plus the number of adjacent equal pairs frames. Asking for more than
+the lattice can supply makes the forward table entirely <span class="math inline">\(-\infty\)</span>; the code
+raises instead of returning an infinite loss, because a <code>nan</code> in training is
+much harder to diagnose than an exception.</p>
+<p><strong>Greedy decoding mistaken for the answer.</strong> The best path is not the best
+sequence, and the gap is not small: on the demo's random problems greedy agrees
+with the exact marginal decoder <span class="math inline">\(9\)</span> times out of <span class="math inline">\(24\)</span>. Production systems decode
+with a beam and often with an external language model on top.</p>
+<p><strong>Peaky posteriors and vanishing gradients.</strong> CTC's conditional independence
+assumption means the model can become extremely confident at every frame and
+still be wrong about the alignment. A frame whose posterior is one-hot
+contributes almost no gradient, and a model that collapses to the blank at every
+frame minimises a large part of the loss while learning nothing. Blank
+probability is worth monitoring directly.</p>
+<p><strong>Beam collapse at the end.</strong> Summing the probabilities of beam entries that
+collapse to the same output is an approximation, because entries that were pruned
+are gone. A narrow alignment beam can therefore be worse than greedy on some
+problems, which is not a paradox: it is the same search with a different
+objective.</p>
+<p><strong>The wrong normalisation for a batch.</strong> The gradient here is the mean over
+sequences, so it carries a factor <span class="math inline">\(1/N\)</span>. Mixing it with a per-sequence loss and a
+learning rate tuned for the other convention produces a model that trains at a
+different speed and looks like a bad schedule.</p>
+<p><strong>Length leakage through padding.</strong> Padded frames must not contribute to the
+loss. Here the batch is rectangular by construction and every sequence uses all
+its frames, so the caller is responsible for masking; the demos use equal
+lengths, and a real pipeline has to pass <code>lengths</code> or slice the frames.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Speech recognition.</strong> CTC is the loss that made end-to-end speech practical:
+acoustic frames go in, characters or phonemes come out, and no forced alignment
+is needed. DeepSpeech and wav2letter are the canonical systems, and the blank
+channel learns to absorb silence, noise and the frames between words.</p>
+<p><strong>Handwriting and OCR.</strong> A line image is a sequence of columns, and the
+transcription gives no column boundaries. CTC trains the column model directly,
+and a beam with a character language model decodes it.</p>
+<p><strong>Gesture and sign language.</strong> Video frames are labelled with a gloss sequence
+for the whole clip. The same lattice handles the unknown segmentation, and the
+blank absorbs the transition frames between signs.</p>
+<p><strong>Keyword spotting.</strong> A small vocabulary and a blank-heavy signal make a
+lightweight CTC model practical on a device; the peak of the blank posterior is
+also a usable voice-activity detector.</p>
+<p><strong>Music transcription.</strong> Audio frames to note sequences, with the blank standing
+for silence and the collapse merging the sustained part of a note. The repeated
+note problem is real here, which is why the separator blank matters.</p>
+<p><strong>Neural sequence labelling without alignment.</strong> Any task where the input is
+longer than the output and the alignment is unknown — protein secondary
+structure, sensor event detection, video captioning — can use the same loss. The
+<code>crf</code> atom is the alternative when the labels are dense and a transition matrix
+is affordable.</p>
+<p><strong>Distillation and pseudo-labelling.</strong> A CTC model's posterior over lattice
+states is a soft alignment, useful for bootstrapping a frame-level model or for
+confidence estimation. <code>posterior</code> exposes it directly.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Graves, A., Fernández, S., Gomez, F. &amp; Schmidhuber, J. (2006). Connectionist
+temporal classification: labelling unsegmented sequence data with recurrent
+neural networks. <em>ICML</em>, 369–376. The original loss and the forward-backward
+recursion on the extended lattice.</li>
+<li>Graves, A. (2012). <em>Supervised Sequence Labelling with Recurrent Neural
+Networks</em>. Springer. The book-length treatment of CTC, including the
+conditional independence assumption.</li>
+<li>Hannun, A. et al. (2014). Deep speech: scaling up end-to-end speech
+recognition. <em>arXiv:1412.5567</em>. The system that made CTC the default for
+end-to-end speech.</li>
+<li>Amodei, D. et al. (2016). Deep speech 2: end-to-end speech recognition in
+English and Mandarin. <em>ICML</em>, 173–182. Scale, batch normalisation and the
+engineering around the loss.</li>
+<li>Maas, A., Le, Q. V., O'Neil, T. M. &amp; Ng, A. Y. (2015). Recurrent neural
+network feature generation for robust speech recognition. <em>ICML</em>. CTC applied
+to large-vocabulary recognition.</li>
+<li>Hwang, K. &amp; Sung, W. (2016). Character-level incremental speech recognition
+with recurrent neural networks. <em>ICASSP</em>. CTC with a character-level beam and
+an external language model.</li>
+<li>Zeyer, A., Schlüter, R. &amp; Ney, H. (2021). Why does CTC result in peaky
+behavior? <em>arXiv:2105.14849</em>. The analysis behind the blank-dominating
+posterior and the vanishing-gradient failure mode.</li>
+<li>Graves, A. &amp; Jaitly, N. (2014). Towards end-to-end speech recognition with
+recurrent neural networks. <em>ICML</em>, 1764–1772. The MAP and CTC decoders side
+by side.</li>
+<li>Scheidl, H., Fiel, S. &amp; Sablatnig, R. (2018). Word beam search: a connectionist
+temporal classification decoding algorithm. <em>ICFHR</em>. Prefix search with
+lexicon and word constraints.</li>
+<li>Kuchaiev, O. et al. (2019). Nemo: a toolkit for building AI applications using
+neural modules. <em>arXiv:1909.09577</em>. A production implementation of CTC loss
+and prefix beam search.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="crf.html"><small>Previous</small><span>Conditional random fields</span></a><a class="next" href="tcn.html"><small>Next</small><span>Temporal convnets</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">10 · Sequences</p><ul class="rail-list"><li><a href="markov_chain.html"><span class="tick">✓</span><span>Markov chains</span></a></li><li><a href="hmm.html"><span class="tick">✓</span><span>Hidden Markov models</span></a></li><li><a href="dtw.html"><span class="tick">✓</span><span>Dynamic time warping</span></a></li><li><a href="rnn.html"><span class="tick">✓</span><span>Recurrent networks</span></a></li><li><a href="lstm_gru.html"><span class="tick">✓</span><span>LSTM &amp; GRU</span></a></li><li><a href="attention.html"><span class="tick">✓</span><span>Attention</span></a></li><li><a href="crf.html"><span class="tick">✓</span><span>Conditional random fields</span></a></li><li><a href="ctc.html" aria-current="page"><span class="tick">✓</span><span>Connectionist temporal classification</span></a></li><li><a href="tcn.html"><span class="tick">✓</span><span>Temporal convnets</span></a></li><li><a href="beam_search.html"><span class="tick">✓</span><span>Beam search</span></a></li><li><a href="ngram_lm.html"><span class="tick">✓</span><span>N-gram language models</span></a></li><li><a href="ssm.html"><span class="tick">✓</span><span>State-space models</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../09-density-and-anomaly/index.html"><span class="jump">← 09 · Density &amp; anomaly</span></a></li><li><a href="../11-time-series/index.html"><span class="jump">11 · Time series&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-alignment-sum">The alignment sum</a></li><li class="lvl3"><a href="#the-extended-lattice">The extended lattice</a></li><li class="lvl3"><a href="#forward-and-backward">Forward and backward</a></li><li class="lvl3"><a href="#the-gradient">The gradient</a></li><li class="lvl3"><a href="#collapse-and-greedy-decoding">Collapse and greedy decoding</a></li><li class="lvl3"><a href="#beam-search">Beam search</a></li><li class="lvl3"><a href="#the-best-alignment">The best alignment</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#interleaving-the-blank">Interleaving the blank</a></li><li class="lvl3"><a href="#the-skip-condition">The skip condition</a></li><li class="lvl3"><a href="#the-forward-pass">The forward pass</a></li><li class="lvl3"><a href="#the-backward-pass">The backward pass</a></li><li class="lvl3"><a href="#collapsing-a-path">Collapsing a path</a></li><li class="lvl3"><a href="#extending-the-beam">Extending the beam</a></li><li class="lvl3"><a href="#counting-the-alignments">Counting the alignments</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl3"><a href="#where-the-time-goes">Where the time goes</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/10-sequences/ctc.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

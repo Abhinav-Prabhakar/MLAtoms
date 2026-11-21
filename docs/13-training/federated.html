@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Federated averaging · MLAtoms</title>
+<meta name="description" content="Training across clients without moving their data. Averaging the weights of models trained on different data does not give you the model trained on all of…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/federated.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Federated averaging">
+<meta property="og:description" content="Training across clients without moving their data. Averaging the weights of models trained on different data does not give you the model trained on all of…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/federated.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Federated averaging">
+<meta name="twitter:description" content="Training across clients without moving their data. Averaging the weights of models trained on different data does not give you the model trained on all of…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Federated averaging", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/federated.html", "description": "Training across clients without moving their data. Averaging the weights of models trained on different data does not give you the model trained on all of\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="federated.py.html">source</a></p><h1>Federated learning — six ways to combine models that never see the data</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Averaging the weights of models trained on different data does not give you the
+model trained on all of it. It gives you something between the best client and
+the worst, and which one you get depends on how far each client walked before
+the average.</p>
+<p>The demo makes that concrete with five clients and ten classes on a ring. Client
+<code>j</code> holds classes <code>2j</code> and <code>2j+1</code> and never sees the other eight, so every client
+is a specialist with a two-way problem. The local budget is deliberately uneven —
+<code>[40, 40, 40, 40, 200]</code> epochs — because that is what a real deployment looks
+like when one phone is idle and charging while the other four are busy.</p>
+<pre class="highlight"><code>variant          global   local  worst   comm
+centralised       0.778   0.773  0.705     --
+fedavg            0.728   0.731  0.430     1x
+fedprox           0.770   0.764  0.725     1x
+scaffold          0.747   0.758  0.595     2x
+secure_agg        0.728   0.731  0.430     1x
+dp_fedavg         0.725   0.727  0.485     1x
+personalization   0.728   0.892  0.855     1x
+</code></pre>
+<p>The pooled model scores 0.778 and plain averaging scores 0.728, but the mean is
+not where the damage is. Client 3 — the one that ran 200 local epochs — scores
+0.430 on its own classes under the averaged model and 0.855 under a model
+fine-tuned on its own data. Five clients averaging to 0.73 hides a model that is
+unusable for one of them.</p>
+<p>The ranking is not fixed. The three methods cross over:</p>
+<pre class="highlight"><code>round  fedavg  fedprox  scaffold
+    1   0.224    0.208     0.224
+    3   0.379    0.421     0.547
+    5   0.511    0.499     0.684
+   10   0.629    0.617     0.716
+   20   0.708    0.730     0.739
+   30   0.728    0.770     0.747
+</code></pre>
+<p>Plain averaging needs thirty rounds to pass 0.71; the control-variate method is
+there at round ten. The proximal term is not faster early — it is a shorter step
+— but by round 30 it is the best of the three, and it is the only one that
+repairs the client that overfits.</p>
+<pre class="mermaid-source"><code class="language-mermaid">flowchart LR
+    subgraph server
+        W[global model w]
+        A[average]
+    end
+    subgraph clients
+        C1[client 1&lt;br/&gt;40 epochs]
+        C2[client 2&lt;br/&gt;40 epochs]
+        C5[client 5&lt;br/&gt;200 epochs]
+    end
+    W --&gt; C1
+    W --&gt; C2
+    W --&gt; C5
+    C1 --&gt; A
+    C2 --&gt; A
+    C5 --&gt; A
+    A --&gt; W
+</code></pre>
+<p>What separates the six variants is what travels in those arrows. <code>fedavg</code> sends
+a model. <code>fedprox</code> sends a model that was not allowed to stray. <code>scaffold</code> sends
+a model plus a gradient estimate, and pays double the bandwidth. <code>secure_agg</code>
+sends a model hidden inside random masks. <code>dp_fedavg</code> sends a clipped model
+plus calibrated noise. <code>personalization</code> sends the same model and then keeps a
+copy.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<p><strong><code>fedavg</code></strong> — average the weights. One round is <code>E_k</code> local epochs per client
+followed by an unweighted mean. It is the baseline every paper compares against
+and it is surprisingly hard to beat when clients are balanced; the drift in the
+table comes from the 5× spread in local work, not from the partition alone.</p>
+<p><strong><code>fedprox</code></strong> — add <span class="math inline">\(\frac{\mu}{2}\lVert w-w^{t}\rVert^{2}\)</span> to each local
+objective with <span class="math inline">\(\mu=0.1\)</span>. The gradient gains a term <span class="math inline">\(\mu(w-w^{t})\)</span> that grows as
+the client walks away, so no client can travel more than about <span class="math inline">\(G/\mu\)</span> from the
+round's starting point no matter how many epochs it is given. On this run it
+recovers 0.042 global accuracy and moves the worst client from 0.430 to 0.725,
+which is better than the pooled model's 0.705 on that client.</p>
+<p><strong><code>scaffold</code></strong> — give each client a control variate <span class="math inline">\(c_k\)</span> and the server one <span class="math inline">\(c\)</span>,
+and correct every local gradient to <span class="math inline">\(g_k + c - c_k\)</span>. The correction makes each
+client follow the <em>global</em> gradient instead of its own, so it is at 0.716 by
+round 10 where averaging is at 0.629, and its round-20 accuracy (0.739) already
+beats what averaging reaches at round 30. It costs twice the upload bandwidth
+because the variates travel too, and it plateaus at 0.747 rather than at the
+pooled 0.778, because the correction is only accurate while the local step is
+small.</p>
+<p><strong><code>secure_agg</code></strong> — clients add pairwise random masks that cancel in the sum, so
+the server only ever sees <span class="math inline">\(\sum_k m_k = \sum_k w_k\)</span>. The masks here move one
+client's vector 29.5 away from its true value while two clients are only 0.7
+apart, so a single masked vector says nothing. It is arithmetic, not
+cryptography: the shares cancel exactly, so the server gets the same sum it
+would have got anyway, and the masking is only as strong as the assumption that
+the shares stay secret. Deployed protocols add a secret-sharing round so the
+shares can be rebuilt when a client drops out mid-round.</p>
+<p><strong><code>dp_fedavg</code></strong> — clip each client's update to norm <span class="math inline">\(C=1.0\)</span> and add Gaussian
+noise with standard deviation <span class="math inline">\(\sigma C/K\)</span> before averaging. At <span class="math inline">\(\sigma=0.1\)</span> the
+accuracy is unchanged (0.725 against 0.727) because the noise is small next to
+the signal, and the worst client even improves. At <span class="math inline">\(\sigma=0.2\)</span> the global
+accuracy falls to 0.599 and at <span class="math inline">\(0.4\)</span> to 0.521. The mechanism is the same in both
+cases; only the budget differs.</p>
+<p><strong><code>personalization</code></strong> — train the global model as usual, then give every client
+a copy and let it fine-tune for 200 epochs on its own data. The global model is
+unchanged, so global accuracy is unchanged at 0.728; the mean local accuracy
+goes from 0.731 to 0.892 and the worst client from 0.430 to 0.855. It is the
+cheapest win in the table, and the one with a deployment question attached: you
+now have five models, not one.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-objective">The objective <a class="header-anchor" href="#the-objective">#</a></h3>
+<p>With <span class="math inline">\(K\)</span> clients holding <span class="math inline">\(n_k\)</span> examples each and <span class="math inline">\(p_k=n_k/n\)</span>, federated learning
+minimises the weighted average of the local risks:</p>
+<div class="math block">
+\[F(w)=\sum_{k=1}^{K}p_kF_k(w),
+\qquad
+F_k(w)=\frac1{n_k}\sum_{i\in\mathcal D_k}\ell(w;x_i,y_i).
+\qquad (1)\]
+</div>
+<p>Everything below is a different approximation to the same <span class="math inline">\(F\)</span>. The data is
+never pooled, so no client ever evaluates <span class="math inline">\(\nabla F\)</span> — that is the whole
+constraint, and it is why the algorithm has to reconstruct a global direction
+out of <span class="math inline">\(K\)</span> local ones.</p>
+<h3 id="what-one-round-actually-does">What one round actually does <a class="header-anchor" href="#what-one-round-actually-does">#</a></h3>
+<p>Let all clients run <span class="math inline">\(E\)</span> local steps from <span class="math inline">\(w^{t}\)</span>, writing <span class="math inline">\(w_k^{t,e}\)</span> for the
+iterate after <span class="math inline">\(e\)</span> steps of round <span class="math inline">\(t\)</span>, and let <span class="math inline">\(\eta\)</span> be the local step size.
+Since aggregation is a plain average of models,</p>
+<div class="math block">
+\[w^{t+1}=w^{t}-\eta\sum_k p_k\sum_{e=0}^{E-1}\nabla F_k(w_k^{t,e}).
+\qquad (2)\]
+</div>
+<p>Add and subtract the honest gradient step <span class="math inline">\(E\nabla F(w^{t})\)</span>:</p>
+<div class="math block">
+\[w^{t+1}=w^{t}-\eta E\nabla F(w^{t})
++\eta\sum_k p_k\sum_{e=0}^{E-1}\left[\nabla F_k(w^{t})
+-\nabla F_k(w_k^{t,e})\right].
+\qquad (3)\]
+</div>
+<p>The first two terms are <span class="math inline">\(E\)</span> steps of gradient descent on (1). The third is
+<strong>client drift</strong>: the average over clients of how much each local gradient has
+turned away from the value it had at the start of the round. It is a bias, not
+noise, and it does not average out over rounds because it is a function of the
+partition, which is fixed.</p>
+<h3 id="the-size-of-the-drift">The size of the drift <a class="header-anchor" href="#the-size-of-the-drift">#</a></h3>
+<p>Assume <span class="math inline">\(\nabla F_k\)</span> is <span class="math inline">\(L\)</span>-Lipschitz and bounded by <span class="math inline">\(G\)</span>. After <span class="math inline">\(e\)</span> local steps
+<span class="math inline">\(\lVert w_k^{t,e}-w^{t}\rVert\le\eta eG\le\eta EG\)</span>, so each bracket in (3) is at
+most <span class="math inline">\(L\eta EG\)</span> and the sum over <span class="math inline">\(E\)</span> steps gives</p>
+<div class="math block">
+\[\left\lVert\text{drift}\right\rVert
+\;\le\;\eta L\sum_k p_k\sum_{e=0}^{E-1}\eta eG
+\;=\;\frac{L\eta^{2}G\,E(E-1)}{2}.
+\qquad (4)\]
+</div>
+<p>Drift is quadratic in the step size and quadratic in the number of local epochs.
+That single line explains the whole design space: every method below is a way of
+making one of those two factors smaller without giving up the compute saved by
+local work. Cut <span class="math inline">\(E\)</span> to one and you have centralised SGD with <span class="math inline">\(K\)</span> times the
+communication; cut <span class="math inline">\(\eta\)</span> and you barely move.</p>
+<h3 id="fedprox-as-a-trust-region">FedProx as a trust region <a class="header-anchor" href="#fedprox-as-a-trust-region">#</a></h3>
+<p>The proximal objective</p>
+<div class="math block">
+\[\min_{w}\;F_k(w)+\frac{\mu}{2}\left\lVert w-w^{t}\right\rVert^{2}
+\qquad (5)\]
+</div>
+<p>has a stationary point satisfying
+<span class="math inline">\(\nabla F_k(w_k^{*})+\mu(w_k^{*}-w^{t})=0\)</span>, so</p>
+<div class="math block">
+\[\left\lVert w_k^{*}-w^{t}\right\rVert
+=\frac{\left\lVert\nabla F_k(w_k^{*})\right\rVert}{\mu}
+\;\le\;\frac{G}{\mu}.
+\qquad (6)\]
+</div>
+<p>The bound does not mention <span class="math inline">\(E\)</span> or <span class="math inline">\(\eta\)</span>. A client with 200 epochs and a client
+with ten are both confined to a ball of radius <span class="math inline">\(G/\mu\)</span> around the round's start,
+which is exactly the property you want when the local budgets are unequal. The
+price is the same bound applied to clients that were behaving: they are slowed
+down too, which is why <code>fedprox</code> is the slowest of the three in the early
+rounds.</p>
+<h3 id="scaffold-as-variance-reduction">SCAFFOLD as variance reduction <a class="header-anchor" href="#scaffold-as-variance-reduction">#</a></h3>
+<p>Each client keeps <span class="math inline">\(c_k\)</span>, the server keeps <span class="math inline">\(c\)</span>, and the local step becomes</p>
+<div class="math block">
+\[w_k\leftarrow w_k-\eta\left(\nabla F_k(w_k)+c-c_k\right).
+\qquad (7)\]
+</div>
+<p>If <span class="math inline">\(c_k=\nabla F_k(w^{t})\)</span> and <span class="math inline">\(c=\nabla F(w^{t})\)</span>, the bracket is
+<span class="math inline">\(\nabla F_k(w_k)-\nabla F_k(w^{t})+\nabla F(w^{t})\)</span>: the client's own gradient
+with its start-of-round value removed, plus the global one. The leading term of
+the drift in (3) is cancelled by construction, and what is left is second order
+in <span class="math inline">\(\eta E\)</span>.</p>
+<p>The variates have to be estimated without a second pass over the data. After the
+local run, the average step is available for free:</p>
+<div class="math block">
+\[c_k=\frac{w^{t}-w_k^{t,E}}{E\eta},\qquad
+c=\sum_k p_kc_k.
+\qquad (8)\]
+</div>
+<p>Equation (8) is the non-obvious line of the atom. The displacement divided by
+the total step size is the mean of the <span class="math inline">\(E\)</span> gradients the client actually used,
+which is an estimate of <span class="math inline">\(\nabla F_k\)</span> at the start of the round — no extra
+gradient evaluations, one extra vector per client on the wire.</p>
+<h3 id="differential-privacy">Differential privacy <a class="header-anchor" href="#differential-privacy">#</a></h3>
+<p>With a clipping norm <span class="math inline">\(C\)</span>, client <span class="math inline">\(k\)</span>'s update becomes</p>
+<div class="math block">
+\[\tilde\Delta_k=\Delta_k\cdot\min\left(1,\frac{C}{\lVert\Delta_k\rVert}\right),
+\qquad
+w^{t+1}=w^{t}-\frac1K\left(\sum_k\tilde\Delta_k+\mathcal N(0,\sigma^{2}C^{2}I)\right).
+\qquad (9)\]
+</div>
+<p>Changing one client's data changes the clipped sum by at most <span class="math inline">\(2C\)</span>, so the
+mechanism is <span class="math inline">\((\varepsilon,\delta)\)</span>-DP whenever</p>
+<div class="math block">
+\[\sigma\;\ge\;\frac{\sqrt{2\ln(1.25/\delta)}}{\varepsilon}.
+\qquad (10)\]
+</div>
+<p>The noise enters as <span class="math inline">\(\sigma C/K\)</span> per coordinate because it is added to the sum
+and then divided by <span class="math inline">\(K\)</span>. The signal-to-noise ratio of a round is therefore
+<span class="math inline">\(K/(\sigma\sqrt d)\)</span>: with <span class="math inline">\(K=5\)</span> and <span class="math inline">\(d=922\)</span> that is <span class="math inline">\(0.17/\sigma\)</span>, which is what
+puts the demo's cliff between <span class="math inline">\(\sigma=0.1\)</span> and <span class="math inline">\(\sigma=0.2\)</span>. Deployments use
+thousands of clients per round precisely because the ratio is linear in <span class="math inline">\(K\)</span>.</p>
+<h3 id="secure-aggregation">Secure aggregation <a class="header-anchor" href="#secure-aggregation">#</a></h3>
+<p>Client <span class="math inline">\(k\)</span> samples a share <span class="math inline">\(s_{kj}\)</span> with every client <span class="math inline">\(j>k\)</span> and sends</p>
+<div class="math block">
+\[m_k=w_k+\sum_{j>k}s_{kj}-\sum_{j<k}s_{jk},
+\qquad (11)\]
+</div>
+<p>so every share appears twice in the sum with opposite signs:</p>
+<div class="math block">
+\[\sum_km_k=\sum_kw_k.
+\qquad (12)\]
+</div>
+<p>The server learns the sum and nothing else, as long as it does not collude with
+a client and no client drops out. Dropout is the hard part: if client <span class="math inline">\(j\)</span> leaves
+after collecting its shares, the terms no longer cancel, and the protocol has to
+fall back on secret-sharing a reconstruction of the dropped client's shares —
+which is why real secure aggregation implementations are much longer than
+eleven lines.</p>
+<h3 id="personalisation">Personalisation <a class="header-anchor" href="#personalisation">#</a></h3>
+<p>The two-level objective is</p>
+<div class="math block">
+\[\min_{w}\;\sum_kp_kF_k(v_k)
+\quad\text{subject to}\quad
+v_k\in\arg\min_{v}F_k(v),
+\qquad (13)\]
+</div>
+<p>approximated here by letting <span class="math inline">\(v_k\)</span> be <span class="math inline">\(P\)</span> local steps from the global model,</p>
+<div class="math block">
+\[v_k=\mathrm{local\_sgd}(w,\mathcal D_k,P,\eta),
+\qquad (14)\]
+</div>
+<p>which is a proximal step on <span class="math inline">\(F_k\)</span> with penalty <span class="math inline">\(1/(2P\eta)\)</span> rather than an exact
+minimiser. This is the cheapest form of the idea; the literature's versions
+either meta-learn <span class="math inline">\(w\)</span> so that a few steps reach a good <span class="math inline">\(v_k\)</span> (<code>maml</code>, in this
+chapter) or learn <span class="math inline">\(w\)</span> and <span class="math inline">\(v_k\)</span> jointly with an explicit penalty.</p>
+<h3 id="why-averaging-weights-is-not-averaging-functions">Why averaging weights is not averaging functions <a class="header-anchor" href="#why-averaging-weights-is-not-averaging-functions">#</a></h3>
+<p>A last piece of pessimism that the numbers hide. For a nonlinear model,</p>
+<div class="math block">
+\[\sum_kp_kf_{w_k}(x)\;\ne\;f_{\bar w}(x),
+\qquad (15)\]
+</div>
+<p>with <span class="math inline">\(\bar w=\sum_kp_kw_k\)</span>. Two clients whose hidden units have permuted roles
+produce an average with no units in either role. Nothing in the algorithm fixes
+this; it is why averaged models lose accuracy even when every client's local
+model is good, and the reason the literature contains everything from matching
+permutations before averaging to never averaging at all.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The partition is where the difficulty comes from, so it comes first. Client <code>j</code>
+draws from exactly two of the ten centres, which makes every client's local
+problem well posed and the global one harder than any single local one.</p>
+<pre class="highlight"><code>    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">CLIENTS</span><span class="p">):</span>
+        <span class="n">rows</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">j</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">centres</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">SPREAD</span><span class="p">,</span> <span class="p">(</span><span class="n">per_class</span><span class="p">,</span> <span class="mi">2</span><span class="p">)))</span>
+            <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">per_class</span><span class="p">,</span> <span class="n">c</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+</code></pre>
+<p>Every variant shares one local solver. <code>mu</code> and the control variates are optional
+terms in the same loop, which is the point: the three methods differ in one
+gradient correction each, not in their training code.</p>
+<pre class="highlight"><code>    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epochs</span><span class="p">):</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="n">_grad</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">grad</span> <span class="ow">in</span> <span class="n">grads</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">grad</span> <span class="o">=</span> <span class="n">grad</span> <span class="o">+</span> <span class="n">c</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">ci</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">mu</span><span class="p">:</span>
+                <span class="n">grad</span> <span class="o">=</span> <span class="n">grad</span> <span class="o">+</span> <span class="n">mu</span> <span class="o">*</span> <span class="p">(</span><span class="n">current</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">anchor</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+            <span class="n">current</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">current</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">lr</span> <span class="o">*</span> <span class="n">grad</span>
+</code></pre>
+<p><code>anchor</code> has to be a separate dictionary. <code>current</code> is stepped in place, so a
+penalty written against <code>current</code> would be identically zero and <code>mu</code> would
+silently do nothing; passing the round's starting model in is what makes the
+term a pull toward the place the client began. The SCAFFOLD correction is a
+plain addition to the same gradient, which is why the two compose without
+special cases.</p>
+<p>The dispatch in <code>fit</code> is one branch per aggregation rule. <code>scaffold</code> needs the
+local models <em>and</em> their drift estimates, so it cannot share the common path.</p>
+<pre class="highlight"><code>                <span class="n">drift</span> <span class="o">=</span> <span class="p">[{</span><span class="n">k</span><span class="p">:</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">-</span> <span class="n">q</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">epochs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+                          <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">q</span><span class="p">}</span> <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">q</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">updates</span><span class="p">)]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_average</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">drift</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">c</span><span class="p">}</span>
+                <span class="n">ci</span> <span class="o">=</span> <span class="n">drift</span>
+</code></pre>
+<p><code>epochs[j] * self.lr</code> is the denominator in (8), and it must be the client's own
+budget. Using one client's budget for all of them mis-scales four of the five
+variates, the correction stops cancelling the drift, and the run collapses to
+0.100 — chance on ten classes, from 0.747. This is the line to get wrong.</p>
+<pre class="highlight"><code>                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"dp_fedavg"</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_noisy_average</span><span class="p">(</span><span class="n">updates</span><span class="p">,</span> <span class="n">turn</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"secure_agg"</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_masked_average</span><span class="p">(</span><span class="n">updates</span><span class="p">,</span> <span class="n">turn</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_average</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span>
+</code></pre>
+<p>The DP path clips before it averages, and it counts a clip whenever the scale
+factor binds. <code>self.clipped</code> is the honest diagnostic: at <span class="math inline">\(C=1.0\)</span> only 9 of the
+150 client updates in the run ever hit the norm, which is why the noiseless
+<span class="math inline">\(\sigma=0\)</span> row scores the same as <code>fedavg</code>.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">update</span> <span class="ow">in</span> <span class="n">updates</span><span class="p">:</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">update</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">update</span><span class="p">}</span>
+            <span class="n">scales</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">clip</span> <span class="o">/</span> <span class="p">(</span><span class="n">_norm</span><span class="p">(</span><span class="n">delta</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)))</span>
+            <span class="n">deltas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">delta</span><span class="p">)</span>
+</code></pre>
+<p>The noise is added to the <em>average</em>, so its scale is <span class="math inline">\(\sigma C/K\)</span>; adding it per
+client instead would give <span class="math inline">\(\sigma C/\sqrt K\)</span> and silently buy accuracy with
+privacy.</p>
+<pre class="highlight"><code>            <span class="n">noise</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">clip</span> <span class="o">/</span> <span class="n">n</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">mean</span> <span class="o">+</span> <span class="n">noise</span>
+</code></pre>
+<p>Masking is sign bookkeeping. Client <code>i</code> adds the share it owns for every <code>j&gt;i</code>
+and subtracts the share <code>j</code> owns for every <code>j&lt;i</code>; each share is created exactly
+once by the lower-indexed client, so the two appearances are the same numbers.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="n">i</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">out</span><span class="p">:</span>
+                    <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+</span> <span class="n">share</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">][</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">i</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">out</span><span class="p">:</span>
+                    <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">share</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">][</span><span class="n">key</span><span class="p">]</span>
+</code></pre>
+<p>The demo's <code>4.4e-16</code> residual is floating-point summation order, not a leak. The
+masks cancel as real numbers; they do not cancel bit for bit, because the sum is
+evaluated left to right and each share's rounding depends on where it sits.</p>
+<p>Personalisation happens after the loop, so the global model is exactly the
+<code>fedavg</code> model and the comparison in the table is fair.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"personalization"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">personal</span> <span class="o">=</span> <span class="p">[</span><span class="n">local_sgd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">finetune</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+                             <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">clients</span><span class="p">]</span>
+</code></pre>
+<p>Evaluation falls back to the global model whenever there is no personal copy, so
+<code>local_metrics</code> means &quot;what this client would actually run&quot; for every variant.</p>
+<pre class="highlight"><code>        <span class="n">models</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">personal</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">personal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span>
+            <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">tests</span><span class="p">))</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>One round costs <span class="math inline">\(\sum_k n_kE_kd\)</span> multiply-adds, with
+<span class="math inline">\(d=2\cdot24+24\cdot24+24\cdot10+58=922\)</span> parameters; the demo's 30 rounds over
+864k example-epochs is seven seconds of numpy. The pooled reference needs the same
+number of example-epochs and is not faster in wall-clock terms, because its
+matmuls are <span class="math inline">\(K\)</span> times wider.</p>
+<p>Communication is the actual constraint: one model up and one down per client
+per round, so <span class="math inline">\(2Kd\)</span> floats. <code>scaffold</code> also uploads <span class="math inline">\(c_k\)</span>, which makes it <span class="math inline">\(3Kd\)</span>
+and 1.5× the traffic — the <code>comm</code> column says <span class="math inline">\(2\times\)</span> because it counts
+uploads only. At <span class="math inline">\(d=922\)</span> the upload is 9,220 floats, or 74 kB per round for five
+clients: trivial. At a language model's <span class="math inline">\(d=10^{10}\)</span> it is the reason the field
+exists.</p>
+<p>Memory is one model on the server plus one model and one variate per client, and
+in <code>secure_agg</code> one share per pair — <span class="math inline">\(\binom{K}{2}d\)</span> floats, which is the real
+cost of masking and the reason secure aggregation is applied to a subsampled
+round rather than to everyone.</p>
+<p>The stopping criterion is a separate budget: the demo trains for a fixed 30
+rounds and reports where each variant got to. Real deployments stop on a
+validation signal, which is the <code>early_stopping</code> atom with a global model and a
+per-client average.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The gap depends on the operating point, and the demo picks one that shows
+it.</strong> The same run at <span class="math inline">\(\eta=0.015\)</span> is <em>worse</em> (0.711 for <code>fedavg</code>),
+because a smaller step means clients travel less per round and the run is cut
+short at 30 rounds; raise it to <span class="math inline">\(\eta=0.05\)</span> and the drift disappears — <code>fedavg</code>
+reaches 0.781, above the pooled reference at 0.778 and above <code>scaffold</code>'s 0.743.
+The table is a measurement at one operating point, not a ranking. The diagnostic
+is to plot global accuracy against local epochs with everything else fixed: a
+method that is drift-limited has a monotone gap, one that is step-size-limited
+does not care.</p>
+<p><strong><code>fedprox</code> does not improve monotonically in <span class="math inline">\(\mu\)</span>.</strong> The same run gives 0.770
+at <span class="math inline">\(\mu=0.1\)</span>, 0.750 at <span class="math inline">\(\mu=1\)</span> and 0.757 at <span class="math inline">\(\mu=10\)</span>. The bound in (6) is a cap,
+not a target: once <span class="math inline">\(\mu\eta\)</span> is large enough that the proximal term dominates,
+every client returns essentially <span class="math inline">\(w^{t}\)</span> and the round becomes one small
+averaged step, which is slow centralised training with a round trip in the
+middle — it never drifts, and it never uses the local compute either. The
+sweet spot is the smallest <span class="math inline">\(\mu\)</span> that stops the worst client, and it has to be
+found, not assumed.</p>
+<p><strong><code>scaffold</code> is out of its regime when <span class="math inline">\(\eta E\)</span> is large.</strong> The correction in (7)
+assumes the client's gradient does not change much along the local trajectory.
+At <span class="math inline">\(\eta E=12\)</span> — 600 local epochs at <span class="math inline">\(\eta=0.02\)</span> — the variates are stale by the
+time they are applied, and the run scores 0.528 against <code>fedavg</code>'s 0.693. The
+correction is a first-order argument; it removes the drift term only while the
+second-order term is small. Keep <span class="math inline">\(\eta E\)</span> to a few units, or accept that the
+method degrades faster than the thing it was meant to fix.</p>
+<p><strong>DP noise at five clients is not a utility trade-off, it is a utility cliff.</strong>
+Each coordinate gets <span class="math inline">\(\sigma C/K\)</span> of noise while the model has <span class="math inline">\(d=922\)</span> of them,
+so the total noise norm is <span class="math inline">\(\sigma C\sqrt d/K\approx 6.1\sigma\)</span>. At <span class="math inline">\(\sigma=0.1\)</span>
+that is 0.61 against update norms of about 1.0 — survivable. At <span class="math inline">\(\sigma=0.2\)</span> it
+is 1.2, larger than the signal, and accuracy drops 0.13 in one step. The demo's
+<span class="math inline">\(\sigma=0.1\)</span> row is a <em>small</em> budget: five clients with 400 examples between them
+cannot support a meaningful <span class="math inline">\(\varepsilon\)</span>.</p>
+<p><strong>Masks hide values only while the round is complete.</strong> Drop one client from
+<code>mask_updates</code> and the shares it was supposed to cancel survive, so the sum is
+wrong by a masked amount nobody can remove until those shares are reconstructed.
+The masking also says nothing about a client that lies: a malicious client can
+send any vector it likes, and the server will average it in without ever seeing
+it. Both problems are why deployed secure aggregation is a multi-round protocol
+with commitments and secret-shared recovery, and why <code>dp_fedavg</code> is usually
+layered on top. The demo's 29.5-versus-0.7 statistic is the passive, complete
+round only.</p>
+<p><strong>A personal model is a deployment commitment.</strong> <code>personalization</code> lifts the
+mean local accuracy by 0.16 here because every client has 80 points of its own.
+With ten points it overfits; with no labelled data it cannot run at all, and the global
+model is then the only model you have. The demo's fallback in <code>local_metrics</code>
+exists for exactly that case: a client with no personal copy must still be
+served.</p>
+<p><strong>Averaging assumes the clients are telling the truth about their data.</strong> The
+partition here is honest label skew. A client that duplicates its data, or
+weights it, moves the global model toward itself — and with the masks of
+<code>secure_agg</code> the server cannot see it happening. Detection needs a different
+mechanism entirely (contribution accounting, robust aggregation), and it is out
+of scope for a file this long.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Federated averaging is what runs when the data cannot move: keyboard prediction
+trained on phones (Gboard), next-word models on messaging apps, handwriting
+models, and the clinical-imaging work where patient records stay inside the
+hospital. The same machinery is used for less obvious reasons — a bank with
+regulated regional subsidiaries, a manufacturer whose machines are on customer
+premises, a consortium that wants a shared model without a shared dataset.</p>
+<p><code>fedprox</code> is the standard fix for uneven participation: mobile devices have
+wildly different amounts of compute available per charging window, and the
+proximal term is what stops the phones that ran 200 epochs from drowning out
+the ones that ran 20. <code>scaffold</code> is the choice when the number of rounds is the
+bottleneck, at twice the bandwidth.</p>
+<p>DP-FedAvg is deployed at scale with tens of thousands of clients per round,
+where the <span class="math inline">\(1/K\)</span> noise averaging in (9) is what makes the budget affordable, and
+with secure aggregation layered on top so the server cannot inspect the clipped
+updates it is averaging. <code>personalization</code> is what most real products actually
+ship: one global model for cold start, one fine-tuned model per user for
+everything after.</p>
+<p>The trap is treating this as a privacy technique by itself. Averaging weights is
+not DP; without clipping and noise, and without masking, a curious server can
+reconstruct training examples from updates. The two privacy variants here are
+mechanisms, and both of them are load-bearing.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>McMahan, B., Moore, E., Ramage, D., Hampson, S., Agüera y Arcas, B. (2017).
+<em>Communication-efficient learning of deep networks from decentralized data.</em>
+AISTATS. FedAvg, (2)-(4).</li>
+<li>Li, T., Sahu, A. K., Zaheer, M., Sanjabi, M., Talwalkar, A., Smith, V.
+(2020). <em>Federated optimization in heterogeneous networks.</em> MLSys. FedProx,
+(5)-(6), and the unequal-local-epochs argument.</li>
+<li>Karimireddy, S. P., Kale, S., Mohri, M., Reddi, S. J., Stich, S. U., Suresh,
+A. T. (2020). <em>SCAFFOLD: stochastic controlled averaging for federated
+learning.</em> ICML. Client drift, (7)-(8).</li>
+<li>Bonawitz, K., Ivanov, V., Kreuter, B., Marcedone, A., McMahan, H. B., Patel,
+S., Ramage, D., Segal, A., Seth, K. (2017). <em>Practical secure aggregation for
+privacy-preserving machine learning.</em> CCS. (11)-(12) and the dropout recovery
+protocol.</li>
+<li>McMahan, H. B., Ramage, D., Talwar, K., Zhang, L. (2018). <em>Learning with
+differential privacy in federated learning.</em> arXiv:1710.06963. Clipping plus
+noise, (9)-(10).</li>
+<li>Fallah, A., Mokhtari, A., Ozdaglar, A. (2020). <em>Personalized federated
+learning with theoretical guarantees.</em> AISTATS. The meta-learning view of
+(13)-(14); see <code>meta_learning</code> in this chapter.</li>
+<li>Kairouz, P. et al. (2021). <em>Advances and open problems in federated learning.</em>
+Foundations and Trends in Machine Learning. The survey to read next; it is
+where the permutation problem (15) and the systems questions live.</li>
+<li>Hsu, T.-M. H., Qi, H., Brown, M. (2019). <em>Measuring the effects of non-identical
+data distribution for federated visual classification.</em> arXiv:1909.06335. The
+Dirichlet partition and the benchmark the demo's ring stands in for.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="early_stopping.html"><small>Previous</small><span>Early stopping</span></a><a class="next" href="../14-generative/index.html"><small>Next</small><span>14 · Generative models</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html" aria-current="page"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-objective">The objective</a></li><li class="lvl3"><a href="#what-one-round-actually-does">What one round actually does</a></li><li class="lvl3"><a href="#the-size-of-the-drift">The size of the drift</a></li><li class="lvl3"><a href="#fedprox-as-a-trust-region">FedProx as a trust region</a></li><li class="lvl3"><a href="#scaffold-as-variance-reduction">SCAFFOLD as variance reduction</a></li><li class="lvl3"><a href="#differential-privacy">Differential privacy</a></li><li class="lvl3"><a href="#secure-aggregation">Secure aggregation</a></li><li class="lvl3"><a href="#personalisation">Personalisation</a></li><li class="lvl3"><a href="#why-averaging-weights-is-not-averaging-functions">Why averaging weights is not averaging functions</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/federated.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

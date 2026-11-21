@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gradient checkpointing · MLAtoms</title>
+<meta name="description" content="Recompute activations to trade compute for memory. Backpropagation needs the activations it computed on the way forward. In a deep chain that is one stored…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/checkpointing.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Gradient checkpointing">
+<meta property="og:description" content="Recompute activations to trade compute for memory. Backpropagation needs the activations it computed on the way forward. In a deep chain that is one stored…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/checkpointing.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Gradient checkpointing">
+<meta name="twitter:description" content="Recompute activations to trade compute for memory. Backpropagation needs the activations it computed on the way forward. In a deep chain that is one stored…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Gradient checkpointing", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/checkpointing.html", "description": "Recompute activations to trade compute for memory. Backpropagation needs the activations it computed on the way forward. In a deep chain that is one stored\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="checkpointing.py.html">source</a></p><h1>Gradient checkpointing — trading compute for memory</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Backpropagation needs the activations it computed on the way forward. In a deep
+chain that is one stored tensor per layer, and at large batch sizes it is often
+the thing that runs out of memory first — not the parameters, not the optimiser
+state, just the forward pass refusing to fit twice.</p>
+<p>Checkpointing keeps a few activations and recomputes the rest during the
+backward pass. The gradient is unchanged: the same arithmetic is replayed, so
+the numbers are bit-identical to the full-storage version. What changes is the
+ledger — a handful of stored states instead of all of them, paid for with one
+extra forward pass.</p>
+<p>The five variants are five points on that ledger. <code>full</code> stores everything and
+recomputes nothing. <code>selective</code> stores every <span class="math inline">\(k\)</span>-th state. <code>sqrt</code> chooses <span class="math inline">\(k\)</span>
+from the depth, which minimises the peak. <code>offload</code> still stores everything but
+books it as host memory and pays a transfer per state. <code>reversible</code> needs no
+checkpoints at all: its layers are invertible, so the forward pass can be run
+backwards from the output.</p>
+<p>The demo runs all five on a 24-layer chain of width 8. The first four produce
+bit-identical gradients; the reversible chain, which is a different
+architecture, matches finite differences to <span class="math inline">\(1.1\times10^{-10}\)</span> and inverts its
+own forward pass to <span class="math inline">\(2.6\times10^{-15}\)</span>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:right">device states</th>
+<th style="text-align:right">peak</th>
+<th style="text-align:right">recompute</th>
+<th style="text-align:left">notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>full</code></td>
+<td style="text-align:right">25</td>
+<td style="text-align:right">25</td>
+<td style="text-align:right">0</td>
+<td style="text-align:left">the baseline</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>selective</code></td>
+<td style="text-align:right"><span class="math inline">\(k+1\)</span></td>
+<td style="text-align:right"><span class="math inline">\(k+L/k\)</span></td>
+<td style="text-align:right"><span class="math inline">\(L\)</span></td>
+<td style="text-align:left">every <span class="math inline">\(k\)</span>-th boundary</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sqrt</code></td>
+<td style="text-align:right"><span class="math inline">\(\sqrt L+1\)</span></td>
+<td style="text-align:right"><span class="math inline">\(2\sqrt L\)</span></td>
+<td style="text-align:right"><span class="math inline">\(L\)</span></td>
+<td style="text-align:left"><span class="math inline">\(k=\mathrm{round}(\sqrt L)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>offload</code></td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td style="text-align:left"><span class="math inline">\(L+1\)</span> host states, <span class="math inline">\(L+1\)</span> transfers</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>reversible</code></td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right"><span class="math inline">\(L\)</span></td>
+<td style="text-align:left">coupling layers, no storage</td>
+</tr>
+</tbody>
+</table>
+<p>The chain is <span class="math inline">\(h_{l+1}=h_l+\tanh(h_lW_l+b_l)\)</span>. That residual form matters: the
+identity path has derivative one, so the adjoint passes through unchanged and
+only the nonlinear branch needs the stored input.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="why-the-forward-pass-dominates-memory">Why the forward pass dominates memory <a class="header-anchor" href="#why-the-forward-pass-dominates-memory">#</a></h3>
+<p>For a batch <span class="math inline">\(B\)</span>, width <span class="math inline">\(d\)</span> and <span class="math inline">\(L\)</span> layers, full backprop keeps</p>
+<div class="math block">
+\[M_{\text{full}}=(L+1)\,B\,d\ \text{floats},
+\qquad (1)\]
+</div>
+<p>because every block needs its input to evaluate <span class="math inline">\(1-\tanh^2\)</span>. The parameters are
+<span class="math inline">\(Ld^2\)</span>, so when <span class="math inline">\(B\gg d\)</span> the activations are the larger term — a batch of 64 at
+width 1024 stores more than the weights of a 24-layer block.</p>
+<h3 id="checkpointed-backward">Checkpointed backward <a class="header-anchor" href="#checkpointed-backward">#</a></h3>
+<p>Divide the chain into <span class="math inline">\(k\)</span> segments of length <span class="math inline">\(L/k\)</span>. Store only the boundary
+states <span class="math inline">\(h_0,h_{L/k},\dots,h_L\)</span>. During the backward pass, when a segment is
+reached, recompute it from its left boundary, walk it backwards, then discard
+it and move to the previous segment. Peak storage is</p>
+<div class="math block">
+\[M(k)=(k+1)+\left\lceil L/k\right\rceil-1=k+\left\lceil L/k\right\rceil,
+\qquad (2)\]
+</div>
+<p>and every layer is evaluated once more, so recomputation is exactly <span class="math inline">\(L\)</span> layer
+evaluations regardless of <span class="math inline">\(k\)</span>:</p>
+<div class="math block">
+\[C_{\text{checkpoint}}=C_{\text{forward}}+C_{\text{backward}}+C_{\text{forward}}.
+\qquad (3)\]
+</div>
+<p>That is the whole trade: <span class="math inline">\(O(L)\)</span> memory becomes <span class="math inline">\(O(\sqrt L)\)</span> memory for one extra
+forward pass.</p>
+<h3 id="the-square-root-rule">The square-root rule <a class="header-anchor" href="#the-square-root-rule">#</a></h3>
+<p>Minimise (2) over <span class="math inline">\(k\)</span>:</p>
+<div class="math block">
+\[k+\frac{L}{k}\ \ge\ 2\sqrt L,\qquad\text{equality at }k=\sqrt L,
+\qquad (4)\]
+</div>
+<p>by AM-GM. For <span class="math inline">\(L=24\)</span> the minimum is 10 states, attained at <span class="math inline">\(k=4,5,6\)</span> — the
+rounding of <span class="math inline">\(\sqrt{24}=4.9\)</span>. The demo prints the whole curve: 25 states at
+<span class="math inline">\(k=1\)</span>, 14 at <span class="math inline">\(k=2\)</span>, 10 across the middle, and back to 25 at <span class="math inline">\(k=24\)</span>.</p>
+<p>The rule assumes uniform layers. When the layers have different sizes the right
+objective is bytes, not states, and the optimum solves a knapsack; the code
+here counts states because every block in the demo has the same shape.</p>
+<h3 id="offloading">Offloading <a class="header-anchor" href="#offloading">#</a></h3>
+<p>Offload keeps the same <span class="math inline">\(L+1\)</span> tensors but moves them out of device memory:</p>
+<div class="math block">
+\[M_{\text{device}}=B\,d,\qquad
+M_{\text{host}}=(L+1)B\,d,\qquad
+\text{transfers}=L+1.
+\qquad (5)\]
+</div>
+<p>Nothing is recomputed, so the arithmetic is identical to <code>full</code>; the new cost
+is bandwidth, <span class="math inline">\(2(L+1)Bd\)</span> bytes moved per step at four bytes per float. That is
+the right choice when the interconnect is fast and the device is small, and the
+wrong one when the host link is the bottleneck.</p>
+<h3 id="reversible-layers">Reversible layers <a class="header-anchor" href="#reversible-layers">#</a></h3>
+<p>A reversible block splits the state into halves and uses a coupling:</p>
+<div class="math block">
+\[u'=u+F(v),\qquad v'=v,\qquad
+u''=u',\qquad v''=v'+G(u').
+\qquad (6)\]
+</div>
+<p>The output determines the input exactly:</p>
+<div class="math block">
+\[v'=v''-G(u''),\qquad u=u'-F(v'),
+\qquad (7)\]
+</div>
+<p>so the forward pass can be run backwards. The backward pass inverts one block,
+computes that block's parameter gradient from the recovered input, and
+transforms the adjoint:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial u}
+=\frac{\partial L}{\partial u'},\qquad
+\frac{\partial L}{\partial v}
+=\frac{\partial L}{\partial v'}
++\Bigl(\frac{\partial L}{\partial u'}\odot(1-F(v)^2)\Bigr)W^{\top}.
+\qquad (8)\]
+</div>
+<p>The demo's coupling uses <span class="math inline">\(F(v)=\tanh(vW+b)\)</span> on half-width states, so it stores
+one state for 24 layers. The price is architectural: only even depths work, and
+the model is no longer the plain residual chain of (1).</p>
+<h3 id="numerical-cost-of-inversion">Numerical cost of inversion <a class="header-anchor" href="#numerical-cost-of-inversion">#</a></h3>
+<p>Each inversion applies <span class="math inline">\(F\)</span> again, so reversible backprop costs the same extra
+forward pass as checkpointing. In exact arithmetic the reconstruction is
+perfect; in floating point it accumulates roundoff. Twenty-four layers of
+<span class="math inline">\(\tanh\)</span> recover the input to <span class="math inline">\(2.6\times10^{-15}\)</span>, which is a few ulps — fine
+here, but a reason to prefer checkpointing for very deep or ill-conditioned
+chains.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The boundaries are the whole policy. <code>sqrt</code> and <code>selective</code> differ only in the
+step; <code>full</code> and <code>offload</code> keep every state and differ only in the ledger:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"full"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"offload"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">step</span> <span class="o">=</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">))))</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"sqrt"</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">segment</span><span class="p">)</span>
+        <span class="n">bounds</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">step</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">bounds</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
+            <span class="n">bounds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">bounds</span>
+</code></pre>
+<p>The forward pass always computes every state; the variant only decides which
+ones survive. The residual add is where the identity path enters:</p>
+<pre class="highlight"><code>        <span class="n">hidden</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">]</span>
+        <span class="n">current</span> <span class="o">=</span> <span class="n">x</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">):</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">current</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_block</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="n">layer</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">hidden</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+</code></pre>
+<p>The ledger is written at the end of the forward pass, and <code>largest</code> is the
+longest segment — the temporary buffer that sets the peak:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"offload"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">counts</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">stored</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">hidden</span><span class="p">),</span> <span class="n">peak</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                               <span class="n">transferred</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">hidden</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">counts</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">stored</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">bounds</span><span class="p">),</span>
+                               <span class="n">peak</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">bounds</span><span class="p">)</span> <span class="o">+</span> <span class="n">largest</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>During the backward pass a segment is rebuilt from its left boundary. The
+<code>recomputed</code> counter is what makes the compute bill visible:</p>
+<pre class="highlight"><code>            <span class="k">else</span><span class="p">:</span>
+                <span class="n">segment</span> <span class="o">=</span> <span class="p">[</span><span class="n">cache</span><span class="p">[</span><span class="s2">"states"</span><span class="p">][</span><span class="n">left</span><span class="p">]]</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"states"</span><span class="p">][</span><span class="n">left</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>
+                    <span class="n">current</span> <span class="o">=</span> <span class="n">current</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_block</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="n">layer</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">segment</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">counts</span><span class="p">[</span><span class="s2">"recomputed"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">right</span> <span class="o">-</span> <span class="n">left</span>
+</code></pre>
+<p>Inside a segment the arithmetic is the ordinary residual backward, with the
+adjoint carried across the identity path by the plain addition:</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">right</span> <span class="o">-</span> <span class="n">left</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+                <span class="n">layer</span> <span class="o">=</span> <span class="n">left</span> <span class="o">+</span> <span class="n">offset</span>
+                <span class="n">hidden</span> <span class="o">=</span> <span class="n">segment</span><span class="p">[</span><span class="n">offset</span><span class="p">]</span>
+                <span class="n">tanh</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_block</span><span class="p">(</span><span class="n">hidden</span><span class="p">,</span> <span class="n">layer</span><span class="p">)</span>
+                <span class="n">dpre</span> <span class="o">=</span> <span class="n">adjoint</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">tanh</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="s2">"W"</span><span class="p">][</span><span class="n">layer</span><span class="p">]</span> <span class="o">+=</span> <span class="n">hidden</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dpre</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="s2">"b"</span><span class="p">][</span><span class="n">layer</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dpre</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">adjoint</span> <span class="o">=</span> <span class="n">adjoint</span> <span class="o">+</span> <span class="n">dpre</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"W"</span><span class="p">][</span><span class="n">layer</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p>The reversible backward does both jobs at once: it subtracts the coupling to
+recover the input half, and it pushes the adjoint through the same block. No
+list of states is ever built:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="n">layer</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">tanh</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_block</span><span class="p">(</span><span class="n">second</span><span class="p">,</span> <span class="n">layer</span><span class="p">)</span>
+                <span class="n">dpre</span> <span class="o">=</span> <span class="n">d_first</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">tanh</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="s2">"W"</span><span class="p">][</span><span class="n">layer</span><span class="p">]</span> <span class="o">+=</span> <span class="n">second</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dpre</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="s2">"b"</span><span class="p">][</span><span class="n">layer</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dpre</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">d_second</span> <span class="o">=</span> <span class="n">d_second</span> <span class="o">+</span> <span class="n">dpre</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"W"</span><span class="p">][</span><span class="n">layer</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">first</span> <span class="o">=</span> <span class="n">first</span> <span class="o">-</span> <span class="n">tanh</span>
+</code></pre>
+<p>Inversion is the same loop without the adjoint, and it is what the demo uses to
+prove the forward pass is lossless:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">layer</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">first</span> <span class="o">=</span> <span class="n">first</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_block</span><span class="p">(</span><span class="n">second</span><span class="p">,</span> <span class="n">layer</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">second</span> <span class="o">=</span> <span class="n">second</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_block</span><span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">layer</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">first</span><span class="p">,</span> <span class="n">second</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>Note that the order of the two updates is the mirror of the forward pass: the
+even layer changes <code>u</code>, so the odd layer must be undone first.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For depth <span class="math inline">\(L\)</span>, batch <span class="math inline">\(B\)</span>, width <span class="math inline">\(d\)</span> and <span class="math inline">\(k\)</span> segments:</p>
+<ul>
+<li><strong>Full:</strong> <span class="math inline">\((L+1)Bd\)</span> states, one forward and one backward. The baseline.</li>
+<li><strong>Selective and sqrt:</strong> <span class="math inline">\(k+\lceil L/k\rceil\)</span> states, two forwards and one
+backward. The recomputation is one extra forward pass, independent of <span class="math inline">\(k\)</span>.</li>
+<li><strong>Offload:</strong> <span class="math inline">\(Bd\)</span> device states, <span class="math inline">\((L+1)Bd\)</span> host states, <span class="math inline">\(L+1\)</span> transfers of
+<span class="math inline">\(Bd\)</span> floats each.</li>
+<li><strong>Reversible:</strong> <span class="math inline">\(Bd\)</span> states, one forward plus one inversion pass, no storage.
+The inversion costs one extra forward evaluation per layer.</li>
+<li><strong>Choosing <span class="math inline">\(k\)</span>:</strong> minimise bytes spent on checkpoints rather than states when
+layers differ in width; the optimum is no longer exactly <span class="math inline">\(\sqrt L\)</span>.</li>
+<li><strong>The demo:</strong> 24 layers of width 8 and a batch of 8, so one state is 64
+floats and the full chain is 1600. The finite-difference loop and the 300
+training steps dominate; everything is milliseconds.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Recomputation must be deterministic.</strong> If a block draws a random mask,
+applies stochastic depth, or advances a batch-norm running statistic, the
+recomputed forward differs from the original and the gradient is wrong. Every
+random draw must be captured from the first pass, not re-drawn.</p>
+<p><strong>In-place operations break the replay.</strong> A block that overwrites its input
+destroys the very activation the checkpoint needs. RevNets avoid this by
+construction; ordinary checkpointing requires functional layers.</p>
+<p><strong>The boundaries must include both ends.</strong> Dropping <span class="math inline">\(h_L\)</span> from the checkpoint
+list makes the first segment unreachable; dropping <span class="math inline">\(h_0\)</span> makes the last
+segment's recomputation start from nothing. The demo's <code>_bounds</code> always
+contains 0 and <span class="math inline">\(L\)</span>.</p>
+<p><strong>Checkpointing does not reduce the parameters.</strong> Optimiser state, gradients
+and master weights are untouched. On a model where the weights dominate, the
+saving is small, and offloading the optimiser state is a separate technique.</p>
+<p><strong>The peak includes the temporary segment.</strong> Reporting only the boundary count
+understates the memory by the segment length, which is why <code>largest</code> enters the
+ledger. At <span class="math inline">\(k=L\)</span> the boundary count is <span class="math inline">\(L+1\)</span> and the temporary buffer is one
+state; at <span class="math inline">\(k=1\)</span> the boundary is one state and the buffer is all of them.</p>
+<p><strong>Square-root is optimal only for a uniform chain.</strong> With layers of different
+sizes, or with sub-linear attention blocks, the minimisation is over bytes and
+the answer is data-dependent.</p>
+<p><strong>Offload trades one bottleneck for another.</strong> Moving activations to the host
+removes the device pressure and adds a transfer per state per step. On a slow
+link this is slower than recomputing; on a fast one it is cheaper.</p>
+<p><strong>Reversible layers constrain the architecture.</strong> They need an even number of
+blocks, a state that splits in half, and a coupling that is cheap to invert.
+The plain residual block is not reversible, so the variant is a different model
+with a similar loss surface, not a drop-in flag.</p>
+<p><strong>Inversion accumulates roundoff.</strong> Each subtraction undoes a <span class="math inline">\(\tanh\)</span>; deep
+chains lose a few bits per layer, and ill-conditioned weights amplify the loss.
+Twenty-four layers are fine; a thousand are not.</p>
+<p><strong>The loss gradient must match the loss.</strong> The demo divides by the number of
+elements because the loss is a mean; forgetting that factor produces a gradient
+that is off by the batch size. Checkpointing does not change that, but the
+finite-difference check is what proves both parts at once.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Activation checkpointing is standard in large-model training: Megatron,
+DeepSpeed and every transformer stack above a certain size use it, usually with
+the square-root or per-layer policy. Offloading is the basis of ZeRO-Offload,
+which moves optimiser state and sometimes activations to host memory. Reversible
+layers appear in RevNets, in the Reformer's attention, and in normalising flows,
+where invertibility is required rather than optional.</p>
+<p>The same accounting applies outside deep learning: any long computation whose
+derivative needs its intermediates can trade storage for replay. Adjoint
+methods for ODE solvers, checkpointed simulation, and gradient accumulation
+over micro-batches all make the same bargain in different notation.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Chen, T., Xu, B., Zhang, C., Guestrin, C. (2016). <em>Training deep nets with
+sublinear memory cost.</em> arXiv:1604.06174. Checkpointing and the square-root
+policy, equations (1)–(4).</li>
+<li>Griewank, A. (1992). <em>Achieving logarithmic growth of temporal and spatial
+complexity in dynamic programming.</em> Optimization Methods and Software.
+The original checkpointing analysis.</li>
+<li>Gomez, A. N., Ren, M., Urtasun, R., Grosse, R. B. (2017). <em>The reversible
+residual network: backpropagation without storing activations.</em> NeurIPS.
+Coupling layers, equations (6)–(8).</li>
+<li>Kitaev, N., Kaiser, Ł., Levskaya, A. (2020). <em>Reformer: the efficient
+transformer.</em> ICLR. Reversible attention.</li>
+<li>Pudipeddi, B., Meshi, O., Sarawagi, S. (2020). <em>Activation checkpointing in
+recurrent neural networks.</em> arXiv:2006.16099. Selective and uneven policies.</li>
+<li>Rajbhandari, S., Rasley, J., Ruwase, O., He, Y. (2020). <em>ZeRO: memory
+optimizations towards training a trillion parameter model.</em> SC. Offloading
+as a memory hierarchy.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="distillation.html"><small>Previous</small><span>Knowledge distillation</span></a><a class="next" href="mixed_precision.html"><small>Next</small><span>Mixed precision</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html" aria-current="page"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#why-the-forward-pass-dominates-memory">Why the forward pass dominates memory</a></li><li class="lvl3"><a href="#checkpointed-backward">Checkpointed backward</a></li><li class="lvl3"><a href="#the-square-root-rule">The square-root rule</a></li><li class="lvl3"><a href="#offloading">Offloading</a></li><li class="lvl3"><a href="#reversible-layers">Reversible layers</a></li><li class="lvl3"><a href="#numerical-cost-of-inversion">Numerical cost of inversion</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/checkpointing.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beam search · MLAtoms</title>
+<meta name="description" content="Beam, greedy, top-k and nucleus decoding. A language model answers one question: given the tokens so far, how likely is each possible next token? Everything…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/beam_search.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Beam search">
+<meta property="og:description" content="Beam, greedy, top-k and nucleus decoding. A language model answers one question: given the tokens so far, how likely is each possible next token? Everything…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/beam_search.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Beam search">
+<meta name="twitter:description" content="Beam, greedy, top-k and nucleus decoding. A language model answers one question: given the tokens so far, how likely is each possible next token? Everything…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Beam search", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/beam_search.html", "description": "Beam, greedy, top-k and nucleus decoding. A language model answers one question: given the tokens so far, how likely is each possible next token? Everything\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">10 · Sequences</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="beam_search.py.html">source</a></p><h1>Beam search — choosing a sequence from next-token scores</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A language model answers one question: given the tokens so far, how likely is
+each possible next token? Everything about generation is a second question, and
+it is a search problem. A sequence of length <span class="math inline">\(T\)</span> over a vocabulary of size <span class="math inline">\(V\)</span>
+has <span class="math inline">\(V^T\)</span> candidates, and the model only ever scores one step at a time.</p>
+<pre class="highlight"><code> step 1        step 2                 step 3
+   a 0.6        a a 0.30               a a a 0.15
+   b 0.4        a b 0.30               a a b 0.15
+                b a 0.04               a b a 0.27
+                b b 0.36               a b b 0.03
+                                       b a ·  ...
+                                       b b a 0.32
+                                       b b b 0.04
+</code></pre>
+<p>Greedy decoding follows the boldest branch at every step. It is optimal at each
+step and not optimal overall, because the best first token can lead to a poor
+second one. The table in the figure is exactly that: taking <code>a</code> pays <span class="math inline">\(0.6\)</span> and
+then splits evenly, while taking <code>b</code> pays <span class="math inline">\(0.4\)</span> and then offers <span class="math inline">\(0.9\)</span>. Greedy
+returns <code>a a</code> at <span class="math inline">\(0.30\)</span>; the better sequence <code>b b</code> is worth <span class="math inline">\(0.36\)</span>.</p>
+<p>Beam search keeps the <span class="math inline">\(B\)</span> best prefixes at each step and extends all of them. It
+is still not exact — a prefix that looks mediocre now can recover later — but it
+fixes the failure above, and <span class="math inline">\(B\)</span> is the knob that trades compute for quality.
+The rest of the atom is about the other knobs: how to draw a sample instead of
+taking an argmax, how to cut the tail of the distribution before drawing, and how
+to bias the scores away from repetitions and from generic text.</p>
+<p>Temperature rescales the logits before the softmax. Dividing by <span class="math inline">\(T<1\)</span> sharpens
+the distribution, multiplying by <span class="math inline">\(T>1\)</span> flattens it, and the exact statement is
+that the new probability of a token is its old probability to the power <span class="math inline">\(1/T\)</span>,
+renormalised. Top-<span class="math inline">\(k\)</span> keeps the <span class="math inline">\(k\)</span> best tokens and renormalises; top-<span class="math inline">\(p\)</span> keeps
+the smallest set whose mass reaches <span class="math inline">\(p\)</span>. Both are truncation, and truncation
+before sampling is what removes the long tail of nonsense without removing the
+variety.</p>
+<p>Repetition penalty divides the logits of tokens already in the context, which
+pushes a model out of a loop. Contrastive decoding subtracts the
+log-probabilities of a smaller <em>amateur</em> model from those of the expert: a token
+that both models like is probably generic, and a token that only the expert likes
+is probably a response to the context. Both are score transformations, and both
+compose with any of the searches.</p>
+<p>The demos use exact tables, so every claim is checkable. A beam of two turns the
+<span class="math inline">\(0.30\)</span> greedy answer into <span class="math inline">\(0.36\)</span>. A beam wide enough to keep all <span class="math inline">\(27\)</span> prefixes
+of a three-token vocabulary matches brute force to the last digit, while a beam
+of one ends <span class="math inline">\(0.34\)</span> behind. Top-<span class="math inline">\(p\)</span> at <span class="math inline">\(0.7\)</span> keeps exactly the two tokens holding
+<span class="math inline">\(0.75\)</span> of the mass. A penalty of two sends a model that would repeat one token
+through four before it locks. Contrastive decoding flips a choice the expert
+alone makes, and an end token that greedy never emits wins the beam comparison.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">what it does</th>
+<th style="text-align:left">draw or argmax</th>
+<th style="text-align:left">cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>greedy</code></td>
+<td style="text-align:left">best token at each step</td>
+<td style="text-align:left">argmax</td>
+<td style="text-align:left"><span class="math inline">\(O(TV)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>beam</code></td>
+<td style="text-align:left">best <span class="math inline">\(B\)</span> prefixes at each step</td>
+<td style="text-align:left">argmax</td>
+<td style="text-align:left"><span class="math inline">\(O(TBV)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>temperature</code></td>
+<td style="text-align:left">logits divided by <span class="math inline">\(T\)</span></td>
+<td style="text-align:left">draw</td>
+<td style="text-align:left"><span class="math inline">\(O(TV)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>top_k</code></td>
+<td style="text-align:left">keep the <span class="math inline">\(k\)</span> best tokens</td>
+<td style="text-align:left">draw</td>
+<td style="text-align:left"><span class="math inline">\(O(TV\log V)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>top_p</code></td>
+<td style="text-align:left">keep the smallest set with mass <span class="math inline">\(p\)</span></td>
+<td style="text-align:left">draw</td>
+<td style="text-align:left"><span class="math inline">\(O(TV\log V)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>repetition_penalty</code></td>
+<td style="text-align:left">divide scores of used tokens</td>
+<td style="text-align:left">argmax</td>
+<td style="text-align:left"><span class="math inline">\(O(TV)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>contrastive</code></td>
+<td style="text-align:left">subtract an amateur's log-probabilities</td>
+<td style="text-align:left">argmax</td>
+<td style="text-align:left"><span class="math inline">\(O(TV)\)</span></td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid-source"><code class="language-mermaid">graph TD
+  A[decoder] --&gt; B[search]
+  A --&gt; C[sampling]
+  A --&gt; D[score shaping]
+  B --&gt; B1[greedy]
+  B --&gt; B2[beam]
+  C --&gt; C1[temperature]
+  C --&gt; C2[top_k]
+  C --&gt; C3[top_p]
+  D --&gt; D1[repetition_penalty]
+  D --&gt; D2[contrastive]
+</code></pre>
+<p><strong><code>greedy</code></strong> takes the argmax at each step. It is the cheapest option and the
+baseline every other variant is measured against, and it never recovers from a
+bad early token.</p>
+<p><strong><code>beam</code></strong> keeps the <span class="math inline">\(B\)</span> best prefixes and extends each by every token. It finds
+better sequences at <span class="math inline">\(B\)</span> times the cost, and it is exact when <span class="math inline">\(B\)</span> is at least the
+number of distinct prefixes at every step.</p>
+<p><strong><code>temperature</code></strong> samples from <span class="math inline">\(\mathrm{softmax}(z/T)\)</span>. It is the standard way to
+control how surprising a sample is, and it is a no-op at <span class="math inline">\(T=1\)</span>.</p>
+<p><strong><code>top_k</code></strong> samples from the <span class="math inline">\(k\)</span> best tokens only. The count is fixed, so a peaked
+distribution and a flat one get the same amount of variety.</p>
+<p><strong><code>top_p</code></strong> samples from the smallest set of tokens whose cumulative probability
+reaches <span class="math inline">\(p\)</span>. The set shrinks when the model is confident and grows when it is
+not, which is the property top-<span class="math inline">\(k\)</span> lacks.</p>
+<p><strong><code>repetition_penalty</code></strong> divides positive logits and multiplies negative ones for
+every token in the context. It is the lowest-cost fix for looping, and it is a
+blunt instrument because it cannot tell a useful repetition from a degenerate one.</p>
+<p><strong><code>contrastive</code></strong> subtracts <span class="math inline">\(\alpha\)</span> times the amateur's log-probabilities from
+the expert's. It needs a second model, and it targets text that is likely for
+reasons unrelated to the prompt.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-sequence-score">The sequence score <a class="header-anchor" href="#the-sequence-score">#</a></h3>
+<p>An autoregressive model factorises the probability of a sequence into one
+conditional per token,</p>
+<div class="math block">
+\[p(y_1,\ldots,y_T)=\prod_{t=1}^{T}p(y_t\mid y_{<t}),\qquad
+\log p(y)=\sum_{t=1}^{T}\log p(y_t\mid y_{<t}).
+\qquad (1)\]
+</div>
+<p>The search never sees the product: it sees one row of log-probabilities at a
+time, indexed by the prefix. Both searches below are the same recursion over
+prefixes, differing only in how many prefixes they keep.</p>
+<h3 id="greedy">Greedy <a class="header-anchor" href="#greedy">#</a></h3>
+<p>Greedy maximises (1) one factor at a time:</p>
+<div class="math block">
+\[y_t=\arg\max_{v}\ \log p(v\mid y_{<t}).
+\qquad (2)\]
+</div>
+<p>It is exact when the best continuation is independent of the choice made now, and
+wrong otherwise. In the figure it picks <code>a</code> because <span class="math inline">\(0.6>0.4\)</span> and then has to
+settle for <span class="math inline">\(0.5\)</span>, so its final score is <span class="math inline">\(\log 0.3\)</span>; the sequence <code>b b</code> scores
+<span class="math inline">\(\log 0.36\)</span>. The difference is <span class="math inline">\(0.18\)</span> in log space, and it is entirely due to the
+first step.</p>
+<h3 id="beam-search">Beam search <a class="header-anchor" href="#beam-search">#</a></h3>
+<p>Let <span class="math inline">\(B_t\)</span> be the set of <span class="math inline">\(B\)</span> highest-scoring prefixes of length <span class="math inline">\(t\)</span>. The recursion
+is</p>
+<div class="math block">
+\[B_0=\{()\},\qquad
+B_t=\mathrm{top}_B\Big\{\big(y_{<t},v\big):\
+y_{<t}\in B_{t-1},\ v\in V\Big\},
+\qquad (3)\]
+</div>
+<p>where the score of an item is its prefix score plus
+<span class="math inline">\(\log p(v\mid y_{<t})\)</span>. Every prefix in <span class="math inline">\(B_{t-1}\)</span> is extended by every token, all
+<span class="math inline">\(B V\)</span> candidates are scored, and the best <span class="math inline">\(B\)</span> survive. With <span class="math inline">\(B\ge V^t\)</span> no prefix
+is ever pruned and the search is exhaustive, which is how the demo builds an
+exact reference for a vocabulary of three.</p>
+<p>The cost is the <span class="math inline">\(B V\)</span> scores per step. The reason to prefer a beam over exhaustive
+search is that the model's distribution is usually concentrated: the number of
+plausible prefixes grows much more slowly than <span class="math inline">\(V^t\)</span>.</p>
+<h3 id="stopping-and-the-end-token">Stopping and the end token <a class="header-anchor" href="#stopping-and-the-end-token">#</a></h3>
+<p>Extending a prefix can only lower its score, since
+<span class="math inline">\(\log p(y_t\mid y_{<t})\le 0\)</span>. So the best score any active prefix can still
+reach is its current score. That gives the bound behind the stopping rule:</p>
+<div class="math block">
+\[\max_{y_{<t}\in\text{active}}\ \mathrm{score}(y_{<t})
+\le \max_{y\in\text{finished}}\ \mathrm{score}(y)
+\quad\Longrightarrow\quad
+\text{stop}.
+\qquad (4)\]
+</div>
+<p>The code only applies it once at least <span class="math inline">\(B\)</span> sequences have finished, because a
+single early ending is not enough evidence that the search is done. At the end the
+finished sequences and the surviving active prefixes are compared together: an
+active prefix that never emitted the end token is still a valid continuation when
+the length limit is reached.</p>
+<h3 id="temperature">Temperature <a class="header-anchor" href="#temperature">#</a></h3>
+<p>With logits <span class="math inline">\(z\)</span> and temperature <span class="math inline">\(T>0\)</span>, the shaped distribution is</p>
+<div class="math block">
+\[p_T(v)=\frac{\exp(z_v/T)}{\sum_u \exp(z_u/T)}
+=\frac{p(v)^{1/T}}{\sum_u p(u)^{1/T}}.
+\qquad (5)\]
+</div>
+<p>The second form is the useful one: raising every probability to <span class="math inline">\(1/T\)</span> and
+renormalising is the same operation as dividing the logits. As <span class="math inline">\(T\to0\)</span> the mass
+concentrates on the argmax; as <span class="math inline">\(T\to\infty\)</span> it approaches uniform. The demo checks
+the identity against a direct softmax of <span class="math inline">\(z/T\)</span> for three temperatures.</p>
+<h3 id="truncation">Truncation <a class="header-anchor" href="#truncation">#</a></h3>
+<p>Top-<span class="math inline">\(k\)</span> keeps the <span class="math inline">\(k\)</span> largest logits and sets the rest to <span class="math inline">\(-\infty\)</span> before
+renormalising:</p>
+<div class="math block">
+\[S_k=\mathrm{topk}(p,k),\qquad
+p_k(v)=\frac{p(v)\mathbf{1}[v\in S_k]}{\sum_{u\in S_k}p(u)}.
+\qquad (6)\]
+</div>
+<p>Top-<span class="math inline">\(p\)</span> keeps the shortest prefix of the sorted probabilities whose cumulative
+mass reaches <span class="math inline">\(p\)</span>:</p>
+<div class="math block">
+\[S_p=\Big\{v_1,\ldots,v_m\Big\},\qquad
+m=\min\Big\{j:\sum_{i=1}^{j}p_{(i)}\ge p\Big\},
+\qquad (7)\]
+</div>
+<p>where <span class="math inline">\(p_{(1)}\ge p_{(2)}\ge\cdots\)</span> are the sorted probabilities. The demo's
+distribution is <span class="math inline">\(0.5,0.25,0.15,0.1\)</span>: at <span class="math inline">\(p=0.7\)</span> the first two already hold
+<span class="math inline">\(0.75\)</span>, so <span class="math inline">\(m=2\)</span>, while top-<span class="math inline">\(k\)</span> with <span class="math inline">\(k=2\)</span> happens to agree and with <span class="math inline">\(k=3\)</span> does
+not. On a flat distribution top-<span class="math inline">\(p\)</span> keeps many tokens; on a peaked one it keeps
+few, and that is the whole point.</p>
+<p>Both are applied before the draw, so the sample is drawn from the renormalised
+truncated distribution rather than from the full one.</p>
+<h3 id="repetition-penalty">Repetition penalty <a class="header-anchor" href="#repetition-penalty">#</a></h3>
+<p>For a token <span class="math inline">\(v\)</span> that already appears in the context, the CTRL-style penalty is</p>
+<div class="math block">
+\[z'_v=\begin{cases}z_v/\theta & z_v>0,\\ \theta\,z_v & z_v\le 0,\end{cases}
+\qquad \theta\ge 1,
+\qquad (8)\]
+</div>
+<p>which moves the logit toward zero from either side. A positive logit shrinks by
+the factor <span class="math inline">\(\theta\)</span>, a negative one grows in magnitude, and the ranking of used
+tokens relative to unused ones drops. The demo uses four logits
+<span class="math inline">\(4,3,2.5,2.2\)</span>: with <span class="math inline">\(\theta=2\)</span> the model visits <span class="math inline">\(0,1,2,3\)</span> and then locks onto
+<span class="math inline">\(0\)</span>, because after every token has been used the ranking is the original one
+again, scaled. The penalty reads the set of tokens in the context, not their
+recency, which is why it cannot produce a long cycle.</p>
+<h3 id="contrastive-decoding">Contrastive decoding <a class="header-anchor" href="#contrastive-decoding">#</a></h3>
+<p>Let <span class="math inline">\(p_e\)</span> be the expert and <span class="math inline">\(p_a\)</span> the amateur, and let <span class="math inline">\(\alpha\ge0\)</span>. Contrastive
+decoding scores a token by</p>
+<div class="math block">
+\[\log \tilde p(v)=(1+\alpha)\log p_e(v\mid y_{<t})
+-\alpha\log p_a(v\mid y_{<t}),
+\qquad (9)\]
+</div>
+<p>and samples or takes the argmax of <span class="math inline">\(\tilde p\)</span>. The same expression is the
+pointwise mutual information between the token and the context under the two
+models:</p>
+<div class="math block">
+\[\log\tilde p(v)=\log p_e(v\mid y_{<t})
++\alpha\log\frac{p_e(v\mid y_{<t})}{p_a(v\mid y_{<t})}.
+\qquad (10)\]
+</div>
+<p>The first term is what the expert wants; the second rewards tokens the expert
+likes more than the amateur does. A token both models love has a ratio near one
+and gets no bonus, and a token the amateur loves more is actively suppressed. In
+the demo the expert's logits are <span class="math inline">\(1.0,0.9,0.9\)</span> and the amateur's are <span class="math inline">\(3,0,0\)</span>: the
+expert alone picks token <span class="math inline">\(0\)</span>, and at <span class="math inline">\(\alpha=0.5\)</span> the amateur's preference for
+the same token outweighs the expert's <span class="math inline">\(0.1\)</span> margin, so the choice moves to token
+<span class="math inline">\(1\)</span>. With <span class="math inline">\(\alpha=0\)</span> the variant reduces to the expert and the choice returns.</p>
+<h3 id="sampling">Sampling <a class="header-anchor" href="#sampling">#</a></h3>
+<p>The three sampling variants share one loop: shape the logits, exponentiate and
+renormalise, draw one token, append it. With a seeded generator the draw is
+deterministic, which is what lets the demo compare runs. The categorical draw is</p>
+<div class="math block">
+\[v\sim\mathrm{Categorical}\Big(\frac{\exp z'}{\sum_u\exp z'_u}\Big),
+\qquad (11)\]
+</div>
+<p>and the loop stops at the end token or at the length limit, whichever comes
+first. Sampling is not an approximation to the argmax: it explores the
+distribution on purpose, which is why the same model produces different
+sentences on different seeds.</p>
+<h3 id="why-beam-is-not-exact">Why beam is not exact <a class="header-anchor" href="#why-beam-is-not-exact">#</a></h3>
+<p>The recursion in (3) prunes by current score, and a prefix that is behind now can
+still win later. A beam of width <span class="math inline">\(B\)</span> is exact only if the pruned mass is zero,
+which in practice means never. The demo makes the gap concrete: on a random table
+over three tokens and three steps, a beam of one is <span class="math inline">\(0.34\)</span> behind the brute-force
+optimum, while a beam of <span class="math inline">\(27\)</span> is exact. Beam search is a good heuristic with a
+knob, not an algorithm with a guarantee.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="truncating-the-tail">Truncating the tail <a class="header-anchor" href="#truncating-the-tail">#</a></h3>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_masked_top_k</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Keep the k largest logits, set the rest to -inf."""</span>
+    <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;=</span> <span class="n">logits</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">logits</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">logits</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">order</span><span class="p">[:</span><span class="n">k</span><span class="p">]]</span> <span class="o">=</span> <span class="n">logits</span><span class="p">[</span><span class="n">order</span><span class="p">[:</span><span class="n">k</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">output</span>
+</code></pre>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_masked_top_p</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Keep the smallest set of tokens whose probability reaches p."""</span>
+    <span class="n">probabilities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_log_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">))</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">probabilities</span><span class="p">)</span>
+    <span class="n">cumulative</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">probabilities</span><span class="p">[</span><span class="n">order</span><span class="p">])</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cumulative</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">keep</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">logits</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">order</span><span class="p">[:</span><span class="n">keep</span><span class="p">]]</span> <span class="o">=</span> <span class="n">logits</span><span class="p">[</span><span class="n">order</span><span class="p">[:</span><span class="n">keep</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">output</span>
+</code></pre>
+<p>Both functions do the same two things: decide a set, then set everything outside
+it to <span class="math inline">\(-\infty\)</span>. The <span class="math inline">\(-\infty\)</span> entries survive the later log-softmax as exact
+zeros, so the draw can never pick a pruned token. <code>searchsorted</code> finds the first
+index where the cumulative mass reaches <span class="math inline">\(p\)</span>; the <code>+1</code> converts that index to a
+count, and the clamp keeps at least one token alive even when <span class="math inline">\(p\)</span> is smaller than
+the top probability.</p>
+<h3 id="the-penalty">The penalty <a class="header-anchor" href="#the-penalty">#</a></h3>
+<pre class="highlight"><code>        <span class="n">output</span> <span class="o">=</span> <span class="n">logits</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">context</span><span class="p">):</span>
+            <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">token</span> <span class="o">&lt;</span> <span class="n">output</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+                <span class="n">output</span><span class="p">[</span><span class="n">token</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="n">token</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">penalty</span> <span class="k">if</span> <span class="n">output</span><span class="p">[</span><span class="n">token</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
+                                 <span class="k">else</span> <span class="n">output</span><span class="p">[</span><span class="n">token</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">penalty</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span>
+</code></pre>
+<p><code>set(context)</code> is the key detail: the penalty depends on whether a token has
+appeared at all, not on how often or how recently. Dividing a positive logit and
+multiplying a negative one both move it toward zero, which is what makes the rule
+symmetric around zero and monotone in the penalty. Guarding the index keeps a
+prompt from a larger vocabulary from raising an <code>IndexError</code>.</p>
+<h3 id="shaping-the-distribution">Shaping the distribution <a class="header-anchor" href="#shaping-the-distribution">#</a></h3>
+<pre class="highlight"><code>        <span class="n">shaped</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_penalise</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"contrastive"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">amateur</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"contrastive decoding needs an amateur model"</span><span class="p">)</span>
+            <span class="n">expert</span> <span class="o">=</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="n">shaped</span><span class="p">)</span>
+            <span class="n">weak</span> <span class="o">=</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_logits</span><span class="p">(</span><span class="n">amateur</span><span class="p">,</span> <span class="n">context</span><span class="p">))</span>
+            <span class="n">shaped</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="n">expert</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">weak</span>
+            <span class="k">return</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="n">shaped</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"temperature"</span><span class="p">:</span>
+            <span class="n">shaped</span> <span class="o">=</span> <span class="n">shaped</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"top_k"</span><span class="p">:</span>
+            <span class="n">shaped</span> <span class="o">=</span> <span class="n">_masked_top_k</span><span class="p">(</span><span class="n">shaped</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"top_p"</span><span class="p">:</span>
+            <span class="n">shaped</span> <span class="o">=</span> <span class="n">_masked_top_p</span><span class="p">(</span><span class="n">shaped</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="n">shaped</span><span class="p">)</span>
+</code></pre>
+<p>Every variant funnels through one function, which is why they compose with any of
+the searches: the search asks for log-probabilities and does not care how they
+were produced. Contrastive is the exception that returns early, because it works
+in log-probability space rather than on logits — the subtraction in (9) is only
+meaningful after both models have been normalised.</p>
+<h3 id="greedy-1">Greedy <a class="header-anchor" href="#greedy-1">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_argmax</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">prompt</span>
+        <span class="n">logprob</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_length</span><span class="p">):</span>
+            <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logits</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">tokens</span><span class="p">)</span>
+            <span class="n">log_probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distribution</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span>
+            <span class="n">token</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">log_probs</span><span class="o">.</span><span class="n">argmax</span><span class="p">())</span>
+            <span class="n">logprob</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_probs</span><span class="p">[</span><span class="n">token</span><span class="p">])</span>
+            <span class="n">tokens</span> <span class="o">=</span> <span class="n">tokens</span> <span class="o">+</span> <span class="p">(</span><span class="n">token</span><span class="p">,)</span>
+            <span class="k">if</span> <span class="n">eos</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">token</span> <span class="o">==</span> <span class="n">eos</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span>
+</code></pre>
+<p>The prefix is a tuple, so extending it is <span class="math inline">\(O(1)\)</span> amortised and hashing it for a
+dictionary costs the length of the prefix. <code>logprob</code> accumulates the model's own
+log-probability of the tokens it chose, and it is what <code>logprob_</code> reports after a
+call. The <code>eos</code> check comes after the append, so the end token is part of the
+returned sequence.</p>
+<h3 id="beam-extension">Beam extension <a class="header-anchor" href="#beam-extension">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_length</span><span class="p">):</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span> <span class="ow">in</span> <span class="n">beams</span><span class="p">:</span>
+                <span class="n">log_probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distribution</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_logits</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">tokens</span><span class="p">),</span> <span class="n">tokens</span><span class="p">,</span>
+                                               <span class="n">amateur</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">log_probs</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="n">logprob</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_probs</span><span class="p">[</span><span class="n">token</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">eos</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">token</span> <span class="o">==</span> <span class="n">eos</span><span class="p">:</span>
+                        <span class="n">finished</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tokens</span> <span class="o">+</span> <span class="p">(</span><span class="n">token</span><span class="p">,),</span> <span class="n">value</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tokens</span> <span class="o">+</span> <span class="p">(</span><span class="n">token</span><span class="p">,),</span> <span class="n">value</span><span class="p">))</span>
+</code></pre>
+<p>This is (3) written out. Each prefix is scored once, not once per extension, so
+the model call count is <span class="math inline">\(|B|\)</span> per step rather than <span class="math inline">\(|B|V\)</span>. A token whose
+log-probability is <span class="math inline">\(-\infty\)</span> — pruned by top-<span class="math inline">\(k\)</span> or top-<span class="math inline">\(p\)</span> — is skipped, which
+is what stops a truncated variant from resurrecting the tail inside the beam. The
+branch on <code>eos</code> is the only structural difference between the finished pool and
+the active pool.</p>
+<h3 id="stopping-and-the-final-choice">Stopping and the final choice <a class="header-anchor" href="#stopping-and-the-final-choice">#</a></h3>
+<pre class="highlight"><code>            <span class="n">candidates</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="o">-</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">beams</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[:</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">finished</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="p">:</span>
+                <span class="n">best_finished</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">score</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">score</span> <span class="ow">in</span> <span class="n">finished</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">best_finished</span><span class="p">:</span>
+                    <span class="k">break</span>
+        <span class="n">pool</span> <span class="o">=</span> <span class="n">finished</span> <span class="o">+</span> <span class="n">beams</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">best</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">best</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</code></pre>
+<p>The sort is by negative score, so <code>candidates[0]</code> is the best active prefix and
+the comparison is against the best finished sequence. Because scores only
+decrease, <code>candidates[0][1]</code> is an upper bound on anything the active set can
+still produce, and the break is safe rather than heuristic. The final <code>pool</code>
+concatenates both lists; in the demo the early end token wins that comparison,
+which greedy never even considers.</p>
+<h3 id="the-sampling-loop">The sampling loop <a class="header-anchor" href="#the-sampling-loop">#</a></h3>
+<pre class="highlight"><code>            <span class="n">probabilities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_probs</span><span class="p">)</span>
+            <span class="n">probabilities</span> <span class="o">=</span> <span class="n">probabilities</span> <span class="o">/</span> <span class="n">probabilities</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="n">token</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">probabilities</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">probabilities</span><span class="p">))</span>
+</code></pre>
+<p>Renormalising after <code>exp</code> is not redundant: the log-probabilities are already
+normalised, but truncation and contrastive shaping happen in log space and the
+exponentiated rows can carry rounding error. Dividing by the sum makes
+<code>rng.choice</code> receive a valid probability vector, and doing it explicitly keeps
+the dependency visible. The generator is seeded per call, so two calls with the
+same seed return the same sequence.</p>
+<h3 id="dispatch">Dispatch <a class="header-anchor" href="#dispatch">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"beam"</span><span class="p">:</span>
+            <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"top_k"</span><span class="p">,</span> <span class="s2">"top_p"</span><span class="p">,</span> <span class="s2">"temperature"</span><span class="p">):</span>
+            <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_argmax</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span>
+</code></pre>
+<p>Three searches for seven variants: the sampling variants differ only in how they
+shape the distribution, and the shaping variants differ only in which search
+consumes them. <code>decode</code> also validates the prompt and the end token before any
+model call, so a bad argument fails before the expensive part.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(T\)</span> be the generated length, <span class="math inline">\(V\)</span> the vocabulary, <span class="math inline">\(B\)</span> the beam width, <span class="math inline">\(P\)</span> the
+model's cost per call and <span class="math inline">\(N\)</span> the prompt length.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">model calls</th>
+<th style="text-align:left">extra work</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">greedy</td>
+<td style="text-align:left"><span class="math inline">\(T\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TV)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(N+T)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">beam</td>
+<td style="text-align:left"><span class="math inline">\(TB\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TBV\log(BV))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(BV)\)</span> candidates</td>
+</tr>
+<tr>
+<td style="text-align:left">temperature sample</td>
+<td style="text-align:left"><span class="math inline">\(T\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TV)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(N+T)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">top-<span class="math inline">\(k\)</span> sample</td>
+<td style="text-align:left"><span class="math inline">\(T\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TV\log V)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(V)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">top-<span class="math inline">\(p\)</span> sample</td>
+<td style="text-align:left"><span class="math inline">\(T\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TV\log V)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(V)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">repetition penalty</td>
+<td style="text-align:left"><span class="math inline">\(T\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(T(N+T))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(V)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">contrastive</td>
+<td style="text-align:left"><span class="math inline">\(2T\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(TV)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(V)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The model call dominates everything else in practice, so the honest comparison is
+in calls: greedy and the sampling variants make <span class="math inline">\(T\)</span>, beam makes <span class="math inline">\(T B\)</span>, and
+contrastive doubles the count because it evaluates the amateur as well. The sorts
+are over <span class="math inline">\(V\)</span> or <span class="math inline">\(BV\)</span> items and are negligible next to a transformer forward pass.</p>
+<p>Memory is the other difference. Greedy keeps one prefix and one distribution;
+beam keeps <span class="math inline">\(B V\)</span> scored candidates per step, which is small compared with the
+KV cache a real model keeps for the prompt and the generated tokens. The cost of
+a wide beam is latency, not memory.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Greedy treated as optimal.</strong> The demo's two-step table is the smallest possible
+counterexample, and it is not contrived: any model whose first-token preference
+disagrees with the joint preference fails the same way. A greedy decoder is a
+baseline, not a guarantee.</p>
+<p><strong>A beam that is too narrow.</strong> A beam of one is greedy, and a beam of four can
+still prune the eventual winner in the first step. The demo's random table puts a
+beam of one <span class="math inline">\(0.34\)</span> behind the optimum; widening it to <span class="math inline">\(27\)</span> closes the gap
+exactly. Beam width is a quality knob with a cost, and there is no width that is
+correct for every input.</p>
+<p><strong>Beam collapse.</strong> With a beam and a likelihood objective, the highest-scoring
+sequence is often short and repetitive, because the end token and common tokens
+are cheap. The classic symptom is a beam whose candidates are all the same
+sentence with different lengths. Length normalisation or a coverage penalty is
+the usual fix.</p>
+<p><strong>Unnormalised scores after shaping.</strong> Truncation sets entries to <span class="math inline">\(-\infty\)</span> and
+contrastive subtraction does not preserve normalisation, so the row must be
+renormalised before a draw. Skipping the division still produces a valid-looking
+sample because <code>rng.choice</code> tolerates small errors, and the bug shows up as a
+slightly wrong distribution rather than as a crash.</p>
+<p><strong>A temperature of zero.</strong> Division by zero is the obvious failure, and the
+constructor refuses it. The subtler one is a temperature so small that the
+softmax underflows to a one-hot vector, after which sampling is greedy and the
+seeds stop mattering.</p>
+<p><strong>Top-<span class="math inline">\(p\)</span> with a tiny <span class="math inline">\(p\)</span>.</strong> The clamp to one token keeps the distribution valid,
+but it silently turns top-<span class="math inline">\(p\)</span> into greedy. A caller who wanted variety and got
+none should check <span class="math inline">\(p\)</span> before blaming the model.</p>
+<p><strong>A penalty that cannot see recency.</strong> The rule in (8) reads the set of tokens in
+the context. Once every token has been used, the ranking returns to the original
+one and the loop resumes, as the demo shows. Frequency penalties and
+no-repeat-ngram constraints exist because the static penalty cannot express &quot;not
+again so soon&quot;.</p>
+<p><strong>Contrastive with a badly matched amateur.</strong> The amateur must share the expert's
+tokeniser and be weaker in the same domain; otherwise the subtraction suppresses
+the right tokens for the wrong reason. An amateur that is stronger than the
+expert inverts the objective, and an amateur with a different vocabulary makes
+the log-probabilities incomparable.</p>
+<p><strong>The stopping rule with a length limit.</strong> The bound in (4) is about finished
+sequences. When the length limit is what stops the search, the comparison is
+between truncated continuations of different lengths, and the scores are not
+directly comparable without a length normalisation. The demo sidesteps this by
+using a short limit; a production decoder has to choose a policy.</p>
+<p><strong>An end token inside a truncated set.</strong> If top-<span class="math inline">\(k\)</span> or top-<span class="math inline">\(p\)</span> removes the end
+token, the beam can never finish and always runs to the length limit. The failure
+is quiet: the sequences look fine, they are just longer than they should be.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Machine translation.</strong> Beam search was the default decoder for encoder-decoder
+translation for years, usually with a length penalty because the raw likelihood
+favours short outputs. Widths of four to eight were standard, and the quality
+difference against greedy was large enough to justify the cost.</p>
+<p><strong>Speech recognition.</strong> A beam over the CTC lattice or over an attention decoder
+is how acoustic models become transcripts, often with an external language model
+shaping the scores. The <code>ctc</code> atom implements the lattice version of the same
+search.</p>
+<p><strong>Summarisation and captioning.</strong> Beam search with a length penalty and a
+coverage term is still common for tasks judged on ROUGE or CIDEr, where the
+reference is one particular sentence rather than a distribution.</p>
+<p><strong>Code generation.</strong> Sampling with a low temperature and top-<span class="math inline">\(p\)</span> is the default
+for code assistants, because a single greedy completion cannot express the
+several valid ways to write the same function. The truncation keeps the sample
+inside the syntax the model is confident about.</p>
+<p><strong>Creative writing and dialogue.</strong> Temperature and top-<span class="math inline">\(p\)</span> are the knobs users
+actually feel. A high temperature increases diversity and the rate of incoherence
+together; top-<span class="math inline">\(p\)</span> is the usual compromise because it adapts the candidate set to
+the model's confidence.</p>
+<p><strong>Constrained generation.</strong> The same beam machinery carries hard constraints: a
+grammar mask sets the logits of illegal tokens to <span class="math inline">\(-\infty\)</span>, and the search then
+only ever emits valid syntax. JSON mode in production APIs is this idea at the
+logit level.</p>
+<p><strong>Retrieval-augmented and tool-using models.</strong> Contrastive decoding and
+classifier-free guidance are the same subtraction with different references, and
+they are used to make a model attend to the retrieved context instead of falling
+back on its prior.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Graves, A. (2012). Sequence transduction with recurrent neural networks.
+<em>arXiv:1211.3711</em>. The introduction of beam search for neural sequence models.</li>
+<li>Sutskever, I., Vinyals, O. &amp; Le, Q. V. (2014). Sequence to sequence learning
+with neural networks. <em>NeurIPS</em>. Beam search as the decoder for an
+encoder-decoder translator.</li>
+<li>Huang, L., Zhao, K. &amp; Ma, M. (2017). When to finish? Optimal beam search for
+neural machine translation. <em>EMNLP</em>. The stopping rule and its optimality
+condition.</li>
+<li>Holtzman, A., Buys, J., Du, L., Forbes, M. &amp; Choi, Y. (2020). The curious case
+of neural text degeneration. <em>ICLR</em>. Why likelihood maximisation produces
+repetitive text, and nucleus sampling.</li>
+<li>Fan, A., Lewis, M. &amp; Dauphin, Y. (2018). Hierarchical neural story generation.
+<em>ACL</em>. Top-<span class="math inline">\(k\)</span> sampling for open-ended generation.</li>
+<li>Keskar, N. S., McCann, B., Varshney, L. R., Xiong, C. &amp; Socher, R. (2019). CTRL:
+a conditional transformer language model for controllable generation.
+<em>arXiv:1909.05858</em>. The repetition penalty in (8).</li>
+<li>Li, X. L., Holtzman, A., West, P., Liang, Y. &amp; Hashimoto, T. (2023).
+Contrastive decoding: open-ended text generation as optimization.
+<em>ACL</em>. The expert-amateur subtraction.</li>
+<li>Su, Y., Lan, T., Wang, Y., Yogatama, D., Kong, L., Liu, L. &amp; Collier, N.
+(2022). A contrastive framework for neural text generation. <em>NeurIPS</em>.
+Contrastive search and the degeneracy it targets.</li>
+<li>Meister, C., Vieira, T. &amp; Cotterell, R. (2020). Best-first beam search.
+<em>TACL</em>. A variant that keeps the optimality guarantee while pruning.</li>
+<li>Koehn, P. &amp; Knowles, R. (2017). Six challenges for neural machine translation.
+<em>WMT</em>. Beam search, length bias and the evaluation gap in practice.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="tcn.html"><small>Previous</small><span>Temporal convnets</span></a><a class="next" href="ngram_lm.html"><small>Next</small><span>N-gram language models</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">10 · Sequences</p><ul class="rail-list"><li><a href="markov_chain.html"><span class="tick">✓</span><span>Markov chains</span></a></li><li><a href="hmm.html"><span class="tick">✓</span><span>Hidden Markov models</span></a></li><li><a href="dtw.html"><span class="tick">✓</span><span>Dynamic time warping</span></a></li><li><a href="rnn.html"><span class="tick">✓</span><span>Recurrent networks</span></a></li><li><a href="lstm_gru.html"><span class="tick">✓</span><span>LSTM &amp; GRU</span></a></li><li><a href="attention.html"><span class="tick">✓</span><span>Attention</span></a></li><li><a href="crf.html"><span class="tick">✓</span><span>Conditional random fields</span></a></li><li><a href="ctc.html"><span class="tick">✓</span><span>Connectionist temporal classification</span></a></li><li><a href="tcn.html"><span class="tick">✓</span><span>Temporal convnets</span></a></li><li><a href="beam_search.html" aria-current="page"><span class="tick">✓</span><span>Beam search</span></a></li><li><a href="ngram_lm.html"><span class="tick">✓</span><span>N-gram language models</span></a></li><li><a href="ssm.html"><span class="tick">✓</span><span>State-space models</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../09-density-and-anomaly/index.html"><span class="jump">← 09 · Density &amp; anomaly</span></a></li><li><a href="../11-time-series/index.html"><span class="jump">11 · Time series&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-sequence-score">The sequence score</a></li><li class="lvl3"><a href="#greedy">Greedy</a></li><li class="lvl3"><a href="#beam-search">Beam search</a></li><li class="lvl3"><a href="#stopping-and-the-end-token">Stopping and the end token</a></li><li class="lvl3"><a href="#temperature">Temperature</a></li><li class="lvl3"><a href="#truncation">Truncation</a></li><li class="lvl3"><a href="#repetition-penalty">Repetition penalty</a></li><li class="lvl3"><a href="#contrastive-decoding">Contrastive decoding</a></li><li class="lvl3"><a href="#sampling">Sampling</a></li><li class="lvl3"><a href="#why-beam-is-not-exact">Why beam is not exact</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#truncating-the-tail">Truncating the tail</a></li><li class="lvl3"><a href="#the-penalty">The penalty</a></li><li class="lvl3"><a href="#shaping-the-distribution">Shaping the distribution</a></li><li class="lvl3"><a href="#greedy-1">Greedy</a></li><li class="lvl3"><a href="#beam-extension">Beam extension</a></li><li class="lvl3"><a href="#stopping-and-the-final-choice">Stopping and the final choice</a></li><li class="lvl3"><a href="#the-sampling-loop">The sampling loop</a></li><li class="lvl3"><a href="#dispatch">Dispatch</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/10-sequences/beam_search.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

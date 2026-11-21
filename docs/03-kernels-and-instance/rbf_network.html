@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RBF networks · MLAtoms</title>
+<meta name="description" content="Radial basis units with k-means centres and least-squares readout. A radial basis function network is a sum of bumps:">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/rbf_network.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="RBF networks">
+<meta property="og:description" content="Radial basis units with k-means centres and least-squares readout. A radial basis function network is a sum of bumps:">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/rbf_network.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RBF networks">
+<meta name="twitter:description" content="Radial basis units with k-means centres and least-squares readout. A radial basis function network is a sum of bumps:">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "RBF networks", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/rbf_network.html", "description": "Radial basis units with k-means centres and least-squares readout. A radial basis function network is a sum of bumps:", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">03 · Kernels &amp; instance-based</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="rbf_network.py.html">source</a></p><h1>Radial basis function networks — bumps, centres and a linear readout</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A radial basis function network is a sum of bumps:</p>
+<pre class="highlight"><code> y
+ │        ╭─╮        ╭─╮
+ │   ╭────╯ ╰──╮  ╭──╯ ╰────╮
+ │  ╱          ╰──╯          ╲      f(x) = Σ w_j φ_j(x)
+ │ ╱                          ╲
+ └──────────────────────────────── x
+        c₁        c₂        c₃
+</code></pre>
+<p>Each hidden unit is a Gaussian centred at <span class="math inline">\(c_j\)</span>, and the output is a weighted
+sum of them plus an intercept. Two things follow from that shape. First, the
+model is <em>local</em>: a bump only answers for inputs near its centre, so a training
+point far from a centre cannot influence the prediction there. Second, and more
+importantly for fitting, the weights enter linearly. Once the centres and the
+width are fixed, the network is a linear model whose features happen to be
+bumps, and the weights are a least-squares solution with no backpropagation,
+no learning rate and no epochs.</p>
+<p>That makes the whole atom the answer to two questions. <em>Where do the bumps go?</em>
+Put one on every training point and the system becomes square, so it has a
+unique solution and the fit is exact interpolation. Put a handful of them where
+the data is dense and the system is overdetermined, so the weights are a
+regression, and the model generalises instead of memorising. <em>How wide are
+they?</em> The width sets the scale of &quot;near&quot;. A narrow bump makes each unit see
+one point and the network becomes a lookup table; a wide bump makes every unit
+see everything and the model becomes nearly constant. The demo measures the
+first effect as a condition number climbing from <span class="math inline">\(7\times10^{4}\)</span> to <span class="math inline">\(10^{18}\)</span>
+over the same sweep that drives the error to zero.</p>
+<p>The last idea is normalisation. The Gaussian bumps overlap, so their sum is not
+one — the demo measures between <span class="math inline">\(1.09\)</span> and <span class="math inline">\(2.70\)</span> across the input range.
+Dividing by that sum turns the layer into a partition of unity: a probability
+vector per input, so the output is an <em>average</em> of the weights and cannot leave
+their range. With the weights set equal to the targets this is the
+Nadaraya-Watson estimator, and the atom's <code>grnn</code> variant is exactly that: no
+readout to solve, just a distance-weighted average of what was observed. It
+reproduces a constant target to <span class="math inline">\(2\times10^{-15}\)</span> where the raw basis is off by
+<span class="math inline">\(3.8\times10^{-2}\)</span>, and the difference is not a detail — it is why the
+normalised form is the one used in practice.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">centres</th>
+<th style="text-align:left">readout</th>
+<th style="text-align:left">bias</th>
+<th style="text-align:left">interpolates</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>exact_interpolation</code></td>
+<td style="text-align:left">every point</td>
+<td style="text-align:left">solve the square system</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">yes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kmeans_centers</code></td>
+<td style="text-align:left"><span class="math inline">\(k\)</span> from Lloyd's algorithm</td>
+<td style="text-align:left">least squares</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ols_readout</code></td>
+<td style="text-align:left"><span class="math inline">\(k\)</span> from Lloyd's algorithm</td>
+<td style="text-align:left">least squares plus ridge</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>normalized_rbf</code></td>
+<td style="text-align:left"><span class="math inline">\(k\)</span> from Lloyd's algorithm</td>
+<td style="text-align:left">least squares</td>
+<td style="text-align:left">no, sums to one</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>grnn</code></td>
+<td style="text-align:left">every point</td>
+<td style="text-align:left">none, the weights are the targets</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">no</td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid-source"><code class="language-mermaid">graph TD
+  A[choose centres] --&gt; B[all points]
+  A --&gt; C[k-means]
+  B --&gt; D[exact_interpolation]
+  B --&gt; E[grnn]
+  C --&gt; F[kmeans_centers]
+  C --&gt; G[ols_readout]
+  C --&gt; H[normalized_rbf]
+  E --&gt; I[weights are the targets]
+  H --&gt; J[weights are solved]
+</code></pre>
+<p><strong><code>exact_interpolation</code></strong> puts a centre on every training point. The design
+matrix is square, Gaussian, and nonsingular for distinct points, so the weights
+are unique and the training residual is zero to rounding. It is the classical
+RBF interpolant, and it is a terrible predictor on noisy data.</p>
+<p><strong><code>kmeans_centers</code></strong> chooses <span class="math inline">\(k\)</span> centres with Lloyd's algorithm and solves the
+overdetermined least-squares problem. This is the standard recipe from the
+1990s: unsupervised centres, supervised readout, one pass, no gradients.</p>
+<p><strong><code>ols_readout</code></strong> keeps the k-means centres and adds an intercept and a ridge
+penalty. The intercept is what lets the model represent a constant without
+spending a bump on it, and the penalty is a shrinkage path: at <span class="math inline">\(\lambda=10^6\)</span>
+the weights vanish and the prediction is the target mean.</p>
+<p><strong><code>normalized_rbf</code></strong> divides each activation by the row sum. The basis becomes a
+partition of unity, a constant target is reproducible exactly, and the output
+is bounded by the weights' range.</p>
+<p><strong><code>grnn</code></strong> is the normalised form with one centre per point and the weights set
+to the targets. There is no linear system at all; the prediction is a
+distance-weighted average of the training targets, which is the generalised
+regression network of Specht and the Nadaraya-Watson estimator of the
+statistics literature.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-model">The model <a class="header-anchor" href="#the-model">#</a></h3>
+<p>With centres <span class="math inline">\(c_1,\ldots,c_k\)</span>, widths <span class="math inline">\(\sigma\)</span>, weights <span class="math inline">\(w\)</span> and intercept <span class="math inline">\(b\)</span>,</p>
+<div class="math block">
+\[\phi_j(x)=\exp\left(-\frac{\|x-c_j\|^2}{2\sigma^2}\right),\qquad
+f(x)=\sum_{j=1}^{k}w_j\phi_j(x)+b .
+\qquad (1)\]
+</div>
+<p>For <span class="math inline">\(n\)</span> training points with targets <span class="math inline">\(y\)</span> this is the linear system
+<span class="math inline">\(\Phi w+\mathbf{1}b=y\)</span> with <span class="math inline">\(\Phi_{ij}=\phi_j(x_i)\)</span>. Everything below is a
+choice about how to solve it.</p>
+<h3 id="interpolation-is-nonsingular">Interpolation is nonsingular <a class="header-anchor" href="#interpolation-is-nonsingular">#</a></h3>
+<p>For distinct centres the Gaussian matrix</p>
+<div class="math block">
+\[\Phi_{ij}=\exp\left(-\frac{\|x_i-x_j\|^2}{2\sigma^2}\right)
+\qquad (2)\]
+</div>
+<p>is symmetric positive definite. The Fourier transform of the Gaussian is
+positive everywhere, so for any coefficient vector <span class="math inline">\(a\ne0\)</span>,</p>
+<div class="math block">
+\[a^{\top}\Phi a=\sum_{i,j}a_i a_j e^{-\|x_i-x_j\|^2/2\sigma^2}
+=\int \Big|\sum_i a_i e^{i\omega^{\top}x_i}\Big|^2
+\hat\varphi(\omega)\,d\omega>0 ,
+\qquad (3)\]
+</div>
+<p>because the integrand is a non-negative function times a positive one and the
+sum is not identically zero. Hence <span class="math inline">\(\Phi\)</span> is invertible, the interpolant
+<span class="math inline">\(w=\Phi^{-1}y\)</span> exists and is unique, and this is Micchelli's theorem
+specialised to the Gaussian. The demo checks the conclusion directly: the
+smallest eigenvalue of <span class="math inline">\(\Phi\)</span> is <span class="math inline">\(3.9\times10^{-5}\)</span>.</p>
+<h3 id="the-width-is-a-trade-off-not-a-hyperparameter">The width is a trade-off, not a hyperparameter <a class="header-anchor" href="#the-width-is-a-trade-off-not-a-hyperparameter">#</a></h3>
+<p>Interpolation on the training points says nothing about the gaps between them.
+Writing the error of the interpolant in terms of the power function <span class="math inline">\(P_\Phi\)</span> of
+the centre set, the standard bound is</p>
+<div class="math block">
+\[|f(x)-s(x)|\le P_\Phi(x)\,\|f\|_{\mathcal{H}} ,
+\qquad (4)\]
+</div>
+<p>and for the Gaussian <span class="math inline">\(P_\Phi\)</span> shrinks as <span class="math inline">\(\sigma\)</span> grows while the condition
+number of <span class="math inline">\(\Phi\)</span> grows with it. The two cannot both be small — that is
+Schaback's uncertainty relation — and the demo's table is the measurement:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"><span class="math inline">\(\sigma\)</span></th>
+<th style="text-align:left">error between points</th>
+<th style="text-align:left">condition number</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">0.1</td>
+<td style="text-align:left">0.38616</td>
+<td style="text-align:left"><span class="math inline">\(7.4\times10^{04}\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">0.3</td>
+<td style="text-align:left">0.09107</td>
+<td style="text-align:left"><span class="math inline">\(1.6\times10^{08}\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">0.8</td>
+<td style="text-align:left">0.00019</td>
+<td style="text-align:left"><span class="math inline">\(3.6\times10^{16}\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">1.5</td>
+<td style="text-align:left"><span class="math inline">\(2\times10^{-5}\)</span></td>
+<td style="text-align:left"><span class="math inline">\(1.0\times10^{18}\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The practical reading is that a Gaussian interpolant wants a wide bump and a
+solver that tolerates an ill-conditioned matrix, or a small bump and more
+centres. Both are worse than choosing fewer centres, which is the next section.</p>
+<h3 id="fewer-centres-the-least-squares-fit">Fewer centres: the least-squares fit <a class="header-anchor" href="#fewer-centres-the-least-squares-fit">#</a></h3>
+<p>With <span class="math inline">\(k<n\)</span> the system is overdetermined and the natural solution is</p>
+<div class="math block">
+\[w=\arg\min_{\tilde w}\ \|\Phi\tilde w-y\|^2
+=(\Phi^{\top}\Phi)^{-1}\Phi^{\top}y ,
+\qquad (5)\]
+</div>
+<p>the same normal equations as linear regression, solved by the SVD rather than
+by forming <span class="math inline">\(\Phi^{\top}\Phi\)</span>, because <span class="math inline">\(\Phi\)</span> is typically ill-conditioned and
+squaring the condition number is avoidable. This is where k-means enters: the
+centres are chosen to minimise</p>
+<div class="math block">
+\[\sum_i\min_j\|x_i-c_j\|^2 ,
+\qquad (6)\]
+</div>
+<p>which is the k-means objective and has nothing to do with the targets. The two
+stages are trained separately, which is why this is not a neural network in any
+useful sense: there is no gradient flowing from the output to the centres.</p>
+<p>Lloyd's algorithm alternates two steps, assign each point to its nearest centre
+and move each centre to the mean of its cluster, and both steps decrease (6),
+so it converges to a local minimum. Initialisation matters, and the code uses
+k-means++: the first centre is uniform, and each subsequent one is drawn with
+probability proportional to the squared distance to the nearest centre already
+chosen. That single change is what keeps the result from depending on the seed.</p>
+<h3 id="the-readout-with-an-intercept-and-a-ridge">The readout with an intercept and a ridge <a class="header-anchor" href="#the-readout-with-an-intercept-and-a-ridge">#</a></h3>
+<p>Adding a column of ones to <span class="math inline">\(\Phi\)</span> makes the model affine rather than linear.
+The ridge version solves</p>
+<div class="math block">
+\[\min_{w,b}\ \|\Phi w+\mathbf{1}b-y\|^2+\lambda\|w\|^2 ,
+\qquad (7)\]
+</div>
+<p>with the penalty deliberately not applied to <span class="math inline">\(b\)</span>: shrinking the intercept would
+bias the model towards zero. The normal equations are</p>
+<div class="math block">
+\[\begin{bmatrix}\Phi^{\top}\Phi+\lambda I & \Phi^{\top}\mathbf{1}\\
+\mathbf{1}^{\top}\Phi & n\end{bmatrix}
+\begin{bmatrix}w\\ b\end{bmatrix}
+=
+\begin{bmatrix}\Phi^{\top}y\\ \mathbf{1}^{\top}y\end{bmatrix}.
+\qquad (8)\]
+</div>
+<p>As <span class="math inline">\(\lambda\to\infty\)</span> the first block dominates, <span class="math inline">\(w\to0\)</span>, and the second row
+gives <span class="math inline">\(b\to\bar y\)</span>: the model collapses to the constant predictor. The demo
+walks that path and measures the weight norm falling from <span class="math inline">\(3.21\)</span> to zero while
+the error rises to the spread of the signal, <span class="math inline">\(0.6999\)</span> — which is exactly what a
+constant predictor costs, and a good sanity check that the path is doing what
+the algebra says.</p>
+<h3 id="normalisation">Normalisation <a class="header-anchor" href="#normalisation">#</a></h3>
+<p>The raw basis does not sum to one because the bumps overlap. Defining</p>
+<div class="math block">
+\[\psi_j(x)=\frac{\phi_j(x)}{\sum_{m}\phi_m(x)},\qquad \sum_j\psi_j(x)=1 ,
+\qquad (9)\]
+</div>
+<p>turns the layer into a convex combination: for non-negative weights the output
+is a weighted average, and in general it lies between the smallest and largest
+weight. Two consequences are testable. A constant target <span class="math inline">\(y\equiv c\)</span> is
+reproduced exactly by <span class="math inline">\(w_j=c\)</span> for every <span class="math inline">\(j\)</span>, with no error and regardless of
+the centres — the demo gets <span class="math inline">\(2\times10^{-15}\)</span>. And the prediction at a point is
+an interpolation of the weights, so as <span class="math inline">\(\sigma\to0\)</span> it converges to the weight
+of the nearest centre.</p>
+<p>The same argument with <span class="math inline">\(w=y\)</span> gives the Nadaraya-Watson estimator</p>
+<div class="math block">
+\[\hat f(x)=\frac{\sum_i y_i\,\phi_i(x)}{\sum_i \phi_i(x)} ,
+\qquad (10)\]
+</div>
+<p>and its two limits are what make it trustworthy. As <span class="math inline">\(\sigma\to0\)</span> the nearest
+bump dominates and the estimate is the nearest neighbour's target; as
+<span class="math inline">\(\sigma\to\infty\)</span> every weight tends to <span class="math inline">\(1/n\)</span> and the estimate is the mean. The
+demo checks both to <span class="math inline">\(0\)</span> and <span class="math inline">\(8\times10^{-13}\)</span> respectively.</p>
+<h3 id="the-normalisation-is-a-scale">The normalisation is a scale <a class="header-anchor" href="#the-normalisation-is-a-scale">#</a></h3>
+<p>Dividing by the row sum also removes the global scale of the width. Replacing
+<span class="math inline">\(\sigma\)</span> by <span class="math inline">\(\sigma/s\)</span> multiplies every activation in a row by the same factor
+<span class="math inline">\(e^{-\|x-c_j\|^2(s^2-1)/2\sigma^2}\)</span> only if that factor is common to the row —
+which it is not, so the invariance is exact only in the limit of small <span class="math inline">\(\sigma\)</span>.
+What <em>is</em> exact is the invariance to a common multiplicative factor on the
+activations, for example from a rescaling of one feature, which is why the
+normalised variant is the one to use with unnormalised inputs.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="distances">Distances <a class="header-anchor" href="#distances">#</a></h3>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_sq_dists</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">C</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Squared Euclidean distances, shape ``(len(X), len(C))``."""</span>
+    <span class="n">squared</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">X</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+               <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">C</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+               <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">X</span> <span class="o">@</span> <span class="n">C</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">squared</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>The expansion <span class="math inline">\(\|x-c\|^2=\|x\|^2+\|c\|^2-2x^{\top}c\)</span> turns an <span class="math inline">\(n\times k\)</span> distance
+problem into one matrix product. The clamp is required: for two identical rows
+the subtraction leaves a negative number of order the machine epsilon times the
+norm, and a negative number under a square root — or, later, in an exponent —
+is the kind of bug that shows up once in ten thousand calls.</p>
+<h3 id="k-means">k-means++ <a class="header-anchor" href="#k-means">#</a></h3>
+<pre class="highlight"><code>    <span class="n">chosen</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="n">rows</span><span class="p">))]</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+        <span class="n">nearest</span> <span class="o">=</span> <span class="n">_sq_dists</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">chosen</span><span class="p">])</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">nearest</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">total</span> <span class="o">&lt;=</span> <span class="mf">0.0</span> <span class="k">else</span> <span class="n">nearest</span> <span class="o">/</span> <span class="n">total</span>
+        <span class="n">chosen</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">weights</span><span class="p">)))</span>
+    <span class="n">centres</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">chosen</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+</code></pre>
+<p>Each new centre is drawn in proportion to the squared distance to the set
+already chosen, so a cluster that no existing centre covers is likely to get
+one. The <code>weights = None</code> case is not defensive padding: if every remaining
+point coincides with a centre, all the probabilities are zero and
+<code>rng.choice</code> would raise on a distribution that does not sum to one, so the
+draw falls back to uniform.</p>
+<h3 id="lloyds-iteration">Lloyd's iteration <a class="header-anchor" href="#lloyds-iteration">#</a></h3>
+<pre class="highlight"><code>    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">iterations</span><span class="p">):</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">_sq_dists</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">centres</span><span class="p">)</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">updated</span> <span class="o">=</span> <span class="n">centres</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">labels</span> <span class="o">==</span> <span class="n">index</span>
+            <span class="k">if</span> <span class="n">members</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">updated</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">members</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">updated</span><span class="p">,</span> <span class="n">centres</span><span class="p">):</span>
+            <span class="k">break</span>
+        <span class="n">centres</span> <span class="o">=</span> <span class="n">updated</span>
+    <span class="k">return</span> <span class="n">centres</span>
+</code></pre>
+<p>Assign, average, repeat. Keeping <code>updated[index]</code> at the old position when a
+cluster is empty is what stops a centre from being dragged to the origin by a
+mean over no points. The loop is a Python loop over centres because <span class="math inline">\(k\)</span> is
+small and the inner work is a masked mean; vectorising it would need a
+scatter-add that is slower for the sizes this atom is for.</p>
+<h3 id="the-hidden-layer">The hidden layer <a class="header-anchor" href="#the-hidden-layer">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_design</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""The hidden layer, shape ``(len(X), k)``."""</span>
+        <span class="n">squared</span> <span class="o">=</span> <span class="n">_sq_dists</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">centers_</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="n">_NORMALIZED</span><span class="p">:</span>
+            <span class="n">squared</span> <span class="o">=</span> <span class="n">squared</span> <span class="o">-</span> <span class="n">squared</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">squared</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="n">_NORMALIZED</span><span class="p">:</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="n">phi</span> <span class="o">/</span> <span class="n">phi</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">phi</span>
+</code></pre>
+<p>The subtraction before the exponent is the log-sum-exp trick applied to the
+Gaussian: shifting a whole row by its minimum leaves every ratio unchanged, so
+for the normalised variants the result is identical while the largest entry
+becomes exactly one. Without it, a narrow width underflows every activation to
+zero, the row sum is zero, and the division produces <code>nan</code> — which is precisely
+the regime the <code>grnn</code> small-width limit lives in. For the raw variants the
+shift would change the model, so it is applied only where it cancels.</p>
+<h3 id="choosing-the-width">Choosing the width <a class="header-anchor" href="#choosing-the-width">#</a></h3>
+<pre class="highlight"><code>        <span class="n">nearest</span> <span class="o">=</span> <span class="n">_sq_dists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">centers_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">centers_</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">nearest</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="n">distance</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">nearest</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">distance</span><span class="p">)</span> <span class="ow">or</span> <span class="n">distance</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">1.0</span>
+        <span class="k">return</span> <span class="n">distance</span>
+</code></pre>
+<p>The default width is the mean distance from a centre to its nearest neighbour —
+the scale at which neighbouring bumps just touch. <code>fill_diagonal</code> with infinity
+is what makes the minimum skip the distance from a centre to itself, which is
+always zero and would otherwise set every width to zero and every matrix to the
+identity. The <code>finite</code> guard catches a single centre, where the minimum over an
+empty off-diagonal is infinite.</p>
+<h3 id="the-readout">The readout <a class="header-anchor" href="#the-readout">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"ols_readout"</span><span class="p">:</span>
+            <span class="n">design</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">phi</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">phi</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">))],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">penalty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ridge</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">design</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">penalty</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">solution</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span>
+                <span class="n">design</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">design</span> <span class="o">+</span> <span class="n">penalty</span><span class="p">,</span> <span class="n">design</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">y</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">=</span> <span class="n">solution</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bias_</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">solution</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">return</span>
+</code></pre>
+<p>This is (8) in four lines. Forming the normal equations and adding the penalty
+as a diagonal matrix is what makes the ridge a two-character change; the
+penalty is zeroed at the last entry so that (7) penalises the weights and not
+the intercept. The readout is the only place where the variants differ after
+the centres are chosen, which is why the whole class has one <code>fit</code>.</p>
+<h3 id="prediction">Prediction <a class="header-anchor" href="#prediction">#</a></h3>
+<pre class="highlight"><code>        <span class="n">points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_X</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">centers_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"X has the wrong number of features"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_design</span><span class="p">(</span><span class="n">points</span><span class="p">)</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_</span>
+</code></pre>
+<p>One matrix product against the stored centres and one against the weights. The
+cost is <span class="math inline">\(O(mkd)\)</span> for <span class="math inline">\(m\)</span> predictions, and the memory is the centres alone —
+<span class="math inline">\(k\times d\)</span> numbers — which is the reason a bump network is cheap to serve even
+though it is expensive to train at large <span class="math inline">\(k\)</span>.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(n\)</span> be the training count, <span class="math inline">\(k\)</span> the number of centres, <span class="math inline">\(d\)</span> the features, and
+<span class="math inline">\(T\)</span> the Lloyd iterations.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">distance matrix</td>
+<td style="text-align:left"><span class="math inline">\(O(nkd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nk)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">k-means++ initialisation</td>
+<td style="text-align:left"><span class="math inline">\(O(nk^2d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nk)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">Lloyd iterations</td>
+<td style="text-align:left"><span class="math inline">\(O(Tnkd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">readout (SVD)</td>
+<td style="text-align:left"><span class="math inline">\(O(nk^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nk)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">prediction on <span class="math inline">\(m\)</span> points</td>
+<td style="text-align:left"><span class="math inline">\(O(mkd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(mk)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">stored model</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left"><span class="math inline">\(O(kd)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The training cost is dominated by k-means, and both stages are linear in the
+number of points, which is the whole point: no kernel matrix is formed, so
+nothing is <span class="math inline">\(O(n^2)\)</span>. Compare the kernel ridge atom in this chapter, which needs
+the full <span class="math inline">\(n\times n\)</span> matrix and a dense solve. At <span class="math inline">\(n=10^5\)</span> that difference is
+decisive, and it is why the RBF recipe was the scalable method before random
+features and before minibatches.</p>
+<p>The readout is a tall-skinny least-squares problem, <span class="math inline">\(O(nk^2)\)</span>, and is solved by
+the SVD. Forming <span class="math inline">\(\Phi^{\top}\Phi\)</span> would square the condition number, which for
+a Gaussian basis is already <span class="math inline">\(10^{4}\)</span> to <span class="math inline">\(10^{18}\)</span> depending on the width — the
+demo's table shows both ends — so the SVD is not a stylistic choice.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A width that makes the system singular.</strong> A tiny <span class="math inline">\(\sigma\)</span> makes <span class="math inline">\(\Phi\)</span> the
+identity, so the interpolant is a lookup table: zero training error and a
+prediction that is wrong between every pair of points. The demo's <span class="math inline">\(\sigma=0.1\)</span>
+row still interpolates to <span class="math inline">\(10^{-15}\)</span> and is off by <span class="math inline">\(0.386\)</span> between the points.
+A large <span class="math inline">\(\sigma\)</span> fixes the accuracy and pushes the condition number past
+<span class="math inline">\(10^{16}\)</span>, where the solve is rounding noise.</p>
+<p><strong>Duplicate or nearly duplicate centres.</strong> Two identical centres give two
+identical columns, the matrix is singular, and <code>lstsq</code> silently returns a
+minimum-norm solution that splits the weight between them. Nothing errors and
+nothing is wrong, but the weights are no longer interpretable.</p>
+<p><strong>k-means with the wrong <span class="math inline">\(k\)</span>.</strong> The demo's sweep is the whole story: two centres
+give a held-out error of <span class="math inline">\(0.645\)</span>, eight give <span class="math inline">\(0.077\)</span>, sixty give <span class="math inline">\(1.804\)</span>. The
+unsupervised stage optimises distance to the data, not fit to the targets, so
+it will happily place two centres where the function has three features.</p>
+<p><strong>A raw basis where a normalised one is needed.</strong> The raw sum ranges from
+<span class="math inline">\(1.09\)</span> to <span class="math inline">\(2.70\)</span> over the input range, so the effective weight of each centre
+changes with position and a constant target is not representable. The demo's
+constant test is the sharp one: <span class="math inline">\(3.8\times10^{-2}\)</span> residual for the raw basis,
+<span class="math inline">\(2\times10^{-15}\)</span> for the normalised one.</p>
+<p><strong>Confusing the output bound.</strong> The normalised output is bounded by the
+<em>weights</em>, not by the targets — that bound is only the target range for
+<code>grnn</code>, where the two coincide. A normalised RBF fitted on the demo's noisy
+targets has weights from <span class="math inline">\(-6.04\)</span> to <span class="math inline">\(6.77\)</span> and predictions from <span class="math inline">\(-1.24\)</span> to
+<span class="math inline">\(1.24\)</span>, so the weight bound is real but not tight.</p>
+<p><strong>Extrapolation.</strong> A Gaussian bump decays to zero, so outside the convex hull
+of the centres a raw RBF network predicts its intercept and a normalised one
+predicts a weighted average of the weights at the boundary. Neither knows
+anything about the trend of the data. The demo's grid stays inside <span class="math inline">\([-3,3]\)</span>,
+which is the support of the training points, for exactly this reason.</p>
+<p><strong>Using backpropagation out of habit.</strong> The centres are trained without the
+targets and the weights are a closed-form solution, so there is nothing to
+descend. Adding gradient descent over all the parameters turns this atom into a
+small neural network with a much worse conditioning and no advantage; if you
+want that, you want a network atom, not this one.</p>
+<p><strong>The intercept on the wrong side of the penalty.</strong> Penalising <span class="math inline">\(b\)</span> alongside
+the weights pulls the model towards zero rather than towards the mean, and on
+data with a large offset it produces a visibly biased fit. The code zeroes the
+last diagonal entry of the penalty for this reason.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Function approximation from scattered data.</strong> The original use: interpolate
+measurements at irregular locations, which is what the <code>exact_interpolation</code>
+variant does and what the width trade-off in (4) is about.</p>
+<p><strong>Control and system identification.</strong> A small RBF network is a one-shot
+surrogate for a plant model, and the linear readout makes it cheap to refit
+online as new data arrives.</p>
+<p><strong>Time-series forecasting.</strong> The normalised form with a fixed width is a
+kernel smoother, and the generalised regression network was a standard
+short-horizon forecaster before gradient boosting took over.</p>
+<p><strong>Pattern classification.</strong> With one output per class and a winner-take-all
+readout this was the &quot;RBF classifier&quot; of the late 1980s, and the k-means
+centre choice is where the name &quot;hybrid learning&quot; comes from: unsupervised for
+the hidden layer, supervised for the output.</p>
+<p><strong>Nonparametric regression and density estimation.</strong> The Nadaraya-Watson
+estimator in (10) is the same object, and the two limits in the demo are the
+standard bias-variance argument for its bandwidth.</p>
+<p><strong>Surrogate models and design optimisation.</strong> An RBF fitted to a design of
+experiments is smooth, differentiable, and cheap to evaluate a million times,
+which is exactly what an optimiser needs.</p>
+<p><strong>Credit for the kernel view.</strong> An RBF network is kernel ridge regression with
+a finite basis: the centres are the support points and the readout is the
+kernel expansion truncated to them. Reading the two atoms side by side is the
+shortest route to understanding why kernel methods are not a different species.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Broomhead, D. S. &amp; Lowe, D. (1988). Multivariable functional interpolation and
+adaptive networks. <em>Complex Systems</em> 2, 321–355. The RBF network as an
+interpolation scheme.</li>
+<li>Moody, J. &amp; Darken, C. J. (1989). Fast learning in networks of locally tuned
+processing units. <em>Neural Computation</em> 1(2), 281–294. The two-stage recipe:
+k-means centres, least-squares readout.</li>
+<li>Micchelli, C. A. (1986). Interpolation of scattered data: distance matrices
+and conditionally positive definite functions. <em>Constructive Approximation</em>
+2, 11–22. Nonsingularity of the Gaussian interpolation matrix, (2) and (3).</li>
+<li>Schaback, R. (1995). Error estimates and condition numbers for radial basis
+function interpolation. <em>Advances in Computational Mathematics</em> 3, 251–264.
+The uncertainty relation behind the width trade-off.</li>
+<li>Specht, D. F. (1991). A general regression neural network. <em>IEEE Transactions
+on Neural Networks</em> 2(6), 568–576. The <code>grnn</code> variant.</li>
+<li>Nadaraya, E. A. (1964). On estimating regression. <em>Theory of Probability and
+its Applications</em> 9(1), 141–142. The estimator in (10).</li>
+<li>Arthur, D. &amp; Vassilvitskii, S. (2007). k-means++: the advantages of careful
+seeding. <em>SODA</em>. The initialisation used in the code.</li>
+<li>Park, J. &amp; Sandberg, I. W. (1991). Universal approximation using radial-basis-
+function networks. <em>Neural Computation</em> 3(2), 246–257. Why this architecture
+can approximate any continuous function.</li>
+<li>Poggio, T. &amp; Girosi, F. (1990). Networks for approximation and learning.
+<em>Proceedings of the IEEE</em> 78(9), 1481–1497. The regularisation view that
+connects the RBF network to the kernel methods in this chapter.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="svr.html"><small>Previous</small><span>Support vector regression</span></a><a class="next" href="random_features.html"><small>Next</small><span>Random features</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">03 · Kernels &amp; instance-based</p><ul class="rail-list"><li><a href="svm.html"><span class="tick">✓</span><span>Support vector machine</span></a></li><li><a href="kernel_ridge.html"><span class="tick">✓</span><span>Kernel ridge</span></a></li><li><a href="knn.html"><span class="tick">✓</span><span>k-nearest neighbours</span></a></li><li><a href="svr.html"><span class="tick">✓</span><span>Support vector regression</span></a></li><li><a href="rbf_network.html" aria-current="page"><span class="tick">✓</span><span>RBF networks</span></a></li><li><a href="random_features.html"><span class="tick">✓</span><span>Random features</span></a></li><li><a href="one_class.html"><span class="tick">✓</span><span>One-class models</span></a></li><li><a href="nearest_centroid.html"><span class="tick">✓</span><span>Nearest centroid</span></a></li><li><a href="nystrom.html"><span class="tick">✓</span><span>Nystrom approximation</span></a></li><li><a href="metric_learning.html"><span class="tick">✓</span><span>Metric learning</span></a></li><li><a href="multiple_kernel.html"><span class="tick">✓</span><span>Multiple kernel learning</span></a></li><li><a href="mmd.html"><span class="tick">✓</span><span>MMD &amp; HSIC</span></a></li><li><a href="lvq.html"><span class="tick">✓</span><span>Learning vector quantisation</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../02-linear-models/index.html"><span class="jump">← 02 · Linear models</span></a></li><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">04 · Trees &amp; ensembles&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-model">The model</a></li><li class="lvl3"><a href="#interpolation-is-nonsingular">Interpolation is nonsingular</a></li><li class="lvl3"><a href="#the-width-is-a-trade-off-not-a-hyperparameter">The width is a trade-off, not a hyperparameter</a></li><li class="lvl3"><a href="#fewer-centres-the-least-squares-fit">Fewer centres: the least-squares fit</a></li><li class="lvl3"><a href="#the-readout-with-an-intercept-and-a-ridge">The readout with an intercept and a ridge</a></li><li class="lvl3"><a href="#normalisation">Normalisation</a></li><li class="lvl3"><a href="#the-normalisation-is-a-scale">The normalisation is a scale</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#distances">Distances</a></li><li class="lvl3"><a href="#k-means">k-means++</a></li><li class="lvl3"><a href="#lloyds-iteration">Lloyd&#x27;s iteration</a></li><li class="lvl3"><a href="#the-hidden-layer">The hidden layer</a></li><li class="lvl3"><a href="#choosing-the-width">Choosing the width</a></li><li class="lvl3"><a href="#the-readout">The readout</a></li><li class="lvl3"><a href="#prediction">Prediction</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/03-kernels-and-instance/rbf_network.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

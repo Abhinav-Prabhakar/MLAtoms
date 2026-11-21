@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label smoothing · MLAtoms</title>
+<meta name="description" content="Soft targets, regularisation and calibration effects. The training set is 260 points from three overlapping blobs, split 150/80/30. A two-layer MLP with…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/label_smoothing.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Label smoothing">
+<meta property="og:description" content="Soft targets, regularisation and calibration effects. The training set is 260 points from three overlapping blobs, split 150/80/30. A two-layer MLP with…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/label_smoothing.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Label smoothing">
+<meta name="twitter:description" content="Soft targets, regularisation and calibration effects. The training set is 260 points from three overlapping blobs, split 150/80/30. A two-layer MLP with…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Label smoothing", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/label_smoothing.html", "description": "Soft targets, regularisation and calibration effects. The training set is 260 points from three overlapping blobs, split 150/80/30. A two-layer MLP with\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="label_smoothing.py.html">source</a></p><h1>Label smoothing — four schedules for a softer target</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>The training set is 260 points from three overlapping blobs, split 150/80/30.
+A two-layer MLP with 4,547 parameters memorises it: 0.981 training accuracy,
+0.883 test accuracy. That model assigns 1.590 nats of negative log-likelihood
+to a test point, and a constant predictor that always says one third assigns
+<span class="math inline">\(\log 3=1.099\)</span>. The overconfident model is <em>worse than knowing nothing</em>, because
+its errors are not just frequent, they are loud. Expected calibration error is
+0.099: when it says 95%, it is right about 86% of the time.</p>
+<p>One line of target construction fixes most of that. Instead of asking the model
+to put probability one on the gold class and zero everywhere else, ask for
+0.933, 0.033, 0.033:</p>
+<pre class="highlight"><code>hard      [1.000 | 0.000 | 0.000]
+uniform   [0.933 | 0.033 | 0.033]
+</code></pre>
+<p>The same network, same seed, same 800 steps, now scores 0.893 accuracy, 0.406
+nats, and 0.026 ECE. Accuracy barely moves — the ordering of the logits is
+almost unchanged — but the confidence it reports becomes usable. This is label
+smoothing: a one-line change to the target that acts as a regulariser, a
+calibrator, and, on noisy data, a small robustness device.</p>
+<p>The reason it works is geometric. The three blobs overlap, so some points near
+a boundary are genuinely ambiguous. A one-hot target tells the model that the
+ambiguity does not exist and that the gold logit must beat every other logit by
+an unbounded margin. Cross-entropy is happy to comply: it keeps pushing logits
+apart, the softmax saturates, and the reported probability stops meaning
+anything. A softened target says the margin should be <em>finite</em> — about 3.33
+nats at <span class="math inline">\(\alpha=0.1\)</span> over three classes — and the optimisation stops there.</p>
+<pre class="mermaid-source"><code class="language-mermaid">flowchart LR
+    X[logits z] --&gt; S[softmax]
+    S --&gt; P[&quot;p = softmax(z)&quot;]
+    Y[&quot;label y&quot;] --&gt; T[&quot;target q&quot;]
+    T --&gt; L[&quot;loss -sum q log p&quot;]
+    P --&gt; L
+    L --&gt; G[&quot;gradient p - q&quot;]
+    G --&gt; U[update]
+</code></pre>
+<p>Four schedules differ in how <span class="math inline">\(q\)</span> is built: the same weight for every example
+(<code>uniform</code>), a weight tied to class frequency (<code>per_class</code>), a weight that
+follows the model's own confidence (<code>adaptive</code>), and a weight mixed with another
+example's target (<code>mixup_smoothing</code>).</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">schedule</th>
+<th style="text-align:right">clean acc</th>
+<th style="text-align:right">clean nll</th>
+<th style="text-align:right">clean ece</th>
+<th style="text-align:right">noisy acc</th>
+<th style="text-align:right">noisy nll</th>
+<th style="text-align:right">noisy ece</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">hard targets</td>
+<td style="text-align:right">0.883</td>
+<td style="text-align:right">1.590</td>
+<td style="text-align:right">0.099</td>
+<td style="text-align:right">0.783</td>
+<td style="text-align:right">0.747</td>
+<td style="text-align:right">0.085</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>uniform</code></td>
+<td style="text-align:right">0.893</td>
+<td style="text-align:right">0.406</td>
+<td style="text-align:right">0.026</td>
+<td style="text-align:right">0.812</td>
+<td style="text-align:right">0.572</td>
+<td style="text-align:right">0.073</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>per_class</code></td>
+<td style="text-align:right">0.889</td>
+<td style="text-align:right">0.451</td>
+<td style="text-align:right">0.051</td>
+<td style="text-align:right">0.822</td>
+<td style="text-align:right">0.591</td>
+<td style="text-align:right">0.097</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adaptive</code></td>
+<td style="text-align:right">0.892</td>
+<td style="text-align:right">0.408</td>
+<td style="text-align:right">0.026</td>
+<td style="text-align:right">0.818</td>
+<td style="text-align:right">0.588</td>
+<td style="text-align:right">0.090</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mixup_smoothing</code></td>
+<td style="text-align:right">0.902</td>
+<td style="text-align:right">0.321</td>
+<td style="text-align:right">0.086</td>
+<td style="text-align:right">0.856</td>
+<td style="text-align:right">0.505</td>
+<td style="text-align:right">0.138</td>
+</tr>
+</tbody>
+</table>
+<p>Two columns tell the whole story. Under clean labels the win is calibration:
+NLL falls by a factor of four and ECE by a factor of four, while accuracy moves
+by one point. Under 20% flipped labels the win is accuracy, and it grows as the
+target softens or the inputs get mixed: 0.783, 0.812, 0.818, 0.822, 0.856. The
+last row buys that accuracy with the worst calibration of the five, which is the
+central trade-off of this atom.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<p>All four use the same network, the same optimiser and <span class="math inline">\(\alpha=0.1\)</span>. Only the
+target matrix changes.</p>
+<p><strong><code>uniform</code></strong> — the standard schedule. Every example gets
+<span class="math inline">\(q=(1-\alpha)y+\alpha/K\)</span>, so all three classes are smoothed by the same amount.
+It is the calibration winner on clean data (ECE 0.026 against 0.099) and a solid
+second on noisy data (0.812). At <span class="math inline">\(\alpha=0\)</span> it degenerates exactly to the hard
+target, which is how the demo builds its baseline: a <code>uniform</code> model with
+<code>alpha=0.0</code>.</p>
+<p><strong><code>per_class</code></strong> — one weight per class, proportional to how many examples the
+class has: <span class="math inline">\(\alpha_k=\alpha\,n_k/n_{\max}\)</span>. With 150/80/30 points that gives
+0.100, 0.053 and 0.020. Head classes are smoothed hard, the tail class is
+almost untouched, because a rare class has little data and a softened target
+there is a softened signal. It reaches the second-best noisy accuracy (0.822)
+and the worst fixed-schedule calibration (0.097): the tail stays confident, and
+on a balanced test set that confidence is mostly wrong.</p>
+<p><strong><code>adaptive</code></strong> — one weight per example, read off the model's own prediction:
+<span class="math inline">\(\alpha_i=\alpha\,p_{y_i}\)</span>. Confident examples are smoothed, uncertain ones keep
+a sharp target. On clean data it is indistinguishable from <code>uniform</code>
+(0.892/0.408/0.026 against 0.893/0.406/0.026) because after a few hundred steps
+the model is confident on almost everything. On noisy data it behaves in a way
+the name does not advertise: the flipped labels are the ones the model is
+unsure about, so they receive <em>less</em> smoothing (0.040) than the clean labels
+(0.081). It still beats the hard baseline, at 0.818.</p>
+<p><strong><code>mixup_smoothing</code></strong> — smooth the input as well as the target. For each example
+draw <span class="math inline">\(\lambda\sim\mathrm{Beta}(0.4,0.4)\)</span>, pick another example, and train on the
+convex combination of inputs and of targets. The target is uniform-smoothed
+before mixing. It gives the best clean accuracy (0.902), the best noisy accuracy
+(0.856), and the best noisy NLL (0.505), but its ECE is 0.086 clean and 0.138
+noisy — the model is trained on points that never occur at test time, so its
+confidence on clean inputs is not calibrated. This is the <code>augmentation:mixup</code>
+operation used as a target schedule rather than an input transform.</p>
+<p>The ordering is not a leaderboard. Calibration and robustness are different
+objectives, and the four rows sit at different points on that frontier:
+<code>uniform</code> is the safe default, <code>per_class</code> and <code>mixup_smoothing</code> trade
+calibration for noise accuracy, and <code>adaptive</code> lands close to <code>uniform</code> because
+its schedule is nearly constant once training converges.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-target">The target <a class="header-anchor" href="#the-target">#</a></h3>
+<p>For a <span class="math inline">\(K\)</span>-class problem with logits <span class="math inline">\(z\)</span>, probabilities
+<span class="math inline">\(p=\mathrm{softmax}(z)\)</span>, and a target distribution <span class="math inline">\(q\)</span> over the classes, the
+loss is</p>
+<div class="math block">
+\[L(z,q)=-\sum_{k=1}^{K}q_k\log p_k .
+\qquad (1)\]
+</div>
+<p>With a one-hot label <span class="math inline">\(y\)</span> this is the usual cross-entropy. Uniform label
+smoothing replaces the target with</p>
+<div class="math block">
+\[q_k=(1-\alpha)\,y_k+\frac{\alpha}{K},
+\qquad (2)\]
+</div>
+<p>so the gold class keeps <span class="math inline">\(1-\alpha+\alpha/K\)</span> and every other class gets
+<span class="math inline">\(\alpha/K\)</span>. For <span class="math inline">\(K=3\)</span> and <span class="math inline">\(\alpha=0.1\)</span> that is 0.933 and 0.033.</p>
+<h3 id="what-the-optimum-becomes">What the optimum becomes <a class="header-anchor" href="#what-the-optimum-becomes">#</a></h3>
+<p>Cross-entropy is minimised when <span class="math inline">\(p=q\)</span>, because</p>
+<div class="math block">
+\[\frac{\partial L}{\partial z_k}=p_k-q_k .
+\qquad (3)\]
+</div>
+<p>Setting (3) to zero for the gold class and any other class gives</p>
+<div class="math block">
+\[\frac{p_y}{p_k}=
+\frac{1-\alpha+\alpha/K}{\alpha/K}
+=\frac{K(1-\alpha)}{\alpha}+1,
+\qquad (4)\]
+</div>
+<p>and therefore an <em>optimal margin</em></p>
+<div class="math block">
+\[z_y-z_k=\log\left(1+\frac{K(1-\alpha)}{\alpha}\right).
+\qquad (5)\]
+</div>
+<p>For <span class="math inline">\(K=3\)</span>, <span class="math inline">\(\alpha=0.1\)</span> this is <span class="math inline">\(\log 28=3.332\)</span>. With <span class="math inline">\(\alpha=0\)</span> the margin is
+infinite: that is the overconfidence in the introduction, and it is why the
+hard-target model keeps growing its logits after it has already classified every
+training point correctly. Smoothing turns an unbounded objective into a bounded
+one.</p>
+<p>The same calculation gives the entropy the target injects. Writing
+<span class="math inline">\(p_y=1-\alpha+\alpha/K\)</span>,</p>
+<div class="math block">
+\[H(q)=-p_y\log p_y-(K-1)\frac{\alpha}{K}\log\frac{\alpha}{K},
+\qquad (6)\]
+</div>
+<p>which is 0.291 nats at <span class="math inline">\(K=3\)</span>, <span class="math inline">\(\alpha=0.1\)</span> — 26% of the maximum <span class="math inline">\(\log 3=1.099\)</span>.
+The model is asked to leave that much uncertainty on the table, no more.</p>
+<h3 id="per-class-schedules">Per-class schedules <a class="header-anchor" href="#per-class-schedules">#</a></h3>
+<p>A class-dependent schedule replaces the scalar <span class="math inline">\(\alpha\)</span> with one weight per
+class. For an example of class <span class="math inline">\(c\)</span>, with <span class="math inline">\(y_k\)</span> the one-hot component,</p>
+<div class="math block">
+\[\alpha_c=\alpha\,\frac{n_c}{n_{\max}},
+\qquad
+q_k=(1-\alpha_c)\,y_k+\frac{\alpha_c}{K},
+\qquad (7)\]
+</div>
+<p>where <span class="math inline">\(n_c\)</span> is the number of training examples of class <span class="math inline">\(c\)</span>. Each class then has
+its own optimal margin from (5). The demo's three classes get
+<span class="math inline">\(\alpha=(0.100,0.053,0.020)\)</span>, so their margins are 3.33, 4.00 and 5.00 nats:
+the head class is held to a tight margin, the tail to a sharp one. The direction
+matters. Smoothing a class injects probability mass into its neighbours, and for
+a class with thirty examples that mass is a large fraction of all the evidence
+it has.</p>
+<h3 id="adaptive-schedules">Adaptive schedules <a class="header-anchor" href="#adaptive-schedules">#</a></h3>
+<p>An instance-dependent schedule makes the weight a function of the current
+prediction, for an example with one-hot vector <span class="math inline">\(e_i\)</span>:</p>
+<div class="math block">
+\[\alpha_i=\alpha\,p_{y_i}^{(t)},
+\qquad
+q_i=(1-\alpha_i)\,e_i+\frac{\alpha_i}{K}\mathbf 1 .
+\qquad (8)\]
+</div>
+<p>The gold probability <span class="math inline">\(p_{y_i}^{(t)}\)</span> is read from the model at step <span class="math inline">\(t\)</span> and
+treated as a constant. This is no longer the gradient of a fixed loss — the
+target moves while the parameters move — which is why the implementation
+recomputes it every step and why the convergence argument behind (5) does not
+strictly apply. What it buys is targeting: smoothing is spent on examples the
+model already finds easy, and withheld from examples it finds hard, where a
+sharp target still carries information.</p>
+<p>A related family uses the opposite direction, smoothing the <em>hard</em> examples
+more; that is Beta smoothing from the self-distillation literature. The code
+implements the confidence-following direction because it is the one that
+connects to the calibration argument: overconfidence lives on the easy points.</p>
+<h3 id="mixup">Mixup <a class="header-anchor" href="#mixup">#</a></h3>
+<p>Mixup draws a mixing weight and a partner for every example,</p>
+<div class="math block">
+\[\lambda\sim\mathrm{Beta}(0.4,0.4),\qquad
+\tilde x=\lambda x_i+(1-\lambda)x_j,\qquad
+\tilde q=\lambda q_i+(1-\lambda)q_j,
+\qquad (9)\]
+</div>
+<p>and trains on <span class="math inline">\((\tilde x,\tilde q)\)</span>. Each <span class="math inline">\(q\)</span> is already uniformly smoothed, so
+the interpolation happens between two soft targets. The target stays a valid
+distribution because a convex combination of distributions is a distribution.
+The input, unlike the target, leaves the data manifold, which is the source of
+both the robustness and the miscalibration.</p>
+<h3 id="why-smoothing-is-robust-to-a-flipped-label">Why smoothing is robust to a flipped label <a class="header-anchor" href="#why-smoothing-is-robust-to-a-flipped-label">#</a></h3>
+<p>The gradient of (1) with respect to the gold logit is <span class="math inline">\(p_y-q_y\)</span>. For a hard
+target <span class="math inline">\(q_y=1\)</span>, so the pull lies in <span class="math inline">\([-1,0]\)</span>: a confidently mislabelled example
+contributes a full unit of gradient. For a smoothed target <span class="math inline">\(q_y=1-\alpha\)</span>, the
+pull lies in <span class="math inline">\([-(1-\alpha),\alpha]\)</span>, and the largest downward force is
+<span class="math inline">\(1-\alpha\)</span>. For <span class="math inline">\(\alpha=0.1\)</span> that is a 10% cap, which matches the size of the
+accuracy gain: 0.783 to 0.812 is 3 points on a 900-point test set. Smoothing
+does not repair a wrong label; it bounds how hard the model is allowed to
+believe it.</p>
+<p>The same algebra, applied to a non-gold logit, shows why the margin shrinks.
+Splitting the uniform case,</p>
+<div class="math block">
+\[p_k-q_k=(p_k-y_k)+\alpha\left(y_k-\frac 1K\right),
+\qquad (10)\]
+</div>
+<p>and the second term is <span class="math inline">\(+\alpha(1-1/K)\)</span> on the gold class and <span class="math inline">\(-\alpha/K\)</span> on
+every other. The upward push on the gold logit weakens by <span class="math inline">\(\alpha(1-1/K)\)</span>, the
+downward push on the others weakens by <span class="math inline">\(\alpha/K\)</span>, and the equilibrium moves to
+(5). Nothing about the ordering of the logits is forced to change, which is why
+accuracy is nearly flat while confidence changes a lot.</p>
+<h3 id="measuring-calibration">Measuring calibration <a class="header-anchor" href="#measuring-calibration">#</a></h3>
+<p>Let <span class="math inline">\(B\)</span> be a partition of <span class="math inline">\([0,1]\)</span> into equal-width bins, <span class="math inline">\(n_b\)</span> the number of
+test points in bin <span class="math inline">\(b\)</span>, and <span class="math inline">\(\mathrm{conf}_b\)</span>, <span class="math inline">\(\mathrm{acc}_b\)</span> their mean
+confidence and accuracy. Expected calibration error is</p>
+<div class="math block">
+\[\mathrm{ECE}=\sum_{b}\frac{n_b}{n}
+\left|\mathrm{acc}_b-\mathrm{conf}_b\right|,
+\qquad (11)\]
+</div>
+<p>and negative log-likelihood is</p>
+<div class="math block">
+\[\mathrm{NLL}=-\frac1n\sum_{i=1}^{n}\log p_{y_i}(x_i).
+\qquad (12)\]
+</div>
+<p>ECE reads only the top probability, so a model can have low ECE and poor
+probabilities elsewhere; NLL reads the whole vector and punishes confident
+errors without bound. The demo reports both because they disagree in
+informative ways: <code>mixup_smoothing</code> has the best NLL under noise and the worst
+ECE, because its confident errors are rare but extreme.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The data is three blobs on a circle, deliberately unequal in size, with an
+optional label-flip pass. The flip loop is short but it is the whole noise
+model: a flipped label becomes a uniformly random <em>other</em> class, never the same
+one.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_flip</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">rate</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Move a fraction of labels to a different class."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">hit</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">))</span> <span class="o">&lt;</span> <span class="n">rate</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">hit</span><span class="p">):</span>
+        <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">([</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N_CLASSES</span><span class="p">)</span> <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span>
+    <span class="k">return</span> <span class="n">y</span>
+</code></pre>
+<p>All four schedules are one function of <code>(y, variant, alpha, counts, prob)</code>. The
+uniform row is the <code>full</code> branch; the per-class row indexes a vector by label;
+the adaptive row indexes the probability of the gold class. The mixup variant
+is the only one that needs the input as well, so it is handled in the training
+loop, not here.</p>
+<pre class="highlight"><code>    <span class="n">gold</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">N_CLASSES</span><span class="p">))</span>
+    <span class="n">gold</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)),</span> <span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"adaptive"</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">prob</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"adaptive targets need the current probabilities"</span><span class="p">)</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">*</span> <span class="n">prob</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)),</span> <span class="n">y</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"per_class"</span><span class="p">:</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">*</span> <span class="n">counts</span><span class="p">[</span><span class="n">y</span><span class="p">]</span> <span class="o">/</span> <span class="n">counts</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"uniform"</span><span class="p">:</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">alpha</span><span class="p">)</span>
+</code></pre>
+<p>The network is a plain two-layer ReLU MLP. It is small on purpose: the point is
+the target, not the architecture, and a linear model would not overfit enough to
+show the calibration failure.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+    <span class="n">z1</span> <span class="o">=</span> <span class="n">x</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"b1"</span><span class="p">]</span>
+    <span class="n">a1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">z1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">z2</span> <span class="o">=</span> <span class="n">a1</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"b2"</span><span class="p">]</span>
+    <span class="n">a2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">z2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">a2</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"W3"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"b3"</span><span class="p">],</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">z1</span><span class="p">,</span> <span class="n">a1</span><span class="p">,</span> <span class="n">z2</span><span class="p">,</span> <span class="n">a2</span><span class="p">)</span>
+</code></pre>
+<p>The gradient is where a naive implementation goes wrong. Cross-entropy's
+derivative is <span class="math inline">\(p-y\)</span> only for a one-hot label; with a soft target it is <span class="math inline">\(p-q\)</span>,
+and the code must pass the <em>target matrix</em> into the backward pass, not the
+integer labels.</p>
+<pre class="highlight"><code>    <span class="n">delta</span> <span class="o">=</span> <span class="p">(</span><span class="n">_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">)</span> <span class="o">-</span> <span class="n">target</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"W3"</span><span class="p">:</span> <span class="n">a2</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">delta</span><span class="p">,</span> <span class="s2">"b3"</span><span class="p">:</span> <span class="n">delta</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)}</span>
+</code></pre>
+<p>Adam is written out rather than imported, and the weight decay is decoupled —
+added to the update, not to the gradient. With a 4.5k-parameter model on 260
+points, that decay is part of what keeps the logits finite.</p>
+<pre class="highlight"><code>        <span class="n">first</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">first</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.1</span> <span class="o">*</span> <span class="n">grad</span>
+        <span class="n">second</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.999</span> <span class="o">*</span> <span class="n">second</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.001</span> <span class="o">*</span> <span class="n">grad</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">scaled</span> <span class="o">=</span> <span class="p">(</span><span class="n">first</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="mf">0.9</span> <span class="o">**</span> <span class="n">step</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">second</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="mf">0.999</span> <span class="o">**</span> <span class="n">step</span><span class="p">))</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>
+        <span class="n">params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-=</span> <span class="n">lr</span> <span class="o">*</span> <span class="n">scaled</span> <span class="o">+</span> <span class="n">lr</span> <span class="o">*</span> <span class="n">WEIGHT_DECAY</span> <span class="o">*</span> <span class="n">params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+</code></pre>
+<p>The training loop has one branch per schedule. Adaptive is the expensive one:
+it needs a forward pass to read <span class="math inline">\(p_y\)</span> before it can build the target, and then
+the backward pass runs its own forward pass for the cache.</p>
+<pre class="highlight"><code>            <span class="k">else</span><span class="p">:</span>
+                <span class="n">inputs</span> <span class="o">=</span> <span class="n">x</span>
+                <span class="n">prob</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">batch_target</span> <span class="o">=</span> <span class="n">targets</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">counts</span><span class="p">,</span>
+                                       <span class="n">prob</span><span class="p">)</span>
+            <span class="n">_adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">batch_target</span><span class="p">),</span> <span class="n">state</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+</code></pre>
+<p>Mixup is the other branch. Both the inputs and the targets are mixed with the
+same per-example <span class="math inline">\(\lambda\)</span>, and the two targets are built before mixing so the
+result is a convex combination of distributions.</p>
+<pre class="highlight"><code>                <span class="n">lam</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">beta</span><span class="p">(</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))[:,</span> <span class="kc">None</span><span class="p">]</span>
+                <span class="n">order</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+                <span class="n">inputs</span> <span class="o">=</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">lam</span><span class="p">)</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">order</span><span class="p">]</span>
+                <span class="n">left</span> <span class="o">=</span> <span class="n">targets</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="s2">"uniform"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">counts</span><span class="p">)</span>
+                <span class="n">right</span> <span class="o">=</span> <span class="n">targets</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="s2">"uniform"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">counts</span><span class="p">)</span>
+                <span class="n">batch_target</span> <span class="o">=</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">left</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">lam</span><span class="p">)</span> <span class="o">*</span> <span class="n">right</span>
+</code></pre>
+<p>Calibration is a histogram, and the trap is the open-closed interval: a
+confidence of exactly 1.0 would fall into no bin if the test were <code>low &lt;= c &lt; high</code>, so the code uses <code>(low, high]</code> and lets 1.0 land in the last bin.</p>
+<pre class="highlight"><code>        <span class="n">inside</span> <span class="o">=</span> <span class="p">(</span><span class="n">confidence</span> <span class="o">&gt;</span> <span class="n">low</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">confidence</span> <span class="o">&lt;=</span> <span class="n">high</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">inside</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="n">gap</span> <span class="o">+=</span> <span class="n">inside</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">correct</span><span class="p">[</span><span class="n">inside</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+                                       <span class="o">-</span> <span class="n">confidence</span><span class="p">[</span><span class="n">inside</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+</code></pre>
+<p>The three metrics share one forward pass, and the NLL is clipped at <span class="math inline">\(10^{-12}\)</span>
+so a saturated wrong prediction produces a large finite number instead of an
+infinity that would poison the mean.</p>
+<pre class="highlight"><code>        <span class="n">prob</span> <span class="o">=</span> <span class="n">_probabilities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+        <span class="n">picked</span> <span class="o">=</span> <span class="n">prob</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)),</span> <span class="n">y</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"accuracy"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">prob</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">y</span><span class="p">)),</span>
+            <span class="s2">"nll"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">picked</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">))),</span>
+            <span class="s2">"ece"</span><span class="p">:</span> <span class="n">expected_calibration_error</span><span class="p">(</span><span class="n">prob</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
+        <span class="p">}</span>
+</code></pre>
+<p>The mechanism behind the adaptive row is visible only if you can ask the fitted
+model what weight it would give a batch. <code>weight()</code> exposes exactly that, and
+the demo uses it to show that flipped labels receive about half the smoothing of
+clean ones.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"per_class"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">alphas</span><span class="p">[</span><span class="n">y</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"adaptive"</span><span class="p">:</span>
+            <span class="n">prob</span> <span class="o">=</span> <span class="n">_probabilities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">prob</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)),</span> <span class="n">y</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>The model has <span class="math inline">\(2\cdot64+64\cdot64+64\cdot64+64\cdot3+3=4{,}547\)</span> parameters. A
+forward pass over the 260 training points costs about <span class="math inline">\(260(2\cdot64+64\cdot64+
+64\cdot3)\approx1.1\)</span> million multiply-adds; the backward pass is roughly twice
+that. One fit is 800 steps, so a single schedule is about <span class="math inline">\(2.6\)</span> billion
+multiply-adds, and the demo runs ten fits (hard and four variants, on clean and
+noisy data).</p>
+<p>The schedules are almost free relative to the model. <code>uniform</code> and <code>per_class</code>
+add one <code>bincount</code> and a vector index per step. <code>adaptive</code> adds one extra
+forward pass per step — the largest constant in the table, at roughly 50% more
+work than <code>uniform</code>. <code>mixup_smoothing</code> adds a Beta draw, a permutation and two
+target matrices, but no extra forward pass. Memory is one model, two Adam
+moments and one target matrix of <span class="math inline">\(260\times3\)</span> floats; nothing scales with the
+number of steps.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Calibration and accuracy are different objectives.</strong> <code>mixup_smoothing</code> is the
+best row under noise — 0.856 accuracy, 0.505 NLL — and the worst calibrated:
+ECE 0.138, nearly twice the hard baseline. Training on mixed inputs means the
+model never sees a clean input during training, so its confidence on the clean
+test set is not the confidence it was optimised for. Reporting only accuracy
+would hide this completely.</p>
+<p><strong>The adaptive schedule is misaligned with label noise.</strong> The name suggests it
+smooths what needs smoothing. Measured on the noisy batch, it does the
+opposite: flipped labels get weight 0.040 and clean labels 0.081, because the
+model is unsure precisely on the points whose labels are wrong. A schedule that
+smoothed <em>low</em>-confidence examples more would bound exactly those gradients;
+this one leaves them nearly hard, and its 0.818 against <code>uniform</code>'s 0.812 is
+within noise.</p>
+<p><strong>Per-class smoothing trades tail calibration for tail accuracy.</strong> The tail
+class gets <span class="math inline">\(\alpha=0.020\)</span>, almost a hard target, and its optimal margin grows
+from 3.33 to 5.00 nats. Under noise that helps accuracy (0.822, the second best)
+and hurts ECE (0.097, the worst of the fixed schedules). With thirty training
+examples, &quot;less smoothing&quot; and &quot;less regularisation&quot; are the same sentence, and
+the variance is highest exactly where the regularisation was removed.</p>
+<p><strong>ECE is a coarse instrument.</strong> Ten equal-width bins over 900 points means the
+extreme bins can hold a handful of examples, and the number moves if you change
+the bin count. Differences of 0.01 between rows are noise; the 0.099-to-0.026 gap is
+not. ECE also ignores the non-max probabilities entirely, which is why NLL is
+reported beside it.</p>
+<p><strong><span class="math inline">\(\alpha=0.1\)</span> is a default, not a law.</strong> The injected mass per class is
+<span class="math inline">\(\alpha/K\)</span>. At <span class="math inline">\(K=3\)</span> that is 3.3% and at <span class="math inline">\(K=1{,}000\)</span> it is 0.01%, where it does
+essentially nothing; large-vocabulary models need a larger <span class="math inline">\(\alpha\)</span> or a
+different prior. The right value depends on the overlap of the classes, the
+amount of data, and whether the downstream consumer wants accuracy or a usable
+probability.</p>
+<p><strong>Smoothing is not a repair for wrong labels.</strong> It caps the gradient a
+mislabelled example can contribute at <span class="math inline">\(1-\alpha\)</span>, a 10% reduction at the default
+setting. The accuracy gains under 20% noise are real but modest, and the label
+is still wrong. Relabelling, robust losses, or a noise model do the actual work;
+smoothing is a cheap hedge.</p>
+<p><strong>It interacts with distillation and with temperature scaling.</strong> A teacher
+trained with label smoothing has already had the information that distinguishes
+the non-gold classes removed, which is precisely the information a distillation
+student is supposed to learn. And applying temperature scaling on top of a
+label-smoothed model double-corrects: the targets already encode a finite
+confidence, so the fitted temperature will be near one and the &quot;correction&quot;
+is smaller than expected.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Label smoothing is a default in image classification — the original Inception
+recipe used <span class="math inline">\(\alpha=0.1\)</span> and it survives in ViT training — and in neural machine
+translation, where the Transformer paper uses the same value. Speech recognition,
+recommender ranking, and audio tagging use it for the same two reasons: it
+regularises a high-capacity classifier and it makes the reported probability
+usable for downstream thresholding.</p>
+<p>The per-class schedule is the standard fix for long-tailed recognition, where
+head classes are far more overconfident than tail classes and a single <span class="math inline">\(\alpha\)</span>
+either over-smooths the tail or under-smooths the head. The instance-dependent
+schedules are used when the model's own confidence is a useful signal: dialogue
+generation, where smoothing the predicted token reduces repetition, and
+self-distillation, where the teacher's confidence ranks the examples.</p>
+<p>The measurement side matters as much as the training side. Expected calibration
+error and reliability diagrams are the standard way to check whether a smoothed
+model's probabilities can be used, and temperature scaling on a validation set
+is the usual post-hoc correction. Label smoothing is the in-training version of
+the same idea: instead of fitting a temperature after the fact, cap the
+confidence during training. Modern practice often uses both — a small
+<span class="math inline">\(\alpha\)</span> for regularisation and a fitted temperature for the final calibration.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Szegedy, C., Vanhoucke, V., Ioffe, S., Shlens, J., Wojna, Z. (2016).
+<em>Rethinking the Inception architecture for computer vision.</em> CVPR. The
+original label-smoothing target, (2).</li>
+<li>Pereyra, G., Tucker, G., Chorowski, J., Kaiser, Ł., Hinton, G. (2017).
+<em>Regularizing neural networks by penalizing confident output distributions.</em>
+The confidence-penalty view of the same regulariser.</li>
+<li>Müller, R., Kornblith, S., Hinton, G. (2019). <em>When does label smoothing
+help?</em> NeurIPS. The margin argument, the calibration effect, and the
+interaction with distillation.</li>
+<li>Zhang, H., Cissé, M., Dauphin, Y., Lopez-Paz, D. (2018). <em>mixup: beyond
+empirical risk minimization.</em> ICLR. The input-and-target interpolation, (9).</li>
+<li>Zhang, Z., Sabuncu, M. R. (2020). <em>Self-distillation as instance-specific
+label smoothing.</em> NeurIPS. Per-example smoothing weights from model
+confidence; the opposite direction to the <code>adaptive</code> variant here.</li>
+<li>Wang, Y., Zheng, Y., Jiang, Y., Huang, M. (2021). <em>Diversifying dialogue
+generation via adaptive label smoothing.</em> ACL. Confidence-driven adaptive
+targets in a sequence model.</li>
+<li>Zhong, Z., Cui, J., Liu, S., Jia, J. (2021). <em>Improving calibration for
+long-tailed recognition.</em> CVPR. Class-dependent smoothing weights tied to
+class counts, the family behind <code>per_class</code>.</li>
+<li>Lee, D., Cheung, K. C., Zhang, N. L. (2022). <em>Adaptive label smoothing with
+self-knowledge in natural language generation.</em> EMNLP. A unigram prior as an
+alternative to the uniform one, and a per-example smoothing weight.</li>
+<li>Park, S., Lee, S., Kim, S., et al. (2023). <em>ACLS: adaptive and conditional
+label smoothing for network calibration.</em> ICCV. A survey and correction of
+the adaptive family, including its failure to smooth selectively.</li>
+<li>Guo, C., Pleiss, G., Sun, Y., Weinberger, K. Q. (2017). <em>On calibration of
+modern neural networks.</em> ICML. Reliability diagrams, ECE, (11), and
+temperature scaling as the post-hoc baseline.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="continual_learning.html"><small>Previous</small><span>Continual learning</span></a><a class="next" href="early_stopping.html"><small>Next</small><span>Early stopping</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html" aria-current="page"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-target">The target</a></li><li class="lvl3"><a href="#what-the-optimum-becomes">What the optimum becomes</a></li><li class="lvl3"><a href="#per-class-schedules">Per-class schedules</a></li><li class="lvl3"><a href="#adaptive-schedules">Adaptive schedules</a></li><li class="lvl3"><a href="#mixup">Mixup</a></li><li class="lvl3"><a href="#why-smoothing-is-robust-to-a-flipped-label">Why smoothing is robust to a flipped label</a></li><li class="lvl3"><a href="#measuring-calibration">Measuring calibration</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/label_smoothing.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

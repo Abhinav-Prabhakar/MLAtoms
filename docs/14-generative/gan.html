@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAN · MLAtoms</title>
+<meta name="description" content="Minimax training, loss variants and mode collapse. A GAN replaces the likelihood with a classifier. The generator is trained to fool a discriminator that is…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/gan.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="GAN">
+<meta property="og:description" content="Minimax training, loss variants and mode collapse. A GAN replaces the likelihood with a classifier. The generator is trained to fool a discriminator that is…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/gan.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GAN">
+<meta name="twitter:description" content="Minimax training, loss variants and mode collapse. A GAN replaces the likelihood with a classifier. The generator is trained to fool a discriminator that is…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "GAN", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/14-generative/gan.html", "description": "Minimax training, loss variants and mode collapse. A GAN replaces the likelihood with a classifier. The generator is trained to fool a discriminator that is\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">14 · Generative models</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="gan.py.html">source</a></p><h1>Generative adversarial network — seven losses, one minimax game</h1>
+<p>A GAN replaces the likelihood with a classifier. The generator is trained to
+fool a discriminator that is itself trained to tell real from generated points,
+so the generator's loss is not written down in advance — it is whatever the
+discriminator learns to punish. That buys sharp samples and costs every
+guarantee: no bound, no likelihood, and a two-player game that need not
+converge. This file plays the game on eight Gaussians around a circle. The seven
+variants are four objectives, one architecture and two ways of feeding a code,
+all sharing one backward pass, so that &quot;which GAN&quot; becomes a table of gradients
+rather than a zoo of architectures.</p>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Two networks, one adversarial signal. The generator maps a standard normal code
+to a point; the discriminator maps a point to a logit saying how real it looks.
+The discriminator descends its classification loss on real and generated
+batches; the generator ascends it, which by the chain rule means descending the
+discriminator's verdict on its own output.</p>
+<pre class="mermaid-source"><code class="language-mermaid">flowchart LR
+    Z[&quot;z ~ N(0, I)&quot;] --&gt; G[&quot;G: 2→64→64→2 tanh&quot;]
+    G --&gt;|&quot;generated x&quot;| D[&quot;D: 2→64→64→1&quot;]
+    X[&quot;real x&quot;] --&gt; D
+    D --&gt; L[&quot;logit&quot;]
+    L --&gt;|&quot;gradient on x&quot;| G
+</code></pre>
+<p>The generator never sees the data. Everything it learns about the distribution
+arrives as a gradient through the discriminator, which is why the discriminator
+is best understood as a <em>learned loss function</em> rather than a classifier to be
+maximised. A good discriminator says &quot;this region is thin&quot; in a way that points
+the generator's mass toward the data; a perfect one says &quot;fake&quot; everywhere the
+generator already is, which is a gradient of almost zero.</p>
+<p>At the optimum of the inner problem the discriminator becomes the density ratio
+<span class="math inline">\(p_{\mathrm{data}}/(p_{\mathrm{data}}+p_g)\)</span>, and the game's value is a
+Jensen–Shannon divergence. That is the theory. The practice is that the ratio is
+estimated from a finite batch by a network that is also being trained, and that
+the objective is satisfied by <em>any</em> generator whose support sits inside the
+data's support. A generator that produces one mode perfectly is as good as one
+that produces eight, as far as the loss is concerned: the discriminator cannot
+tell a missing mode from a mode that was never sampled. This is mode collapse,
+and it is a property of the objective, not a bug in the optimiser.</p>
+<p>The seven variants differ in three places:</p>
+<ul>
+<li>the gradient the discriminator hands the generator (the loss table);</li>
+<li>the shape of the two networks (<code>dcgan</code> is deeper and wider);</li>
+<li>what the networks are shown (<code>conditional</code> shows the label to both,
+<code>infogan</code> shows a code only to the generator).</li>
+</ul>
+<p>Everything else — the data, the Adam state, the backward pass, the evaluation —
+is shared, so the differences in the table below are attributable to the
+variant and not to a re-implementation.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">discriminator minimises</th>
+<th style="text-align:left">generator minimises</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>vanilla</code></td>
+<td style="text-align:left">binary cross-entropy</td>
+<td style="text-align:left"><span class="math inline">\(\log(1-D(G(z)))\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>non_saturating</code></td>
+<td style="text-align:left">binary cross-entropy</td>
+<td style="text-align:left"><span class="math inline">\(-\log D(G(z))\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lsgan</code></td>
+<td style="text-align:left"><span class="math inline">\((D(x)-1)^2/2+D(G(z))^2/2\)</span></td>
+<td style="text-align:left"><span class="math inline">\((D(G(z))-1)^2\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>hinge</code></td>
+<td style="text-align:left">hinge on both sides</td>
+<td style="text-align:left"><span class="math inline">\(-D(G(z))\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dcgan</code></td>
+<td style="text-align:left">binary cross-entropy</td>
+<td style="text-align:left"><span class="math inline">\(-\log D(G(z))\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>conditional</code></td>
+<td style="text-align:left">binary cross-entropy on <span class="math inline">\((x,y)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(-\log D(G(z,y),y)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>infogan</code></td>
+<td style="text-align:left">binary cross-entropy on <span class="math inline">\(x\)</span></td>
+<td style="text-align:left"><span class="math inline">\(-\log D(G(z,c))+\)</span> MI term</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>vanilla</code></strong> — the original minimax game (Goodfellow et al. 2014). The
+generator minimises <span class="math inline">\(\log(1-\sigma(D(G(z))))\)</span>, whose derivative with respect to
+the logit is <span class="math inline">\(-\sigma(D(G(z)))\)</span>: it vanishes exactly when the discriminator is
+confident the sample is fake, which is when the generator most needs it. The
+demo's signal column is the mean absolute value of that derivative: 0.496 here,
+against 1.000 for hinge and 0.998 at logit <span class="math inline">\(-6\)</span> for the non-saturating form
+below.</p>
+<p><strong><code>non_saturating</code></strong> — the same game with the generator minimising
+<span class="math inline">\(-\log\sigma(D(G(z)))\)</span> instead. The gradient is now <span class="math inline">\(\sigma(-D(G(z)))\)</span>, which is
+large precisely where the saturating form is flat. It is not the same objective,
+but it has the same fixed point and trains far better from a bad initialisation,
+so it became the default and is this class's default too.</p>
+<p><strong><code>lsgan</code></strong> — least squares (Mao et al. 2017). The discriminator is linear and
+regresses to 1 on real points and 0 on generated ones; the generator regresses
+its own output toward 1. The quadratic penalty keeps growing when the
+discriminator is confident, so the generator's gradient does not vanish. On this
+data it is the most stable of the four unconditional losses: eight modes from a
+fresh draw, largest share 0.15, and a discriminator that ends at chance.</p>
+<p><strong><code>hinge</code></strong> — the geometric/SVM objective (Lim &amp; Ye 2017). The discriminator
+wants a margin of one on both sides; the generator wants its score pushed up
+with a constant gradient. The constant is the point and the problem: every
+sample receives the same push regardless of how far it is from the boundary, and
+here the generator overshoots, keeping five modes with a 0.30 largest share.</p>
+<p><strong><code>dcgan</code></strong> — not a loss but an architecture (Radford et al. 2016): three hidden
+layers of width 128, a 16-dimensional code, and the non-saturating objective. On
+2-D points there is nothing to convolve, so what this variant isolates is depth
+and width. It is the most confident discriminator in the table (0.84 accuracy)
+and it drops a mode: a strong discriminator plus a small generator is the
+classic way to lose coverage.</p>
+<p><strong><code>conditional</code></strong> — both players see a class label: the generator maps
+<span class="math inline">\((z,y)\)</span> to a point, the discriminator scores <span class="math inline">\((x,y)\)</span> (Mirza &amp; Osindero 2014).
+The game factorises over classes, so each class gets its own ratio and its own
+optimum. The demo draws 64 points for each of the eight labels: all 512 land
+nearest their own centre, at mean distance 0.072.</p>
+<p><strong><code>infogan</code></strong> — only the generator sees the code; the discriminator does not
+(Chen et al. 2016). An auxiliary head <span class="math inline">\(Q\)</span> reads the discriminator's features and
+predicts the code from the generated point, and its cross-entropy is added to
+the generator's loss. The generator is therefore rewarded for making the code
+recoverable, which is a lower bound on <span class="math inline">\(I(c;G(z,c))\)</span>. Here the bound is tight:
+1.000 consistency and 8/8 codes resolved, against 0.521 and 2/8 with the MI
+weight set to zero.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-game">The game <a class="header-anchor" href="#the-game">#</a></h3>
+<p>Write <span class="math inline">\(D\)</span> for the probability the discriminator assigns to &quot;real&quot; and <span class="math inline">\(G(z)\)</span> for
+a generated point. The minimax objective is</p>
+<div class="math block">
+\[\min_G\max_D\;V(D,G)=
+\mathbb E_{x\sim p_{\mathrm{data}}}\bigl[\log D(x)\bigr]+
+\mathbb E_{z\sim p_z}\bigl[\log\bigl(1-D(G(z))\bigr)\bigr].
+\qquad (1)\]
+</div>
+<p>The code works with logits and applies <span class="math inline">\(\sigma\)</span> inside the loss table, but the
+mathematics is clearest with probabilities, so this section uses <span class="math inline">\(D\)</span> as a
+probability and <span class="math inline">\(a\)</span> for the logit when the distinction matters.</p>
+<h3 id="the-optimal-discriminator">The optimal discriminator <a class="header-anchor" href="#the-optimal-discriminator">#</a></h3>
+<p>For fixed <span class="math inline">\(G\)</span>, the second expectation is an expectation over the pushforward
+<span class="math inline">\(p_g\)</span>, so (1) is a pointwise problem in <span class="math inline">\(D(x)\)</span>:</p>
+<div class="math block">
+\[V=\int\Bigl[p_{\mathrm{data}}(x)\log D(x)+p_g(x)\log\bigl(1-D(x)\bigr)\Bigr]dx.\]
+</div>
+<p>Differentiate the integrand with respect to <span class="math inline">\(D\)</span> and set it to zero:</p>
+<div class="math block">
+\[\frac{p_{\mathrm{data}}}{D}-\frac{p_g}{1-D}=0
+\quad\Longrightarrow\quad
+D^*(x)=\frac{p_{\mathrm{data}}(x)}{p_{\mathrm{data}}(x)+p_g(x)}.
+\qquad (2)\]
+</div>
+<p>Substituting (2) back gives the value of the game. Let
+<span class="math inline">\(m=(p_{\mathrm{data}}+p_g)/2\)</span>; then</p>
+<div class="math block">
+\[V(D^*,G)=2\,\mathrm{JSD}\bigl(p_{\mathrm{data}}\,\|\,p_g\bigr)-\log 4,
+\qquad (3)\]
+</div>
+<p>where the Jensen–Shannon divergence is
+<span class="math inline">\(\tfrac12\mathrm{KL}(p_{\mathrm{data}}\|m)+\tfrac12\mathrm{KL}(p_g\|m)\)</span>. It is
+non-negative and zero only when the two distributions agree, so the game's
+minimum is <span class="math inline">\(-\log 4\)</span> at <span class="math inline">\(p_g=p_{\mathrm{data}}\)</span>, where <span class="math inline">\(D^*=\tfrac12\)</span> everywhere.</p>
+<p>This is the most misread number in the subject. A discriminator at 50% accuracy
+is not broken; at the equilibrium of the <em>training</em> distribution it is exactly
+right. The demo's <code>vanilla</code>, <code>lsgan</code>, <code>non_saturating</code> and <code>conditional</code> models
+all report 0.48–0.50, and they are the ones that cover all eight modes. The
+<code>dcgan</code> model reports 0.84 and covers seven.</p>
+<h3 id="saturating-and-non-saturating">Saturating and non-saturating <a class="header-anchor" href="#saturating-and-non-saturating">#</a></h3>
+<p>Let <span class="math inline">\(a(x)=D(G(z))\)</span> be the discriminator's logit on a generated point. With
+<span class="math inline">\(\sigma'(a)=\sigma(a)(1-\sigma(a))\)</span>,</p>
+<div class="math block">
+\[\frac{\partial}{\partial a}\log\bigl(1-\sigma(a)\bigr)=-\sigma(a),
+\qquad
+\frac{\partial}{\partial a}\bigl(-\log\sigma(a)\bigr)=-\sigma(-a).
+\qquad (4)\]
+</div>
+<p>The first row is the saturating objective: when the discriminator is confident
+the sample is fake, <span class="math inline">\(a\ll 0\)</span> and <span class="math inline">\(\sigma(a)\to 0\)</span>, so the generator's gradient
+disappears. The demo evaluates both at five logits:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">logit <span class="math inline">\(a\)</span></th>
+<th style="text-align:right"><span class="math inline">\(-6\)</span></th>
+<th style="text-align:right"><span class="math inline">\(-4\)</span></th>
+<th style="text-align:right"><span class="math inline">\(-2\)</span></th>
+<th style="text-align:right"><span class="math inline">\(0\)</span></th>
+<th style="text-align:right"><span class="math inline">\(2\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><span class="math inline">\(\lvert\partial\log(1-\sigma)\rvert\)</span></td>
+<td style="text-align:right">0.002</td>
+<td style="text-align:right">0.018</td>
+<td style="text-align:right">0.119</td>
+<td style="text-align:right">0.500</td>
+<td style="text-align:right">0.881</td>
+</tr>
+<tr>
+<td style="text-align:left"><span class="math inline">\(\lvert\partial(-\log\sigma)\rvert\)</span></td>
+<td style="text-align:right">0.998</td>
+<td style="text-align:right">0.982</td>
+<td style="text-align:right">0.881</td>
+<td style="text-align:right">0.500</td>
+<td style="text-align:right">0.119</td>
+</tr>
+</tbody>
+</table>
+<p>At logit <span class="math inline">\(-6\)</span> the saturating signal is 0.002 of the other: two thousand times
+weaker exactly where a bad generator starts. The two objectives are related by
+the identity</p>
+<div class="math block">
+\[-\log\sigma(a)=-\log\bigl(1-\sigma(a)\bigr)-a,\]
+</div>
+<p>so the non-saturating loss is the negative of the saturating one shifted by
+<span class="math inline">\(-a\)</span>. At the equilibrium <span class="math inline">\(a=0\)</span> both have derivative <span class="math inline">\(-\tfrac12\)</span>, which is why
+they share a fixed point; away from it the shift is what keeps the gradient
+alive, and that is the whole reason the heuristic works.</p>
+<h3 id="least-squares">Least squares <a class="header-anchor" href="#least-squares">#</a></h3>
+<p>LSGAN drops the sigmoid and the logarithm. With targets 1 for real, 0 for
+generated and 1 for the generator's output, the discriminator solves</p>
+<div class="math block">
+\[D^*=\arg\min_D\;\tfrac12\mathbb E_{p_{\mathrm{data}}}\bigl[(D-1)^2\bigr]
++\tfrac12\mathbb E_{p_g}\bigl[D^2\bigr]
+=\frac{p_{\mathrm{data}}}{p_{\mathrm{data}}+p_g},
+\qquad (5)\]
+</div>
+<p>the same ratio as (2), obtained by a linear rather than a logistic regression.
+At that <span class="math inline">\(D^*\)</span> the generator's objective is exactly</p>
+<div class="math block">
+\[\mathbb E_{p_g}\bigl[(D^*-1)^2\bigr]
+=\int\frac{p_g^3}{(p_{\mathrm{data}}+p_g)^2}\,dx .
+\qquad (6)\]
+</div>
+<p>Because the discriminator is linear, a confident verdict does not saturate: the
+squared error at <span class="math inline">\(D(G(z))\)</span> far from 1 is far from zero, and its gradient is
+proportional to the distance. That is why this variant holds all eight modes
+here while the log-based ones are more delicate.</p>
+<h3 id="hinge">Hinge <a class="header-anchor" href="#hinge">#</a></h3>
+<p>The hinge objective gives the discriminator a margin and the generator a
+constant push:</p>
+<div class="math block">
+\[\mathcal L_D=\mathbb E_{p_{\mathrm{data}}}\bigl[\min(0,D(x)-1)\bigr]
++\mathbb E_{p_g}\bigl[\min(0,-D(x)-1)\bigr],
+\qquad
+\mathcal L_G=-\mathbb E_{p_g}\bigl[D(x)\bigr].
+\qquad (7)\]
+</div>
+<p>The discriminator's per-sample gradients are <span class="math inline">\(-1\)</span> while a real point is inside
+the margin and <span class="math inline">\(+1\)</span> while a generated one is, and zero outside; the generator's
+is <span class="math inline">\(-1\)</span> always. It is a support vector machine in which the boundary is learned
+adversarially, and it is the only row of the table whose generator signal is
+constant — 1.000 in the demo. Constant does not mean good: the push carries no
+information about distance, and this variant is the least stable of the four.</p>
+<h3 id="conditioning">Conditioning <a class="header-anchor" href="#conditioning">#</a></h3>
+<p>A conditional GAN makes both players functions of the label:</p>
+<div class="math block">
+\[\mathcal L=\mathbb E_{p_{\mathrm{data}}(x,y)}\bigl[\log D(x,y)\bigr]
++\mathbb E_{p_g}\bigl[\log\bigl(1-D(G(z,y),y)\bigr)\bigr].
+\qquad (8)\]
+</div>
+<p>For each <span class="math inline">\(y\)</span> the inner problem is (1) restricted to that class, so
+<span class="math inline">\(D^*(x,y)=p_{\mathrm{data}}(x\mid y)/(p_{\mathrm{data}}(x\mid y)+p_g(x\mid y))\)</span>
+provided both sides use the same distribution of labels — which they do, because
+the demo draws the fake label uniformly. The label is one-hot concatenated to
+the input, eight extra columns on both networks; the cost is
+<span class="math inline">\(8\times64+8\)</span> parameters on the discriminator and the same on the generator, and
+the benefit is that the model no longer has to spend capacity on class identity.</p>
+<h3 id="the-infogan-bound">The InfoGAN bound <a class="header-anchor" href="#the-infogan-bound">#</a></h3>
+<p>InfoGAN wants the code to control the output without telling the discriminator
+which code was used. The quantity to maximise is the mutual information</p>
+<div class="math block">
+\[I(c;G(z,c))=H(c)-H(c\mid G(z,c))
+=H(c)+\mathbb E_{x=G(z,c)}\bigl[\log p(c\mid x)\bigr],
+\qquad (9)\]
+</div>
+<p>and <span class="math inline">\(p(c\mid x)\)</span> is intractable because it requires the generator's posterior
+over codes. Introduce any distribution <span class="math inline">\(Q(c\mid x)\)</span> and use
+<span class="math inline">\(\mathrm{KL}(p\|Q)\ge 0\)</span>:</p>
+<div class="math block">
+\[\mathbb E\bigl[\log p(c\mid x)\bigr]
+=\mathbb E\bigl[\log Q(c\mid x)\bigr]
++\mathrm{KL}\bigl(p(c\mid x)\,\|\,Q(c\mid x)\bigr)
+\ge\mathbb E\bigl[\log Q(c\mid x)\bigr].\]
+</div>
+<p>Combining with (9),</p>
+<div class="math block">
+\[I(c;G(z,c))\ge H(c)+\mathbb E_{z,c}\bigl[\log Q(c\mid G(z,c))\bigr].
+\qquad (10)\]
+</div>
+<p>With uniform codes <span class="math inline">\(H(c)=\log 8\)</span> is a constant, so the practical objective is to
+make an auxiliary classifier <span class="math inline">\(Q\)</span>, reading the discriminator's features, good at
+naming the code of a generated point:</p>
+<div class="math block">
+\[\max_{G,Q}\;\mathbb E_{z,c}\bigl[\log Q(c\mid G(z,c))\bigr].
+\qquad (11)\]
+</div>
+<p><span class="math inline">\(Q\)</span> is trained by cross-entropy on the generated batch; the same cross-entropy's
+gradient is passed to the generator. With <span class="math inline">\(\mathcal L_G\)</span> the adversarial loss
+and <span class="math inline">\(\mathrm{CE}\)</span> the auxiliary cross-entropy, the generator's update is</p>
+<div class="math block">
+\[\theta_G\leftarrow\theta_G-\eta\Bigl(
+\nabla_{\theta_G}\mathcal L_G
++\lambda\,\nabla_{\theta_G}\mathrm{CE}\Bigr).
+\qquad (12)\]
+</div>
+<p>The sign in (12) is the whole variant. The first version of this file subtracted
+the auxiliary gradient, and the run looked healthy: the adversarial loss went
+down and mode coverage stayed 8/8, because the generator can ignore the code and
+still produce eight modes. What collapsed was the code — 0.22 consistency, below
+the 0.52 that the code channel reaches with no MI term at all, because the
+generator was being trained to make the code <em>un</em>predictable. A wrong sign in an
+auxiliary term is invisible in the adversarial loss; only the auxiliary metric
+catches it.</p>
+<h3 id="a-discriminator-with-a-constant-output">A discriminator with a constant output <a class="header-anchor" href="#a-discriminator-with-a-constant-output">#</a></h3>
+<p>The simplest failure to diagnose is a discriminator that outputs the same logit
+for everything. Fix a base rate <span class="math inline">\(\pi\)</span> of positives and a constant logit <span class="math inline">\(c\)</span>; the
+binary cross-entropy is</p>
+<div class="math block">
+\[\mathcal L(c)=-\pi\log\sigma(c)-(1-\pi)\log\bigl(1-\sigma(c)\bigr),\]
+</div>
+<p>whose derivative is <span class="math inline">\(\sigma(c)-\pi\)</span>. Hence</p>
+<div class="math block">
+\[\hat c=\log\frac{\pi}{1-\pi},
+\qquad
+\mathcal L(\hat c)=\mathrm H(\pi),
+\qquad (13)\]
+</div>
+<p>the entropy of the label. The demo sweeps the logit on a grid for three base
+rates and recovers the entropy to within 0.002 (the grid step): 0.325 nats at
+<span class="math inline">\(\pi=0.1\)</span>, 0.693 at <span class="math inline">\(\pi=0.5\)</span>, 0.325 at <span class="math inline">\(\pi=0.9\)</span>. A discriminator stuck at a
+constant has not learned nothing; it has learned the marginal and nothing else,
+which is precisely what a generator that matched the marginal would leave it.
+The number says <em>which</em> aggregate matched, never which modes are missing.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The data first. Eight centres on a circle of radius 0.8, isotropic noise of 0.07,
+256 points each. The radius matters: the generator ends in <code>tanh</code>, so anything
+outside <span class="math inline">\([-1,1]\)</span> is unreachable and the model would pile up on the boundary.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">centres</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The eight mode centres, (8, 2)."""</span>
+    <span class="n">angle</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">MODES</span><span class="p">)</span> <span class="o">/</span> <span class="n">MODES</span>
+    <span class="k">return</span> <span class="n">RADIUS</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">make_data</span><span class="p">(</span><span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">per_mode</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return (x, y) with `per_mode` points around each of the eight centres."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">c</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">SPREAD</span><span class="p">,</span> <span class="p">(</span><span class="n">per_mode</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+                   <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">centres</span><span class="p">()])</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">MODES</span><span class="p">),</span> <span class="n">per_mode</span><span class="p">)</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">order</span><span class="p">]</span>
+</code></pre>
+<p>Coverage is measured against those centres, not against a loss. A mode counts
+when it wins more than 3% of 1024 draws, so a collapsed generator scores one and
+a uniform one scores eight; the 3% floor is a choice, and every number in this
+file inherits it.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">mode_stats</span><span class="p">(</span><span class="n">samples</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return (modes covered, largest share, mean distance to nearest centre).</span>
+
+<span class="sd">    A mode counts as covered when it wins more than 3% of the samples, so a</span>
+<span class="sd">    collapsed generator scores one and a uniform one scores eight.</span>
+<span class="sd">    """</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">s</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">centres</span><span class="p">()[</span><span class="kc">None</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">share</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">minlength</span><span class="o">=</span><span class="n">MODES</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">share</span> <span class="o">&gt;</span> <span class="mf">0.03</span><span class="p">)),</span> <span class="nb">float</span><span class="p">(</span><span class="n">share</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+</code></pre>
+<p>Both networks are stacks of dense layers with one forward cache per layer. The
+generator's last layer is <code>tanh</code>; the discriminator's is linear, and the sigmoid
+lives in the loss table so that the hinge and least-squares variants can omit
+it.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_forward</span><span class="p">(</span><span class="n">layers</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">leak</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+             <span class="n">tanh_last</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run the stack; returns (output, cache) with one entry per layer."""</span>
+    <span class="n">cache</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">x</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">layers</span><span class="p">):</span>
+        <span class="n">pre</span> <span class="o">=</span> <span class="n">h</span> <span class="o">@</span> <span class="n">layer</span><span class="p">[</span><span class="s2">"W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">layer</span><span class="p">[</span><span class="s2">"b"</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">last</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span> <span class="k">if</span> <span class="n">tanh_last</span> <span class="k">else</span> <span class="n">pre</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">pre</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">pre</span><span class="p">,</span> <span class="n">leak</span> <span class="o">*</span> <span class="n">pre</span><span class="p">)</span>
+        <span class="n">cache</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">h</span><span class="p">,</span> <span class="n">pre</span><span class="p">,</span> <span class="n">out</span><span class="p">))</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="k">return</span> <span class="n">h</span><span class="p">,</span> <span class="n">cache</span>
+</code></pre>
+<p>The backward pass returns both the parameter gradients and the gradient with
+respect to its input, because the generator needs the latter: the chain rule
+through the discriminator <em>is</em> the generator's loss. <code>dout</code> already carries the
+<span class="math inline">\(1/n\)</span> of a batch mean, so the two share one scale.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_backward</span><span class="p">(</span><span class="n">layers</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">cache</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">dout</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">leak</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+              <span class="n">tanh_last</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return (per-layer grads, gradient wrt the input).</span>
+
+<span class="sd">    `dout` must already carry the 1/n of a batch mean, so that the parameter</span>
+<span class="sd">    gradients and the input gradient share one scale.</span>
+<span class="sd">    """</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">dout</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">last</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">h</span><span class="p">,</span> <span class="n">pre</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">last</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tanh_last</span><span class="p">:</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="n">d</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">out</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">d</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">pre</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">leak</span><span class="p">)</span>
+        <span class="n">grads</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"W"</span><span class="p">:</span> <span class="n">h</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">d</span><span class="p">,</span> <span class="s2">"b"</span><span class="p">:</span> <span class="n">d</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)}</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">d</span> <span class="o">@</span> <span class="n">layers</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">"W"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">return</span> <span class="n">grads</span><span class="p">,</span> <span class="n">d</span>
+</code></pre>
+<p>The seven variants are one function. Each row is a derivative with respect to
+the discriminator logit; the discriminator descends the first two, the generator
+descends the third. The least-squares rows are linear because <span class="math inline">\(D\)</span> is linear; the
+hinge rows are indicators; the log rows use <code>_sig</code>.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">loss_grads</span><span class="p">(</span><span class="n">variant</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">real</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">fake</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return (dD/d real, dD/d fake, dG/d fake), one entry per sample.</span>
+
+<span class="sd">    The discriminator descends its two rows; the generator descends the third.</span>
+<span class="sd">    Keeping all three here is what makes the variants comparable: they differ</span>
+<span class="sd">    in this table, in the network shapes, and in what the networks are shown.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"vanilla"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_sig</span><span class="p">(</span><span class="n">real</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">_sig</span><span class="p">(</span><span class="n">fake</span><span class="p">),</span> <span class="o">-</span><span class="n">_sig</span><span class="p">(</span><span class="n">fake</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"dcgan"</span><span class="p">,</span> <span class="s2">"non_saturating"</span><span class="p">,</span> <span class="s2">"conditional"</span><span class="p">,</span> <span class="s2">"infogan"</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_sig</span><span class="p">(</span><span class="n">real</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">_sig</span><span class="p">(</span><span class="n">fake</span><span class="p">),</span> <span class="n">_sig</span><span class="p">(</span><span class="n">fake</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"lsgan"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">real</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">fake</span><span class="p">,</span> <span class="n">fake</span> <span class="o">-</span> <span class="mf">1.0</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"hinge"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">real</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">fake</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">),</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">)</span>
+</code></pre>
+<p>Network shapes are a function of the variant. <code>conditional</code> grows both inputs by
+the eight one-hot columns; <code>infogan</code> grows only the generator's; <code>dcgan</code> adds a
+layer and doubles the width.</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_sizes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+        <span class="n">d_in</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">CODE</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conditional</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">g_in</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">z_dim</span> <span class="o">+</span> <span class="p">(</span><span class="n">CODE</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conditional</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">infogan</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">depth</span> <span class="o">=</span> <span class="mi">3</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"dcgan"</span> <span class="k">else</span> <span class="mi">2</span>
+        <span class="k">return</span> <span class="p">([</span><span class="n">d_in</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">]</span> <span class="o">*</span> <span class="n">depth</span> <span class="o">+</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="p">[</span><span class="n">g_in</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">]</span> <span class="o">*</span> <span class="n">depth</span> <span class="o">+</span> <span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+</code></pre>
+<p>That asymmetry is the whole of InfoGAN. The discriminator is shown a point and
+nothing else, so the only way the code can become recoverable is through <span class="math inline">\(Q\)</span> and
+the generator's auxiliary gradient.</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_d_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">c</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="c1"># Only the conditional variant shows the code to the discriminator;</span>
+        <span class="c1"># InfoGAN's whole point is that it does not.</span>
+        <span class="n">onehot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_onehot</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conditional</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="k">if</span> <span class="n">onehot</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">onehot</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>One training step is two discriminator passes (real, fake), one accumulator
+addition, then a fresh discriminator pass on the same generated batch for the
+generator. The generator is updated against the discriminator it just changed,
+which is the standard simultaneous update; no extra inner loop.</p>
+<pre class="highlight"><code>            <span class="n">gr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">"D"</span><span class="p">],</span> <span class="n">dr_cache</span><span class="p">,</span>
+                              <span class="n">_col</span><span class="p">(</span><span class="n">kdr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">)</span>
+            <span class="n">gf</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">"D"</span><span class="p">],</span> <span class="n">df_cache</span><span class="p">,</span>
+                              <span class="n">_col</span><span class="p">(</span><span class="n">kdf</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">)</span>
+            <span class="n">grads_d</span> <span class="o">=</span> <span class="n">_add</span><span class="p">(</span><span class="n">gr</span><span class="p">,</span> <span class="n">gf</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">kgen</span><span class="p">))))</span>
+</code></pre>
+<pre class="highlight"><code>            <span class="c1"># Generator step, against the discriminator it just updated.</span>
+            <span class="n">d_fake</span><span class="p">,</span> <span class="n">df_cache</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span>
+                <span class="n">params</span><span class="p">[</span><span class="s2">"D"</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_d_input</span><span class="p">(</span><span class="n">fake</span><span class="p">,</span> <span class="n">c_fake</span><span class="p">),</span> <span class="n">leak</span><span class="o">=</span><span class="n">LEAK</span><span class="p">)</span>
+            <span class="n">kgen</span> <span class="o">=</span> <span class="n">loss_grads</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">variant</span><span class="p">,</span> <span class="n">d_real</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">d_fake</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">dx</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">"D"</span><span class="p">],</span> <span class="n">df_cache</span><span class="p">,</span>
+                              <span class="n">_col</span><span class="p">(</span><span class="n">kgen</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">infogan</span><span class="p">:</span>
+                <span class="n">feat</span><span class="p">,</span> <span class="n">feat_cache</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">"D"</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">fake</span><span class="p">,</span> <span class="n">leak</span><span class="o">=</span><span class="n">LEAK</span><span class="p">)</span>
+                <span class="n">logits</span> <span class="o">=</span> <span class="n">feat</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"Q"</span><span class="p">][</span><span class="s2">"W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"Q"</span><span class="p">][</span><span class="s2">"b"</span><span class="p">]</span>
+                <span class="n">d_logits</span> <span class="o">=</span> <span class="p">(</span><span class="n">_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">CODE</span><span class="p">)[</span><span class="n">c_fake</span><span class="p">])</span> \
+                    <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">dx_mi</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">"D"</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">feat_cache</span><span class="p">,</span>
+                                     <span class="n">d_logits</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"Q"</span><span class="p">][</span><span class="s2">"W"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">)</span>
+                <span class="c1"># Maximise I(c; G(z, c)): descend the auxiliary cross-entropy,</span>
+                <span class="c1"># so add its gradient instead of subtracting it.</span>
+                <span class="n">dx</span> <span class="o">=</span> <span class="n">dx</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mi_weight</span> <span class="o">*</span> <span class="n">dx_mi</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conditional</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">infogan</span><span class="p">:</span>
+                <span class="n">dx</span> <span class="o">=</span> <span class="n">dx</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">z_dim</span><span class="p">]</span>
+            <span class="n">grads_g</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">"G"</span><span class="p">],</span> <span class="n">g_cache</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">tanh_last</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">opt_g</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">"G"</span><span class="p">],</span> <span class="n">grads_g</span><span class="p">)</span>
+</code></pre>
+<p>The InfoGAN block fits <span class="math inline">\(Q\)</span> on the generated batch only — the quantity being
+bounded is <span class="math inline">\(I(c;G(z,c))\)</span>, so real points are not evidence about the code — and
+then pushes the same cross-entropy back through the discriminator's features
+into the generator. The Q update and the D update use separate Adam states, but
+the feature layers are shared, so <code>grads_d</code> receives the auxiliary gradient too.</p>
+<p>Finally the test. The code need not equal the mode's number: InfoGAN has no
+reason to use the same labelling, and forcing it would measure the indexing
+convention rather than the information. What matters is that each code lands on
+one mode.</p>
+<pre class="highlight"><code>        <span class="n">hits</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">resolved</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">CODE</span><span class="p">):</span>
+            <span class="n">mine</span> <span class="o">=</span> <span class="n">near</span><span class="p">[</span><span class="n">c</span> <span class="o">==</span> <span class="n">k</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">mine</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">mine</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">MODES</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+            <span class="n">hits</span> <span class="o">+=</span> <span class="n">top</span>
+            <span class="n">resolved</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">top</span> <span class="o">&gt;=</span> <span class="mf">0.6</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">mine</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">hits</span> <span class="o">/</span> <span class="n">n</span><span class="p">,</span> <span class="n">resolved</span>
+</code></pre>
+<p>With no MI term the code channel still gives 0.521 consistency and 2 of 8 codes
+resolved; the generator uses the code as a private random seed even when
+nothing asks it to. With the term, both are 1.000 and 8. That gap — not the
+coverage gap, which is zero either way — is what InfoGAN buys.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>The standard pair has 4482 generator parameters and 4417 discriminator
+parameters: two hidden layers of width 64, plus the input and output. The
+conditional model adds <span class="math inline">\(8\times64+8=520\)</span> parameters to each network, because
+eight one-hot columns enter each first layer. InfoGAN adds 520 to the generator
+and a 520-parameter <span class="math inline">\(Q\)</span> head, but not to the discriminator. The <code>dcgan</code> variant
+is the outlier: 35,458 and 33,537, roughly eight times the standard pair, for one
+more layer and double the width.</p>
+<p>One step touches each generated batch three times — once through <span class="math inline">\(G\)</span>, and twice
+through <span class="math inline">\(D\)</span> (real and fake) plus a second fake pass after the update. At batch
+128 that is about 5M multiply-adds per step for the standard pair, so 20G over
+the demo's 4000 steps. <code>dcgan</code> has eight times the parameters, costs about 35M
+per step, and reaches 140G over the same run. The demo trains eight models
+(seven variants plus the zero-MI ablation), which is 32,000 adversarial steps;
+the cost is linear in the number of variants and quadratic in the width, and
+there is no epoch structure to tune.</p>
+<p>Memory is the parameter count plus the largest activation cache: batch times
+width per layer, doubled by Adam's two moment estimates. At this size everything
+fits in L2; at image scale the discriminator's activations, not its weights,
+are the constraint, and gradient checkpointing in <span class="math inline">\(D\)</span> is the usual answer.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Mode collapse is the objective, not a bug.</strong> Any generator whose support is
+inside the data's support can drive the discriminator to a constant on that
+support; the missing modes are simply never sampled, so they contribute nothing
+to either expectation. The demo's <code>hinge</code> run keeps five modes with a 0.30
+largest share. Remedies change the objective (Wasserstein, which compares
+distributions rather than classifying points), the batch (minibatch
+discrimination), or the update (unrolled GANs); none of them is a proof.</p>
+<p><strong>The saturating gradient vanishes at exactly the wrong time.</strong> At logit <span class="math inline">\(-6\)</span>
+the saturating signal is 0.002 of the non-saturating one. The non-saturating
+form is a heuristic, not an equivalent objective — the identity above shows the
+extra <span class="math inline">\(-a\)</span> term — and it is the reason every practical GAN writes <span class="math inline">\(-\log D\)</span> and
+calls the original &quot;vanilla&quot;.</p>
+<p><strong>An auxiliary term's sign is invisible in the main loss.</strong> Adding instead of
+subtracting the InfoGAN cross-entropy gave a healthy adversarial loss, full mode
+coverage and a code that was <em>anti</em>-learned: 0.22 consistency against a 0.53
+baseline. The fix is one character, and only the auxiliary metric can see it.</p>
+<p><strong>A discriminator that is too good starves the generator.</strong> <code>dcgan</code> reaches 0.84
+accuracy and drops a mode; the generator is chasing a boundary that has already
+moved. One-sided label smoothing, input noise, a smaller <span class="math inline">\(D\)</span>, or a slower <span class="math inline">\(D\)</span>
+learning rate all trade some discrimination for signal. The opposite failure —
+a discriminator that never learns — leaves the generator with a constant loss
+and produces blobs.</p>
+<p><strong>Batch normalisation in the discriminator leaks across the batch.</strong> If real
+and fake points share a normalisation batch, each fake's score depends on the
+real points beside it, and the generator can exploit the coupling. The usual fix
+is to normalise each batch separately or to use layer normalisation; this file
+uses no normalisation, which is feasible only because the data is two
+dimensional and standardised by construction.</p>
+<p><strong>The output range is a hard constraint.</strong> The generator ends in <code>tanh</code>, so a
+mode at radius 1.2 would be unreachable and all mass would collect on the unit
+circle's boundary in that direction. The data here sits at 0.8 for exactly this
+reason. At image scale the same mistake appears as clipped highlights and
+saturated colours.</p>
+<p><strong>Seed sensitivity is large enough to change the verdict.</strong> <code>hinge</code> keeps five
+modes in the table and six on a fresh draw; <code>vanilla</code> keeps eight either time.
+A single seed is an anecdote, and a table of single seeds is a table of
+anecdotes. The demo's thresholds are deliberately loose for this reason: it
+asserts that the stable losses keep at least seven modes and that hinge keeps
+fewer than vanilla, not that any particular count is exact.</p>
+<p><strong>The loss is not a quality metric.</strong> The signal column ranges from 0.496 to
+1.000 across variants that produce equally good samples, and no row's loss is
+comparable to another's. Coverage, distance to the nearest centre and
+precision/recall against a held-out set are the honest measures; the 3% coverage
+threshold is itself a choice that a different threshold would move.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Image synthesis.</strong> The reason the field exists: from DCGAN's 64×64 bedrooms to
+StyleGAN's photorealistic faces, the generator is a sampler from a distribution
+that was only ever given as examples. The engineering that matters is
+architectural (progressive growing, style modulation) and the loss is often the
+least interesting part.</p>
+<p><strong>Conditional generation and translation.</strong> pix2pix and CycleGAN make the label
+or the other domain part of the input; the same conditional game in (8) is the
+whole of it. Super-resolution, colourisation, inpainting and style transfer are
+all conditional GANs with different conditioning.</p>
+<p><strong>As a loss function.</strong> A discriminator trained on real data is a learned
+perceptual metric, and it is used as an auxiliary loss in compression, speech
+enhancement and video prediction long after the generator is gone. This is the
+most durable use: adversarial training as a regulariser, not as a sampler.</p>
+<p><strong>Synthetic data and augmentation.</strong> A GAN can produce more examples of a rare
+class than were measured. The caveat is the one from the failure section: the
+generator drops modes and memorises training points, so downstream models
+inherit both biases. Differential-privacy-flavoured GANs exist but do not make
+this safe by construction.</p>
+<p><strong>Adversarial robustness.</strong> The same saddle point, read the other way: perturb
+an input to maximise the loss of a fixed classifier. Fast gradient sign and PGD
+are the inner maximisation; adversarial training is the outer minimisation. The
+GAN view explains why the perturbation transfers between models.</p>
+<p><strong>Inverse problems.</strong> Given a forward operator and a measurement, sample the
+posterior by optimising a latent code so that <span class="math inline">\(A(G(z))\)</span> matches the measurement,
+with the GAN prior standing in for a likelihood. Compressed sensing with
+generative priors (Bora et al. 2017) is this recipe.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Goodfellow, Pouget-Abadie, Mirza, Xu, Warde-Farley, Ozair, Courville &amp; Bengio
+(2014). <em>Generative Adversarial Nets.</em> NeurIPS.</li>
+<li>Mirza &amp; Osindero (2014). <em>Conditional Generative Adversarial Nets.</em> arXiv.</li>
+<li>Radford, Metz &amp; Chintala (2016). <em>Unsupervised Representation Learning with
+Deep Convolutional Generative Adversarial Networks.</em> ICLR.</li>
+<li>Salimans, Goodfellow, Zaremba, Cheung, Radford &amp; Chen (2016). <em>Improved
+Techniques for Training GANs.</em> NeurIPS.</li>
+<li>Nowozin, Cseke &amp; Tomioka (2016). <em>f-GAN: Training Generative Neural Samplers
+using Variational Divergence Minimization.</em> NeurIPS.</li>
+<li>Chen, Duan, Houthooft, Schulman, Sutskever &amp; Abbeel (2016). <em>InfoGAN:
+Interpretable Representation Learning by Information Maximizing Generative
+Adversarial Nets.</em> NeurIPS.</li>
+<li>Arjovsky, Chintala &amp; Bottou (2017). <em>Wasserstein GAN.</em> arXiv.</li>
+<li>Mao, Li, Xie, Lau, Wang &amp; Smolley (2017). <em>Least Squares Generative
+Adversarial Networks.</em> ICCV.</li>
+<li>Lim &amp; Ye (2017). <em>Geometric GAN.</em> arXiv.</li>
+<li>Bora, Jalal, Price &amp; Dimakis (2017). <em>Compressed Sensing using Generative
+Models.</em> ICML.</li>
+<li>Karras, Laine &amp; Aila (2019). <em>A Style-Based Generator Architecture for
+Generative Adversarial Networks.</em> CVPR.</li>
+<li>Borji (2019). <em>Pros and Cons of GAN Evaluation Measures.</em> Computer Vision and
+Image Understanding.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="vae.html"><small>Previous</small><span>Variational autoencoder</span></a><a class="next" href="../15-graphs/index.html"><small>Next</small><span>15 · Graphs</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">14 · Generative models</p><ul class="rail-list"><li><a href="vae.html"><span class="tick">✓</span><span>Variational autoencoder</span></a></li><li><a href="gan.html" aria-current="page"><span class="tick">✓</span><span>GAN</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Diffusion (DDPM)</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Wasserstein GAN</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>DDIM</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Guidance</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Normalising flows</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>VQ-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Beta-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Score-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Autoregressive generation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Energy-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Flow matching</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../13-training/index.html"><span class="jump">← 13 · Training</span></a></li><li><a href="../15-graphs/index.html"><span class="jump">15 · Graphs&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-game">The game</a></li><li class="lvl3"><a href="#the-optimal-discriminator">The optimal discriminator</a></li><li class="lvl3"><a href="#saturating-and-non-saturating">Saturating and non-saturating</a></li><li class="lvl3"><a href="#least-squares">Least squares</a></li><li class="lvl3"><a href="#hinge">Hinge</a></li><li class="lvl3"><a href="#conditioning">Conditioning</a></li><li class="lvl3"><a href="#the-infogan-bound">The InfoGAN bound</a></li><li class="lvl3"><a href="#a-discriminator-with-a-constant-output">A discriminator with a constant output</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/14-generative/gan.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

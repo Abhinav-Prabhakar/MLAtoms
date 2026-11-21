@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Semi-supervised learning · MLAtoms</title>
+<meta name="description" content="Self-training, pseudo-labels and consistency regularisation. Semi-supervised learning starts from a strange bargain: you have a few labels, many inputs, and…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/semi_supervised.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Semi-supervised learning">
+<meta property="og:description" content="Self-training, pseudo-labels and consistency regularisation. Semi-supervised learning starts from a strange bargain: you have a few labels, many inputs, and…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/semi_supervised.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Semi-supervised learning">
+<meta name="twitter:description" content="Self-training, pseudo-labels and consistency regularisation. Semi-supervised learning starts from a strange bargain: you have a few labels, many inputs, and…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Semi-supervised learning", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/semi_supervised.html", "description": "Self-training, pseudo-labels and consistency regularisation. Semi-supervised learning starts from a strange bargain: you have a few labels, many inputs, and\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="semi_supervised.py.html">source</a></p><h1>Semi-supervised learning — seven ways to use unlabelled points</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Semi-supervised learning starts from a strange bargain: you have a few
+labels, many inputs, and no extra information about what the missing labels
+are. Everything it can exploit is already in the input distribution — the
+shape of the data, the smoothness you impose on the model, and the guess that
+nearby points share a label.</p>
+<p>The seven variants here take two routes. Pseudo-labelling methods run the
+model on unlabelled inputs and train on its own predictions: self-training
+adds the confident ones as hard labels, soft pseudo-labelling keeps the
+probabilities, FixMatch adds strong augmentation, MixMatch mixes labelled and
+unlabelled batches. Consistency methods compare two views of the same input:
+the mean teacher uses an exponential moving average of the weights, and the
+ladder reconstructs clean activations from noisy ones. Label propagation
+ignores the network and solves a graph problem.</p>
+<p>On two moons with eight labels, the supervised network scores 0.690. The
+consistency and graph methods are far ahead — mean teacher 0.985, label
+propagation 0.998, ladder 0.733 — while every pseudo-labelling method lands
+within 0.003 of the baseline. That is the result worth taking seriously: a
+model trained on its own predictions has a fixed point, and a bad boundary is
+a very stable fixed point.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">uses</th>
+<th style="text-align:left">signal</th>
+<th style="text-align:left">extra cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>self_training</code></td>
+<td style="text-align:left">hard pseudo-labels</td>
+<td style="text-align:left">confidence threshold</td>
+<td style="text-align:left"><span class="math inline">\(R\)</span> fits</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pseudo_label</code></td>
+<td style="text-align:left">soft pseudo-labels</td>
+<td style="text-align:left">all unlabelled, weighted</td>
+<td style="text-align:left">one fit</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>fixmatch</code></td>
+<td style="text-align:left">strong augmentation</td>
+<td style="text-align:left">weak view gives the label</td>
+<td style="text-align:left">one fit</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mean_teacher</code></td>
+<td style="text-align:left">EMA teacher</td>
+<td style="text-align:left">KL between two views</td>
+<td style="text-align:left">two forwards</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mixmatch</code></td>
+<td style="text-align:left">sharpen + MixUp</td>
+<td style="text-align:left">mixed targets</td>
+<td style="text-align:left">one fit</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>label_propagation</code></td>
+<td style="text-align:left">kNN graph</td>
+<td style="text-align:left">closed-form diffusion</td>
+<td style="text-align:left">one solve</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ladder</code></td>
+<td style="text-align:left">input noise</td>
+<td style="text-align:left">denoising cost</td>
+<td style="text-align:left">one noisy forward</td>
+</tr>
+</tbody>
+</table>
+<p>One learner, one labelled set, one unlabelled pool. The variants differ in
+what they add to the cross-entropy, not in the network: a 2→32→32→2 tanh MLP
+trained with Adam and weight decay.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-objective">The objective <a class="header-anchor" href="#the-objective">#</a></h3>
+<p>With labelled data <span class="math inline">\((\mathcal L)\)</span> and unlabelled inputs <span class="math inline">\((\mathcal U)\)</span>, the
+target is still classification accuracy, but the loss has two terms:</p>
+<div class="math block">
+\[L(\theta)=\underbrace{\sum_{(x,y)\in\mathcal L}
+\ell\!\left(f_\theta(x),y\right)}_{\text{supervised}}
++\lambda\underbrace{\sum_{u\in\mathcal U}
+\rho\!\left(f_\theta,u\right)}_{\text{unsupervised}},
+\qquad (1)\]
+</div>
+<p>and every variant below is a different <span class="math inline">\(\rho\)</span>. The unlabelled term carries no
+label information, so it can only shape the function between the labelled
+points. If that shape is wrong, more unlabelled data makes the model more
+confidently wrong.</p>
+<h3 id="hard-pseudo-labels">Hard pseudo-labels <a class="header-anchor" href="#hard-pseudo-labels">#</a></h3>
+<p>Self-training picks the model's own answer where it is confident:</p>
+<div class="math block">
+\[\hat y(u)=\arg\max_c p_\theta(c\mid u),\qquad
+\mathcal U^{+}=\{u:\max_c p_\theta(c\mid u)\ge\tau\},
+\qquad (2)\]
+</div>
+<p>and then retrains on <span class="math inline">\(\mathcal L\cup\{(u,\hat y(u))\}\)</span>. Retraining from the
+current weights rather than from scratch makes the procedure a fixed-point
+iteration. On the demo it reaches 367 of 392 points at <span class="math inline">\(\tau=0.9\)</span> and the
+accuracy does not move at all (0.690, the same as the baseline).</p>
+<p>The reason is visible in the gradient. Once every accepted point satisfies
+<span class="math inline">\(p_\theta(u)\approx e_{\hat y(u)}\)</span>, the pseudo-label term contributes</p>
+<div class="math block">
+\[\nabla_W L_{\mathrm{pseudo}}
+=\sum_{u\in\mathcal U^{+}}\left(p_\theta(u)-e_{\hat y(u)}\right)\phi(u)^\top
+\approx 0,
+\qquad (3)\]
+</div>
+<p>so the boundary is already a stationary point of its own labelling. The
+threshold sweep makes the same point four ways: 389, 377, 367 and 320 labels
+at thresholds 0.60, 0.80, 0.90 and 0.99, and 0.690 accuracy every time. The
+network is overconfident almost everywhere, so the threshold selects a
+quantity of points, not a quality of labels.</p>
+<h3 id="soft-pseudo-labels">Soft pseudo-labels <a class="header-anchor" href="#soft-pseudo-labels">#</a></h3>
+<p>Instead of committing, keep the distribution and weight it:</p>
+<div class="math block">
+\[L_{\mathrm{soft}}=\sum_{u\in\mathcal U}w(u)\,
+H\!\left(p_\theta(u),\,p_{\bar\theta}(u)\right),
+\qquad (4)\]
+</div>
+<p>where <span class="math inline">\(\bar\theta\)</span> is the model that produced the target and <span class="math inline">\(w\)</span> is the
+variant's weight — 1.0 here. Soft targets carry the model's uncertainty, but
+they carry no more information than the hard ones; the demo's soft variant
+also lands at 0.690. Both are useful when the starting model is already good,
+which is why they work in distillation-style pipelines and not from scratch.</p>
+<h3 id="fixmatch">FixMatch <a class="header-anchor" href="#fixmatch">#</a></h3>
+<p>FixMatch makes the pseudo-label from a weak view and applies it to a strong
+view of the same input:</p>
+<div class="math block">
+\[L_{\mathrm{fix}}=\sum_{u\in\mathcal U}
+\mathbf{1}\!\left[\max_c p_\theta(c\mid \alpha_w(u))\ge\tau\right]
+H\!\left(\hat y_w(u),\,p_\theta(\alpha_s(u))\right).
+\qquad (5)\]
+</div>
+<p>The weak view here is a small jitter, the strong view a rotation, a rescale
+and a larger jitter. The two views force the prediction to be invariant to
+transformations that should not change the label, which is information the
+model did not have from eight points. FixMatch reaches 0.785, and adding the
+strong view is the only change from plain pseudo-labelling.</p>
+<h3 id="mean-teacher">Mean teacher <a class="header-anchor" href="#mean-teacher">#</a></h3>
+<p>Keep a second copy of the weights and update it as an exponential moving
+average of the student:</p>
+<div class="math block">
+\[\bar\theta_t=\gamma\bar\theta_{t-1}+(1-\gamma)\theta_t,\qquad
+L_{\mathrm{mt}}=H\!\left(p_{\bar\theta}(\alpha_w(u)),\,
+p_\theta(\alpha_s(u))\right).
+\qquad (6)\]
+</div>
+<p>The teacher is an average over the whole training trajectory, so it is
+smoother and more stable than the student; the student is pulled towards it on
+the strong view. With <span class="math inline">\(\gamma=0.99\)</span> the teacher lags by about a hundred steps.
+This is the strongest method in the demo: 0.985 against 0.690, from eight
+labels, because the consistency term does not need the labels to be right —
+only the invariance to hold.</p>
+<h3 id="mixmatch">MixMatch <a class="header-anchor" href="#mixmatch">#</a></h3>
+<p>MixMatch sharpens the averaged unlabelled guesses and mixes them with the
+labelled batch:</p>
+<div class="math block">
+\[\bar q(u)=\mathrm{Sharpen}\!\left(\frac{1}{K}\sum_{k=1}^{K}
+p_\theta(u_k),\,T\right),\qquad
+\tilde x=\lambda x_i+(1-\lambda)x_j,
+\qquad (7)\]
+</div>
+<p>with <span class="math inline">\(\lambda\sim\mathrm{Beta}(0.75,0.75)\)</span> and the same mix applied to the
+targets. Sharpening with <span class="math inline">\(T=0.5\)</span> turns a soft guess into a nearly one-hot
+target, and MixUp interpolates both inputs and labels. On the demo it scores
+0.693: the mixing regularises, but the targets still come from the same
+boundary, so the fixed point survives.</p>
+<h3 id="label-propagation">Label propagation <a class="header-anchor" href="#label-propagation">#</a></h3>
+<p>Build a k-nearest-neighbour graph over the labelled and unlabelled points and
+diffuse the labels:</p>
+<div class="math block">
+\[F=(I-\alpha S)^{-1}Y,\qquad
+S=D^{-1/2}WD^{-1/2},
+\qquad (8)\]
+</div>
+<p>where <span class="math inline">\(W_{ij}=\exp(-\lVert x_i-x_j\rVert^2/2\sigma^2)\)</span> on the kNN edges, <span class="math inline">\(D\)</span>
+is its degree matrix, <span class="math inline">\(Y\)</span> holds the one-hot labels on labelled rows and zeros
+elsewhere, and <span class="math inline">\(\alpha\in(0,1)\)</span> controls how far the diffusion travels. The
+inverse is a closed-form solve, not an iteration, and it is the only method
+here that never trains a network. At <span class="math inline">\(k=7\)</span>, <span class="math inline">\(\sigma=0.3\)</span> and <span class="math inline">\(\alpha=0.8\)</span> it
+scores 0.998: the two moons are two connected components of the graph, and
+propagation finds them.</p>
+<h3 id="the-ladder">The ladder <a class="header-anchor" href="#the-ladder">#</a></h3>
+<p>The ladder adds noise at each layer and asks the network to reconstruct the
+clean activations. With one decoder at the top, the cost is</p>
+<div class="math block">
+\[L_{\mathrm{ladder}}=L_{\mathrm{sup}}
++\beta\sum_{u\in\mathcal U}
+\left\lVert \tilde h_2(u)-h_2(u)\right\rVert^2,
+\qquad (9)\]
+</div>
+<p>where <span class="math inline">\(h_2\)</span> is the clean second hidden layer and <span class="math inline">\(\tilde h_2\)</span> is the same
+layer computed from a noisy input. The reconstruction term forces the hidden
+representation to be stable under corruption, which is the same invariance
+argument as FixMatch, applied one layer down. The full ladder reconstructs
+every layer with its own decoder; this atom keeps one to stay readable, and
+the demo's 0.733 shows the idea survives the simplification.</p>
+<h3 id="the-network">The network <a class="header-anchor" href="#the-network">#</a></h3>
+<p>Every variant shares the same two-hidden-layer MLP:</p>
+<div class="math block">
+\[h_1=\tanh(W_1x+b_1),\quad h_2=\tanh(W_2h_1+b_2),\quad
+z=W_3h_2+b_3,
+\qquad (10)\]
+</div>
+<p>trained on soft targets <span class="math inline">\(t\)</span> with the weighted cross-entropy</p>
+<div class="math block">
+\[\ell=-\frac{1}{\sum_i w_i}\sum_i w_i\sum_c t_{ic}\log p_{ic}.
+\qquad (11)\]
+</div>
+<p>The soft-target form is what lets the same training step serve hard labels,
+soft pseudo-labels, mixed labels and consistency targets: only <span class="math inline">\(t\)</span> and <span class="math inline">\(w\)</span>
+change.</p>
+<h3 id="what-the-numbers-say">What the numbers say <a class="header-anchor" href="#what-the-numbers-say">#</a></h3>
+<p>The demo's summary is:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">method</th>
+<th style="text-align:right">accuracy</th>
+<th style="text-align:right">pseudo-labels</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">supervised only</td>
+<td style="text-align:right">0.690</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>self_training</code></td>
+<td style="text-align:right">0.690</td>
+<td style="text-align:right">367</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pseudo_label</code></td>
+<td style="text-align:right">0.690</td>
+<td style="text-align:right">367</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>fixmatch</code></td>
+<td style="text-align:right">0.785</td>
+<td style="text-align:right">339</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mean_teacher</code></td>
+<td style="text-align:right">0.985</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mixmatch</code></td>
+<td style="text-align:right">0.693</td>
+<td style="text-align:right">392</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>label_propagation</code></td>
+<td style="text-align:right">0.998</td>
+<td style="text-align:right">392</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ladder</code></td>
+<td style="text-align:right">0.733</td>
+<td style="text-align:right">0</td>
+</tr>
+</tbody>
+</table>
+<p>The methods that move are the ones whose loss adds information the model could
+not have generated itself: an invariance, a graph, or a smoother teacher. The
+methods that do not move are the ones whose targets are a function of the
+current boundary.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The augmentation is the only place the two views differ, so it is worth
+reading first. The strong view rotates, rescales and jitters; the weak view
+only jitters:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_augment</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">,</span>
+             <span class="n">strong</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Jitter alone is weak; a rotation and a rescale make it strong."""</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">strong</span><span class="p">:</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
+        <span class="n">cosine</span><span class="p">,</span> <span class="n">sine</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
+        <span class="n">centre</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">shifted</span> <span class="o">=</span> <span class="n">values</span> <span class="o">-</span> <span class="n">centre</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span>
+            <span class="n">cosine</span> <span class="o">*</span> <span class="n">shifted</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">sine</span> <span class="o">*</span> <span class="n">shifted</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="n">sine</span> <span class="o">*</span> <span class="n">shifted</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">cosine</span> <span class="o">*</span> <span class="n">shifted</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]])</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">values</span> <span class="o">*</span> <span class="n">scale</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">centre</span>
+        <span class="n">values</span> <span class="o">+=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">,</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">values</span> <span class="o">+=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">values</span>
+</code></pre>
+<p>The network is deliberately small, and the backward pass is written once and
+shared by every variant:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_backward</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">dlogits</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="n">cache</span>
+    <span class="k">del</span> <span class="n">x</span><span class="p">,</span> <span class="n">first</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"W3"</span><span class="p">:</span> <span class="n">second</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dlogits</span><span class="p">,</span> <span class="s2">"b3"</span><span class="p">:</span> <span class="n">dlogits</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)}</span>
+    <span class="n">d_second</span> <span class="o">=</span> <span class="p">(</span><span class="n">dlogits</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"W3"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">second</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">grads</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_backward_second</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">d_second</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">grads</span>
+</code></pre>
+<p>The soft-target cross-entropy is (11) as a gradient, which is the single
+function all seven variants call:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_loss_grad</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+               <span class="n">weight</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Weighted soft-target cross-entropy, returned as d(loss)/d(logits)."""</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"W3"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"b3"</span><span class="p">]</span>
+    <span class="n">probs</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">probs</span> <span class="o">-</span> <span class="n">target</span><span class="p">)</span> <span class="o">*</span> <span class="n">weight</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">/</span> <span class="n">weight</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</code></pre>
+<p>Self-training is the fixed-point loop of (2)–(3): the <code>added</code> mask stops a
+point from being bought twice, and <code>n_added</code> reports the union over rounds:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_self_training</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_lab</span><span class="p">,</span> <span class="n">y_lab</span><span class="p">,</span> <span class="n">x_unlab</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">added</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x_unlab</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rounds</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_train</span><span class="p">(</span><span class="n">x_lab</span><span class="p">,</span> <span class="n">y_lab</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">)</span>
+            <span class="n">probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_probs</span><span class="p">(</span><span class="n">x_unlab</span><span class="p">)</span>
+            <span class="n">confidence</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">fresh</span> <span class="o">=</span> <span class="p">(</span><span class="n">confidence</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">added</span>
+            <span class="n">keep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fresh</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">keep</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">added</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">x_lab</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">x_lab</span><span class="p">,</span> <span class="n">x_unlab</span><span class="p">[</span><span class="n">keep</span><span class="p">]])</span>
+            <span class="n">y_lab</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">y_lab</span><span class="p">,</span> <span class="n">probs</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_added</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">added</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+</code></pre>
+<p>FixMatch is the mask plus the strong view; note that the pseudo-label is read
+from the <em>weak</em> probabilities and the gradient flows through the <em>strong</em>
+ones:</p>
+<pre class="highlight"><code>            <span class="n">weak</span> <span class="o">=</span> <span class="n">_augment</span><span class="p">(</span><span class="n">x_unlab</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="p">,</span> <span class="n">strong</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">strong</span> <span class="o">=</span> <span class="n">_augment</span><span class="p">(</span><span class="n">x_unlab</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="p">,</span> <span class="n">strong</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">probs</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">weak</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">confidence</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">confidence</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">x_lab</span><span class="p">,</span> <span class="n">strong</span><span class="p">[</span><span class="n">mask</span><span class="p">]])</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">y_lab</span><span class="p">,</span> <span class="n">probs</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)])</span>
+</code></pre>
+<p>The mean teacher computes the consistency gradient as <code>student - teacher</code>,
+which is the derivative of <span class="math inline">\(\mathrm{KL}(p_{\bar\theta}\,\Vert\,p_\theta)\)</span> with
+respect to the student logits, then adds it to the labelled gradient:</p>
+<pre class="highlight"><code>            <span class="n">teacher</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">teacher</span><span class="p">,</span> <span class="n">weak</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">cache</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span>
+            <span class="n">student</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s2">"W3"</span><span class="p">]</span>
+                               <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s2">"b3"</span><span class="p">])</span>
+            <span class="n">consistency</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="n">student</span> <span class="o">-</span> <span class="n">teacher</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">strong</span><span class="p">))</span>
+</code></pre>
+<p>Sharpening is a temperature applied to the averaged guesses, and MixUp mixes
+both inputs and targets with the same coefficient:</p>
+<pre class="highlight"><code>        <span class="n">guesses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_probs</span><span class="p">(</span><span class="n">x_unlab</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">sharp</span> <span class="o">=</span> <span class="n">guesses</span> <span class="o">**</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">sharp</span> <span class="o">=</span> <span class="n">sharp</span> <span class="o">/</span> <span class="n">sharp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre>
+<pre class="highlight"><code>            <span class="n">fraction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">beta</span><span class="p">(</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+            <span class="n">lam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">fraction</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">fraction</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">mixed_x</span> <span class="o">=</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">order</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">lam</span><span class="p">)</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">shuffle</span><span class="p">]</span>
+            <span class="n">mixed_y</span> <span class="o">=</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">target</span><span class="p">[</span><span class="n">order</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">lam</span><span class="p">)</span> <span class="o">*</span> <span class="n">target</span><span class="p">[</span><span class="n">shuffle</span><span class="p">]</span>
+</code></pre>
+<p>Label propagation builds a symmetric kNN graph, normalises it, and solves (8)
+in one linear solve:</p>
+<pre class="highlight"><code>        <span class="n">adjacency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">adjacency</span><span class="p">,</span> <span class="n">adjacency</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="n">degree</span> <span class="o">=</span> <span class="n">adjacency</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-12</span>
+        <span class="n">inverse</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">degree</span><span class="p">)</span>
+        <span class="n">normalised</span> <span class="o">=</span> <span class="n">adjacency</span> <span class="o">*</span> <span class="n">inverse</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">inverse</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">seed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">pool</span><span class="p">),</span> <span class="n">CLASSES</span><span class="p">))</span>
+        <span class="n">seed</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y_lab</span><span class="p">)),</span> <span class="n">y_lab</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pool</span><span class="p">))</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">normalised</span><span class="p">,</span> <span class="n">seed</span><span class="p">)</span>
+</code></pre>
+<p>The ladder adds noise to the labelled inputs, computes the noisy hidden layer,
+and backpropagates the reconstruction error from that layer alone — the clean
+activation is the constant target:</p>
+<pre class="highlight"><code>            <span class="n">_</span><span class="p">,</span> <span class="n">clean_cache</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">x_unlab</span><span class="p">)</span>
+            <span class="n">noisy_x</span> <span class="o">=</span> <span class="n">x_unlab</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="n">x_unlab</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">noisy_cache</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">noisy_x</span><span class="p">)</span>
+            <span class="n">cost</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam</span> <span class="o">*</span> <span class="p">(</span><span class="n">noisy_cache</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">clean_cache</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span>
+                <span class="n">x_unlab</span><span class="p">)</span>
+            <span class="n">denoise</span> <span class="o">=</span> <span class="n">_backward_second</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">noisy_cache</span><span class="p">,</span> <span class="n">cost</span><span class="p">)</span>
+</code></pre>
+<p>Inference for the graph method is a weighted vote of the nearest propagated
+points, which is how a transductive method answers a question about a point it
+never trained on:</p>
+<pre class="highlight"><code>            <span class="n">gap</span> <span class="o">=</span> <span class="n">values</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool_x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+            <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gap</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+            <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">neighbours</span><span class="p">]</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">take_along_axis</span><span class="p">(</span>
+                <span class="n">distance</span><span class="p">,</span> <span class="n">order</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="mf">0.3</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+            <span class="n">scores</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">take_along_axis</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pool_scores</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:],</span> <span class="n">order</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">probed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">scores</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(n\)</span> labelled points, <span class="math inline">\(m\)</span> unlabelled points, <span class="math inline">\(d=2\)</span> inputs, <span class="math inline">\(h=32\)</span> hidden
+units and <span class="math inline">\(R\)</span> rounds:</p>
+<ul>
+<li><strong>Supervised training:</strong> <span class="math inline">\(O((n+m)h^2)\)</span> per epoch, dominated by the hidden
+matrix; the demo's 400 full-batch steps on 400 points is a few million
+multiply-adds.</li>
+<li><strong>Self-training:</strong> <span class="math inline">\(R\)</span> supervised runs, so <span class="math inline">\(R\)</span> times the cost, plus <span class="math inline">\(R\)</span>
+predict passes over the pool.</li>
+<li><strong>Soft pseudo-labels, MixMatch:</strong> one extra run over <span class="math inline">\(n+m\)</span> points with soft
+targets; the soft cross-entropy costs the same as the hard one.</li>
+<li><strong>FixMatch, mean teacher:</strong> one fit, but two augmented forward passes per
+step (weak and strong), so roughly 2× the supervised cost. The teacher adds
+one more forward pass and a copy of the parameters.</li>
+<li><strong>Label propagation:</strong> an <span class="math inline">\(m\times m\)</span> distance matrix, <span class="math inline">\(O(m^2d)\)</span>, plus the
+dense solve <span class="math inline">\(O(m^3)\)</span>. For 392 points this is instant; for a million points
+it is the reason people use sparse graph approximations or mini-batch
+diffusion.</li>
+<li><strong>The demo:</strong> seven variants plus a threshold sweep and an agreement check,
+about three seconds on one core. The network is small enough that the
+augmentation and the linear solve, not the matrix multiplies, dominate.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Pseudo-labelling a weak model is a fixed point.</strong> The demo's self-training,
+soft pseudo-labels and MixMatch all land within 0.003 of the 0.690 baseline.
+The gradient on confident points is already zero (3), so retraining reproduces
+the same boundary; a bad boundary is a stable one. Pseudo-labelling helps when
+the starting model is strong — a pretrained network, a large teacher — not
+when it is the thing you are trying to improve.</p>
+<p><strong>Confidence is not correctness.</strong> The demo's threshold sweep accepts 320 to
+389 of 392 points depending on the threshold, and every setting scores the
+same. A 32-unit tanh network trained for 400 steps is confidently wrong in the
+region it has never seen. Temperature scaling or an entropy penalty is the
+usual mitigation; neither is in this file.</p>
+<p><strong>Consistency needs the right invariances.</strong> Mean teacher's 0.985 comes from
+rotation and scale being label-preserving for two moons. On digits, rotation
+is nearly free; on text, it is meaningless. A strong augmentation that changes
+the label turns the consistency loss into a source of error, and the model
+will happily learn the wrong invariance.</p>
+<p><strong>The EMA teacher can stall.</strong> With <span class="math inline">\(\gamma\)</span> close to one the teacher is almost
+constant, so the student chases a target that never moves. With <span class="math inline">\(\gamma\)</span> small
+the teacher is just the student and the term adds noise. The demo's 0.99 is a
+starting point, not a rule; the right value depends on the number of steps.</p>
+<p><strong>MixMatch's sharpening is a temperature, and it can overshoot.</strong> <span class="math inline">\(T=0.5\)</span> turns
+a 60/40 guess into roughly 69/31, which is mild; <span class="math inline">\(T=0.1\)</span> would turn it into a
+near-one-hot target and reintroduce the pseudo-label fixed point. The paper's
+value is tuned for image benchmarks.</p>
+<p><strong>Graph methods are transductive and quadratic.</strong> The solve is over the pool,
+so a new point requires either a new solve or the kNN vote used here, and the
+<span class="math inline">\(O(m^3)\)</span> cost rules out the full pool at scale. The graph also assumes that
+nearby points share a label, which fails at class boundaries that pass through
+dense regions.</p>
+<p><strong>The graph can leak the test distribution.</strong> The demo builds the graph from
+labelled and unlabelled training points only, and classifies test points by a
+kNN vote. Including the test inputs in the graph — the standard transductive
+setup — would use their features without their labels; that is legal, but it
+changes what &quot;test accuracy&quot; means and needs to be stated.</p>
+<p><strong>Few labels means high variance.</strong> The supervised baseline swings between
+0.69 and 0.85 across label seeds, and the ranking of the weaker methods moves
+with it. The demo fixes one seed; the table is a demonstration, not a
+benchmark. A real comparison needs several seeds and error bars.</p>
+<p><strong>Accuracy hides class imbalance.</strong> Both moons are balanced, so overall
+accuracy is a fair score. On an imbalanced pool, a model that predicts the
+majority class everywhere can look respectable while being useless, and the
+consistency losses will happily reinforce it.</p>
+<p><strong>The unlabelled pool is not free.</strong> The demo treats 392 points as available
+without cost. In practice unlabelled data has to be collected, cleaned and
+stored, and it can be out of distribution relative to the test set. The
+regulariser is only as good as the distribution it is computed on.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Pseudo-labelling is the workhorse of industrial semi-supervised pipelines: a
+strong teacher labels a large corpus, a smaller student trains on the result,
+and the loop repeats. Soft pseudo-labels and noisy-student training are the
+same idea with a temperature, and they underpin most of the recent progress in
+speech and vision with limited labels.</p>
+<p>Consistency regularisation — the mean teacher, FixMatch, and their descendants
+— is the standard recipe for image classification with a few labels per class,
+and the same two-view trick appears in self-supervised pretraining. The ladder
+is the historical ancestor of both the denoising autoencoder and the modern
+consistency losses.</p>
+<p>Label propagation and its relatives are used wherever the data is naturally a
+graph: citation networks, social networks, molecules, and the kNN graphs built
+over embeddings. It is also the cleanest illustration of the semi-supervised
+bargain — no network, no training, just the assumption that the graph
+neighbourhood carries the label.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Chapelle, O., Schölkopf, B., Zien, A. (2006). <em>Semi-Supervised Learning.</em>
+MIT Press. The taxonomy and the graph view, (8).</li>
+<li>Lee, D.-H. (2013). <em>Pseudo-label: the simple and efficient semi-supervised
+learning method for deep neural networks.</em> ICML Workshop. Hard
+pseudo-labels, (2).</li>
+<li>Tarvainen, A., Valpola, H. (2017). <em>Mean teachers are better role models.</em>
+NeurIPS. The EMA teacher and (6).</li>
+<li>Sohn, K., Berthelot, D., Li, C.-L., Zhang, Z., Carlini, N., Cubuk, E. D.,
+Kurakin, A., Zhang, H., Raffel, C. (2020). <em>FixMatch: simplifying
+semi-supervised learning with consistency and confidence.</em> NeurIPS. (5).</li>
+<li>Berthelot, D., Carlini, N., Goodfellow, I., Papernot, N., Oliver, A.,
+Raffel, C. (2019). <em>MixMatch: a holistic approach to semi-supervised
+learning.</em> NeurIPS. Sharpening and MixUp, (7).</li>
+<li>Berthelot, D., Carlini, N., Cubuk, E. D., Kurakin, A., Sohn, K., Zhang, H.,
+Raffel, C. (2020). <em>ReMixMatch: semi-supervised learning with distribution
+alignment and augmentation anchoring.</em> ICLR. The refined recipe.</li>
+<li>Zhu, X., Ghahramani, Z., Lafferty, J. (2003). <em>Semi-supervised learning
+using Gaussian fields and harmonic functions.</em> ICML. Label propagation,
+(8).</li>
+<li>Zhou, D., Bousquet, O., Lal, T. N., Weston, J., Schölkopf, B. (2004).
+<em>Learning with local and global consistency.</em> NeurIPS. The normalised
+Laplacian form of the same diffusion.</li>
+<li>Rasmus, A., Berglund, M., Honkala, M., Valpola, H., Raiko, T. (2015).
+<em>Semi-supervised learning with ladder networks.</em> NeurIPS. The denoising
+cost, (9).</li>
+<li>Oliver, A., Odena, A., Raffel, C., Cubuk, E. D., Goodfellow, I. J. (2018).
+<em>Realistic evaluation of deep semi-supervised learning algorithms.</em>
+NeurIPS. Why the comparisons in this area are harder than they look.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="active_learning.html"><small>Previous</small><span>Active learning</span></a><a class="next" href="class_imbalance.html"><small>Next</small><span>Class imbalance</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html" aria-current="page"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-objective">The objective</a></li><li class="lvl3"><a href="#hard-pseudo-labels">Hard pseudo-labels</a></li><li class="lvl3"><a href="#soft-pseudo-labels">Soft pseudo-labels</a></li><li class="lvl3"><a href="#fixmatch">FixMatch</a></li><li class="lvl3"><a href="#mean-teacher">Mean teacher</a></li><li class="lvl3"><a href="#mixmatch">MixMatch</a></li><li class="lvl3"><a href="#label-propagation">Label propagation</a></li><li class="lvl3"><a href="#the-ladder">The ladder</a></li><li class="lvl3"><a href="#the-network">The network</a></li><li class="lvl3"><a href="#what-the-numbers-say">What the numbers say</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/semi_supervised.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

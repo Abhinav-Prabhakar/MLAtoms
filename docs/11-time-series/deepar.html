@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeepAR · MLAtoms</title>
+<meta name="description" content="Probabilistic autoregressive RNN forecasting with likelihoods. A point forecaster answers &quot;what is y{T+1}?&quot; A distributional forecaster answers &quot;what is…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/deepar.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="DeepAR">
+<meta property="og:description" content="Probabilistic autoregressive RNN forecasting with likelihoods. A point forecaster answers &quot;what is y{T+1}?&quot; A distributional forecaster answers &quot;what is…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/deepar.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DeepAR">
+<meta name="twitter:description" content="Probabilistic autoregressive RNN forecasting with likelihoods. A point forecaster answers &quot;what is y{T+1}?&quot; A distributional forecaster answers &quot;what is…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "DeepAR", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/deepar.html", "description": "Probabilistic autoregressive RNN forecasting with likelihoods. A point forecaster answers \"what is y{T+1}?\" A distributional forecaster answers \"what is\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">11 · Time series</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="deepar.py.html">source</a></p><h1>DeepAR — forecast a distribution, then sample from it</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A point forecaster answers &quot;what is <span class="math inline">\(y_{T+1}\)</span>?&quot; A distributional forecaster
+answers &quot;what is <span class="math inline">\(p(y_{T+1}\mid y_{\le T})\)</span>, and what does a plausible future
+look like?&quot; DeepAR is the second kind. It runs a recurrent network over the
+series, and at every step the network emits the parameters of a probability
+distribution for the next observation. Training maximises the likelihood;
+forecasting draws from the network and feeds the draw back in.</p>
+<p>That feedback is the whole idea. A one-step distribution does not tell you what
+a twelve-month path looks like, because errors compound: a high draw today
+changes the state tomorrow, which changes the mean and the width of tomorrow's
+distribution. Sampling trajectories reproduces that compounding. The resulting
+band is wider than the one you get by adding one-step variances, and it has the
+right shape — skewed for counts, heavy-tailed for jumps — instead of being
+Gaussian by assumption.</p>
+<p>The network is deliberately small: one tanh layer of width sixteen. All the
+modelling lives in the likelihood, and the likelihood is where the variants
+differ.</p>
+<ul>
+<li><strong><code>gaussian_likelihood</code></strong> is the textbook version: mean and standard
+deviation per step, Gaussian log-likelihood.</li>
+<li><strong><code>deepar</code></strong> uses the same head but forecasts by Monte Carlo, feeding samples
+back into the state.</li>
+<li><strong><code>negbin_likelihood</code></strong> replaces the Gaussian with a negative binomial, which
+is the right shape for counts: non-negative, integer, variance growing with
+the mean.</li>
+<li><strong><code>student_t</code></strong> replaces the Gaussian with a heavy-tailed <span class="math inline">\(t\)</span>, so a spike in
+the training data is treated as a plausible draw rather than an impossible
+one.</li>
+<li><strong><code>quantile_output</code></strong> drops the likelihood entirely and trains five pinball
+losses, which is the distribution-free alternative.</li>
+</ul>
+<p>On 348 training points and a 12-step hold-out the Gaussian model reaches a mean
+absolute error of <span class="math inline">\(0.6048\)</span> against <span class="math inline">\(0.8454\)</span> for seasonal naive. The count model
+reaches <span class="math inline">\(1.0421\)</span> against <span class="math inline">\(1.7500\)</span> for the same weekday last week. The <span class="math inline">\(t\)</span> head
+on a spike-riddled series reaches <span class="math inline">\(1.7220\)</span> where the Gaussian head reaches
+<span class="math inline">\(2.7498\)</span>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">likelihood</th>
+<th style="text-align:left">prediction</th>
+<th style="text-align:left">held-out MAE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>gaussian_likelihood</code></td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">analytic mean path</td>
+<td style="text-align:left">0.6077</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>deepar</code></td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">Monte Carlo median</td>
+<td style="text-align:left">0.6048</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>negbin_likelihood</code></td>
+<td style="text-align:left">negative binomial</td>
+<td style="text-align:left">mean path</td>
+<td style="text-align:left">1.0421</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>student_t</code></td>
+<td style="text-align:left">Student <span class="math inline">\(t\)</span>, unit scale</td>
+<td style="text-align:left">mean path</td>
+<td style="text-align:left">1.7220</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>quantile_output</code></td>
+<td style="text-align:left">five pinball losses</td>
+<td style="text-align:left">median path</td>
+<td style="text-align:left">0.9626</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>gaussian_likelihood</code></strong> and <strong><code>deepar</code></strong> are the same fitted model. Both
+minimise the Gaussian negative log-likelihood, both use the same seed, and the
+demo asserts that their training losses are exactly equal. They diverge only at
+prediction time: the first recurses on the conditional mean, the second draws
+400 trajectories and takes the median. The paths differ by up to a unit on this
+series, because the mean recursion ignores the variance that the sampling
+accumulates.</p>
+<p><strong><code>negbin_likelihood</code></strong> is fitted to a weekly count series with a mean of
+<span class="math inline">\(3.971\)</span>. It reaches <span class="math inline">\(1.0421\)</span> against <span class="math inline">\(1.7500\)</span> for the same weekday last week,
+and its 80% band covers <span class="math inline">\(0.917\)</span> of the hold-out while never going below zero —
+a property no transformed Gaussian can guarantee.</p>
+<p><strong><code>student_t</code></strong> is fitted to the seasonal series with a spike of size eight
+injected every seventh point. The <span class="math inline">\(t\)</span> head reaches <span class="math inline">\(1.7220\)</span> against <span class="math inline">\(2.7498\)</span>
+for the Gaussian head on the same data. The spikes stop distorting the fit
+because the likelihood can explain them.</p>
+<p><strong><code>quantile_output</code></strong> trains five pinball losses at levels
+<span class="math inline">\(0.1,0.25,0.5,0.75,0.9\)</span>. It reaches <span class="math inline">\(0.9626\)</span> — better than the last value but
+worse than seasonal naive. Five quantiles per step is a harder estimation
+problem than two likelihood parameters, and on 347 transitions the difference
+shows.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-autoregressive-factorisation">The autoregressive factorisation <a class="header-anchor" href="#the-autoregressive-factorisation">#</a></h3>
+<p>A series is modelled as a product of one-step conditionals:</p>
+<div class="math block">
+\[p(y_{1:T}\mid y_{1:0})=
+\prod_{t=1}^{T}p\bigl(y_t\mid h_t\bigr),
+\qquad h_t=f_\theta(h_{t-1},y_{t-1}).
+\qquad (1)\]
+</div>
+<p>The state <span class="math inline">\(h_t\)</span> is a deterministic summary of everything before <span class="math inline">\(t\)</span>. Nothing is
+assumed about the shape of <span class="math inline">\(p\)</span> beyond the parametric family chosen for the
+head. In particular the variance is a function of the state, so the model is
+heteroscedastic by construction.</p>
+<h3 id="the-recurrence">The recurrence <a class="header-anchor" href="#the-recurrence">#</a></h3>
+<p>With standardised observations <span class="math inline">\(z_t=(y_t-\mu)/\sigma\)</span> and a hidden width <span class="math inline">\(d\)</span>:</p>
+<div class="math block">
+\[h_t=\tanh\!\bigl(w_x z_{t-1}+W_h h_{t-1}+b_h\bigr),
+\qquad h_t\in\mathbb R^{d},
+\qquad (2)\]
+</div>
+<div class="math block">
+\[o_t=W_o h_t+b_o\in\mathbb R^{k},
+\qquad (3)\]
+</div>
+<p>where <span class="math inline">\(k\)</span> is the number of head outputs: two for the Gaussian and the negative
+binomial, one for the <span class="math inline">\(t\)</span>, five for the quantile grid. The input at step <span class="math inline">\(t\)</span> is
+the previous <em>observation</em>, not the previous mean. Teacher forcing during
+training and free running during sampling is exactly the difference the two
+modes implement.</p>
+<h3 id="gaussian-likelihood">Gaussian likelihood <a class="header-anchor" href="#gaussian-likelihood">#</a></h3>
+<div class="math block">
+\[\mu_t=o_{t,1},\qquad \sigma_t=\mathrm{softplus}(o_{t,2}),
+\qquad (4)\]
+</div>
+<div class="math block">
+\[\ell_t=\tfrac12\Bigl(\frac{z_t-\mu_t}{\sigma_t}\Bigr)^{2}
++\log\sigma_t+\tfrac12\log 2\pi .
+\qquad (5)\]
+</div>
+<p>The softplus keeps <span class="math inline">\(\sigma_t>0\)</span> without a clamp, and its derivative
+<span class="math inline">\(\sigma'(a)=\mathrm{sigmoid}(a)\)</span> is what turns the gradient in <span class="math inline">\(\sigma\)</span> into a
+gradient in <span class="math inline">\(a\)</span>:</p>
+<div class="math block">
+\[\frac{\partial\ell_t}{\partial o_{t,1}}
+=-\frac{z_t-\mu_t}{\sigma_t^{2}},\qquad
+\frac{\partial\ell_t}{\partial o_{t,2}}
+=\frac{1-r_t^{2}}{\sigma_t}\,\mathrm{sigmoid}(o_{t,2}),
+\qquad (6)\]
+</div>
+<p>with <span class="math inline">\(r_t=(z_t-\mu_t)/\sigma_t\)</span>. The factor <span class="math inline">\(1/\sigma_t\)</span> in the second
+expression is easy to drop. Doing so still trains — the model simply learns a
+slightly different objective — which is why it survives code review. The
+finite-difference check is the only reliable detector.</p>
+<h3 id="student--likelihood">Student-<span class="math inline">\(t\)</span> likelihood <a class="header-anchor" href="#student--likelihood">#</a></h3>
+<div class="math block">
+\[\ell_t=c_\nu+\tfrac{\nu+1}{2}\log\!\Bigl(1+\frac{(z_t-\mu_t)^{2}}{\nu}\Bigr),
+\qquad
+c_\nu=\log\Gamma\!\bigl(\tfrac{\nu+1}{2}\bigr)
+-\log\Gamma\!\bigl(\tfrac{\nu}{2}\bigr)-\tfrac12\log(\nu\pi).
+\qquad (7)\]
+</div>
+<div class="math block">
+\[\frac{\partial\ell_t}{\partial\mu_t}
+=-\frac{(\nu+1)(z_t-\mu_t)}{\nu+(z_t-\mu_t)^{2}} .
+\qquad (8)\]
+</div>
+<p>The scale is fixed at one. That is not a convenience: with a free <span class="math inline">\(\sigma\)</span> the
+<span class="math inline">\(t\)</span> likelihood is unbounded below. As <span class="math inline">\(\sigma\to\infty\)</span> the density at any fixed
+point grows like <span class="math inline">\(\sigma^{-1}\)</span>, so the negative log-likelihood decreases without
+limit and the optimiser runs away. The demo's earlier version learned the scale
+and produced an 80% band 79 units wide. Standardising the target fixes the
+scale at the only value that is identified, and the heavy tail is what remains.</p>
+<h3 id="negative-binomial-likelihood">Negative binomial likelihood <a class="header-anchor" href="#negative-binomial-likelihood">#</a></h3>
+<p>For counts with mean <span class="math inline">\(\mu_t\)</span> and dispersion <span class="math inline">\(r_t\)</span>:</p>
+<div class="math block">
+\[p(y_t)=\frac{\Gamma(y_t+r_t)}{\Gamma(r_t)\Gamma(y_t+1)}
+\Bigl(\frac{r_t}{r_t+\mu_t}\Bigr)^{r_t}
+\Bigl(\frac{\mu_t}{r_t+\mu_t}\Bigr)^{y_t},
+\qquad (9)\]
+</div>
+<div class="math block">
+\[\mu_t=\exp(o_{t,1}),\qquad r_t=\exp(o_{t,2}),
+\qquad (10)\]
+</div>
+<p>trained by the negative log-likelihood. The gradients need the digamma
+function,</p>
+<div class="math block">
+\[\frac{\partial\ell_t}{\partial\mu_t}
+=\frac{r_t+y_t}{r_t+\mu_t}-\frac{y_t}{\mu_t},
+\qquad (11)\]
+</div>
+<p>and a similar expression in <span class="math inline">\(r_t\)</span>. Both are implemented with a Lanczos
+<span class="math inline">\(\log\Gamma\)</span> and a recurrence for <span class="math inline">\(\psi\)</span>, so nothing outside numpy is needed.</p>
+<p>The counts are <strong>not</strong> standardised. A count likelihood lives on the integers,
+and feeding it a <span class="math inline">\(z\)</span>-score is meaningless — the demo's first attempt did exactly
+that and crashed inside <span class="math inline">\(\log\Gamma\)</span>. The cell's input is still rescaled by the
+series standard deviation, but the target and the output stay in count units.</p>
+<h3 id="quantile-output">Quantile output <a class="header-anchor" href="#quantile-output">#</a></h3>
+<p>The head emits one number per level and the levels are made monotone by
+construction, not by sorting:</p>
+<div class="math block">
+\[q_{t,1}=o_{t,1},\qquad
+q_{t,k}=q_{t,k-1}+\mathrm{softplus}(o_{t,k}),
+\qquad k=2,\dots,K .
+\qquad (12)\]
+</div>
+<p>Each increment is positive, so the quantiles cannot cross and the gradient is
+well defined everywhere. The loss is the pinball loss averaged over levels:</p>
+<div class="math block">
+\[\ell_t=\frac1K\sum_{k=1}^{K}
+\rho_{\tau_k}\bigl(z_t-q_{t,k}\bigr),\qquad
+\rho_\tau(u)=u\bigl(\tau-\mathbb 1\{u<0\}\bigr).
+\qquad (13)\]
+</div>
+<p>Because <span class="math inline">\(q_{t,k}\)</span> is a cumulative sum, the gradient for <span class="math inline">\(o_{t,k}\)</span> is the sum of
+the pinball gradients at all levels above it, scaled by the softplus
+derivative:</p>
+<div class="math block">
+\[\frac{\partial\ell_t}{\partial o_{t,k}}
+=\mathrm{sigmoid}(o_{t,k})\sum_{j\ge k}
+\frac{\partial\ell_t}{\partial q_{t,j}} .
+\qquad (14)\]
+</div>
+<h3 id="backpropagation-through-time">Backpropagation through time <a class="header-anchor" href="#backpropagation-through-time">#</a></h3>
+<p>With <span class="math inline">\(g_t=\partial\ell_t/\partial o_t\)</span>, the state gradient obeys</p>
+<div class="math block">
+\[\delta_t=(1-h_t^{2})\odot\bigl(W_o^{\top}g_t+W_h^{\top}\delta_{t+1}\bigr),
+\qquad \delta_{T+1}=0,
+\qquad (15)\]
+</div>
+<p>and the parameter gradients are outer products accumulated over <span class="math inline">\(t\)</span>:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial W_h}=\sum_t h_{t-1}\delta_t^{\top},\qquad
+\frac{\partial L}{\partial w_x}=\sum_t z_{t-1}\delta_t^{\top}.
+\qquad (16)\]
+</div>
+<p>One detail matters in practice: <span class="math inline">\(h_t\)</span> enters the recurrence twice, once through
+<span class="math inline">\(W_h h_t\)</span> at the next step and once through <span class="math inline">\(W_o h_t\)</span> in the output, and the
+second term is what makes <span class="math inline">\(\delta_t\)</span> different from a plain RNN without a head.</p>
+<h3 id="monte-carlo-versus-analytic-paths">Monte Carlo versus analytic paths <a class="header-anchor" href="#monte-carlo-versus-analytic-paths">#</a></h3>
+<p>The <code>deepar</code> forecast draws</p>
+<div class="math block">
+\[\tilde z_t\sim p\bigl(\cdot\mid h_t\bigr),\qquad
+h_{t+1}=f_\theta(h_t,\tilde z_t),
+\qquad (17)\]
+</div>
+<p>repeatedly and reports the empirical median at each horizon. The
+<code>gaussian_likelihood</code> forecast instead plugs in the conditional mean:</p>
+<div class="math block">
+\[\bar z_t=\mathbb E[z_t\mid h_t],\qquad
+h_{t+1}=f_\theta(h_t,\bar z_t),
+\qquad (18)\]
+</div>
+<p>and approximates the predictive variance by accumulating one-step variances
+along that mean path:</p>
+<div class="math block">
+\[v_h=\sum_{j=1}^{h}\sigma_j^{2},\qquad
+\mathrm{band}_h=\bar z_h\pm z_{1-\alpha/2}\sqrt{v_h}.
+\qquad (19)\]
+</div>
+<p>Equation (19) is not exact — it ignores the fact that the variance changes the
+path — and the demo shows the consequence: the analytic band is <span class="math inline">\(0.8535\)</span> wide on
+average where the sampled band is <span class="math inline">\(1.4790\)</span>. The missing width is the
+path-dependence that (17) captures and (18) discards.</p>
+<h3 id="gradient-clipping">Gradient clipping <a class="header-anchor" href="#gradient-clipping">#</a></h3>
+<p>Each gradient entry is clipped to <span class="math inline">\([-5,5]\)</span> before the Adam update. Without it,
+a hidden state that saturates at <span class="math inline">\(\pm1\)</span> produces a spike in the backward pass
+and the run diverges; with it, the same configuration trains. DeepAR's own
+implementation does the same thing.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>Every likelihood returns a per-step loss and a per-step gradient in the head
+output, which keeps the recurrent code independent of the distribution. The
+Gaussian is the template:</p>
+<pre class="highlight"><code>    <span class="n">mu</span> <span class="o">=</span> <span class="n">output</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">activation</span> <span class="o">=</span> <span class="n">output</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="n">_softplus</span><span class="p">(</span><span class="n">activation</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-6</span>
+    <span class="n">standardised</span> <span class="o">=</span> <span class="p">(</span><span class="n">target</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">/</span> <span class="n">sigma</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">standardised</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span> <span class="o">+</span> <span class="n">_HALF_LOG_2PI</span>
+    <span class="n">gradient</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+    <span class="n">gradient</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">target</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">/</span> <span class="n">sigma</span> <span class="o">**</span> <span class="mi">2</span>
+    <span class="n">gradient</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">standardised</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">_sigmoid</span><span class="p">(</span><span class="n">activation</span><span class="p">)</span>
+                      <span class="o">/</span> <span class="n">sigma</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">gradient</span>
+</code></pre>
+<p>The <code>+ 1e-6</code> prevents a zero standard deviation from producing an infinite
+gradient on the first step, when the head is still near zero and
+<span class="math inline">\(\sigma=\mathrm{softplus}(0)\approx0.69\)</span>.</p>
+<p>The <span class="math inline">\(t\)</span> head needs only one output, because the scale is fixed:</p>
+<pre class="highlight"><code>    <span class="n">offset</span> <span class="o">=</span> <span class="n">target</span> <span class="o">-</span> <span class="n">output</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">constant</span> <span class="o">=</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">nu</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">))</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">nu</span><span class="p">)</span>
+                <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">nu</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">constant</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">nu</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">offset</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">nu</span><span class="p">)</span>
+    <span class="n">gradient</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+    <span class="n">gradient</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">nu</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">offset</span> <span class="o">/</span> <span class="p">(</span><span class="n">nu</span> <span class="o">+</span> <span class="n">offset</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">gradient</span>
+</code></pre>
+<p><code>np.log1p</code> rather than <code>np.log(1 + ·)</code> matters when the offset is small, which
+is most of the time: it keeps full precision on the typical residuals instead
+of losing it to cancellation.</p>
+<p>The quantile head builds monotonicity into the parametrisation:</p>
+<pre class="highlight"><code>    <span class="n">quantiles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+    <span class="n">quantiles</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">quantiles</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+        <span class="n">quantiles</span><span class="p">[:,</span> <span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">quantiles</span><span class="p">[:,</span> <span class="n">index</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+                               <span class="o">+</span> <span class="n">_softplus</span><span class="p">(</span><span class="n">output</span><span class="p">[:,</span> <span class="n">index</span><span class="p">]))</span>
+    <span class="n">error</span> <span class="o">=</span> <span class="n">target</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">quantiles</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">error</span> <span class="o">&gt;=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">levels</span> <span class="o">*</span> <span class="n">error</span><span class="p">,</span> <span class="p">(</span><span class="n">levels</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">error</span><span class="p">)</span>
+</code></pre>
+<p>The first output is the lowest quantile, not the median, and each later one is
+the previous plus a positive increment. Sampling from this head is then a
+one-dimensional interpolation, which is why the same <code>sample</code> method works for
+all five variants.</p>
+<p>The forward pass is a single loop that stores every state, because the backward
+pass needs all of them:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+            <span class="n">states</span><span class="p">[</span><span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">inputs</span><span class="p">[</span><span class="n">step</span><span class="p">]</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"w_x"</span><span class="p">]</span>
+                                       <span class="o">+</span> <span class="n">states</span><span class="p">[</span><span class="n">step</span><span class="p">]</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W_h"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"b_h"</span><span class="p">])</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="n">step</span><span class="p">]</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W_o"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"b_o"</span><span class="p">]</span>
+</code></pre>
+<p><code>inputs[step]</code> is a length-one vector, so the matrix product is a row times a
+matrix — no batch axis. That is deliberate: DeepAR trains on one long sequence,
+not on shuffled windows, and the whole series is the batch.</p>
+<p>The backward loop is (15) and (16) written out:</p>
+<pre class="highlight"><code>        <span class="n">carry</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="s2">"b_h"</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="n">outputs_grad</span><span class="p">[</span><span class="n">step</span><span class="p">]</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W_o"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">carry</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="n">total</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">states</span><span class="p">[</span><span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">g</span><span class="p">[</span><span class="s2">"w_x"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">inputs</span><span class="p">[</span><span class="n">step</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">delta</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">g</span><span class="p">[</span><span class="s2">"W_h"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">states</span><span class="p">[</span><span class="n">step</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">@</span> <span class="n">delta</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">g</span><span class="p">[</span><span class="s2">"b_h"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">delta</span>
+            <span class="n">carry</span> <span class="o">=</span> <span class="n">delta</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W_h"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p><code>carry</code> is <span class="math inline">\(\delta_{t+1}\)</span> propagated through <span class="math inline">\(W_h\)</span>. The <code>states[step + 1]</code>
+indexing is the easiest place to introduce an off-by-one: <code>states[0]</code> is the
+initial zero state, so the state produced at step <code>t</code> lives at <code>t + 1</code>, and the
+derivative of the tanh must use that same entry.</p>
+<p>Sampling is a nested loop over trajectories and horizons, with the draw
+assigned back to <code>current</code>:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_samples</span><span class="p">):</span>
+            <span class="n">current_state</span> <span class="o">=</span> <span class="n">state</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">previous</span>
+            <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">horizon</span><span class="p">):</span>
+                <span class="n">current_state</span><span class="p">,</span> <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">(</span><span class="n">current_state</span><span class="p">,</span> <span class="n">current</span><span class="p">)</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+                <span class="n">paths</span><span class="p">[</span><span class="n">index</span><span class="p">,</span> <span class="n">step</span><span class="p">]</span> <span class="o">=</span> <span class="n">current</span>
+</code></pre>
+<p>Each trajectory starts from the same encoded state and the same last
+observation, and diverges only through the draws. That is what makes the sample
+a draw from the predictive distribution rather than a perturbation of a fixed
+path.</p>
+<p>The single place where model space and input space differ is the count model:</p>
+<pre class="highlight"><code>        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="n">feed</span> <span class="o">=</span> <span class="n">previous</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"negbin_likelihood"</span><span class="p">:</span>
+            <span class="n">feed</span> <span class="o">=</span> <span class="p">(</span><span class="n">previous</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_mean_</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_scale_</span>
+</code></pre>
+<p>Continuous variants live in standardised units, so the previous value is
+already what the cell wants. The count model keeps its observations in count
+units because the likelihood demands it, and rescales only on the way into the
+recurrence.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With sequence length <span class="math inline">\(T\)</span>, hidden width <span class="math inline">\(d\)</span>, <span class="math inline">\(k\)</span> head outputs, <span class="math inline">\(E\)</span> epochs and
+<span class="math inline">\(N\)</span> sampled trajectories of length <span class="math inline">\(H\)</span>:</p>
+<ul>
+<li><strong>One forward step:</strong> <span class="math inline">\(O(d^{2}+kd)\)</span> — the state matrix dominates.</li>
+<li><strong>One epoch:</strong> <span class="math inline">\(O(T(d^{2}+kd))\)</span> for the forward pass and the same again for
+the backward pass, so <span class="math inline">\(O(Td^{2})\)</span> in the width.</li>
+<li><strong>Full fit:</strong> the above times <span class="math inline">\(E\)</span>. For <span class="math inline">\(T=347\)</span>, <span class="math inline">\(d=16\)</span>, <span class="math inline">\(E=300\)</span> the demo's
+six fits take about five seconds.</li>
+<li><strong>Prediction:</strong> <span class="math inline">\(O(Hd^{2})\)</span> for the mean path; <span class="math inline">\(O(NHd^{2})\)</span> for the samples.</li>
+<li><strong>Memory:</strong> <span class="math inline">\(O(Td)\)</span> for the stored states, which is what makes the backward
+pass possible and what limits the sequence length.</li>
+</ul>
+<p>The cost is linear in <span class="math inline">\(T\)</span>, unlike attention, and quadratic in <span class="math inline">\(d\)</span>, unlike a
+wide MLP. For long series that is the right trade: the state carries the
+history, so nothing needs to look back over the raw sequence.</p>
+<p>Sampling multiplies the prediction cost by <span class="math inline">\(N\)</span>. With 400 trajectories and a
+12-step horizon the demo's band is computed in a few milliseconds, but a
+production system sampling thousands of paths for a thousand series would feel
+it. The analytic band in (19) exists precisely for that case.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The mean recursion can diverge.</strong> Feeding the conditional mean back into the
+network is not the same as feeding a draw, and the map can have a fixed point
+far from the data. In development, a learning rate of <span class="math inline">\(10^{-2}\)</span> with 400 epochs
+produced a mean path whose MAE was <span class="math inline">\(4.5\)</span> on a series whose seasonal naive error
+is <span class="math inline">\(0.85\)</span>. The training loss had also risen, so the failure is visible in the
+loss — but only if you look. A stable configuration is a small learning rate, a
+conservative hidden width, and gradient clipping.</p>
+<p><strong>Long sequences make the gradient fragile.</strong> Backpropagation through 347 steps
+multiplies 347 Jacobians. A tanh state with a spectral radius near one keeps
+them alive; above one they explode. Nothing in the architecture enforces
+stability, so the initialisation and the clip do the work. Truncated
+backpropagation through time over windows of 50–100 steps is the standard
+remedy.</p>
+<p><strong>A free scale makes the <span class="math inline">\(t\)</span> likelihood improper.</strong> As shown in (7)–(8), the
+negative log-likelihood of a <span class="math inline">\(t\)</span> with learned scale decreases as the scale grows,
+because the log-density at a fixed point scales like <span class="math inline">\(-\log\sigma\)</span>. The
+optimiser finds this direction and the predictive band explodes — the demo's
+first version produced a band 79 units wide on a series whose standard
+deviation is about four. Fixing the scale, or bounding it, is not optional.</p>
+<p><strong>Counts cannot be standardised.</strong> The negative binomial is defined on
+non-negative integers. Standardising the target turns counts into real numbers
+and the likelihood into nonsense; the demo originally crashed inside
+<span class="math inline">\(\log\Gamma\)</span> because a scaled count was negative. The input to the cell may be
+rescaled, the target may not.</p>
+<p><strong>Calibration needs more than twelve points.</strong> The demo reports 80% band
+coverage of <span class="math inline">\(0.583\)</span> for the Gaussian model, <span class="math inline">\(0.917\)</span> for the count model and
+<span class="math inline">\(0.500\)</span> for the quantile model. On twelve points the standard error of a
+coverage estimate is about <span class="math inline">\(0.14\)</span>, so none of these is a calibration claim.
+Coverage has to be measured over hundreds of windows and many series.</p>
+<p><strong>The quantile head is data-hungry.</strong> Five quantiles per step, each with its own
+pinball loss, is more parameters to identify than a two-parameter likelihood on
+the same 347 transitions. The demo's quantile median reaches <span class="math inline">\(0.9626\)</span> against
+<span class="math inline">\(0.8454\)</span> for seasonal naive. It is the right tool when the shape is unknown and
+the data are plentiful, not when the data are scarce.</p>
+<p><strong>One series is one sample.</strong> The model is trained on a single sequence, so
+every gradient step sees the same <span class="math inline">\(347\)</span> transitions. That is fine for a demo
+and wrong for production: DeepAR's advantage comes from training one model
+across thousands of related series, where the shared weights learn the shape
+and the state adapts per series.</p>
+<p><strong>There is no seasonality prior.</strong> The network must encode a period-twelve
+pattern in its hidden state from scratch. A seasonal lag in the input, or a
+seasonal naive residual as the target, would make the same model much easier to
+fit. The demo's modest error against seasonal naive is the cost of leaving that
+structure out.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>DeepAR's home is large-scale probabilistic forecasting: thousands of SKUs in
+retail, thousands of meters in electricity, thousands of series in cloud
+telemetry. One model is trained across all of them, with the series identity
+carried by the state or by covariates, and the output is a distribution per
+series per horizon. Decisions — safety stock, staffing, capacity — need the
+distribution, not the mean.</p>
+<p>The count head is used for demand that arrives in units: units sold per day,
+calls per hour, failures per machine. The negative binomial captures the
+over-dispersion that a Poisson misses, and the non-negativity is structural
+rather than clipped.</p>
+<p>The heavy-tailed head is used where spikes are real: promotional sales,
+traffic incidents, sensor glitches. Treating a spike as an outlier to be removed
+throws away information; treating it as a <span class="math inline">\(t\)</span> draw keeps it and stops it from
+dominating the fit.</p>
+<p>The quantile head is used when the shape is unknown or the loss is asymmetric.
+Predicting a 0.9 quantile directly optimises the quantity a newsvendor cares
+about, and it does not require the distribution to belong to a named family.</p>
+<p>It is the wrong tool for a single short series with a strong seasonal pattern
+and no covariates, where a state-space model or a seasonal naive is a better
+use of the data, and for very long horizons where the recursion's compounding
+error dominates.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Salinas, D., Flunkert, V., Gasthaus, J., Januschowski, T. (2020). <em>DeepAR:
+Probabilistic forecasting with autoregressive recurrent networks.</em>
+International Journal of Forecasting. The architecture, the likelihood heads
+and the sampling procedure.</li>
+<li>Flunkert, V., Salinas, D., Januschowski, T. (2017). <em>DeepAR: Probabilistic
+forecasting with autoregressive recurrent networks.</em> arXiv:1704.04110. The
+original technical report.</li>
+<li>Koenker, R., Bassett, G. (1978). <em>Regression quantiles.</em> Econometrica. The
+pinball loss and the quantile regression objective in (13).</li>
+<li>Cameron, A. C., Trivedi, P. K. (2013). <em>Regression analysis of count data.</em>
+Cambridge University Press. The negative binomial parametrisation and its
+score in (11).</li>
+<li>Bergmeir, C., Hyndman, R. J., Koo, B. (2018). <em>A note on the validity of
+cross-validation for evaluating autoregressive time series prediction.</em>
+Computational Statistics and Data Analysis. Why a single hold-out window is
+not enough to judge a forecaster.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="tsmixer.html"><small>Previous</small><span>TSMixer</span></a><a class="next" href="tft.html"><small>Next</small><span>Temporal fusion transformer</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">11 · Time series</p><ul class="rail-list"><li><a href="baselines.html"><span class="tick">✓</span><span>Naive baselines</span></a></li><li><a href="ets.html"><span class="tick">✓</span><span>ETS / Holt-Winters</span></a></li><li><a href="arima.html"><span class="tick">✓</span><span>ARIMA</span></a></li><li><a href="var.html"><span class="tick">✓</span><span>Vector autoregression</span></a></li><li><a href="garch.html"><span class="tick">✓</span><span>GARCH</span></a></li><li><a href="stl.html"><span class="tick">✓</span><span>STL decomposition</span></a></li><li><a href="spectral_analysis.html"><span class="tick">✓</span><span>Spectral analysis</span></a></li><li><a href="dlinear.html"><span class="tick">✓</span><span>DLinear</span></a></li><li><a href="theta.html"><span class="tick">✓</span><span>Theta method</span></a></li><li><a href="croston.html"><span class="tick">✓</span><span>Croston&#x27;s method</span></a></li><li><a href="nbeats.html"><span class="tick">✓</span><span>N-BEATS</span></a></li><li><a href="nhits.html"><span class="tick">✓</span><span>N-HiTS</span></a></li><li><a href="patchtst.html"><span class="tick">✓</span><span>PatchTST</span></a></li><li><a href="tsmixer.html"><span class="tick">✓</span><span>TSMixer</span></a></li><li><a href="deepar.html" aria-current="page"><span class="tick">✓</span><span>DeepAR</span></a></li><li><a href="tft.html"><span class="tick">✓</span><span>Temporal fusion transformer</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../10-sequences/index.html"><span class="jump">← 10 · Sequences</span></a></li><li><a href="../12-neural-blocks/index.html"><span class="jump">12 · Neural blocks&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-autoregressive-factorisation">The autoregressive factorisation</a></li><li class="lvl3"><a href="#the-recurrence">The recurrence</a></li><li class="lvl3"><a href="#gaussian-likelihood">Gaussian likelihood</a></li><li class="lvl3"><a href="#student--likelihood">Student-t likelihood</a></li><li class="lvl3"><a href="#negative-binomial-likelihood">Negative binomial likelihood</a></li><li class="lvl3"><a href="#quantile-output">Quantile output</a></li><li class="lvl3"><a href="#backpropagation-through-time">Backpropagation through time</a></li><li class="lvl3"><a href="#monte-carlo-versus-analytic-paths">Monte Carlo versus analytic paths</a></li><li class="lvl3"><a href="#gradient-clipping">Gradient clipping</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/11-time-series/deepar.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

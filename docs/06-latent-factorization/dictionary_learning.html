@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dictionary learning · MLAtoms</title>
+<meta name="description" content="Learning the basis instead of assuming it. Sparse coding takes the dictionary as given. This atom learns it from the data, and the only reason that is…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/dictionary_learning.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Dictionary learning">
+<meta property="og:description" content="Learning the basis instead of assuming it. Sparse coding takes the dictionary as given. This atom learns it from the data, and the only reason that is…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/dictionary_learning.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dictionary learning">
+<meta name="twitter:description" content="Learning the basis instead of assuming it. Sparse coding takes the dictionary as given. This atom learns it from the data, and the only reason that is…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Dictionary learning", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/dictionary_learning.html", "description": "Learning the basis instead of assuming it. Sparse coding takes the dictionary as given. This atom learns it from the data, and the only reason that is\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">06 · Latent structure &amp; factorisation</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="dictionary_learning.py.html">source</a></p><h1>Dictionary learning</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Sparse coding takes the dictionary as given. This atom learns it from the data,
+and the only reason that is possible is that the problem splits in half.</p>
+<pre class="highlight"><code>        X  (n × d)          A  (n × K)          Dᵀ (K × d)
+   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+   │              │ ≈  │  ·  ·   ·    │  · │              │
+   │    signals   │    │  ·   ·  ·    │    │    atoms     │
+   │              │    │ ·   ·    ·   │    │              │
+   └──────────────┘    └──────────────┘    └──────────────┘
+                            ≤ s per row         unit columns
+
+   given D → A is sparse coding (a convex problem, per row)
+   given A → D is least squares (a closed form)
+</code></pre>
+<p>Alternate the two halves and each step is easy; the pair is not, because the
+factorisation is non-convex and the two halves can cooperate on a bad local
+optimum. That is the honest summary of every dictionary-learning algorithm: a
+well-understood coordinate descent on an objective with no global guarantee.</p>
+<p>What it buys is the thing fixed dictionaries cannot do. A DCT is a good basis for
+a photograph and a bad one for a spectrogram; a dictionary learned from the data
+in hand adapts, and the demo shows it: 500 signals of 20 dimensions, built from 3
+of 40 unknown atoms, and after 12 alternations the learned atoms match the true
+ones at mean cosine <span class="math inline">\(0.926\)</span>. Sign and order are arbitrary — nothing in the
+objective fixes them — so that number is the strongest statement available.</p>
+<p>The four variants are four ways to spend the second half. <code>mod</code> solves it exactly
+in one matrix inverse. <code>ksvd</code> updates one atom at a time with an SVD that also
+revises that atom's coefficients. <code>online_dl</code> never forms the joint problem and
+keeps <span class="math inline">\(O(K^2)\)</span> state instead of the whole code matrix. <code>sparse_dict</code> constrains
+each atom to be sparse in a fixed base, so the learned atoms are readable.</p>
+<p>The result that matters and that the textbooks get wrong: <strong><code>mod</code> and <code>ksvd</code> are
+a draw.</strong> On three problems the demo measures MOD at <span class="math inline">\(0.114/0.106/0.112\)</span> and
+K-SVD at <span class="math inline">\(0.115/0.102/0.116\)</span> — MOD wins 2 of 3, and the means are <span class="math inline">\(0.111\)</span> and
+<span class="math inline">\(0.111\)</span>. Given fixed codes, MOD's update <em>is</em> the joint least-squares optimum
+while K-SVD's is one Gauss-Seidel sweep, and K-SVD's famous coefficient update is
+discarded as soon as the alternation re-codes. Neither dominates, and any claim
+that one is <span class="math inline">\(x\%\)</span> better is a claim about an initialisation.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Dictionary update</th>
+<th style="text-align:left">Cost per pass</th>
+<th style="text-align:left">Where it wins</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ksvd</code></td>
+<td style="text-align:left">one atom at a time, rank-one SVD</td>
+<td style="text-align:left"><span class="math inline">\(O(K\,m d \min(m,d))\)</span></td>
+<td style="text-align:left">interleaved with expensive coding</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mod</code></td>
+<td style="text-align:left">joint least squares, one inverse</td>
+<td style="text-align:left"><span class="math inline">\(O(K^2 d + K^3)\)</span></td>
+<td style="text-align:left">when coding is cheap and exact</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>online_dl</code></td>
+<td style="text-align:left">per-batch, from two accumulators</td>
+<td style="text-align:left"><span class="math inline">\(O(K^2 + dK)\)</span> state</td>
+<td style="text-align:left">more signals than fit in memory</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sparse_dict</code></td>
+<td style="text-align:left">per atom, a lasso in a fixed base</td>
+<td style="text-align:left"><span class="math inline">\(O(P^2 + dP)\)</span> per atom</td>
+<td style="text-align:left">when atoms must be interpretable</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>ksvd</code></strong> is K-SVD: for each atom, restrict to the signals that use it, form the
+residual without that atom's contribution, and take the leading singular pair of
+that residual. Atom and coefficients update together, which is the trick — but
+with greedy coding re-run every alternation the demo finds no advantage over
+MOD's joint solve (below). Its own curve is honest: on 500 signals the error
+falls <span class="math inline">\(0.174 \to 0.124 \to 0.097\)</span> over 12 alternations and all 40 atoms stay
+alive.</p>
+<p><strong><code>mod</code></strong> is the method of optimal directions, and it is one line: given the
+codes, the best dictionary is <span class="math inline">\(D^{\mathsf T} = (A^{\mathsf T}A)^{-1}A^{\mathsf
+T}X\)</span>. Exactly the least-squares optimum of the second half, so the alternation's
+objective decreases monotonically and by more per step than K-SVD's. It is also
+the reason K-SVD exists: <span class="math inline">\(K^3\)</span> for the inverse is fine at <span class="math inline">\(K = 40\)</span> and hopeless
+at <span class="math inline">\(K = 10^4\)</span>.</p>
+<p><strong><code>online_dl</code></strong> processes the data in batches and keeps only
+<span class="math inline">\(A = \sum\alpha\alpha^{\mathsf T}\)</span>, <span class="math inline">\(B = \sum x\alpha^{\mathsf T}\)</span>. One dictionary
+update per batch, so 64 updates for 800 signals against 8 full passes, and the
+state is 19 kB against the 256 kB the batch methods hold. It reaches <span class="math inline">\(0.0366\)</span>
+against K-SVD's <span class="math inline">\(0.0852\)</span> — better, because it got eight times as many updates out
+of the same data. The caveat is in the variant's own design: the accumulators are
+unweighted, so the first batches dominate forever, and the standard fix is a
+forgetting factor that turns them into a running average.</p>
+<p><strong><code>sparse_dict</code></strong> writes each atom as a sparse combination of a fixed base,
+<span class="math inline">\(D = \Phi C\)</span>, and updates <span class="math inline">\(C\)</span> with a lasso instead of an SVD. With <span class="math inline">\(\Phi = I\)</span> and
+<span class="math inline">\(\gamma = 0\)</span> the constraint is off and every atom is dense (20 of 20
+coefficients); with <span class="math inline">\(\gamma = 0.15\)</span> the atoms keep <span class="math inline">\(5.4\)</span> coefficients on average
+(at most 8) and the error rises <span class="math inline">\(0.0995 \to 0.1888\)</span>. Four times fewer parameters
+per atom for <span class="math inline">\(90\%\)</span> more reconstruction error — that ratio is the entire argument
+for double sparsity.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-objective-and-why-the-constraints-are-both-load-bearing">1. The objective, and why the constraints are both load-bearing <a class="header-anchor" href="#1-the-objective-and-why-the-constraints-are-both-load-bearing">#</a></h3>
+<div class="math block">
+\[\min_{A,\,D}\; \lVert X - AD^{\mathsf T}\rVert_F^2 \quad\text{subject to}\quad
+\lVert a_i\rVert_0 \le s \ \ \forall i, \qquad \lVert d_j\rVert_2 = 1 \ \ \forall j. \qquad (1)\]
+</div>
+<p>Both constraints are needed and neither is cosmetic.</p>
+<p>Without the sparsity budget the problem is ordinary PCA-type factorisation, and
+with <span class="math inline">\(K > d\)</span> it has a continuum of exact solutions — the dictionary can be any
+basis of anything. The budget is what makes the decomposition identifiable at
+all, and it is also what makes the problem hard: <span class="math inline">\(\ell_0\)</span> makes each half
+non-convex, which is why the coding step in the code is greedy rather than
+convex.</p>
+<p>Without the unit-norm constraint there is a trivial degeneracy: rescale atom <span class="math inline">\(j\)</span>
+by <span class="math inline">\(c\)</span> and its coefficients by <span class="math inline">\(1/c\)</span> and the product is unchanged, so the
+objective is invariant along a ray and any optimiser drifts along it. Fixing
+<span class="math inline">\(\lVert d_j\rVert = 1\)</span> picks one representative per ray. The code enforces it by
+rescaling both factors (<code>_rescale</code>), which is exact — rescaling only <span class="math inline">\(D\)</span> would
+change the fit.</p>
+<h3 id="2-given-the-codes-the-dictionary-is-a-least-squares-problem">2. Given the codes, the dictionary is a least-squares problem <a class="header-anchor" href="#2-given-the-codes-the-dictionary-is-a-least-squares-problem">#</a></h3>
+<p>With <span class="math inline">\(A\)</span> fixed, (1) is a quadratic in <span class="math inline">\(D\)</span> with no constraints other than the
+norms, and the closed form is</p>
+<div class="math block">
+\[D^{\mathsf T} = (A^{\mathsf T}A)^{-1}A^{\mathsf T}X = \left(\sum_i a_ia_i^{\mathsf T}\right)^{-1}\sum_i a_i x_i^{\mathsf T}, \qquad (2)\]
+</div>
+<p>which is <code>mod</code>. The inner matrix <span class="math inline">\(A^{\mathsf T}A\)</span> is what makes the method
+<span class="math inline">\(O(K^3)\)</span> and it is where the ridge in the code comes from: an atom used by no
+signal gives a zero row and column, so the system is singular, and the ridge turns
+&quot;undefined&quot; into &quot;leave that direction alone&quot;.</p>
+<h3 id="3-k-svd-the-same-problem-one-atom-at-a-time">3. K-SVD: the same problem, one atom at a time <a class="header-anchor" href="#3-k-svd-the-same-problem-one-atom-at-a-time">#</a></h3>
+<p>Split the objective by atom. For atom <span class="math inline">\(j\)</span>, let <span class="math inline">\(E_j\)</span> be the residual with its
+contribution removed, <span class="math inline">\(E_j = X - \sum_{k \ne j} a_k d_k^{\mathsf T}\)</span>. Then</p>
+<div class="math block">
+\[\lVert X - AD^{\mathsf T}\rVert_F^2 = \lVert E_j - a_jd_j^{\mathsf T}\rVert_F^2
+= \lVert E_j\rVert_F^2 - 2\,a_j^{\mathsf T}E_jd_j + \lVert a_j\rVert^2\lVert d_j\rVert^2,
+\qquad (3)\]
+</div>
+<p>so minimising over the pair <span class="math inline">\((a_j, d_j)\)</span> is exactly the rank-one approximation of
+<span class="math inline">\(E_j\)</span>, and the solution is the leading singular triple:</p>
+<div class="math block">
+\[E_j = \sum_r s_r u_r v_r^{\mathsf T} \;\Longrightarrow\;
+d_j = v_1, \qquad a_j = s_1 u_1. \qquad (4)\]
+</div>
+<p>The support of <span class="math inline">\(a_j\)</span> is respected by restricting (3) to the rows where <span class="math inline">\(a_j \ne 0\)</span>
+— that is the only place sparsity enters the dictionary step, and forgetting it
+is the classic K-SVD bug: the SVD of the <em>full</em> residual gives an atom that tries
+to explain signals that do not use it.</p>
+<p>Two properties follow. Each atom update decreases the objective (it is an exact
+minimisation over that pair), so the sweep is monotone. And the sweep is
+Gauss-Seidel: atom <span class="math inline">\(j+1\)</span> sees the coefficients atom <span class="math inline">\(j\)</span> just changed, so it is not
+the joint optimum that (2) computes. That is exactly the gap the demo measures,
+and it is why the ordering of atoms within a sweep is arbitrary and its effect
+shows up in the third decimal.</p>
+<h3 id="4-online-a-surrogate-with-two-sufficient-statistics">4. Online: a surrogate with two sufficient statistics <a class="header-anchor" href="#4-online-a-surrogate-with-two-sufficient-statistics">#</a></h3>
+<p>Holding <span class="math inline">\(A = \sum_i \alpha_i\alpha_i^{\mathsf T}\)</span> and <span class="math inline">\(B = \sum_i x_i\alpha_i^{\mathsf T}\)</span>,
+expand (2) per column:</p>
+<div class="math block">
+\[d_j = \frac{1}{A_{jj}}\left(b_j - D\,a_{:j}\right) + d_j, \qquad (5)\]
+</div>
+<p>with <span class="math inline">\(a_{:j}\)</span> the <span class="math inline">\(j\)</span>-th column of <span class="math inline">\(A\)</span> with its own diagonal entry zeroed. This is
+the coordinate-wise minimiser of a quadratic surrogate, and the point of the
+rearrangement is that it uses only <span class="math inline">\(A\)</span>, <span class="math inline">\(B\)</span> and the current <span class="math inline">\(D\)</span> — no data. So the
+algorithm can be run streaming: code a batch, add its contributions to <span class="math inline">\(A\)</span> and
+<span class="math inline">\(B\)</span>, update every column once, forget the batch.</p>
+<p>In finite arithmetic the two accumulators are not statistics of a fixed
+distribution; they are weighted averages that never forget, which is why the
+published algorithm adds a decay. The demo does not, and says so: the last batches
+barely move the dictionary. It still works — better than 8 batch passes,
+because 64 updates is 64 updates — but the unbiased version is
+<span class="math inline">\(A_t = \sum_{i\le t}\beta_i\alpha_i\alpha_i^{\mathsf T}\)</span> with <span class="math inline">\(\beta_i \to 0\)</span>.</p>
+<h3 id="5-double-sparsity">5. Double sparsity <a class="header-anchor" href="#5-double-sparsity">#</a></h3>
+<p>Fix a base <span class="math inline">\(\Phi \in \mathbb{R}^{d\times P}\)</span> (a DCT, a wavelet frame, the identity)
+and write <span class="math inline">\(D = \Phi C\)</span>. Then (1) becomes a problem in <span class="math inline">\(C\)</span>, and the atom update for
+column <span class="math inline">\(j\)</span> with <span class="math inline">\(\alpha = a_j\)</span>, <span class="math inline">\(R = E_j\)</span> is</p>
+<div class="math block">
+\[\min_{c}\; \tfrac12 c^{\mathsf T}\Phi^{\mathsf T}\Phi\, c -
+c^{\mathsf T}\frac{\Phi^{\mathsf T}R\alpha}{\alpha^{\mathsf T}\alpha}
++ \gamma\lVert c\rVert_1, \qquad (6)\]
+</div>
+<p>which is a lasso in <span class="math inline">\(P\)</span> dimensions with Gram <span class="math inline">\(\Phi^{\mathsf T}\Phi\)</span> — the
+<code>sparse_coding</code> solver, called <span class="math inline">\(K\)</span> times. The <span class="math inline">\(\alpha^{\mathsf T}\alpha\)</span> divisor is
+not cosmetic: it is the curvature of (3) in that direction, because a signal with
+small coefficients gets a small weight in the total residual.</p>
+<p>With <span class="math inline">\(\Phi = I\)</span> the constraint is &quot;atoms are sparse in the ambient basis&quot;, which
+is the case the demo runs, and <span class="math inline">\(\gamma = 0\)</span> removes the constraint entirely,
+leaving a per-atom ordinary least-squares step. That is the same <em>model</em> as MOD;
+it reaches a different point (<span class="math inline">\(0.0995\)</span> against <span class="math inline">\(0.0885\)</span>) because per-atom
+Gauss-Seidel is not the joint solve. The distinction matters when reading the
+literature: &quot;double sparsity&quot; is a constraint on the parameterisation, and its
+benefit is interpretability, not accuracy.</p>
+<h3 id="6-what-is-identifiable-and-what-is-not">6. What is identifiable, and what is not <a class="header-anchor" href="#6-what-is-identifiable-and-what-is-not">#</a></h3>
+<p>The learned dictionary is determined only up to</p>
+<div class="math block">
+\[D \mapsto D P, \qquad A \mapsto A P^{-{\mathsf T}}, \qquad (7)\]
+</div>
+<p>for any signed permutation <span class="math inline">\(P\)</span> — and, when <span class="math inline">\(K > d\)</span>, any invertible right factor
+that keeps the code's sparsity intact. So there is no such thing as &quot;the&quot;
+dictionary: two runs from different seeds produce different atoms in different
+orders with different signs, and both are correct answers. That is why the demo's
+quality measure is <code>atom_recovery</code>, the mean over learned atoms of the best
+absolute cosine with a true atom, rather than a matrix norm.</p>
+<p>The same fact is what makes the choice of <span class="math inline">\(K\)</span> a modelling decision. <span class="math inline">\(K\)</span> smaller
+than the truth and atoms merge; <span class="math inline">\(K\)</span> larger and the surplus atoms are dead (used
+by no signal), which the code revives from the worst-reconstructed signal —
+<code>_revive</code> — because a dead atom contributes nothing and never recovers on its own.</p>
+<h3 id="7-convergence">7. Convergence <a class="header-anchor" href="#7-convergence">#</a></h3>
+<p>Alternating minimisation on (1) decreases the objective at every step and is
+bounded below, so it converges — to a stationary point, which is all that can be
+said. In practice the curve is steep for two or three passes and then shallow:
+the demo's <span class="math inline">\(0.174 \to 0.124 \to 0.097\)</span> is most of the total movement in the first
+three of twelve. The stopping rule that matters is the one nobody implements:
+the objective can be flat while the atoms rotate within the degenerate subspace of
+(7), so &quot;objective unchanged&quot; is not &quot;dictionary unchanged&quot;.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>DictionaryLearning(n_components=20, *, variant=&quot;ksvd&quot;, nnz=3, n_iter=12, lam=0.1, batch=128, gamma=0.1, base=None, seed=0)</code> with <code>fit(X)</code>,
+<code>dictionary_</code> <span class="math inline">\((d, K)\)</span>, <code>codes_</code> <span class="math inline">\((n, K)\)</span>, <code>rmse_</code> (one entry per alternation),
+<code>base_</code>, and the module-level <code>atom_recovery</code>.</p>
+<p>The coding step is <code>sparse_coding</code> itself, imported rather than reimplemented:
+<code>_codes</code> calls <code>SparseCoding(nnz=..., variant=&quot;omp&quot;)</code>. That is the composition the
+chapter is built on — this atom is the alternation, not the coder.</p>
+<h3 id="1-initialisation-on-real-signals">1. Initialisation on real signals <a class="header-anchor" href="#1-initialisation-on-real-signals">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">n</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">:</span>
+            <span class="c1"># initialise on real signals, not on noise: a Gaussian dictionary has</span>
+            <span class="c1"># no relation to the data's structure, so the first coding pass spends</span>
+            <span class="c1"># its budget fitting the atoms it was given</span>
+            <span class="n">D</span> <span class="o">=</span> <span class="n">_normalise</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">D</span> <span class="o">=</span> <span class="n">_normalise</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="n">d</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">)))</span>
+</code></pre>
+<p>The single most consequential line in the file has nothing to do with the
+algorithm. On the demo's 500 signals, the same 12 alternations starting from
+Gaussian atoms end at <span class="math inline">\(0.1015\)</span> with mean cosine <span class="math inline">\(0.888\)</span>; starting from 40 actual
+signals they end at <span class="math inline">\(0.0975\)</span> with <span class="math inline">\(0.926\)</span>, and the curves start at <span class="math inline">\(0.248\)</span> and
+<span class="math inline">\(0.174\)</span> respectively. The gap is not in the destination, it is in the budget
+needed to get there: a Gaussian dictionary's atoms are unrelated to the data, so
+the first coding pass spends its budget fitting noise and the alternation has to
+undo that before it learns anything.</p>
+<p><code>rng.choice</code> without replacement, so no atom starts as a duplicate of another —
+which matters because two identical atoms make the first coding pass arbitrary
+between them and the pair can stay locked for the whole run.</p>
+<h3 id="2-the-exact-joint-update">2. The exact joint update <a class="header-anchor" href="#2-the-exact-joint-update">#</a></h3>
+<pre class="highlight"><code>        <span class="n">G</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">A</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">G</span> <span class="o">+</span> <span class="mf">1e-8</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">G</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">return</span> <span class="n">D</span><span class="p">,</span> <span class="n">A</span>
+</code></pre>
+<p>(2), written as a solve rather than an inverse: same arithmetic, better
+conditioning, and <code>np.linalg.solve</code> on a <span class="math inline">\(K\times K\)</span> system is what makes this
+<span class="math inline">\(O(K^3)\)</span> rather than <span class="math inline">\(O(K^4)\)</span>.</p>
+<p>The ridge is the dead-atom problem. If atom <span class="math inline">\(j\)</span> is used by no signal then row and
+column <span class="math inline">\(j\)</span> of <span class="math inline">\(G\)</span> are zero, <code>G</code> is singular, and the solve either raises or
+returns garbage — but only for the components along that atom, so the failure is
+silent in every aggregate metric. <code>1e-8</code> makes those directions return zero, i.e.
+the atom keeps whatever it had when multiplied back through <span class="math inline">\(A^{\mathsf T}X\)</span>
+(which is zero for it). The alternative — reviving dead atoms explicitly — is
+what K-SVD's <code>_revive</code> does and what MOD needs if <span class="math inline">\(K\)</span> is chosen too large.</p>
+<h3 id="3-the-rank-one-sweep">3. The rank-one sweep <a class="header-anchor" href="#3-the-rank-one-sweep">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">A</span><span class="p">[:,</span> <span class="n">j</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">rows</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">D</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span> <span class="n">A</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_revive</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">D</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="n">X</span> <span class="o">-</span> <span class="n">A</span> <span class="o">@</span> <span class="n">D</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">A</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span> <span class="n">D</span><span class="p">[:,</span> <span class="n">j</span><span class="p">])</span>
+            <span class="n">U</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">Vt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">R</span><span class="p">[</span><span class="n">rows</span><span class="p">],</span> <span class="n">full_matrices</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">D</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">Vt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">A</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">U</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+</code></pre>
+<p>(3)–(4). <code>R = X - A @ D.T + np.outer(A[:, j], D[:, j])</code> is <span class="math inline">\(E_j\)</span> computed from the
+current full residual: one matmul plus one rank-one correction, rather than a sum
+over the other <span class="math inline">\(K-1\)</span> atoms. Recomputing the whole residual <span class="math inline">\(K\)</span> times per sweep is
+the obvious implementation and it is <span class="math inline">\(K\)</span> times slower, which at <span class="math inline">\(K = 40\)</span> is the
+difference between 0.4 s and 15 s.</p>
+<p><code>R[rows]</code> is the restriction that makes the update respect sparsity, and it is
+also the shape trap: the matrix is <span class="math inline">\(|{\rm support}|\times d\)</span>, so its SVD gives
+<span class="math inline">\(U\)</span> of shape <span class="math inline">\((m, m)\)</span> and <span class="math inline">\(V^{\mathsf T}\)</span> of shape <span class="math inline">\((m, d)\)</span>. The atom is a row of
+<span class="math inline">\(V^{\mathsf T}\)</span> — length <span class="math inline">\(d\)</span> — and the coefficients are a column of <span class="math inline">\(U\)</span> scaled by
+<span class="math inline">\(s\)</span>. Swapping the two is the bug that produces a broadcast error, and the version
+of it that survives is transposing a square case.</p>
+<h3 id="4-reviving-a-dead-atom">4. Reviving a dead atom <a class="header-anchor" href="#4-reviving-a-dead-atom">#</a></h3>
+<pre class="highlight"><code>        <span class="n">resid</span> <span class="o">=</span> <span class="n">X</span> <span class="o">-</span> <span class="n">A</span> <span class="o">@</span> <span class="n">D</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">worst</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resid</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+        <span class="n">vec</span> <span class="o">=</span> <span class="n">resid</span><span class="p">[</span><span class="n">worst</span><span class="p">]</span>
+        <span class="n">nrm</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vec</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">nrm</span> <span class="o">&lt;</span> <span class="n">EPS</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">D</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">coef</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">coef</span><span class="p">[</span><span class="n">worst</span><span class="p">]</span> <span class="o">=</span> <span class="n">nrm</span>
+        <span class="k">return</span> <span class="n">vec</span> <span class="o">/</span> <span class="n">nrm</span><span class="p">,</span> <span class="n">coef</span>
+</code></pre>
+<p>A dead atom is a coordinate nobody uses, and no amount of alternating will bring
+it back: its gradient is zero, so its update is zero. The standard revival gives
+it the signal the current dictionary explains worst, with the coefficient set to
+that signal's residual norm — which is the exact least-squares fit for a
+single-atom dictionary on that signal.</p>
+<p><code>nrm &lt; EPS</code> cannot happen for real data but is the difference between an error and
+a division by zero on degenerate input, and returning atom 0 unchanged is the
+harmless choice: it stays dead for this sweep, and the next coding pass decides
+again.</p>
+<h3 id="5-the-online-update">5. The online update <a class="header-anchor" href="#5-the-online-update">#</a></h3>
+<pre class="highlight"><code>            <span class="n">A_acc</span> <span class="o">+=</span> <span class="n">Ab</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Ab</span>
+            <span class="n">B_acc</span> <span class="o">+=</span> <span class="n">Xb</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Ab</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">K</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">A_acc</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">1e-9</span><span class="p">:</span>
+                    <span class="n">D</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_revive</span><span class="p">(</span><span class="n">Xb</span><span class="p">,</span> <span class="n">Ab</span><span class="p">,</span> <span class="n">D</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">col</span> <span class="o">=</span> <span class="n">A_acc</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">col</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+                <span class="n">D</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">B_acc</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">D</span> <span class="o">@</span> <span class="n">col</span><span class="p">)</span> <span class="o">/</span> <span class="n">A_acc</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span>
+                <span class="n">nrm</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">D</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]))</span>
+                <span class="k">if</span> <span class="n">nrm</span> <span class="o">&gt;</span> <span class="n">EPS</span><span class="p">:</span>
+                    <span class="n">D</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">/=</span> <span class="n">nrm</span>
+</code></pre>
+<p>(5), and <code>col[j] = 0.0</code> is the line that makes it correct: the closed form
+excludes atom <span class="math inline">\(j\)</span>'s own contribution, because the term <span class="math inline">\(A_{jj}d_j\)</span> appears on
+both sides of the normal equation. Leaving it in doubles the atom's weight on
+every update, which converges to a dictionary whose atoms are too large — and
+then the renormalisation hides it, so the fit still looks plausible.</p>
+<p>The renormalisation is not the exact rescaling of <code>_rescale</code>; it is a projection
+onto the unit ball, which is the published algorithm's constraint handling, and
+the coefficients in <code>Ab</code> were computed before it. That inconsistency is why the
+online path's reported error uses freshly computed codes at the end of the epoch.</p>
+<h3 id="6-double-sparsitys-atom-update">6. Double sparsity's atom update <a class="header-anchor" href="#6-double-sparsitys-atom-update">#</a></h3>
+<pre class="highlight"><code>            <span class="n">R</span> <span class="o">=</span> <span class="n">X</span> <span class="o">-</span> <span class="n">A</span> <span class="o">@</span> <span class="n">D</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">aj</span><span class="p">,</span> <span class="n">D</span><span class="p">[:,</span> <span class="n">j</span><span class="p">])</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">aj</span><span class="p">)</span> <span class="o">/</span> <span class="n">w</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">_lasso_cd</span><span class="p">(</span><span class="n">G</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mf">1e-10</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">nrm</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">base</span> <span class="o">@</span> <span class="n">c</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">nrm</span> <span class="o">&lt;</span> <span class="mf">1e-8</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">C</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span> <span class="o">/</span> <span class="n">nrm</span>
+            <span class="n">A</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">aj</span> <span class="o">*</span> <span class="n">nrm</span>
+</code></pre>
+<p>(6). <code>w = aj @ aj</code> is the curvature divisor, <code>G = baseᵀbase</code> is formed once
+outside the atom loop, and <code>_lasso_cd</code> is imported from <code>sparse_coding</code> — the
+same exact coordinate descent that solves (1) there, handed a different Gram.</p>
+<p><code>if nrm &lt; 1e-8: continue</code> is the case where the penalty zeroes the whole atom. The
+right behaviour is to leave the atom and its coefficients alone rather than to
+divide by a near-zero norm, because a zeroed atom is a statement that this
+direction carries nothing at this γ — not a licence to produce infinities.</p>
+<h3 id="7-measuring-two-dictionaries-against-each-other">7. Measuring two dictionaries against each other <a class="header-anchor" href="#7-measuring-two-dictionaries-against-each-other">#</a></h3>
+<pre class="highlight"><code>    <span class="n">G</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">_normalise</span><span class="p">(</span><span class="n">learned</span><span class="p">)</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">_normalise</span><span class="p">(</span><span class="n">truth</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">G</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+</code></pre>
+<p>(7) made measurable. Each learned atom is matched to its best true atom in
+absolute cosine, and the mean over learned atoms is the score. Absolute value
+because the sign is free; max over the true dictionary because the order is free;
+mean (not max) so that a dictionary with 20 good atoms and 20 junk cannot hide
+behind the good ones.</p>
+<p>What it does not measure is duplication: two learned atoms can both match the
+same true atom and the score stays high while the dictionary is degenerate. The
+complementary statistic is the fraction of atoms actually used — the demo reports
+it as <code>alive</code>.</p>
+<h3 id="8-the-error-the-curve-reports">8. The error the curve reports <a class="header-anchor" href="#8-the-error-the-curve-reports">#</a></h3>
+<pre class="highlight"><code>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_error</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">A</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">D</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Root-mean-square reconstruction error per entry — comparable across variants."""</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">X</span> <span class="o">-</span> <span class="n">A</span> <span class="o">@</span> <span class="n">D</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)))</span>
+</code></pre>
+<p>Per entry, not per signal and not summed, so that runs with different <span class="math inline">\(n\)</span>, <span class="math inline">\(d\)</span> or
+<span class="math inline">\(K\)</span> are comparable — the only reason the demo can put four variants in one
+sentence. It is also the quantity that hides everything: a dictionary can have a
+good RMSE and uninterpretable atoms, which is why <code>atom_recovery</code> exists.</p>
+<p>The loop recomputes the codes after each update and <em>then</em> records the error, so
+<code>rmse_[t]</code> is always the error of a dictionary with codes that were fitted to it.
+Recording before the update instead would report a lagged quantity that is not
+the objective of anything, and it would break the monotonicity that makes the
+curve readable.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><span class="math inline">\(n\)</span> signals, <span class="math inline">\(d\)</span> dimensions, <span class="math inline">\(K\)</span> atoms, <span class="math inline">\(s\)</span> non-zeros per code, <span class="math inline">\(T\)</span> alternations,
+<span class="math inline">\(m\)</span> = signals using a given atom.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Operation</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:left">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>_codes</code> (OMP, all rows)</td>
+<td style="text-align:left"><span class="math inline">\(O(n s^2 d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nK)\)</span></td>
+<td style="text-align:left">the dominant cost per alternation</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_mod</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nK^2 + K^3 + nKd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(K^2)\)</span></td>
+<td style="text-align:left">the <span class="math inline">\(K^3\)</span> is why MOD stops scaling</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_ksvd</code></td>
+<td style="text-align:left"><span class="math inline">\(O(\sum_j m_j d \min(m_j,d))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(md)\)</span></td>
+<td style="text-align:left">one SVD per atom per pass</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_online</code></td>
+<td style="text-align:left"><span class="math inline">\(O(ns^2d + \frac{n}{b}K^2d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(K^2 + dK)\)</span></td>
+<td style="text-align:left">bounded state, no code matrix</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_sparse_dict</code></td>
+<td style="text-align:left"><span class="math inline">\(O(K\,T_{\rm lin}(P^2 + dP))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(PK)\)</span></td>
+<td style="text-align:left">a lasso per atom</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>atom_recovery</code></td>
+<td style="text-align:left"><span class="math inline">\(O(dK_{\rm true}K)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(K_{\rm true}K)\)</span></td>
+<td style="text-align:left">once, at the end</td>
+</tr>
+<tr>
+<td style="text-align:left">full demo</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left"><span class="math inline">\(2.5\)</span> s, four variants, 15 fits</td>
+</tr>
+</tbody>
+</table>
+<p>The row that decides the method is the first: coding is <span class="math inline">\(O(ns^2d)\)</span> per
+alternation and it is the same for every variant, so the dictionary update is
+usually not the bottleneck at all — which is precisely why the MOD/K-SVD
+distinction is worth so little in practice, and why the online variant (which
+amortises coding over more updates) wins on the demo's data.</p>
+<p>Memory separates them properly. <code>mod</code> and <code>ksvd</code> hold the code matrix, <span class="math inline">\(nK\)</span>
+floats — 256 kB for 800 signals and 40 atoms, 25 MB for a million signals.
+<code>online_dl</code> holds <span class="math inline">\(K^2 + dK\)</span> — 19 kB in the same problem, and independent of <span class="math inline">\(n\)</span>.
+That is the variant's justification, and it is the reason dictionary learning is
+routinely run on corpora that do not fit in RAM.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>1. The comparison you read in a paper is a comparison of initialisations.</strong>
+MOD <span class="math inline">\(0.114/0.106/0.112\)</span>, K-SVD <span class="math inline">\(0.115/0.102/0.116\)</span> on three seeds: the winner
+alternates and the means are equal to three decimals. Reporting one run of each is
+reporting the seed. Any honest table has several, and the spread is the finding.</p>
+<p><strong>2. Blind initialisation costs iterations, and iteration budgets are finite.</strong>
+<span class="math inline">\(0.1015\)</span> against <span class="math inline">\(0.0975\)</span> at the <em>end</em> of the same 12 alternations, but <span class="math inline">\(0.248\)</span>
+against <span class="math inline">\(0.174\)</span> at the start: the Gaussian run spends its first four passes
+recovering what the data initialisation got for free. When the budget is small —
+which is the usual case, since each pass costs an <span class="math inline">\(O(ns^2d)\)</span> coding step — the
+initialisation is the difference between a usable dictionary and a partially
+converged one.</p>
+<p><strong>3. A dead atom never comes back on its own.</strong> Its gradient is zero, so its
+update is zero, so it stays dead. MOD's ridge quietly freezes it; K-SVD revives
+it from the worst-reconstructed signal. Choosing <span class="math inline">\(K\)</span> larger than the data supports
+therefore does not add capacity, it adds dead columns — and the RMSE will not tell
+you, because dead atoms contribute nothing.</p>
+<p><strong>4. The objective is flat in the directions of (7).</strong> Permuting atoms, flipping
+their signs, or mixing two atoms that are never used together changes the
+dictionary and leaves the objective bit-for-bit identical. Reporting &quot;the learned
+dictionary&quot; from one run is reporting one representative; averaging dictionaries
+across runs is averaging different bases and produces atoms that were in no run.</p>
+<p><strong>5. Greedy coding makes the alternation's curve non-monotone.</strong> Each half
+decreases its own objective, but OMP re-coding is not the exact minimiser of the
+coding half, so a dictionary update can raise the error measured with fresh codes.
+The demo's curve is monotone here; on harder data it is not, and a rising RMSE is
+not necessarily a bug.</p>
+<p><strong>6. Online with unweighted accumulators forgets nothing and learns less.</strong>
+<span class="math inline">\(A\)</span> and <span class="math inline">\(B\)</span> grow without bound, so a batch seen at step 3 still has full weight at
+step 300, and the dictionary ends up fitted to the beginning of the stream. It
+looks fine on i.i.d. data, which is why the demo's numbers are as good as they
+are; on a stream whose statistics drift, the failure is total and invisible.</p>
+<p><strong>7. Sparsity of the atoms is not interpretability of the atoms.</strong> <code>sparse_dict</code>
+with <span class="math inline">\(\Phi = I\)</span> gives atoms with 5 non-zeros out of 20 and <span class="math inline">\(90\%\)</span> more error; that
+is a readable atom only if the 20 coordinates are themselves meaningful. On raw
+pixels, a 5-sparse atom is a five-pixel picture — sparse, uninterpretable, and
+strictly worse than the dense one. The base has to be chosen so that its
+coefficients mean something.</p>
+<p><strong>8. Everything here assumes the codes are good enough.</strong> The dictionary update
+inherits whatever the coder got wrong: with <span class="math inline">\(\text{nnz} = 1\)</span> the learned atoms are
+cluster centres, not dictionary atoms, and with a huge budget the atoms fit noise.
+The coding budget is the hyper-parameter that matters most and it is usually
+chosen by looking at the reconstruction error, which is precisely the quantity
+that rewards a large budget.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Image denoising and inpainting.</strong> Learn a dictionary from patches of the
+corrupted image itself, then code each patch sparsely and reconstruct. The
+reason it beats a fixed wavelet basis is that the atoms are the image's own
+texture, and the reason it works with one image is the patch redundancy.</li>
+<li><strong>Compressed sensing with a learned basis.</strong> Every recovery guarantee is stated
+relative to a dictionary; learning it is how the guarantee is made applicable
+to a specific signal class.</li>
+<li><strong>Audio: source separation and coding.</strong> A learned dictionary of note-like atoms
+is how sparse coding separates instruments, and how low-bitrate codecs get their
+atoms.</li>
+<li><strong>Medical and scientific imaging.</strong> Dictionary learning on MRI k-space
+reconstructs from fewer samples than a fixed transform requires; the learned
+atoms are the anatomical structures that repeat.</li>
+<li><strong>As the first layer of a network.</strong> Convolutional sparse coding and the
+dictionary-learning layers of early deep models are this atom; the &quot;feature
+learning&quot; story of deep nets starts with exactly this alternation.</li>
+<li><strong>Anomaly detection.</strong> Fit a dictionary to normal data; a new signal with a
+large residual is anomalous. The residual is the interpretable quantity — a
+sparse code that needs large coefficients to explain something is itself the
+explanation.</li>
+</ul>
+<p>Where it is a trap: reporting one seed's dictionary; choosing <span class="math inline">\(K\)</span> above what the
+data supports and calling the dead atoms &quot;features&quot;; using the reconstruction
+error as the only diagnostic when interpretability was the goal; and expecting
+online learning to track a distribution that drifts while the accumulators never
+decay.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li><strong>Olshausen &amp; Field (1996),</strong> <em>Emergence of simple-cell receptive field
+properties by learning a sparse code for natural images</em> — the paper that made
+this a vision result, and still the cleanest statement of why the sparsity
+budget is the model.</li>
+<li><strong>Engan, Aase &amp; Husøy (1999),</strong> <em>Method of optimal directions for frame design</em>
+— MOD, equation (2), and the observation that the dictionary step is an
+ordinary least-squares problem.</li>
+<li><strong>Aharon, Elad &amp; Bruckstein (2006),</strong> <em>K-SVD: an algorithm for designing
+overcomplete dictionaries for sparse representation</em> — the rank-one sweep of
+(3)–(4), including the support restriction that makes it work.</li>
+<li><strong>Elad &amp; Aharon (2006),</strong> <em>Image denoising via sparse and redundant
+representations over learned dictionaries</em> — the application that made K-SVD
+famous, and the patch-based setup everything since uses.</li>
+<li><strong>Mairal, Bach, Ponce &amp; Sapiro (2010),</strong> <em>Online learning for matrix
+factorization and sparse coding</em> — the accumulators of §4, the block update of
+(5), and the streaming regime that makes dictionary learning scale.</li>
+<li><strong>Rubinstein, Zibulevsky &amp; Elad (2010),</strong> <em>Double sparsity: learning sparse
+dictionaries for sparse signal approximation</em> — (6) and the <span class="math inline">\(\Phi C\)</span>
+factorisation; the variant that trades fit for interpretability on purpose.</li>
+<li><strong>Skretting &amp; Engan (2010),</strong> <em>Recursive least squares dictionary learning
+algorithm</em> — RLS-DLA, the variant that replaces the accumulators with a
+forgetting-factor recursion; the principled fix for failure mode 6.</li>
+<li><strong>Sahoo &amp; Makur (2015),</strong> <em>Dictionary training for sparse representation as
+generalization of K-means clustering</em> — SGK, which shows the alternation is
+K-means with a sparsity budget rather than a single atom, and is the cheapest
+way to see why the method works at all.</li>
+<li><strong>Tosic &amp; Frossard (2011),</strong> <em>Dictionary learning: what is the right
+representation for your signals?</em> — the survey that compares the variants on the
+criteria that matter, including the identification group (7).</li>
+<li><strong>Bao, Ji, Quan &amp; Shen (2015),</strong> <em>L0 norm based dictionary learning by proximal
+methods with global convergence</em> — what changes when the budget is <span class="math inline">\(\ell_0\)</span>
+throughout instead of <span class="math inline">\(\ell_0\)</span> coding with <span class="math inline">\(\ell_2\)</span> dictionary updates.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="sparse_coding.html"><small>Previous</small><span>Sparse coding</span></a><a class="next" href="tensor_decomposition.html"><small>Next</small><span>Tensor decomposition</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">06 · Latent structure &amp; factorisation</p><ul class="rail-list"><li><a href="pca.html"><span class="tick">✓</span><span>PCA</span></a></li><li><a href="nmf.html"><span class="tick">✓</span><span>Non-negative matrix factorisation</span></a></li><li><a href="probabilistic_pca.html"><span class="tick">✓</span><span>Probabilistic PCA</span></a></li><li><a href="factor_analysis.html"><span class="tick">✓</span><span>Factor analysis</span></a></li><li><a href="ica.html"><span class="tick">✓</span><span>Independent component analysis</span></a></li><li><a href="lsa.html"><span class="tick">✓</span><span>Latent semantic analysis</span></a></li><li><a href="lda_topic.html"><span class="tick">✓</span><span>Latent Dirichlet allocation</span></a></li><li><a href="cca.html"><span class="tick">✓</span><span>Canonical correlation</span></a></li><li><a href="sparse_coding.html"><span class="tick">✓</span><span>Sparse coding</span></a></li><li><a href="dictionary_learning.html" aria-current="page"><span class="tick">✓</span><span>Dictionary learning</span></a></li><li><a href="tensor_decomposition.html"><span class="tick">✓</span><span>Tensor decomposition</span></a></li><li><a href="plsa.html"><span class="tick">✓</span><span>Probabilistic LSA</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../05-probabilistic/index.html"><span class="jump">← 05 · Probabilistic models</span></a></li><li><a href="../07-clustering/index.html"><span class="jump">07 · Clustering&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-objective-and-why-the-constraints-are-both-load-bearing">1. The objective, and why the constraints are both load-bearing</a></li><li class="lvl3"><a href="#2-given-the-codes-the-dictionary-is-a-least-squares-problem">2. Given the codes, the dictionary is a least-squares problem</a></li><li class="lvl3"><a href="#3-k-svd-the-same-problem-one-atom-at-a-time">3. K-SVD: the same problem, one atom at a time</a></li><li class="lvl3"><a href="#4-online-a-surrogate-with-two-sufficient-statistics">4. Online: a surrogate with two sufficient statistics</a></li><li class="lvl3"><a href="#5-double-sparsity">5. Double sparsity</a></li><li class="lvl3"><a href="#6-what-is-identifiable-and-what-is-not">6. What is identifiable, and what is not</a></li><li class="lvl3"><a href="#7-convergence">7. Convergence</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-initialisation-on-real-signals">1. Initialisation on real signals</a></li><li class="lvl3"><a href="#2-the-exact-joint-update">2. The exact joint update</a></li><li class="lvl3"><a href="#3-the-rank-one-sweep">3. The rank-one sweep</a></li><li class="lvl3"><a href="#4-reviving-a-dead-atom">4. Reviving a dead atom</a></li><li class="lvl3"><a href="#5-the-online-update">5. The online update</a></li><li class="lvl3"><a href="#6-double-sparsitys-atom-update">6. Double sparsity&#x27;s atom update</a></li><li class="lvl3"><a href="#7-measuring-two-dictionaries-against-each-other">7. Measuring two dictionaries against each other</a></li><li class="lvl3"><a href="#8-the-error-the-curve-reports">8. The error the curve reports</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/06-latent-factorization/dictionary_learning.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

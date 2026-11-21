@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dropout family · MLAtoms</title>
+<meta name="description" content="Noise as regularisation, and the variants that fixed its bugs. Dropout multiplies activations by random noise during training and does nothing at inference…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/dropout.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Dropout family">
+<meta property="og:description" content="Noise as regularisation, and the variants that fixed its bugs. Dropout multiplies activations by random noise during training and does nothing at inference…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/dropout.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dropout family">
+<meta name="twitter:description" content="Noise as regularisation, and the variants that fixed its bugs. Dropout multiplies activations by random noise during training and does nothing at inference…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Dropout family", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/dropout.html", "description": "Noise as regularisation, and the variants that fixed its bugs. Dropout multiplies activations by random noise during training and does nothing at inference\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">12 · Neural blocks</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="dropout.py.html">source</a></p><h1>Dropout family — noise that is scaled to disappear at inference</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Dropout multiplies activations by random noise during training and does nothing
+at inference. The noise forces a unit to work without its neighbours, which
+breaks up co-adaptation; the scaling is what makes the two regimes agree. With
+<em>inverted</em> dropout the surviving units are divided by the keep probability, so
+the expected activation is unchanged and inference needs no correction. Every
+variant in this file shares that contract:</p>
+<div class="math block">
+\[\text{training: } y=x\odot\text{noise},\qquad
+\text{inference: } y=x .
+\qquad (1)\]
+</div>
+<p>What changes is the <em>shape</em> of the noise. Independent elementwise masks are the
+default; spatial masks drop whole feature maps; variational noise is fixed
+across time; dropout1d drops timesteps; drop-path drops a residual branch;
+stochastic depth makes the drop rate grow with depth; alpha dropout replaces the
+mask with a shift-and-scale that preserves the first two moments of a
+standardized input. The demo measures each contract on synthetic data rather
+than trusting it.</p>
+<p>The demo also shows the distinction that matters most in practice. Inverted
+dropout leaves the mean alone but inflates the variance to
+<span class="math inline">\(p/(1-p)\)</span> times the activation; alpha dropout leaves both mean and variance
+alone, at the cost of assuming the input is already standardized. On the same
+<span class="math inline">\(50000\times8\)</span> standard-normal batch, standard dropout has variance 1.3288 and
+alpha dropout 0.9965.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">mask or noise</th>
+<th style="text-align:left">shared over</th>
+<th style="text-align:left">rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>standard</code></td>
+<td style="text-align:left">Bernoulli, elementwise</td>
+<td style="text-align:left">nothing</td>
+<td style="text-align:left"><code>rate</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>spatial</code></td>
+<td style="text-align:left">Bernoulli per channel</td>
+<td style="text-align:left">spatial axes, per sample</td>
+<td style="text-align:left"><code>rate</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gaussian</code></td>
+<td style="text-align:left">Gaussian, mean one</td>
+<td style="text-align:left">nothing</td>
+<td style="text-align:left"><code>sigma</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>variational</code></td>
+<td style="text-align:left">Gaussian, mean one</td>
+<td style="text-align:left">time, per sample and feature</td>
+<td style="text-align:left"><code>sigma</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dropout1d</code></td>
+<td style="text-align:left">Bernoulli per timestep</td>
+<td style="text-align:left">features, per sample</td>
+<td style="text-align:left"><code>rate</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>droppath</code></td>
+<td style="text-align:left">Bernoulli per sample</td>
+<td style="text-align:left">the whole branch</td>
+<td style="text-align:left"><code>rate</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>stochastic_depth</code></td>
+<td style="text-align:left">Bernoulli per sample</td>
+<td style="text-align:left">the whole branch</td>
+<td style="text-align:left">depth schedule</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>alpha_dropout</code></td>
+<td style="text-align:left">affine shift and scale</td>
+<td style="text-align:left">nothing</td>
+<td style="text-align:left"><code>rate</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>standard</code></strong> is the original: a fresh Bernoulli mask for every element, with
+survivors scaled by <span class="math inline">\(1/(1-r)\)</span>.</p>
+<p><strong><code>spatial</code></strong> draws one mask per sample and channel and broadcasts it over the
+spatial axes, so a feature map is either kept whole or zeroed whole. It is the
+usual regulariser for convolutional trunks.</p>
+<p><strong><code>gaussian</code></strong> multiplies by <span class="math inline">\(1+\sigma\varepsilon\)</span> with
+<span class="math inline">\(\varepsilon\sim\mathcal N(0,1)\)</span>. It never produces an exact zero and has no
+keep probability, but its mean is still one.</p>
+<p><strong><code>variational</code></strong> uses the same Gaussian noise at every time step of a sequence,
+one noise per sample and feature. That is the fixed-noise reading of
+variational dropout for recurrent nets, and it is what makes the regulariser
+consistent along the sequence.</p>
+<p><strong><code>dropout1d</code></strong> drops entire time steps: one Bernoulli mask per sample and step,
+shared across features. It removes a frame rather than a unit, which suits
+sequence and audio models. (PyTorch's <code>Dropout1d</code> drops channels instead; that
+is <code>spatial</code> in this file.)</p>
+<p><strong><code>droppath</code></strong> applies the mask to a whole residual branch: the output is the
+residual plus either the scaled branch or nothing. It is the residual-network
+regulariser from the stochastic-depth paper.</p>
+<p><strong><code>stochastic_depth</code></strong> is drop-path with a schedule. At depth <span class="math inline">\(\ell\)</span> of <span class="math inline">\(L\)</span>
+blocks the rate is <span class="math inline">\(r_\ell=r_0(\ell+1)/L\)</span>, so early blocks are almost always
+kept and late blocks are regularised hardest.</p>
+<p><strong><code>alpha_dropout</code></strong> replaces dropped values by a constant and rescales the kept
+ones so that a zero-mean unit-variance input keeps mean zero and variance one.
+It is designed for SELU networks, whose self-normalizing property needs exactly
+those moments.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="standard-dropout">Standard dropout <a class="header-anchor" href="#standard-dropout">#</a></h3>
+<p>Let <span class="math inline">\(K\sim\mathrm{Bernoulli}(p)\)</span> with <span class="math inline">\(p=1-r\)</span>, independent per element. Inverted
+dropout is</p>
+<div class="math block">
+\[y=x\,\frac{K}{p},
+\qquad
+\mathbb E[y]=x,
+\qquad
+\mathrm{Var}(y)=x^2\Bigl(\frac1p-1\Bigr)=x^2\frac{r}{1-r}.
+\qquad (2)\]
+</div>
+<p>The mean identity is exact. The variance grows without bound as <span class="math inline">\(p\to0\)</span>, which
+is why a rate near one destroys the signal even though the expectation is
+formally preserved. For a random input <span class="math inline">\(X\)</span> independent of <span class="math inline">\(K\)</span>,</p>
+<div class="math block">
+\[\mathrm{Var}(y)=\frac{\mathrm{Var}(X)}{p}
++\mathbb E[X]^2\Bigl(\frac1p-1\Bigr),
+\qquad (3)\]
+</div>
+<p>so a mean-zero activation has its variance inflated by <span class="math inline">\(1/p\)</span>. In the demo,
+<span class="math inline">\(x=1\)</span> and <span class="math inline">\(r=0.25\)</span> give a measured mean of 0.9983 and variance 0.3345 against
+the predicted <span class="math inline">\(1/3\)</span>.</p>
+<h3 id="spatial-dropout">Spatial dropout <a class="header-anchor" href="#spatial-dropout">#</a></h3>
+<p>For an image tensor of shape <span class="math inline">\((n,h,w,c)\)</span> the mask has shape <span class="math inline">\((n,1,1,c)\)</span>:</p>
+<div class="math block">
+\[m_{n:\,:\,c}\sim\mathrm{Bernoulli}(p),
+\qquad
+y_{nhwc}=x_{nhwc}\frac{m_{n:\,:\,c}}{p}.
+\qquad (4)\]
+</div>
+<p>Every pixel of a surviving channel is scaled by the same factor, so the
+regulariser removes a feature detector rather than a location. The demo keeps
+16 of 24 maps and checks that each is either all zero or exactly <span class="math inline">\(x/0.5\)</span>
+everywhere.</p>
+<h3 id="gaussian-and-variational-noise">Gaussian and variational noise <a class="header-anchor" href="#gaussian-and-variational-noise">#</a></h3>
+<p>Independent Gaussian dropout uses</p>
+<div class="math block">
+\[y=x\,(1+\sigma\varepsilon),
+\qquad
+\mathbb E[y]=x,
+\qquad
+\mathrm{Var}(y)=x^2\sigma^2 .
+\qquad (5)\]
+</div>
+<p>The variational variant draws one <span class="math inline">\(\varepsilon\)</span> per sample and feature and
+broadcasts it over the middle axes:</p>
+<div class="math block">
+\[\varepsilon_{n:\,:\,c}\sim\mathcal N(0,1),
+\qquad
+y_{n t c}=x_{n t c}(1+\sigma\varepsilon_{n:\,:\,c}).
+\qquad (6)\]
+</div>
+<p>The same unit is therefore noisy in the same direction at every step, which is
+the behaviour a recurrent model needs; fresh noise per step would average out
+along the sequence. The demo uses five sequences of seven steps and six
+features and checks that the ratio <span class="math inline">\(y/x\)</span> is constant along time.</p>
+<h3 id="dropout1d">Dropout1d <a class="header-anchor" href="#dropout1d">#</a></h3>
+<p>With one mask per sample and time step,</p>
+<div class="math block">
+\[m_{nt}\sim\mathrm{Bernoulli}(p),
+\qquad
+y_{ntc}=x_{ntc}\frac{m_{nt}}{p}.
+\qquad (7)\]
+</div>
+<p>This drops a frame from every feature at once. The demo drops 16 of 35 steps and
+verifies that the zero pattern is constant along the feature axis.</p>
+<h3 id="drop-path-and-stochastic-depth">Drop path and stochastic depth <a class="header-anchor" href="#drop-path-and-stochastic-depth">#</a></h3>
+<p>A residual branch is either kept or skipped per sample:</p>
+<div class="math block">
+\[y=r+x\,\frac{K}{p},
+\qquad
+K\sim\mathrm{Bernoulli}(p).
+\qquad (8)\]
+</div>
+<p>Dropping the branch leaves the identity path untouched, which is why the
+gradient of a dropped sample is exactly zero and the residual still carries
+information. With a schedule <span class="math inline">\(r_\ell=r_0(\ell+1)/L\)</span> at depth
+<span class="math inline">\(\ell=0,\dots,L-1\)</span> the rate at the last block is <span class="math inline">\(r_0\)</span> and the first is
+<span class="math inline">\(r_0/L\)</span>. The demo uses <span class="math inline">\(r_0=0.5\)</span> and <span class="math inline">\(L=6\)</span>, giving rates</p>
+<div class="math block">
+\[0.083,\ 0.167,\ 0.250,\ 0.333,\ 0.417,\ 0.500,
+\qquad (9)\]
+</div>
+<p>and measured drop fractions 0.066 to 0.494 over 2000 samples. The measured
+value tracks the nominal rate because each sample is one Bernoulli draw.</p>
+<h3 id="alpha-dropout">Alpha dropout <a class="header-anchor" href="#alpha-dropout">#</a></h3>
+<p>Let <span class="math inline">\(\alpha'=-\alpha\lambda\)</span> be the SELU dropout constant, with
+<span class="math inline">\(\alpha=1.6733\)</span> and <span class="math inline">\(\lambda=1.0507\)</span>. The layer is</p>
+<div class="math block">
+\[y=a\bigl(xK+\alpha'(1-K)\bigr)+b,
+\qquad K\sim\mathrm{Bernoulli}(p),
+\qquad (10)\]
+</div>
+<p>with</p>
+<div class="math block">
+\[a=\bigl(p(1+r\alpha'^2)\bigr)^{-1/2},
+\qquad
+b=-a\,\alpha'\,r .
+\qquad (11)\]
+</div>
+<p>For an input with mean zero and variance one, the shift cancels the mean of the
+dropped branch:</p>
+<div class="math block">
+\[\mathbb E[y]=a\,p\,\mathbb E[x]+a\,\alpha' r+b=0.
+\qquad (12)\]
+</div>
+<p>For the variance, write <span class="math inline">\(c=\mathbb E[y]=0\)</span>. Since
+<span class="math inline">\(\mathbb E[(xK+\alpha'(1-K))^2]=p+r\alpha'^2\)</span> and
+<span class="math inline">\(\mathbb E[xK+\alpha'(1-K)]=\alpha' r\)</span>,</p>
+<div class="math block">
+\[\mathrm{Var}(y)
+=a^2\bigl(p+r\alpha'^2\bigr)+2ab\,\alpha'r+b^2
+=a^2p\bigl(1+r\alpha'^2\bigr)=1,
+\qquad (13)\]
+</div>
+<p>using <span class="math inline">\(b=-a\alpha'r\)</span>. The demo checks (13) numerically and in closed form, and
+finds mean <span class="math inline">\(-0.0016\)</span> and variance 0.9965 on a standard-normal batch. If the
+input has nonzero mean the identity no longer holds: the output mean is
+<span class="math inline">\(ap\mu\)</span>, not <span class="math inline">\(\mu\)</span>. That is not a bug; SELU networks are standardized before
+every layer.</p>
+<h3 id="inference">Inference <a class="header-anchor" href="#inference">#</a></h3>
+<p>Every non-path variant returns <span class="math inline">\(x\)</span> unchanged when <code>training=False</code>, and the path
+variants return <span class="math inline">\(r+x\)</span>. There is no keep-probability correction at inference
+because the inverted scaling already put it in training. A rate of zero is the
+identity in both regimes, which the demo checks for all eight variants.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>Standard and alpha dropout share the mask but not the arithmetic. Alpha's
+learning signal is the affine map <code>kept * a</code>, so its backward pass differs by
+one constant:</p>
+<pre class="highlight"><code>            <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">keep</span>
+            <span class="n">kept</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"alpha_dropout"</span><span class="p">:</span>
+                <span class="n">alpha_p</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="n">keep</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">keep</span><span class="p">)</span> <span class="o">*</span> <span class="n">alpha_p</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">**</span> <span class="o">-</span><span class="mf">0.5</span>
+                <span class="n">b</span> <span class="o">=</span> <span class="o">-</span><span class="n">a</span> <span class="o">*</span> <span class="n">alpha_p</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">keep</span><span class="p">)</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">kept</span> <span class="o">*</span> <span class="n">a</span> <span class="o">+</span> <span class="n">alpha_p</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">kept</span><span class="p">)</span> <span class="o">*</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+                <span class="n">scale</span> <span class="o">=</span> <span class="n">kept</span> <span class="o">*</span> <span class="n">a</span>
+                <span class="n">cache</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">,</span> <span class="n">alpha_p</span><span class="o">=</span><span class="n">alpha_p</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">output</span><span class="p">,</span> <span class="n">cache</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">kept</span> <span class="o">/</span> <span class="n">keep</span>
+            <span class="n">cache</span><span class="p">[</span><span class="s2">"scale"</span><span class="p">]</span> <span class="o">=</span> <span class="n">scale</span>
+            <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span> <span class="n">cache</span>
+</code></pre>
+<p>The broadcast shapes are the whole trick behind the structured variants. One
+helper for channel masks and one for time masks cover spatial, variational and
+dropout1d without a second implementation:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_channel_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""One mask entry per sample and channel, broadcast over space."""</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],)</span>
+</code></pre>
+<p>Spatial dropout is the channel helper plus a Bernoulli draw. Note that the mask
+is generated on the small shape, not on the full tensor, so the memory cost is
+one number per feature map:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"spatial"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"spatial needs a sample and channel axis"</span><span class="p">)</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channel_shape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">keep</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">/</span> <span class="n">keep</span>
+            <span class="n">cache</span><span class="p">[</span><span class="s2">"scale"</span><span class="p">]</span> <span class="o">=</span> <span class="n">scale</span>
+            <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span> <span class="n">cache</span>
+</code></pre>
+<p>Gaussian and variational dropout share the noise formula; only the shape of the
+draw differs. The cache keeps the noise because the backward pass is linear in
+it:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"gaussian"</span><span class="p">:</span>
+            <span class="n">noise</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">cache</span><span class="p">[</span><span class="s2">"noise"</span><span class="p">]</span> <span class="o">=</span> <span class="n">noise</span>
+            <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">noise</span><span class="p">,</span> <span class="n">cache</span>
+</code></pre>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"variational"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"variational needs a sample and feature axis"</span><span class="p">)</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channel_shape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">noise</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">cache</span><span class="p">[</span><span class="s2">"noise"</span><span class="p">]</span> <span class="o">=</span> <span class="n">noise</span>
+            <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">noise</span><span class="p">,</span> <span class="n">cache</span>
+</code></pre>
+<p>Dropout1d uses the other helper and a fresh Bernoulli mask per step:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"dropout1d"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"dropout1d needs a sample and time axis"</span><span class="p">)</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_time_shape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">keep</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">/</span> <span class="n">keep</span>
+            <span class="n">cache</span><span class="p">[</span><span class="s2">"scale"</span><span class="p">]</span> <span class="o">=</span> <span class="n">scale</span>
+            <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span> <span class="n">cache</span>
+</code></pre>
+<p>The path variants are the same mask at sample granularity, added back to the
+residual. A dropped sample returns the residual exactly, because multiplying by
+a zero mask gives an exact zero before the addition:</p>
+<pre class="highlight"><code>        <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample_shape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">keep</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">/</span> <span class="n">keep</span>
+        <span class="n">cache</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">keep</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">residual</span> <span class="o">+</span> <span class="n">x</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span> <span class="n">cache</span>
+</code></pre>
+<p>Stochastic depth's only extra machinery is the schedule. It is computed at
+forward time from the depth, so the same object can be reused at every block:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_rate_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"stochastic_depth"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rate</span>
+        <span class="n">level</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">depth</span> <span class="k">if</span> <span class="n">depth</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">depth</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">level</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_depth</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"depth must be in [0, max_depth)"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rate</span> <span class="o">*</span> <span class="p">(</span><span class="n">level</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_depth</span>
+</code></pre>
+<p>Backward is one multiply by the cached mask or noise, and the identity at
+inference:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">backward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gradient</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">gradient</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">gradient</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"eval"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">gradient</span>
+        <span class="k">if</span> <span class="s2">"noise"</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">gradient</span> <span class="o">*</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"noise"</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">gradient</span> <span class="o">*</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"scale"</span><span class="p">]</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For <span class="math inline">\(n\)</span> elements:</p>
+<ul>
+<li><strong>Standard, gaussian, alpha:</strong> one random draw and one or two elementwise
+operations per element, <span class="math inline">\(O(n)\)</span> time and one mask's worth of cache.</li>
+<li><strong>Spatial:</strong> <span class="math inline">\(O(n/c)\)</span> draws for <span class="math inline">\(c\)</span> channels and an <span class="math inline">\(O(n)\)</span> broadcast multiply.
+The mask is one number per sample and channel.</li>
+<li><strong>Variational and dropout1d:</strong> the same broadcast pattern over time rather
+than space, with a mask one axis smaller than the tensor.</li>
+<li><strong>Path variants:</strong> one draw per sample and one multiply of the branch, so the
+cost is <span class="math inline">\(O(n)\)</span> in the branch and free in the residual.</li>
+<li><strong>Parameters:</strong> zero. The only state is the random generator, which is why
+seeding is part of reproducibility.</li>
+<li><strong>The demo:</strong> masks over at most 40000 elements and one 50000-row moment
+check; every section is deterministic under its seed and the whole file runs
+in a fraction of a second.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Train and inference diverge if the scaling is left out.</strong> Without the <span class="math inline">\(1/p\)</span>
+factor, training produces activations <span class="math inline">\(p\)</span> times too small, and inference is
+then a sudden rescaling. Inverted dropout is the fix, not a detail.</p>
+<p><strong>High rates destroy the signal.</strong> The expectation is preserved for any
+<span class="math inline">\(p>0\)</span>, but the variance in (3) grows like <span class="math inline">\(1/p\)</span>. A rate of 0.9 turns a
+well-conditioned layer into noise with ten times the variance; the guard
+refuses <span class="math inline">\(r=1\)</span> because the scale would be infinite.</p>
+<p><strong>Dropping before batch norm leaks the training distribution.</strong> If dropout is
+applied before a batch-norm layer, the batch statistics are computed on the
+noisy tensor while inference sees the clean one. The usual placement is after
+the norm and before the activation, or on the residual branch rather than the
+identity path.</p>
+<p><strong>Spatial masks are easy to broadcast into nothing.</strong> A mask shaped <span class="math inline">\((n,c)\)</span> on a
+tensor <span class="math inline">\((n,h,w,c)\)</span> either fails or broadcasts along the wrong axis. The helper
+builds <span class="math inline">\((n,1,1,c)\)</span> explicitly; the demo asserts that the zero pattern is
+constant across space.</p>
+<p><strong>Variational noise that is redrawn per step is just Gaussian dropout.</strong> The
+point of the variational variant is the shared draw. If the mask changes at
+every timestep the regulariser averages out along the sequence and the
+recurrent interpretation is lost.</p>
+<p><strong>A path variant without a residual is a zero layer.</strong> Dropping the branch then
+leaves nothing, and the gradient of a dropped sample is zero. The constructor
+requires <code>residual</code>, and the demo checks that the surviving samples are exactly
+<span class="math inline">\(r+2x\)</span> at rate 0.5.</p>
+<p><strong>Depth indexing is off by one.</strong> A schedule written as <span class="math inline">\(\ell/L\)</span> instead of
+<span class="math inline">\((\ell+1)/L\)</span> never reaches the maximum rate, and one written as
+<span class="math inline">\(\ell/(L-1)\)</span> divides by zero at <span class="math inline">\(L=1\)</span>. The guard keeps <code>depth</code> inside
+<code>[0, max_depth)</code> and the demo prints the six rates.</p>
+<p><strong>Alpha dropout assumes standardized inputs.</strong> It preserves zero mean and unit
+variance, not an arbitrary mean. Applying it after a layer with a large bias
+shifts the output by <span class="math inline">\(ap\mu\)</span> and breaks the self-normalizing argument. It also
+uses the SELU constants, so pairing it with ReLU is a different (and
+unjustified) regulariser.</p>
+<p><strong>Alpha's dropped value is a constant, not zero.</strong> The dropped branch becomes
+<span class="math inline">\(\alpha'a+b\)</span>, which is nonzero; code that assumes zeros will misread the
+sparsity. The demo checks that every dropped entry equals that constant.</p>
+<p><strong>Gaussian noise has no sparsity.</strong> It regularises by variance, not by removing
+units, so it does not give the sparse-activation effect of a Bernoulli mask.
+Large <span class="math inline">\(\sigma\)</span> also compounds multiplicatively through depth.</p>
+<p><strong>Dropout in evaluation inflates the variance.</strong> Forgetting to switch to
+inference mode leaves the model noisy and, for spatial or path variants,
+randomly zeroes whole feature maps. The demo's <code>training=False</code> checks are the
+contract every caller depends on.</p>
+<p><strong>Randomness must be seeded per run, not per layer.</strong> Two layers seeded with
+the same value share a mask, which correlates their noise. The demo seeds each
+model independently and relies on that for its printed counts.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Standard dropout is still used on transformer attention weights and feed-forward
+activations, and on the classifier head of almost every vision model. Spatial
+dropout is common in convolutional trunks where whole filters should be
+regularised; dropout1d and variational dropout target sequence and recurrent
+models.</p>
+<p>Drop-path and stochastic depth are standard in residual networks and vision
+transformers, where dropping a whole block is cheaper than dropping units and
+matches the identity-path argument. Alpha dropout belongs with SELU and
+self-normalizing networks, and Gaussian dropout appears in variational
+inference and as a smooth alternative to Bernoulli masks.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Srivastava, N., Hinton, G., Krizhevsky, A., Sutskever, I., Salakhutdinov, R.
+(2014). <em>Dropout: a simple way to prevent neural networks from overfitting.</em>
+JMLR. Equations (2) and (3).</li>
+<li>Tompson, J., Goroshin, R., Jain, A., LeCun, Y., Bregler, C. (2015).
+<em>Efficient object localization using convolutional networks.</em> CVPR. Spatial
+dropout, equation (4).</li>
+<li>Kingma, D. P., Salimans, T., Welling, M. (2015). <em>Variational dropout and the
+local reparameterization trick.</em> NeurIPS. The fixed-noise reading of
+equation (6).</li>
+<li>Gal, Y., Ghahramani, Z. (2016). <em>A theoretically grounded application of
+dropout in recurrent neural networks.</em> NeurIPS. Shared masks across time.</li>
+<li>Huang, G., Sun, Y., Liu, Z., Sedra, D., Weinberger, K. (2016). <em>Deep networks
+with stochastic depth.</em> ECCV. Equations (8) and (9).</li>
+<li>Klambauer, G., Unterthiner, T., Mayr, A., Hochreiter, S. (2017).
+<em>Self-normalizing neural networks.</em> NeurIPS. Alpha dropout, equations (10)
+to (13).</li>
+<li>PyTorch documentation. <em>Dropout1d</em>, <em>Dropout2d</em>, <em>Dropout3d</em>: the channel
+convention that this file calls <code>spatial</code>.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="moe.html"><small>Previous</small><span>Mixture of experts</span></a><a class="next" href="embedding_layers.html"><small>Next</small><span>Embedding layers</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">12 · Neural blocks</p><ul class="rail-list"><li><a href="mlp.html"><span class="tick">✓</span><span>MLP</span></a></li><li><a href="conv.html"><span class="tick">✓</span><span>Convolution</span></a></li><li><a href="pooling.html"><span class="tick">✓</span><span>Pooling</span></a></li><li><a href="residual.html"><span class="tick">✓</span><span>Residual blocks</span></a></li><li><a href="transformer.html"><span class="tick">✓</span><span>Transformer block</span></a></li><li><a href="positional.html"><span class="tick">✓</span><span>Positional encoding</span></a></li><li><a href="moe.html"><span class="tick">✓</span><span>Mixture of experts</span></a></li><li><a href="dropout.html" aria-current="page"><span class="tick">✓</span><span>Dropout family</span></a></li><li><a href="embedding_layers.html"><span class="tick">✓</span><span>Embedding layers</span></a></li><li><a href="gnn_blocks.html"><span class="tick">✓</span><span>Graph neural blocks</span></a></li><li><a href="mixer.html"><span class="tick">✓</span><span>MLP-Mixer</span></a></li><li><a href="perceiver.html"><span class="tick">✓</span><span>Perceiver</span></a></li><li><a href="convnext.html"><span class="tick">✓</span><span>ConvNeXt</span></a></li><li><a href="hypernetwork.html"><span class="tick">✓</span><span>Hypernetworks</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../11-time-series/index.html"><span class="jump">← 11 · Time series</span></a></li><li><a href="../13-training/index.html"><span class="jump">13 · Training&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#standard-dropout">Standard dropout</a></li><li class="lvl3"><a href="#spatial-dropout">Spatial dropout</a></li><li class="lvl3"><a href="#gaussian-and-variational-noise">Gaussian and variational noise</a></li><li class="lvl3"><a href="#dropout1d">Dropout1d</a></li><li class="lvl3"><a href="#drop-path-and-stochastic-depth">Drop path and stochastic depth</a></li><li class="lvl3"><a href="#alpha-dropout">Alpha dropout</a></li><li class="lvl3"><a href="#inference">Inference</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/12-neural-blocks/dropout.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

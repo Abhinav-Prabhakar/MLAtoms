@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kernel density estimation · MLAtoms</title>
+<meta name="description" content="Kernels, bandwidth rules and tree acceleration. Put the same small bump on every data point and add them up. That is the whole estimator:">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/kde.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Kernel density estimation">
+<meta property="og:description" content="Kernels, bandwidth rules and tree acceleration. Put the same small bump on every data point and add them up. That is the whole estimator:">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/kde.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Kernel density estimation">
+<meta name="twitter:description" content="Kernels, bandwidth rules and tree acceleration. Put the same small bump on every data point and add them up. That is the whole estimator:">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Kernel density estimation", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/kde.html", "description": "Kernels, bandwidth rules and tree acceleration. Put the same small bump on every data point and add them up. That is the whole estimator:", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">09 · Density &amp; anomaly</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="kde.py.html">source</a></p><h1>Kernel density estimation</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Put the same small bump on every data point and add them up. That is the whole
+estimator:</p>
+<div class="math block">
+\[\hat{p}(x) = \frac{1}{n h^d} \sum_{i=1}^{n} K\!\left(\frac{x - x_i}{h}\right)
+\qquad (1)\]
+</div>
+<p>It has no parameters in the sense that a mixture model has parameters. Nothing is
+fitted, nothing is iterated, and the sample is kept verbatim. The only decision
+is the width <span class="math inline">\(h\)</span> of the bump — and that decision <em>is</em> the model:</p>
+<pre class="highlight"><code>  sample     |         |      |  |              |
+
+  h small      /\     /\     /\/\        /\    /\
+              /  \   /  \   /    \      /  \  /  \     spikes, gaps, no mass
+
+  h right    _/    \_/    \_/      \____/    \/    \_   the shape of the data
+
+  h large    \____________________.__________________/  one blob, all structure gone
+</code></pre>
+<p>Every method in this chapter is built on this estimate. A histogram is a KDE
+with a box kernel and fixed bins; a copula is a KDE after reordering each
+coordinate; LOF, isolation forest and the autoencoder in the atoms below are
+answers to &quot;how small is <span class="math inline">\(\hat{p}\)</span> here&quot;, with different definitions of small
+and different tolerances for computing it. Getting the bandwidth wrong is the
+one error that propagates into all of them.</p>
+<p>The bias–variance structure is exact, and it is why the estimator has a rule of
+thumb at all rather than a fitted parameter:</p>
+<ul>
+<li><strong>Bias</strong> grows as <span class="math inline">\(h^2 \nabla^2 p\)</span>: a wide kernel averages the density over a
+region, so it can only see curvature, and it flattens peaks by an amount that
+depends on the local second derivative.</li>
+<li><strong>Variance</strong> falls as <span class="math inline">\(1/(n h^d)\)</span>: a wide kernel averages more points.</li>
+</ul>
+<p>Their sum is minimised at <span class="math inline">\(h \propto n^{-1/(d+4)}\)</span>, which is the whole content
+of the Silverman and Scott rules. Two consequences are unavoidable and both are
+measured below. The constant in that optimum contains <span class="math inline">\(\nabla^2 p\)</span>, which is
+what you were trying to estimate, so every rule of thumb is a guess about shape
+made from scale. And the exponent degrades with dimension: in <span class="math inline">\(d\)</span> dimensions,
+halving the error needs <span class="math inline">\(2^{d+4}\)</span> times as many points, which is 32 in one
+dimension and 16 384 in ten.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<p><code>variant</code> is a triple — kernel, bandwidth rule, evaluator — and each row changes
+one of the three.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">kernel</th>
+<th style="text-align:left">bandwidth</th>
+<th style="text-align:left">evaluator</th>
+<th style="text-align:left">the trade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>gaussian</code></td>
+<td style="text-align:left">Gaussian (2)</td>
+<td style="text-align:left">Scott (6)</td>
+<td style="text-align:left">dense</td>
+<td style="text-align:left">smooth everywhere, mass in the tails</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>epanechnikov</code></td>
+<td style="text-align:left">Epanechnikov (3)</td>
+<td style="text-align:left">Scott</td>
+<td style="text-align:left">dense</td>
+<td style="text-align:left">minimum-variance order-2 kernel</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tophat</code></td>
+<td style="text-align:left">top-hat (4)</td>
+<td style="text-align:left">Scott</td>
+<td style="text-align:left">dense</td>
+<td style="text-align:left">fastest, discontinuous estimate, 0.930 efficiency</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>silverman</code></td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">Silverman (5)</td>
+<td style="text-align:left">dense</td>
+<td style="text-align:left">survives a heavy tail</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>scott</code></td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">Scott (6)</td>
+<td style="text-align:left">dense</td>
+<td style="text-align:left">the default, and fooled by one outlier</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cv_bandwidth</code></td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">leave-one-out (7)</td>
+<td style="text-align:left">dense</td>
+<td style="text-align:left">shape-aware, and it undersmooths</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tree_kde</code></td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">scalar or fixed</td>
+<td style="text-align:left">ball tree</td>
+<td style="text-align:left">the same estimate for less work</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>product_kernel</code></td>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:left">per dimension (6)</td>
+<td style="text-align:left">dense</td>
+<td style="text-align:left">a different scale on each axis</td>
+</tr>
+</tbody>
+</table>
+<p>The kernel choice is the cheap one, and the demo measures how cheap. Two
+hundred points from a bimodal mixture, all three kernels at Scott's bandwidth
+<span class="math inline">\(h = 0.415\)</span>, against the true density on 901 grid points:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">kernel</th>
+<th style="text-align:right">integrated squared error</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Gaussian</td>
+<td style="text-align:right">8.76e-03</td>
+</tr>
+<tr>
+<td style="text-align:left">Epanechnikov</td>
+<td style="text-align:right">1.05e-02</td>
+</tr>
+<tr>
+<td style="text-align:left">top-hat</td>
+<td style="text-align:right">8.22e-03</td>
+</tr>
+</tbody>
+</table>
+<p>A factor of 1.3 between the best and the worst kernel — and the top-hat wins,
+which is noise, since the three asymptotic efficiencies are 1.000, 0.951 and
+0.930. Changing <span class="math inline">\(h\)</span> instead, to the cross-validated 0.119, costs a factor of
+2.4. One number decides the estimate; the kernel only decides the constant in
+front of the error.</p>
+<p>The two rules disagree by more than that on a skewed sample. Two hundred
+lognormal points, where the standard deviation is inflated by the tail:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">rule</th>
+<th style="text-align:right">bandwidth</th>
+<th style="text-align:right">leave-one-out log-likelihood</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Scott (6)</td>
+<td style="text-align:right">0.976</td>
+<td style="text-align:right">−2.0984</td>
+</tr>
+<tr>
+<td style="text-align:left">Silverman (5)</td>
+<td style="text-align:right">0.420</td>
+<td style="text-align:right">−8.6035</td>
+</tr>
+<tr>
+<td style="text-align:left">cross-validated (7)</td>
+<td style="text-align:right">1.266</td>
+<td style="text-align:right">−2.0616</td>
+</tr>
+</tbody>
+</table>
+<p>Silverman's robust scale is 1.347 against a standard deviation of 2.816, so the
+two formulas differ by a factor of 2.3 on the same data, and the likelihood
+prefers the wider of the two — on this sample the tail is signal, not
+contamination. That is the honest summary of bandwidth selection: a formula
+encodes an assumption about shape, cross-validation encodes the data, and
+neither is free. The formulas cost one pass over the sample. Cross-validation
+costs sixty likelihoods of an <span class="math inline">\(n \times n\)</span> kernel, which is why it is not the
+default.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-estimator-as-a-convolution">1. The estimator as a convolution <a class="header-anchor" href="#1-the-estimator-as-a-convolution">#</a></h3>
+<p><span class="math inline">\(\hat{p}\)</span> is the empirical measure convolved with the scaled kernel,
+<span class="math inline">\(\hat{p} = \mathbb{P}_n * K_h\)</span>. Taking expectations under the true density,</p>
+<div class="math block">
+\[\mathbb{E}\,\hat{p}(x) = \int p(y)\, K_h(x - y)\, dy = (p * K_h)(x)\]
+</div>
+<p>so the bias is the error of a convolution approximation, which Taylor expands to</p>
+<div class="math block">
+\[\mathbb{E}\,\hat{p}(x) - p(x) = \tfrac{1}{2} h^2 \sigma_K^2 \nabla^2 p(x) + O(h^4),
+\qquad \sigma_K^2 = \int \lVert u \rVert^2 K(u)\,du\]
+</div>
+<p>and the variance follows from independence of the summands:</p>
+<div class="math block">
+\[\mathrm{Var}\,\hat{p}(x) = \frac{1}{n h^d} R(K)\, p(x) + O(n^{-1}),
+\qquad R(K) = \int K(u)^2\,du\]
+</div>
+<p>Integrating squared bias plus variance gives the asymptotic mean integrated
+squared error, and differentiating it in <span class="math inline">\(h\)</span> gives the optimum:</p>
+<div class="math block">
+\[\mathrm{AMISE}(h) = \tfrac{1}{4} h^4 \sigma_K^4 R(\nabla^2 p)
++ \frac{R(K)}{n h^d},
+\qquad
+h^\star = \left[\frac{d\, R(K)}{n\, \sigma_K^4\, R(\nabla^2 p)}\right]^{1/(d+4)}\]
+</div>
+<p>with the minimum AMISE falling like <span class="math inline">\(n^{-4/(d+4)}\)</span>. That pair is why every rule
+in the file has the same <span class="math inline">\(n^{-1/(d+4)}\)</span> shape and only the constant differs: the
+constant is <span class="math inline">\(R(\nabla^2 p)^{-1/(d+4)}\)</span>, and no rule can know it. Scott's rule
+replaces it with the value it takes for a Gaussian, which is where the <span class="math inline">\(1.06\)</span> of
+the one-dimensional version comes from; Silverman's replaces it with a robust
+scale so that one far outlier cannot set the width of the whole sample.</p>
+<p>The exponent is the part with teeth. To halve the error you multiply <span class="math inline">\(n\)</span> by
+<span class="math inline">\(2^{d+4}\)</span>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">dimension <span class="math inline">\(d\)</span></th>
+<th style="text-align:right">1</th>
+<th style="text-align:right">2</th>
+<th style="text-align:right">3</th>
+<th style="text-align:right">5</th>
+<th style="text-align:right">10</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">points needed to halve the error</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">64</td>
+<td style="text-align:right">128</td>
+<td style="text-align:right">512</td>
+<td style="text-align:right">16 384</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-the-three-kernels">2. The three kernels <a class="header-anchor" href="#2-the-three-kernels">#</a></h3>
+<p>With <span class="math inline">\(V_d = \pi^{d/2}/\Gamma(d/2 + 1)\)</span> the volume of the unit ball,</p>
+<div class="math block">
+\[K(u) = (2\pi)^{-d/2} \exp\!\left(-\tfrac{1}{2}\lVert u\rVert^2\right)
+\qquad (2)\]
+</div>
+<div class="math block">
+\[K(u) = \frac{d+2}{2 V_d}\left(1 - \lVert u\rVert^2\right)_+
+\qquad (3)\]
+</div>
+<div class="math block">
+\[K(u) = \frac{1}{V_d}\,\mathbf{1}\!\left[\lVert u\rVert \le 1\right]
+\qquad (4)\]
+</div>
+<p>The constants are not decoration. For (3), integrate in spherical shells with
+surface area <span class="math inline">\(S_{d-1} = d V_d\)</span>:</p>
+<div class="math block">
+\[\int K = \frac{d+2}{2 V_d} \cdot d V_d \int_0^1 (1 - r^2) r^{d-1} dr
+= \frac{d+2}{2}\left(\frac{1}{d} - \frac{1}{d+2}\right) = 1\]
+</div>
+<p>which is the one line a from-scratch implementation usually gets wrong, in the
+same way that (4) is wrong without <span class="math inline">\(V_d\)</span>: a unit cube's worth of intuition in
+three dimensions is off by <span class="math inline">\(4\pi/3\)</span>. The demo checks all three kernels by
+radial quadrature in <span class="math inline">\(d = 1, 2, 3\)</span> and the worst error is <span class="math inline">\(2.1 \times 10^{-10}\)</span>,
+which is the quadrature's error and not the constants'.</p>
+<p>All three are non-negative, integrate to one, have their second moment fixed by
+the bandwidth, and are of order two — they reproduce linear functions exactly,
+so the bias starts at <span class="math inline">\(h^2\)</span> and no kernel is better than another asymptotically
+except through the constant in the AMISE. Epanechnikov's minimises <span class="math inline">\(R(K)\)</span> subject
+to that constraint, which is the sense in which it is optimal; the Gaussian's
+advantage is that it is smooth, so the estimate is differentiable everywhere and
+the constants in the next order of the bias expansion are finite.</p>
+<h3 id="3-rules-of-thumb">3. Rules of thumb <a class="header-anchor" href="#3-rules-of-thumb">#</a></h3>
+<p>Silverman's rule is the one-dimensional rule applied per column:</p>
+<div class="math block">
+\[h_S = 0.9 \min\!\left(\hat{\sigma},\ \frac{\mathrm{IQR}}{1.349}\right)\, n^{-1/(d+4)}
+\qquad (5)\]
+</div>
+<p>and Scott's is its non-robust sibling,</p>
+<div class="math block">
+\[h_{\text{scott}} = \hat{\sigma}\, n^{-1/(d+4)}
+\qquad (6)\]
+</div>
+<p>The <span class="math inline">\(1.349\)</span> is <span class="math inline">\(2\Phi^{-1}(0.75)\)</span>, so <span class="math inline">\(\mathrm{IQR}/1.349\)</span> is a standard
+deviation estimated from the middle half of the sample, and it is what makes
+(5) survive a heavy tail. The <span class="math inline">\(1.06\)</span> that appears in some textbook versions of
+Scott's rule is the one-dimensional Gaussian constant; here the coefficient is
+<span class="math inline">\(1\)</span> and the exponent already contains the dimension, which is the multivariate
+form.</p>
+<p>Both are scale-equivariant: multiplying the data by <span class="math inline">\(c\)</span> multiplies <span class="math inline">\(h\)</span> by <span class="math inline">\(c\)</span>
+and leaves the estimate unchanged. Neither is shape-equivariant, and that is
+the failure the demo measures — a bimodal sample with modes at <span class="math inline">\(-1.2\)</span> and <span class="math inline">\(1.0\)</span>
+has <span class="math inline">\(\hat\sigma = 1.197\)</span>, which is mostly the gap between the modes, so Scott's
+rule returns <span class="math inline">\(h = 0.415\)</span> and smooths two peaks into one hump. Silverman's rule
+does the same thing whenever the modes are further apart than a standard
+deviation.</p>
+<h3 id="4-bandwidth-by-cross-validation">4. Bandwidth by cross-validation <a class="header-anchor" href="#4-bandwidth-by-cross-validation">#</a></h3>
+<p>The alternative to a formula is to choose <span class="math inline">\(h\)</span> by the criterion you will be
+judged on, and the natural one is the likelihood of the data under the model.
+The in-sample likelihood is useless — it increases without bound as <span class="math inline">\(h \to 0\)</span>,
+since the estimate becomes a sum of delta functions — so each point is scored
+against the estimate built from the <em>other</em> points:</p>
+<div class="math block">
+\[\hat{h} = \arg\max_h \sum_i \log\!\left(\frac{1}{n-1}
+\sum_{j \ne i} K_h(x_i - x_j)\right)
+\qquad (7)\]
+</div>
+<p>Computing the inner sum for all <span class="math inline">\(i\)</span> at once is one <span class="math inline">\(n \times n\)</span> kernel matrix
+with its diagonal removed, which is why (7) is a matrix expression rather than
+<span class="math inline">\(n\)</span> separate estimates. The optimisation is one-dimensional, and the objective
+is smooth and unimodal in <span class="math inline">\(\log h\)</span> on any sensible range, so sixty golden-section
+steps find the argmax to machine precision without a grid.</p>
+<p>Equation (7) is not a good estimator of the ISE-optimal bandwidth, and the demo
+shows it failing by a factor of 2.4. The reason is in the expression: each term
+contains <span class="math inline">\(-\log h\)</span> from the normalisation, so the objective rewards shrinking
+<span class="math inline">\(h\)</span> until the nearest neighbour falls outside the kernel. On the bimodal sample
+it chooses <span class="math inline">\(h = 0.119\)</span> — less than a third of Scott's — where the leave-one-out
+likelihood really is higher, and the integrated squared error is
+<span class="math inline">\(2.11 \times 10^{-2}\)</span> against <span class="math inline">\(8.76 \times 10^{-3}\)</span>. The likelihood is a local
+criterion: it weights relative error where the data actually is, so it chases
+sharp modes and does not care that the gaps between them are wrong.
+Least-squares cross-validation, which compares <span class="math inline">\(\hat{p}\)</span> with a held-out
+estimate instead of evaluating it at the sample, tracks ISE and is what a
+production selector should use; it is not implemented here because the point of
+this atom is the estimator, not the selector zoo.</p>
+<h3 id="5-pruning-a-tree">5. Pruning a tree <a class="header-anchor" href="#5-pruning-a-tree">#</a></h3>
+<p>The kernel is a decreasing function of distance, so a ball gives a bound for
+free. For a node with centre <span class="math inline">\(c\)</span>, radius <span class="math inline">\(r\)</span> and <span class="math inline">\(m\)</span> points, no point in the
+node is closer to a query <span class="math inline">\(x\)</span> than <span class="math inline">\(\max(\lVert x - c\rVert - r, 0)\)</span>, so</p>
+<div class="math block">
+\[\sum_{i \in \text{node}} K_h(x - x_i) \;\le\;
+\frac{m}{h^d}\, K\!\left(\left(\frac{\max(\lVert x - c\rVert - r, 0)}{h}\right)^2\right)
+\qquad (8)\]
+</div>
+<p>If that bound is negligible against the sum accumulated so far, the whole
+subtree is skipped. Two details make the difference between a bound that helps
+and one that does not. The comparison is against the <em>running</em> sum, so a node's
+worth is judged relative to what is already known rather than to an absolute
+threshold. And the bound can be exactly zero: for the Gaussian, radii beyond
+about <span class="math inline">\(38h\)</span> underflow, and a far query then prunes everything. Both cases are in
+the demo, and the second one is a bug in the obvious implementation — a purely
+relative test never fires while the running sum is still zero, which is exactly
+the far field.</p>
+<p>The guarantee is per node: each skipped node contributes less than the tolerance
+times the sum at the moment it was tested, so the total relative error is
+bounded by the tolerance times the number of skipped nodes, not by the tolerance
+itself. With <code>tol = 1e-8</code> and a few hundred nodes the worst case is <span class="math inline">\(10^{-5}\)</span>;
+measured, the tree agrees with the brute-force sum to <span class="math inline">\(4.1 \times 10^{-11}\)</span> in
+log density.</p>
+<h3 id="6-the-product-kernel">6. The product kernel <a class="header-anchor" href="#6-the-product-kernel">#</a></h3>
+<p>A per-dimension bandwidth replaces the isotropic scaling with a diagonal one:</p>
+<div class="math block">
+\[K_h(x - x_i) = \prod_{j=1}^{d} \frac{1}{h_j}\,
+k\!\left(\frac{x_j - x_{ij}}{h_j}\right)
+\qquad (9)\]
+</div>
+<p>For the Gaussian kernel this is a Mahalanobis distance with
+<span class="math inline">\(\Sigma = \mathrm{diag}(h_1^2, \dots, h_d^2)\)</span>: dividing the difference by <span class="math inline">\(h\)</span>
+before squaring is all the code needs, and (9) then falls out of the same three
+lines. With all <span class="math inline">\(h_j\)</span> equal it is the isotropic estimator exactly — the demo
+asserts bit-for-bit agreement — so <code>product_kernel</code> is not a different
+algorithm, it is the same algorithm with a scale per axis. What it cannot do is
+follow a correlation: a ridge at 45° in two dimensions needs an off-diagonal
+term, and the diagonal family can only widen both axes until the ridge is a
+blob. Whiten the data first, or use a full-bandwidth estimator.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="1-the-kernels-and-their-constants">1. The kernels and their constants <a class="header-anchor" href="#1-the-kernels-and-their-constants">#</a></h3>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"gaussian"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">u2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">n_features</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+    <span class="n">volume</span> <span class="o">=</span> <span class="n">ball_volume</span><span class="p">(</span><span class="n">n_features</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"tophat"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">u2</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">volume</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"epanechnikov"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">u2</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="n">n_features</span> <span class="o">+</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">volume</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">u2</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>The function takes a <em>squared</em> radius because that is what the distance code
+produces, and it saves a square root per pair. <code>ball_volume</code> is
+<span class="math inline">\(\pi^{d/2}/\Gamma(d/2+1)\)</span>, so the tophat's constant is <span class="math inline">\(1/V_d\)</span> and the
+Epanechnikov's is <span class="math inline">\((d+2)/(2V_d)\)</span> — the normalisation integral above, read
+backwards. <code>np.where</code> evaluates both branches and then selects: for the compact
+kernels the discarded branch is finite, so this is safe, and it lets the caller
+pass a whole distance matrix instead of looping. A Python branch would be
+marginally faster and would force that loop, which is the design constraint that
+matters.</p>
+<h3 id="2-distances-in-bandwidth-units">2. Distances in bandwidth units <a class="header-anchor" href="#2-distances-in-bandwidth-units">#</a></h3>
+<pre class="highlight"><code>    <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">A</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">B</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span> <span class="o">/</span> <span class="n">bandwidth</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"ijk,ijk-&gt;ij"</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">offset</span><span class="p">)</span>
+</code></pre>
+<p>Three lines, and the order of operations is the point: divide by the bandwidth,
+<em>then</em> square. Squaring first and dividing by <span class="math inline">\(h^2\)</span> is the same number for a
+scalar bandwidth and a different algorithm for a vector one — the product kernel
+in (9) is exactly the decision to divide per dimension. The broadcast produces
+an <span class="math inline">\((m, n, d)\)</span> difference array, and <code>einsum</code> contracts the last axis without
+materialising a second array; <code>(offset ** 2).sum(axis=2)</code> is the readable
+version and allocates one more <span class="math inline">\(m n d\)</span> block.</p>
+<h3 id="3-the-rules-of-thumb">3. The rules of thumb <a class="header-anchor" href="#3-the-rules-of-thumb">#</a></h3>
+<pre class="highlight"><code>    <span class="k">return</span> <span class="n">X</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">d</span> <span class="o">+</span> <span class="mf">4.0</span><span class="p">))</span>
+</code></pre>
+<pre class="highlight"><code>    <span class="n">q75</span><span class="p">,</span> <span class="n">q25</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="p">[</span><span class="mf">75.0</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">robust</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="n">q75</span> <span class="o">-</span> <span class="n">q25</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1.349</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">robust</span> <span class="o">*</span> <span class="n">n</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">d</span> <span class="o">+</span> <span class="mf">4.0</span><span class="p">))</span>
+</code></pre>
+<p><code>ddof=1</code> because this is a sample standard deviation; the difference between <span class="math inline">\(n\)</span>
+and <span class="math inline">\(n-1\)</span> is not the point, but the convention should match every other
+statistic in the chapter. The exponent is written with float literals so the
+expression does not depend on the caller's integer type. The <code>np.minimum</code> in the
+robust version is the entire content of Silverman's rule: on the lognormal
+sample the two candidate scales are 2.816 and 1.347, so the rule takes 1.347 and
+the bandwidth drops from 0.976 to 0.420.</p>
+<h3 id="4-choosing-with-a-precedence-order">4. Choosing, with a precedence order <a class="header-anchor" href="#4-choosing-with-a-precedence-order">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">given</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">given</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">given</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">given</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="n">d</span><span class="p">,):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"bandwidth must be a scalar or shape (</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">,)"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">given</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"silverman"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">silverman_factor</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</code></pre>
+<p>An explicit bandwidth wins over the variant, always. That is what makes the
+variant list usable as a set of defaults rather than a set of algorithms: the
+demo fits <code>gaussian</code>, <code>epanechnikov</code> and <code>tophat</code> at the same <span class="math inline">\(h\)</span> to isolate the
+kernel, and fits <code>tree_kde</code> at a fixed 0.15 because Scott's rule reads the
+spread of all three blobs and returns a bandwidth wider than a blob. The
+<code>copy()</code> is not paranoia — the returned array is stored and later used to
+divide, so an aliased caller array would be a silent mutation bug.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"tree_kde"</span><span class="p">:</span>
+            <span class="c1"># One bandwidth for every dimension is what the node bound in</span>
+            <span class="c1"># `_tree_sum` assumes; the median is the least surprising summary.</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">base</span><span class="p">)))</span>
+</code></pre>
+<p>The tree's bound is only valid for an isotropic kernel, so the variant reduces
+Scott's vector to its median rather than pretending a per-axis bandwidth is
+fine. Passing a genuine vector raises instead, which the failure-mode demo
+checks: the alternative is a tree that is fast and quietly wrong.</p>
+<h3 id="5-the-leave-one-out-likelihood">5. The leave-one-out likelihood <a class="header-anchor" href="#5-the-leave-one-out-likelihood">#</a></h3>
+<pre class="highlight"><code>        <span class="n">sq</span> <span class="o">=</span> <span class="n">_sq_distances</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">h</span><span class="p">))</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel_value</span><span class="p">(</span><span class="n">sq</span><span class="p">,</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s2">"gaussian"</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span> <span class="o">**</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">held_out</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">kernel</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">held_out</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="mf">1e-300</span><span class="p">))))</span>
+</code></pre>
+<p>Equation (7) as one matrix expression. <code>kernel.sum(axis=1)</code> includes <span class="math inline">\(x_i\)</span>'s own
+bump, and subtracting the diagonal removes the only term that must not be there —
+cheaper than building the matrix with a hole in it, and exact, since the diagonal
+entries are exactly <span class="math inline">\(K(0)/h^d\)</span> and not a floating-point approximation of it. The
+<code>np.maximum</code> guards the log: a point far from every other point has a held-out
+density of zero, and <code>log 0</code> would make the objective <span class="math inline">\(-\infty\)</span> and break the
+golden section. Dividing by <span class="math inline">\(n-1\)</span> rather than <span class="math inline">\(n\)</span> keeps the number comparable to
+a log density.</p>
+<pre class="highlight"><code>        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_golden_max</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">log_h</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loo_loglik</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_h</span><span class="p">)),</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">h0</span> <span class="o">/</span> <span class="mf">4.0</span><span class="p">),</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">h0</span> <span class="o">*</span> <span class="mf">4.0</span><span class="p">)))</span>
+</code></pre>
+<p>The search is in <span class="math inline">\(\log h\)</span> because the objective is asymptotically a function of
+<span class="math inline">\(\log h\)</span> and its curvature is far more uniform there, which is what lets sixty
+steps of golden section be enough. The bracket is a factor of four either side
+of the rule of thumb, which is a <em>prior</em>: if the optimum lay outside it the
+search would return the boundary and the model would silently use a bandwidth
+nobody chose. That is a real risk with multimodal data and the reason the
+returned bandwidth should be inspected rather than trusted.</p>
+<h3 id="6-scoring">6. Scoring <a class="header-anchor" href="#6-scoring">#</a></h3>
+<pre class="highlight"><code>        <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"tree_kde"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">evaluations_</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">sums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_tree_sum</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">X</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sq</span> <span class="o">=</span> <span class="n">_sq_distances</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">)</span>
+            <span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel_value</span><span class="p">(</span><span class="n">sq</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">)</span>
+            <span class="n">sums</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">density</span> <span class="o">=</span> <span class="n">sums</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span>
+</code></pre>
+<p>The normaliser is <span class="math inline">\(\prod_j h_j\)</span>, not <span class="math inline">\(h^d\)</span>: with a per-dimension bandwidth the
+Jacobian of the scaling is the product, and using a mean instead would silently
+produce something that does not integrate to one. The tree branch and the dense
+branch compute the <em>same</em> quantity — that is the assertion in the demo — and
+differ only in how many kernel values they evaluate. The <code>1e-300</code> floor is the
+only place the code gives up on exactness: it turns a genuine zero density into
+<span class="math inline">\(-690.8\)</span>, which is finite and therefore comparable, and it is also why a
+far-away query reports the same number however far away it is.</p>
+<h3 id="7-the-pruning-test">7. The pruning test <a class="header-anchor" href="#7-the-pruning-test">#</a></h3>
+<pre class="highlight"><code>            <span class="n">gap</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">row</span> <span class="o">-</span> <span class="n">node</span><span class="o">.</span><span class="n">centre</span><span class="p">))</span> <span class="o">-</span> <span class="n">node</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span>
+            <span class="c1"># Every kernel above is a decreasing function of radius, so the</span>
+            <span class="c1"># nearest point in the node is the best case for the node's whole</span>
+            <span class="c1"># contribution -- and if even that is negligible, so is the node.</span>
+            <span class="n">bound</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">count</span> <span class="o">*</span> <span class="n">kernel_value</span><span class="p">(</span><span class="n">gap</span> <span class="o">*</span> <span class="n">gap</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span> <span class="o">**</span> <span class="n">d</span>
+            <span class="c1"># Exact when the bound underflows, relative once the running sum is</span>
+            <span class="c1"># non-zero. Both are needed: in the far field every node evaluates to</span>
+            <span class="c1"># zero and a relative test alone would never fire.</span>
+            <span class="k">if</span> <span class="n">bound</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="p">(</span><span class="n">total</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">bound</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span> <span class="o">*</span> <span class="n">total</span><span class="p">):</span>
+                <span class="k">continue</span>
+</code></pre>
+<p>Equation (8), and then the two clauses that make it work. <code>max(..., 0.0)</code> is
+the case where the query is inside the node: the closest point could be the
+query itself, so the gap is zero and the bound is the kernel's maximum. The
+<code>bound == 0.0</code> clause looks like a micro-optimisation and is not: for a query
+twenty units from a cloud with <span class="math inline">\(h = 0.15\)</span>, every radius is beyond <span class="math inline">\(100h\)</span>, the
+Gaussian underflows, and the bound is exactly zero. Without that clause the
+condition is <code>0.0 &lt; 0.0</code>, which is false, so nothing is pruned and the tree
+evaluates all 45 000 kernels — the demo measured that before the clause existed.</p>
+<h3 id="8-growing-the-tree">8. Growing the tree <a class="header-anchor" href="#8-growing-the-tree">#</a></h3>
+<pre class="highlight"><code>    <span class="n">spread</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">axis</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">spread</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">leaf_size</span> <span class="ow">or</span> <span class="n">spread</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">node</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="n">axis</span><span class="p">],</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"stable"</span><span class="p">)]</span>
+    <span class="n">middle</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">order</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># interior nodes are summarised by centre and radius</span>
+</code></pre>
+<p>A median split on the widest axis: <span class="math inline">\(O(n \log n)\)</span> to build, balanced by
+construction, and — the part that matters for (8) — each node's centre and
+radius are the tightest ball around its own points, computed once. <code>stable</code>
+sorting makes the build deterministic for tied coordinates, which is what lets
+the demo be reproducible. Setting <code>indices = None</code> on interior nodes is a
+memory decision with a diagnostic value: a leaf is the only kind of node that
+can be evaluated, so a bug that tries to read <code>indices</code> off an interior node
+fails loudly instead of summing a subset.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For <span class="math inline">\(n\)</span> points in <span class="math inline">\(d\)</span> dimensions, <span class="math inline">\(m\)</span> queries, and a cross-validation run of <span class="math inline">\(T\)</span>
+objective evaluations:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">stage</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Scott or Silverman bandwidth</td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">cross-validated bandwidth</td>
+<td style="text-align:left"><span class="math inline">\(O(T n^2 d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">tree build</td>
+<td style="text-align:left"><span class="math inline">\(O(n \log n)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n \log n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">score, dense</td>
+<td style="text-align:left"><span class="math inline">\(O(nmd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nmd)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">score, tree</td>
+<td style="text-align:left">between <span class="math inline">\(O(m \log n)\)</span> and <span class="math inline">\(O(nmd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n \log n)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The dense path allocates the whole <span class="math inline">\(m \times n \times d\)</span> difference block, which
+is why the demo is sized in the thousands and why every production KDE loops
+over chunks of queries. The tree's <span class="math inline">\(\log n\)</span> term is the traversal; the range is
+the honest one, because how much of the tree is visited is a property of the
+query's position, not of <span class="math inline">\(n\)</span> — the demo measured 37%, 65% and 100% of the kernel
+evaluations skipped for queries in a blob, between blobs, and far away. A
+dual-tree implementation, which prunes on node <em>pairs</em> instead of
+point-to-node, is what turns this into <span class="math inline">\(O(n)\)</span> for a whole data set and is the
+version in the published libraries.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<h3 id="likelihood-cross-validation-undersmooths">Likelihood cross-validation undersmooths <a class="header-anchor" href="#likelihood-cross-validation-undersmooths">#</a></h3>
+<p>This is the one to know, because it looks like a success. On the bimodal sample
+the leave-one-out likelihood peaks at <span class="math inline">\(h = 0.119\)</span> and every step of the
+optimisation is correct: the objective really is higher there. The integrated
+squared error is 2.4 times the rule-of-thumb value. The mechanism is the
+<span class="math inline">\(-\log h\)</span> in each term: narrow kernels are rewarded for being narrow, and the
+reward is only cancelled once the nearest neighbour falls outside the kernel,
+which on this sample is three orders of magnitude below the chosen <span class="math inline">\(h\)</span>. If a
+selector based on (7) returns a bandwidth much smaller than a rule of thumb,
+that is not a discovery about the data; it is the objective doing what it is
+defined to do. Use least-squares cross-validation, or compare the two estimates
+by eye.</p>
+<h3 id="boundaries">Boundaries <a class="header-anchor" href="#boundaries">#</a></h3>
+<p>A kernel centred near the edge of the support puts half its mass where there is
+no data, so the estimate is biased down by roughly the missing mass. Five
+hundred uniform points on <span class="math inline">\([0, 1]\)</span>, <span class="math inline">\(h = 0.1\)</span>: the estimate is <span class="math inline">\(0.542\)</span> at <span class="math inline">\(x = 0\)</span>
+and <span class="math inline">\(1.039\)</span> at <span class="math inline">\(x = 0.5\)</span>, against a truth of <span class="math inline">\(1.000\)</span>. That is a 46% deficit at
+exactly the place where an anomaly detector is most likely to be asked a
+question — &quot;is this value unusually small&quot; — and no bandwidth fixes it: widening
+<span class="math inline">\(h\)</span> spreads the deficit and shrinking it sharpens it. The fixes are structural:
+reflect the data about the boundary, fit on a transformed scale, or use a local
+likelihood estimator that knows where the support ends.</p>
+<h3 id="empty-space-in-high-dimensions">Empty space in high dimensions <a class="header-anchor" href="#empty-space-in-high-dimensions">#</a></h3>
+<p><span class="math inline">\(h^\star \propto n^{-1/(d+4)}\)</span> is not a curiosity; it is the reason the next ten
+atoms exist. At <span class="math inline">\(d = 10\)</span> the bandwidth shrinks as <span class="math inline">\(n^{-1/14}\)</span>, so the number of
+points inside a kernel of width <span class="math inline">\(h\)</span> around a query grows like
+<span class="math inline">\(n h^d = n^{4/(d+4)}\)</span> — that is <span class="math inline">\(n^{0.29}\)</span> — and the estimate's relative error
+falls at that rate instead of the <span class="math inline">\(n^{-1/2}\)</span> a parametric model gets. With
+<span class="math inline">\(n = 10^4\)</span> that is a relative error around 7%; with <span class="math inline">\(n = 10^6\)</span>, 2%. The
+diagnostic is not the error, it is the count: if the 20 nearest neighbours are
+all further than <span class="math inline">\(h\)</span>, the local density estimate is an interpolation between
+points that are nowhere near, and the number it returns is arithmetic rather
+than evidence.</p>
+<h3 id="a-zero-density-and-the-floor">A zero density and the floor <a class="header-anchor" href="#a-zero-density-and-the-floor">#</a></h3>
+<p><code>score_samples</code> returns <span class="math inline">\(\log \max(\hat p, 10^{-300})\)</span>, so a query with no
+neighbours within reach reports <span class="math inline">\(-690.8\)</span> — and so does every other such query,
+however far away it is. Two points a hundred units and a million units from the
+data are indistinguishable in the output, and so are &quot;extremely unlikely&quot; and
+&quot;impossible&quot;. That is fine for ranking and for thresholding at a quantile; it is
+not fine for the likelihood of a model comparison or for anything that averages
+log densities, where the floor contributes a constant that has nothing to do
+with the data. The tree demo shows the mechanism from the other side: the 75
+far queries evaluate no kernels at all and return the floor exactly.</p>
+<h3 id="collinearity-and-duplicated-columns">Collinearity and duplicated columns <a class="header-anchor" href="#collinearity-and-duplicated-columns">#</a></h3>
+<p>Nothing checks that the columns are independent, and a duplicated column is
+silently a different estimator: it turns the density of <span class="math inline">\(x_1\)</span> into the density
+of the diagonal <span class="math inline">\(x_1 = x_2\)</span>, and the same point scores 0.259 nats differently
+with no information added. A product kernel on correlated data has the same
+problem in a milder form — the diagonal bandwidth family cannot follow a ridge,
+so it widens both axes until the ridge is isotropic. Whiten first, then fit.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Anomaly detection.</strong> Score <span class="math inline">\(-\log \hat{p}(x_i)\)</span> and threshold at a quantile
+of the training scores; this is the baseline every detector in this chapter is
+compared against, and on low-dimensional data it is hard to beat. The threshold
+is where KDE and the rest of the chapter meet: the estimator gives a number,
+the quantile gives a decision, and the false-positive rate is the quantile by
+construction.</li>
+<li><strong>Class-conditional densities.</strong> A generative classifier fits one KDE per
+class and applies Bayes' rule; it handles multimodal classes that a Gaussian
+naive Bayes cannot, at the cost of <span class="math inline">\(n_c\)</span> points per class rather than <span class="math inline">\(d^2\)</span>
+parameters.</li>
+<li><strong>Mode seeking.</strong> The gradient of (1) points uphill, and following it is mean
+shift — which is why bandwidth selection and the number of clusters in mean
+shift are the same question.</li>
+<li><strong>Mutual information and entropy.</strong> The Kozachenko–Leonenko estimator is a
+KDE in disguise: <span class="math inline">\(-\log \hat p(x_i)\)</span> averaged over the sample estimates the
+differential entropy, and the nearest-neighbour form drops the kernel entirely.
+Every &quot;estimate MI by binning&quot; pipeline is a histogram version of the same
+identity.</li>
+<li><strong>Smoothing as an operation.</strong> Convolution with <span class="math inline">\(K_h\)</span> is a low-pass filter, so
+the same code smooths a spatial field, a histogram or a spectral estimate. The
+bandwidth is a scale, and choosing it is a choice about which scales are signal.</li>
+<li><strong>Where it is a trap.</strong> Above roughly five dimensions the estimator's
+convergence rate collapses, the boundary bias is everywhere, and the sample
+size needed is not available. That is the regime of the scorers: LOF compares
+local densities instead of estimating them, isolation forest measures isolation
+instead of density, and COPOD uses a parametric copula. They are not better
+estimators; they are better questions.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>M. Rosenblatt, <em>Remarks on some nonparametric estimates of a density
+function</em>, Annals of Mathematical Statistics 27(3):832–837 (1956). The
+estimator, one year before Parzen.</li>
+<li>E. Parzen, <em>On estimation of a probability density function and mode</em>, Annals
+of Mathematical Statistics 33(3):1065–1076 (1962). The name, the consistency
+conditions and the mode-seeking reading.</li>
+<li>V. A. Epanechnikov, <em>Non-parametric estimation of a multivariate probability
+density</em>, Theory of Probability and Its Applications 14(1):153–158 (1969).
+The kernel that minimises <span class="math inline">\(R(K)\)</span>, i.e. equation (3).</li>
+<li>B. W. Silverman, <em>Density Estimation for Statistics and Data Analysis</em>,
+Chapman and Hall (1986). The rule in (5), the bias–variance expansion, and the
+caution about likelihood cross-validation.</li>
+<li>D. W. Scott, <em>Multivariate Density Estimation: Theory, Practice, and
+Visualization</em>, Wiley (1992). The multivariate rule in (6) and the dimension
+dependence in the optimal bandwidth.</li>
+<li>M. P. Wand and M. C. Jones, <em>Kernel Smoothing</em>, Chapman and Hall (1995). The
+AMISE calculus and every variant of the kernel family.</li>
+<li>A. W. Bowman, <em>An alternative method of cross-validation for the smoothing of
+density estimates</em>, Biometrika 71(2):353–360 (1984). Least-squares
+cross-validation, the selector that does not undersmooth.</li>
+<li>P. Hall, <em>On Kullback-Leibler loss and density estimation</em>, Annals of
+Statistics 15(4):1491–1519 (1987). Why likelihood cross-validation is
+inconsistent, in the form the failure-mode section describes.</li>
+<li>A. G. Gray and A. W. Moore, <em>Nonparametric density estimation: toward
+computational tractability</em>, SIAM International Conference on Data Mining
+(2003). The dual-tree algorithm and the pruning bound in (8).</li>
+<li>C. R. Loader, <em>Local Regression and Likelihood</em>, Springer (1999). Local
+likelihood, the structural fix for the boundary bias above.</li>
+<li>L. F. Kozachenko and N. N. Leonenko, <em>Sample estimate of the entropy of a
+random vector</em>, Problems of Information Transmission 23(2):95–101 (1987).
+The nearest-neighbour entropy estimator, i.e. KDE without the kernel.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="index.html"><small>Previous</small><span>09 · Density &amp; anomaly</span></a><a class="next" href="isolation_forest.html"><small>Next</small><span>Isolation forest</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">09 · Density &amp; anomaly</p><ul class="rail-list"><li><a href="kde.html" aria-current="page"><span class="tick">✓</span><span>Kernel density estimation</span></a></li><li><a href="isolation_forest.html"><span class="tick">✓</span><span>Isolation forest</span></a></li><li><a href="lof.html"><span class="tick">✓</span><span>Local outlier factor</span></a></li><li><a href="histogram_density.html"><span class="tick">✓</span><span>Histogram density</span></a></li><li><a href="mahalanobis.html"><span class="tick">✓</span><span>Mahalanobis / MCD</span></a></li><li><a href="hbos.html"><span class="tick">✓</span><span>HBOS</span></a></li><li><a href="autoencoder_anomaly.html"><span class="tick">✓</span><span>Autoencoder anomaly</span></a></li><li><a href="change_point.html"><span class="tick">✓</span><span>Change-point detection</span></a></li><li><a href="elliptic_envelope.html"><span class="tick">✓</span><span>Elliptic envelope</span></a></li><li><a href="copod.html"><span class="tick">✓</span><span>COPOD</span></a></li><li><a href="extreme_value.html"><span class="tick">✓</span><span>Extreme value theory</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../08-manifold/index.html"><span class="jump">← 08 · Manifolds &amp; embeddings</span></a></li><li><a href="../10-sequences/index.html"><span class="jump">10 · Sequences&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-estimator-as-a-convolution">1. The estimator as a convolution</a></li><li class="lvl3"><a href="#2-the-three-kernels">2. The three kernels</a></li><li class="lvl3"><a href="#3-rules-of-thumb">3. Rules of thumb</a></li><li class="lvl3"><a href="#4-bandwidth-by-cross-validation">4. Bandwidth by cross-validation</a></li><li class="lvl3"><a href="#5-pruning-a-tree">5. Pruning a tree</a></li><li class="lvl3"><a href="#6-the-product-kernel">6. The product kernel</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-the-kernels-and-their-constants">1. The kernels and their constants</a></li><li class="lvl3"><a href="#2-distances-in-bandwidth-units">2. Distances in bandwidth units</a></li><li class="lvl3"><a href="#3-the-rules-of-thumb">3. The rules of thumb</a></li><li class="lvl3"><a href="#4-choosing-with-a-precedence-order">4. Choosing, with a precedence order</a></li><li class="lvl3"><a href="#5-the-leave-one-out-likelihood">5. The leave-one-out likelihood</a></li><li class="lvl3"><a href="#6-scoring">6. Scoring</a></li><li class="lvl3"><a href="#7-the-pruning-test">7. The pruning test</a></li><li class="lvl3"><a href="#8-growing-the-tree">8. Growing the tree</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl3"><a href="#likelihood-cross-validation-undersmooths">Likelihood cross-validation undersmooths</a></li><li class="lvl3"><a href="#boundaries">Boundaries</a></li><li class="lvl3"><a href="#empty-space-in-high-dimensions">Empty space in high dimensions</a></li><li class="lvl3"><a href="#a-zero-density-and-the-floor">A zero density and the floor</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/09-density-and-anomaly/kde.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

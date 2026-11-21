@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isolation forest · MLAtoms</title>
+<meta name="description" content="Anomalies are isolated in fewer random splits. Cut the data set in half at random, repeatedly. A point in the middle of a cloud survives many cuts because…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/isolation_forest.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Isolation forest">
+<meta property="og:description" content="Anomalies are isolated in fewer random splits. Cut the data set in half at random, repeatedly. A point in the middle of a cloud survives many cuts because…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/isolation_forest.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Isolation forest">
+<meta name="twitter:description" content="Anomalies are isolated in fewer random splits. Cut the data set in half at random, repeatedly. A point in the middle of a cloud survives many cuts because…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Isolation forest", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/isolation_forest.html", "description": "Anomalies are isolated in fewer random splits. Cut the data set in half at random, repeatedly. A point in the middle of a cloud survives many cuts because\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">09 · Density &amp; anomaly</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="isolation_forest.py.html">source</a></p><h1>Isolation forest</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Cut the data set in half at random, repeatedly. A point in the middle of a cloud
+survives many cuts because there is always more cloud around it; a point on the
+edge, or in a gap, is alone after three or four. Count the cuts, and you have an
+anomaly score that never estimates a density, never computes a distance and
+never looks at a neighbour list.</p>
+<p>The algorithm, in four lines:</p>
+<div class="math block">
+\[\text{split a node by projecting on a random } n,\ \text{cutting at }
+u \sim \mathrm{Uniform}[\min_i x_i \cdot n,\ \max_i x_i \cdot n]
+\qquad (1)\]
+</div>
+<div class="math block">
+\[h(x) = \text{depth of the leaf } x \text{ lands in} + c(\text{size of that leaf})
+\qquad (2)\]
+</div>
+<div class="math block">
+\[c(m) = 2H_{m-1} - \frac{2(m-1)}{m}, \qquad H_k = \sum_{j=1}^{k} \frac{1}{j}
+\qquad (3)\]
+</div>
+<div class="math block">
+\[s(x) = 2^{-E[h(x)] / c(\psi)}, \qquad \psi = \text{points per tree}
+\qquad (4)\]
+</div>
+<p>Equation (2) is the only subtle one. A tree stops when its node has one point, or
+when it hits the depth limit <span class="math inline">\(\lceil \log_2 \psi \rceil\)</span>; if it stopped at every
+single point the trees would be too deep to build. The leaf's remaining points
+are all isolated at the same depth, so (2) adds the depth that <em>would</em> have been
+needed to separate them on average, which is <span class="math inline">\(c(m)\)</span> — the expected isolation
+depth of a random BST on <span class="math inline">\(m\)</span> points. A leaf of one point adds nothing, and a leaf
+of a hundred adds about seven levels the tree did not build.</p>
+<p>Equation (3) is the normaliser that turns a path length into a calibrated
+number. For a typical
+point, <span class="math inline">\(E[h] \approx c(\psi)\)</span>, so the exponent is about <span class="math inline">\(-1\)</span> and <span class="math inline">\(s \approx
+\tfrac{1}{2}\)</span>; for an isolated point <span class="math inline">\(E[h] \approx 0\)</span> and <span class="math inline">\(s \approx 1\)</span>. The score
+is bounded, monotone and — this is the useful part — comparable across data sets
+of different sizes, because both the numerator and the denominator grow like the
+logarithm of the sample size. A threshold of 0.6 means something; a mean path
+length of 9 does not.</p>
+<pre class="highlight"><code>   depth 0   ────────────────┬──────────────────────
+                             │
+   depth 1        ┌──────────┴─────────┐
+                  │                    │
+   depth 2    ────┴─────         ──────┴──────
+                  │                    │
+   depth 3        x               ┌────┴────┐
+                                  │         │
+                               · · · ·   · · · ·    x is alone after 3 cuts
+</code></pre>
+<p>Two structural choices follow, and they are the two variants worth knowing about.
+The cuts are <strong>axis-parallel</strong> by default: every split is orthogonal to a
+coordinate axis, so a point diagonal to the cloud needs more cuts than a point on
+an axis at the same distance. That is a bias, and <code>extended</code> removes most of it
+by cutting with random hyperplanes instead. The trees are also <strong>subsampled</strong>:
+each one sees <span class="math inline">\(\psi = 256\)</span> points, not the data set, because a tree grown on a
+million points spends its depth resolving density that no anomaly cares about.
+<code>max_samples</code> exists so that the cost of that choice can be measured instead of
+assumed.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">split direction</th>
+<th style="text-align:left">points per tree</th>
+<th style="text-align:left">output</th>
+<th style="text-align:left">measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>iforest</code></td>
+<td style="text-align:left">one axis (1)</td>
+<td style="text-align:left">256</td>
+<td style="text-align:left"><span class="math inline">\(s \in (0,1]\)</span></td>
+<td style="text-align:left">AUC 1.000, threshold 0.481</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>extended</code></td>
+<td style="text-align:left">hyperplane, <span class="math inline">\(\ell+1\)</span> axes</td>
+<td style="text-align:left">256</td>
+<td style="text-align:left"><span class="math inline">\(s \in (0,1]\)</span></td>
+<td style="text-align:left">AUC 1.000, angular bias −64%</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>anomaly_score</code></td>
+<td style="text-align:left">one axis</td>
+<td style="text-align:left">256</td>
+<td style="text-align:left"><span class="math inline">\(s - \text{threshold}\)</span></td>
+<td style="text-align:left">same AUC, 10.0% flagged</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>max_samples</code></td>
+<td style="text-align:left">one axis</td>
+<td style="text-align:left">the full sample</td>
+<td style="text-align:left"><span class="math inline">\(s \in (0,1]\)</span></td>
+<td style="text-align:left">AUC 1.000, planted score 0.738</td>
+</tr>
+</tbody>
+</table>
+<p>The detection table is 300 standard normal points with 10 planted on a ring of
+radius 5.5 to 6, contamination 0.1. All four variants find the ring — it is not
+a hard problem — and the differences are in what the number means rather than in
+whether it works.</p>
+<p><code>anomaly_score</code> is the same computation with the score shifted by the training
+threshold: the furthest planted point scores 0.723 under <code>iforest</code> and 0.242
+under <code>anomaly_score</code>, and 0.481 is the threshold, so zero is the decision
+boundary and <code>predict</code> is the sign. Exactly 10.0% of the training set is flagged,
+because the threshold <em>is</em> that quantile. That is worth stating plainly: the
+contamination parameter does not detect anything, it sets the false-positive
+budget, and a forest with <code>contamination=0.1</code> will flag ten percent of any data
+set, including one with no anomalies in it.</p>
+<p><code>max_samples</code> changes the estimator, and the effect is measurable in two places.
+With <span class="math inline">\(\psi = 16\)</span> the AUC falls to 0.958 and the seed-to-seed spread rises to
+0.020: a tree of sixteen cannot separate a ring point from the edge of a
+600-point cloud. At 256 the AUC is 1.000 and the spread is 0.000, and the full
+sample — 612 points, so 2.4 times the work per tree — gives the same AUC without
+moving the spread off zero. The second effect is on the scale of the score: the
+planted points average 0.616 at <span class="math inline">\(\psi = 16\)</span>, 0.680 at 64, 0.728 at 256 and
+0.738 at the full sample, because <span class="math inline">\(E[h]\)</span> changes with the tree size while
+<span class="math inline">\(c(\psi)\)</span> is the normaliser. A threshold fitted at one sample size is not a
+threshold at another — which is why the variant normalises by <code>max_samples_</code>
+and not by a constant.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-tree">1. The tree <a class="header-anchor" href="#1-the-tree">#</a></h3>
+<p>A node holds a set of points. If it holds one point, or the depth limit is
+reached, it becomes a leaf. Otherwise a direction <span class="math inline">\(n\)</span> and an offset <span class="math inline">\(u\)</span> are
+drawn, and the points are split by the sign of <span class="math inline">\(x \cdot n - u\)</span>. For
+<code>iforest</code>, <span class="math inline">\(n\)</span> is a coordinate axis and <span class="math inline">\(u\)</span> is uniform between the smallest and
+largest projection in the node — the standard rule, and the one that makes the
+tree's structure independent of the data's density inside the node. For
+<code>extended</code>, <span class="math inline">\(n\)</span> is a random hyperplane normal.</p>
+<p>The recursion terminates with probability one because a uniform offset strictly
+between the minimum and maximum projection separates at least one point on each
+side, and the depth limit caps the work regardless. Two degenerate cases are
+handled by returning a leaf: a node whose projections are all equal (duplicates,
+or a direction along which the node has no extent) and a node of size one.</p>
+<h3 id="2-the-normaliser">2. The normaliser <a class="header-anchor" href="#2-the-normaliser">#</a></h3>
+<p><span class="math inline">\(c(m)\)</span> is the expected depth at which a random cut sequence isolates one of <span class="math inline">\(m\)</span>
+points, equivalently the expected depth of an unsuccessful search in a random
+binary search tree. It satisfies</p>
+<div class="math block">
+\[c(1) = 0, \qquad c(m) = c(m-1) + \frac{2}{m}
+\qquad (5)\]
+</div>
+<p>whose solution is (3): the harmonic sum, so <span class="math inline">\(c(m) \approx 2\log m + 2\gamma - 2\)</span>
+for large <span class="math inline">\(m\)</span>. The demo checks the recurrence for every <span class="math inline">\(m\)</span> up to 256 and checks
+<span class="math inline">\(c(2) = 1\)</span> exactly; at <span class="math inline">\(m = 256\)</span> the exact value is 10.2487 against 10.2448 for
+the <span class="math inline">\(\log\)</span> approximation, a gap of <span class="math inline">\(3.9 \times 10^{-3}\)</span> that is the harmonic
+sum's tail.</p>
+<p>The choice to compute the harmonic sum exactly rather than use the log form is
+not pedantry. Leaf sizes in a real tree are small — the depth limit guarantees
+it — and at <span class="math inline">\(m = 2\)</span> the exact value is 1 while the approximation is 0.154. The leaf correction is added to every query, so an error there is a
+systematic offset in every score.</p>
+<h3 id="3-the-score-and-what-calibrated-means">3. The score, and what &quot;calibrated&quot; means <a class="header-anchor" href="#3-the-score-and-what-calibrated-means">#</a></h3>
+<p><span class="math inline">\(s\)</span> in (4) is a monotone decreasing map from mean path length to <span class="math inline">\((0, 1]\)</span>, with
+<span class="math inline">\(s = 0.5\)</span> at <span class="math inline">\(E[h] = c(\psi)\)</span>. It is not a probability, despite the range: the
+demo's forest scores a standard normal cloud at 0.447 on average and 0.401 at the
+centre, both under the 0.5 that the normaliser suggests, because a tree is capped
+at <span class="math inline">\(\lceil \log_2 \psi \rceil\)</span> levels and the leaf correction only approximates
+the depth an unlimited tree would have used. What the scale buys is
+comparability: doubling the sample size changes <span class="math inline">\(E[h]\)</span> and <span class="math inline">\(c(\psi)\)</span> by the same
+logarithm, so the score of a point stays put while a raw path length would grow.</p>
+<p>The saturation in the demo's ray — 0.551 at radius 2, 0.660 at radius 5 and the
+same 0.660 at radius 9 — is the same fact seen from the other side. Isolation
+counts cuts, not distance, so once a point is outside the cloud its score stops
+growing. An isolation forest ranks &quot;unusual&quot; but does not measure &quot;how far&quot;.</p>
+<h3 id="4-why-axis-parallel-cuts-are-biased">4. Why axis-parallel cuts are biased <a class="header-anchor" href="#4-why-axis-parallel-cuts-are-biased">#</a></h3>
+<p>Every split is perpendicular to an axis, so a region that is diagonal to the
+coordinate frame is harder to cut than one that is aligned with it. For a point
+at fixed distance from a cloud, the number of cuts needed depends on the angle.
+The demo measures it on 720 points of a circle of radius 4 around a normal
+cloud: the score runs from 0.590 to 0.759 around the circle under <code>iforest</code>, a
+spread of 0.169, and from 0.652 to 0.712 under <code>extended</code>, a spread of 0.060.</p>
+<p>Extended isolation forest replaces the axis with a random normal vector:</p>
+<div class="math block">
+\[n = \frac{g}{\lVert g \rVert}, \qquad g_j \sim N(0,1) \text{ on }
+\ell + 1 \text{ coordinates}, \quad g_j = 0 \text{ otherwise}
+\qquad (6)\]
+</div>
+<p>with the offset drawn uniformly in the projection range as before. The extension
+level <span class="math inline">\(\ell\)</span> controls how many coordinates participate: <span class="math inline">\(\ell = 0\)</span> has one
+non-zero coordinate and reproduces the axis-parallel forest exactly, and
+<span class="math inline">\(\ell \ge d - 1\)</span> is a fully extended hyperplane. In two dimensions the demo's
+default of 1 is already full. The remaining 0.060 of variation is six times the
+seed-to-seed noise at a fixed point, so a little anisotropy survives: some of it
+is the split geometry and some is the 400-point cloud's own asymmetry, which no
+orientation of the cuts can average away.</p>
+<h3 id="5-subsampling-swamping-and-masking">5. Subsampling, swamping and masking <a class="header-anchor" href="#5-subsampling-swamping-and-masking">#</a></h3>
+<p>The sample size per tree is a variance–cost trade. With <span class="math inline">\(\psi\)</span> points the tree
+has depth <span class="math inline">\(O(\log \psi)\)</span> and the score's variance over trees falls like
+<span class="math inline">\(1/\sqrt{t}\)</span>, where <span class="math inline">\(t\)</span> is the number of trees — so <span class="math inline">\(\psi = 256\)</span> and <span class="math inline">\(t = 100\)</span>
+is the published combination, and the demo's sweep shows why: at <span class="math inline">\(\psi = 16\)</span> a
+tree cannot see enough of the cloud to separate its edge from a planted point,
+and the AUC drops to 0.958.</p>
+<p>The two failure modes the subsampling is meant to avoid are <em>swamping</em> and
+<em>masking</em>. Swamping is a normal point being scored anomalous because the
+anomalies changed the path lengths around it; masking is several anomalies
+hiding one another because a region containing them looks, to a tree, like a
+region with more points in it. Both are consequences of the score being a
+property of the sample rather than of the point, and both are visible in the
+demo's duplicate experiment: adding a copy of a point that is flagged at
+contamination 0.1 makes both copies unflagged, because the pair now looks like a
+small cluster. The density-based detectors in the rest of this chapter have the
+same response, which is a reminder that &quot;isolation&quot; is not the same as
+&quot;density&quot; but is still a property of the sample.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="1-the-normaliser-exactly">1. The normaliser, exactly <a class="header-anchor" href="#1-the-normaliser-exactly">#</a></h3>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">size</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="n">harmonic</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">size</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">harmonic</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">size</span>
+</code></pre>
+<p>Equation (3), with the harmonic sum done rather than approximated, and the whole
+function memoised with <code>functools.cache</code> because it is called once per leaf per
+query. The <code>int(size)</code> is defensive: leaf sizes come from <code>len(indices)</code> and are
+already Python ints, but a caller passing a numpy integer would otherwise make
+<code>range</code> fine and the cache key a different object. Returning zero for
+<code>size &lt;= 1</code> is what makes a single-point leaf contribute exactly its depth.</p>
+<h3 id="2-choosing-the-split-direction">2. Choosing the split direction <a class="header-anchor" href="#2-choosing-the-split-direction">#</a></h3>
+<pre class="highlight"><code>        <span class="n">aim</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"extended"</span> <span class="k">else</span> <span class="nb">min</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">extension_level</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+        <span class="n">normal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="n">chosen</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">aim</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">normal</span><span class="p">[</span><span class="n">chosen</span><span class="p">]</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">aim</span><span class="p">)</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">normal</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">length</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>  <span class="c1"># measure-zero, but the caller must not divide by it</span>
+            <span class="n">normal</span><span class="p">[</span><span class="n">chosen</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">return</span> <span class="n">normal</span> <span class="o">/</span> <span class="n">length</span>
+</code></pre>
+<p>This is the entire difference between the first two variants, and it is four
+lines: draw a Gaussian vector supported on <code>aim</code> coordinates, normalise it. For
+<code>iforest</code>, <code>aim = 1</code> and the vector is a unit basis vector, so the projection is
+one coordinate and the split is axis-parallel. Making the margin <code>aim = 1</code>
+rather than a special case keeps the traversal — which always does a dot product
+— free of a branch. The zero-norm guard is measure-zero and would be dead code
+in exact arithmetic; it exists because <code>rng.normal(size=aim)</code> can return all
+zeros in floating point only if every draw underflows, and a <code>nan</code> normal would
+poison every path in the tree silently.</p>
+<h3 id="3-growing-a-node">3. Growing a node <a class="header-anchor" href="#3-growing-a-node">#</a></h3>
+<pre class="highlight"><code>        <span class="n">rows</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">indices</span><span class="p">]</span>
+        <span class="n">normal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_normal</span><span class="p">(</span><span class="n">rng</span><span class="p">)</span>
+        <span class="n">projection</span> <span class="o">=</span> <span class="n">rows</span> <span class="o">@</span> <span class="n">normal</span>
+        <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">projection</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">projection</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">high</span> <span class="o">-</span> <span class="n">low</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">node</span>  <span class="c1"># every point projects to the same place: a leaf</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">normal</span> <span class="o">=</span> <span class="n">normal</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">))</span>
+        <span class="n">goes_left</span> <span class="o">=</span> <span class="n">projection</span> <span class="o">&lt;=</span> <span class="n">node</span><span class="o">.</span><span class="n">offset</span>
+</code></pre>
+<p>The projection is computed once for the node and reused for both the split
+decision and the child indices, which is why <code>indices</code> is kept as an array of
+row numbers rather than a list of points. <code>&lt;=</code> versus <code>&lt;</code> puts points exactly on
+the offset to the left; with a continuous uniform offset that happens only for
+duplicated values on the split coordinate, where the choice is arbitrary but has
+to be made consistently or the recursion would not shrink. The degenerate leaf
+is the important branch: without it, a node of identical points would recurse
+until the depth limit and return a tree whose paths are pure noise.</p>
+<h3 id="4-walking-a-point-down-a-tree">4. Walking a point down a tree <a class="header-anchor" href="#4-walking-a-point-down-a-tree">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees_</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+                <span class="n">node</span> <span class="o">=</span> <span class="n">tree</span>
+                <span class="k">while</span> <span class="n">node</span><span class="o">.</span><span class="n">normal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">side</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span> <span class="o">@</span> <span class="n">node</span><span class="o">.</span><span class="n">normal</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">node</span><span class="o">.</span><span class="n">offset</span> <span class="k">else</span> <span class="n">node</span><span class="o">.</span><span class="n">right</span>
+                    <span class="n">node</span> <span class="o">=</span> <span class="n">side</span>
+                <span class="n">total</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">node</span><span class="o">.</span><span class="n">depth</span> <span class="o">+</span> <span class="n">average_path</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+</code></pre>
+<p>Equation (2). The <code>while</code> is a loop rather than a recursion because the depth is
+bounded by <span class="math inline">\(\lceil \log_2 \psi \rceil\)</span> and the function is called <span class="math inline">\(t \times m\)</span>
+times; a recursive Python call per level would dominate the runtime. <code>node.depth</code>
+was stored at build time rather than recomputed, and <code>average_path(node.size)</code> is
+the leaf correction — the only place where a leaf of many points differs from a
+leaf of one. Note the loop is over points inside the loop over trees, not the
+other way round: every point walks one tree before the next tree is touched, so
+that tree's nodes stay hot instead of being reloaded <span class="math inline">\(m\)</span> times.</p>
+<h3 id="5-the-score-and-the-variant">5. The score and the variant <a class="header-anchor" href="#5-the-score-and-the-variant">#</a></h3>
+<pre class="highlight"><code>        <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_length</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="n">depth</span> <span class="o">/</span> <span class="n">average_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_samples_</span><span class="p">))</span>
+</code></pre>
+<pre class="highlight"><code>        <span class="n">scores</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibrated</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"anomaly_score"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scores</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_</span>
+        <span class="k">return</span> <span class="n">scores</span>
+</code></pre>
+<p>Equation (4), and then the one line that makes <code>anomaly_score</code> a variant rather
+than a documentation note. The threshold is fitted in <code>fit</code> as the
+<code>1 - contamination</code> quantile of the training scores, so <code>predict</code> returns <code>-1</code>
+exactly when the calibrated score exceeds it. Keeping <code>_calibrated</code> separate from
+<code>score_samples</code> is what lets the first three variants return a probability-like
+number and the fourth return a decision function without duplicating the
+arithmetic.</p>
+<h3 id="6-fitting">6. Fitting <a class="header-anchor" href="#6-fitting">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_samples</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">n</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"max_samples"</span> <span class="k">else</span> <span class="mi">256</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_samples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_samples_</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span> <span class="o">=</span> <span class="n">d</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">depth_limit_</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_samples_</span><span class="p">)))</span>
+</code></pre>
+<p>The variant's default sample size, the cap at <span class="math inline">\(n\)</span>, and the depth limit that
+makes the leaf correction necessary. <code>max_samples_</code> is stored rather than
+recomputed because both <code>average_path(self.max_samples_)</code> and the depth limit
+depend on the <em>effective</em> size after the cap — a forest fitted on 100 points with
+<code>max_samples=256</code> must normalise by <span class="math inline">\(c(100)\)</span>, not <span class="math inline">\(c(256)\)</span>, or every score is
+systematically too high.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For <span class="math inline">\(n\)</span> points, <span class="math inline">\(d\)</span> dimensions, <span class="math inline">\(t\)</span> trees and <span class="math inline">\(\psi\)</span> points per tree:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">stage</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">subsample each tree</td>
+<td style="text-align:left"><span class="math inline">\(O(t\psi)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(\psi)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">build one tree</td>
+<td style="text-align:left"><span class="math inline">\(O(\psi \log \psi \cdot d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(\psi)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">fit the ensemble</td>
+<td style="text-align:left"><span class="math inline">\(O(t\,\psi \log \psi \cdot d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(t\psi)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">threshold</td>
+<td style="text-align:left"><span class="math inline">\(O(nt\log\psi \cdot d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">score</td>
+<td style="text-align:left"><span class="math inline">\(O(mt\log\psi \cdot d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span> per point</td>
+</tr>
+</tbody>
+</table>
+<p>The <span class="math inline">\(d\)</span> in the build and score rows is the dot product: the code always projects
+onto a full vector, so an axis-parallel forest pays <span class="math inline">\(d\)</span> multiplications per
+split where one comparison would do. Production implementations store the
+feature index for the axis-parallel case, which is why their constant is so much
+better in high dimension. The dependence on <span class="math inline">\(n\)</span> is only through the subsampling
+and the threshold; a forest's per-tree cost does not grow with the data set,
+which is the point of <span class="math inline">\(\psi\)</span>.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<h3 id="the-score-saturates-so-it-cannot-rank-the-far-field">The score saturates, so it cannot rank the far field <a class="header-anchor" href="#the-score-saturates-so-it-cannot-rank-the-far-field">#</a></h3>
+<p>On the demo's ray the score is 0.551 at radius 2, 0.660 at radius 5 and 0.660 at
+radius 9. The method counts cuts, and once a point is outside the cloud the
+number of cuts stops changing. Consequences: an isolation forest is a good
+<em>detector</em> and a poor <em>ranking</em> of how extreme the extreme points are; two
+outliers a hundred and a million units away get the same score, and the &quot;most
+anomalous&quot; point in a report may be the one that happened to sit in the sparsest
+region rather than the one that is furthest out. If an ordering in the tail
+matters, use a distance-based score (LOF, Mahalanobis) on the points the forest
+flags, or use the forest as a filter and rank inside its output.</p>
+<h3 id="axis-parallel-cuts-score-by-direction">Axis-parallel cuts score by direction <a class="header-anchor" href="#axis-parallel-cuts-score-by-direction">#</a></h3>
+<p>The circle experiment: 0.590 to 0.759 around a fixed radius, a spread of 0.169,
+while the seed-to-seed noise at a fixed point is 0.011. That is a real bias — a
+point at 45° to the axes is scored as less anomalous than a point on an axis at
+the same distance — and it is why <code>extended</code> exists. Fully extended hyperplanes
+reduce the spread to 0.060 but do not eliminate it, because the offset is still
+uniform over a projection range that depends on the cloud's shape. On data whose
+anomalies are isolated along diagonals (correlated sensors, image patches) the
+bias systematically understates them.</p>
+<h3 id="masking-and-duplicates-that-hide">Masking, and duplicates that hide <a class="header-anchor" href="#masking-and-duplicates-that-hide">#</a></h3>
+<p>Adding a duplicate of a point that is flagged at contamination 0.1 makes both
+copies unflagged: the score moves by −0.088, and the pair now looks like a
+two-point cluster rather than an isolated point. This is masking, and it is the
+reason the method is not a density estimator in the way KDE is — but it is not a
+defence against duplication either. Near-duplicate rows from a deduplication
+step, or a burst of identical events, will lower each other's scores.</p>
+<h3 id="the-sample-size-is-part-of-the-model">The sample size is part of the model <a class="header-anchor" href="#the-sample-size-is-part-of-the-model">#</a></h3>
+<p><code>max_samples</code> is not a speed knob. At <span class="math inline">\(\psi = 16\)</span> the AUC on the demo's data
+falls to 0.958 with a seed spread of 0.020, and the planted points average 0.680
+at <span class="math inline">\(\psi = 64\)</span> against 0.728 at 256. A threshold fitted with one setting is
+wrong under another; retrain, do not reuse. The published 256 is a compromise
+between variance (small <span class="math inline">\(\psi\)</span>) and the swamping that a large <span class="math inline">\(\psi\)</span> lets in, and
+it is the number the paper's experiments support, not a theorem.</p>
+<h3 id="contamination-is-a-budget-not-a-detector">Contamination is a budget, not a detector <a class="header-anchor" href="#contamination-is-a-budget-not-a-detector">#</a></h3>
+<p><code>contamination=0.1</code> flags 10.0% of the training set by construction, on any data,
+including a sample of pure noise. If the true rate is 0.1% then 99% of the
+flagged points are false positives caused by the threshold rather than by the
+score. Fit with a contamination that reflects the operational budget, or drop
+the parameter and use the score's quantiles downstream where the cost of a false
+positive is known.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Tabular anomaly detection.</strong> The default first attempt on structured data,
+because its cost is bounded by the subsample rather than by the data set,
+it handles mixed scales without normalisation, and it needs no distance
+metric. Fraud, intrusion detection,
+sensor faults and quality control all start here.</li>
+<li><strong>Feature engineering for supervised models.</strong> The score, the mean path
+length and the per-tree depth are useful features even when the forest is not
+the detector; a supervised model on top of them often beats either alone.</li>
+<li><strong>Cheap pre-filtering.</strong> Use the forest to discard the obvious 90% and run an
+expensive detector (a density model, a reconstruction autoencoder) on the rest.
+The saturation failure mode is harmless in this role: the filter only has to
+rank, not to measure.</li>
+<li><strong>Streaming and distributed settings.</strong> Each tree is independent and built on
+a bounded sample, so the ensemble shards trivially and can be refit on a
+sliding window without touching the history.
+That is the practical reason it beat density-based detectors in production
+even before it beat them on accuracy.</li>
+<li><strong>Where it is a trap.</strong> Local anomalies — a point that is normal globally and
+strange relative to its own neighbourhood — are invisible, because isolation is
+a global property of the tree. That is exactly what LOF, the next atom, is for.
+And anything where the <em>magnitude</em> of the anomaly matters, per the saturation
+failure mode.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>F. T. Liu, K. M. Ting and Z.-H. Zhou, <em>Isolation forest</em>, IEEE International
+Conference on Data Mining (2008). The algorithm, the score in (4) and the
+normaliser in (3).</li>
+<li>F. T. Liu, K. M. Ting and Z.-H. Zhou, <em>Isolation-based anomaly detection</em>, ACM
+Transactions on Knowledge Discovery from Data 6(1):1–39 (2012). The journal
+version: the subsampling argument, the swamping and masking analysis, and the
+experiments that fix <span class="math inline">\(\psi = 256\)</span>.</li>
+<li>S. Hariri, M. C. Kind and R. J. Brunner, <em>Extended isolation forest</em>, IEEE
+Transactions on Knowledge and Data Engineering 33(4):1479–1489 (2021). The
+hyperplane split in (6) and the axis-parallel bias measured above.</li>
+<li>D. E. Knuth, <em>The Art of Computer Programming, Volume 3: Sorting and
+Searching</em>, 2nd edition, Addison-Wesley (1998), §6.2.2. The expected path
+length of a search in a random binary tree, i.e. the recurrence in (5).</li>
+<li>C. C. Aggarwal and S. Sathe, <em>Theoretical foundations and evaluations of
+anomaly detection algorithms</em>, ACM Transactions on Knowledge Discovery from
+Data 10(1):1–43 (2015). Why isolation-based scores and density-based scores
+disagree, and on which data.</li>
+<li>R. Domingues, M. Filippone, P. Michiardi and J. Zouaoui, <em>A comparative
+evaluation of anomaly detection methods for multivariate data</em>, ACM Computing
+Surveys 51(5):1–36 (2018). Where the forest wins and where the local methods
+win.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="kde.html"><small>Previous</small><span>Kernel density estimation</span></a><a class="next" href="lof.html"><small>Next</small><span>Local outlier factor</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">09 · Density &amp; anomaly</p><ul class="rail-list"><li><a href="kde.html"><span class="tick">✓</span><span>Kernel density estimation</span></a></li><li><a href="isolation_forest.html" aria-current="page"><span class="tick">✓</span><span>Isolation forest</span></a></li><li><a href="lof.html"><span class="tick">✓</span><span>Local outlier factor</span></a></li><li><a href="histogram_density.html"><span class="tick">✓</span><span>Histogram density</span></a></li><li><a href="mahalanobis.html"><span class="tick">✓</span><span>Mahalanobis / MCD</span></a></li><li><a href="hbos.html"><span class="tick">✓</span><span>HBOS</span></a></li><li><a href="autoencoder_anomaly.html"><span class="tick">✓</span><span>Autoencoder anomaly</span></a></li><li><a href="change_point.html"><span class="tick">✓</span><span>Change-point detection</span></a></li><li><a href="elliptic_envelope.html"><span class="tick">✓</span><span>Elliptic envelope</span></a></li><li><a href="copod.html"><span class="tick">✓</span><span>COPOD</span></a></li><li><a href="extreme_value.html"><span class="tick">✓</span><span>Extreme value theory</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../08-manifold/index.html"><span class="jump">← 08 · Manifolds &amp; embeddings</span></a></li><li><a href="../10-sequences/index.html"><span class="jump">10 · Sequences&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-tree">1. The tree</a></li><li class="lvl3"><a href="#2-the-normaliser">2. The normaliser</a></li><li class="lvl3"><a href="#3-the-score-and-what-calibrated-means">3. The score, and what &quot;calibrated&quot; means</a></li><li class="lvl3"><a href="#4-why-axis-parallel-cuts-are-biased">4. Why axis-parallel cuts are biased</a></li><li class="lvl3"><a href="#5-subsampling-swamping-and-masking">5. Subsampling, swamping and masking</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-the-normaliser-exactly">1. The normaliser, exactly</a></li><li class="lvl3"><a href="#2-choosing-the-split-direction">2. Choosing the split direction</a></li><li class="lvl3"><a href="#3-growing-a-node">3. Growing a node</a></li><li class="lvl3"><a href="#4-walking-a-point-down-a-tree">4. Walking a point down a tree</a></li><li class="lvl3"><a href="#5-the-score-and-the-variant">5. The score and the variant</a></li><li class="lvl3"><a href="#6-fitting">6. Fitting</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl3"><a href="#the-score-saturates-so-it-cannot-rank-the-far-field">The score saturates, so it cannot rank the far field</a></li><li class="lvl3"><a href="#axis-parallel-cuts-score-by-direction">Axis-parallel cuts score by direction</a></li><li class="lvl3"><a href="#masking-and-duplicates-that-hide">Masking, and duplicates that hide</a></li><li class="lvl3"><a href="#the-sample-size-is-part-of-the-model">The sample size is part of the model</a></li><li class="lvl3"><a href="#contamination-is-a-budget-not-a-detector">Contamination is a budget, not a detector</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/09-density-and-anomaly/isolation_forest.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

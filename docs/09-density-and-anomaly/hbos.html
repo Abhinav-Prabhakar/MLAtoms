@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HBOS · MLAtoms</title>
+<meta name="description" content="Histogram-based outlier scores with dynamic binning. Fit a histogram to each feature separately. A point&#x27;s score is how surprising each of its coordinates is…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/hbos.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="HBOS">
+<meta property="og:description" content="Histogram-based outlier scores with dynamic binning. Fit a histogram to each feature separately. A point&#x27;s score is how surprising each of its coordinates is…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/hbos.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HBOS">
+<meta name="twitter:description" content="Histogram-based outlier scores with dynamic binning. Fit a histogram to each feature separately. A point&#x27;s score is how surprising each of its coordinates is…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "HBOS", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/hbos.html", "description": "Histogram-based outlier scores with dynamic binning. Fit a histogram to each feature separately. A point's score is how surprising each of its coordinates is\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">09 · Density &amp; anomaly</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>3 variants</span><span class="page-meta__sep">/</span><a href="hbos.py.html">source</a></p><h1>HBOS — one histogram per feature</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Fit a histogram to each feature separately. A point's score is how surprising each
+of its coordinates is under its own marginal, added up:</p>
+<pre class="highlight"><code>  feature 1                    feature 2                  score
+ ┌────────────────┐           ┌────────────────┐
+ │   ▁▃▇█▇▃▁      │           │  ▁▂▅█▅▂▁       │
+ └────────────────┘           └────────────────┘
+     ↓ x₁ = 0.4                   ↓ x₂ = −1.7
+  −log p̂₁ = 0.9                −log p̂₂ = 3.1      →  4.0
+</code></pre>
+<p>Two assumptions do all the work. The first is that the joint density is the
+product of the marginals, so the negative log density is their sum — that is what
+makes the score cheap. The second is that a histogram is an adequate summary of a
+marginal. Both are false in general, and the first is false in an interesting way,
+which is why the method is worth a chapter slot: it is the fastest multivariate
+detector that is not a distance, it is linear in both <span class="math inline">\(n\)</span> and <span class="math inline">\(d\)</span>, and its
+failures are exactly the failures of the product model.</p>
+<p>The demo plants the failure. Two features correlated at 0.971, and forty points on
+the anti-diagonal at radius 0.8 to 1.5 — every coordinate inside the data's range
+and near its mode, but jointly impossible. Each variant scores them <em>below</em> the
+ordinary points:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:right">bins</th>
+<th style="text-align:right">AUC</th>
+<th style="text-align:right">planted</th>
+<th style="text-align:right">normals</th>
+<th style="text-align:right">flagged</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>static_bins</code></td>
+<td style="text-align:right">20</td>
+<td style="text-align:right">0.365</td>
+<td style="text-align:right">2.54</td>
+<td style="text-align:right">2.93</td>
+<td style="text-align:right">0 of 40</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dynamic_bins</code></td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">0.474</td>
+<td style="text-align:right">2.41</td>
+<td style="text-align:right">2.90</td>
+<td style="text-align:right">0 of 40</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adaptive</code></td>
+<td style="text-align:right">45</td>
+<td style="text-align:right">0.420</td>
+<td style="text-align:right">2.31</td>
+<td style="text-align:right">2.89</td>
+<td style="text-align:right">0 of 40</td>
+</tr>
+</tbody>
+</table>
+<p>The score of <span class="math inline">\((1.2, 1.2)\)</span> and <span class="math inline">\((1.2, -1.2)\)</span> differs by 1.13 nats — the sampling
+noise in two bin counts — while their true bivariate log-density differs by 46.9.
+A product model has no representation of &quot;ordinary in each coordinate, impossible
+together&quot;, so it cannot rank such a point at all. Everything HBOS is good at comes
+from the same place: it notices when <em>one coordinate</em> is in a region no training
+point occupied, and it notices it cheaply.</p>
+<p>The three variants are three answers to the only real question, which is how many
+bins:</p>
+<ul>
+<li><code>static_bins</code> uses a fixed count for every feature, ten by default, which is the
+original paper's choice. It is indifferent to <span class="math inline">\(n\)</span> and to the shape of the data:
+ten bins over a million rows throw away almost all the resolution, and ten bins
+over a peaky feature put the entire mode in one bin.</li>
+<li><code>dynamic_bins</code> sets a count per feature from the Freedman–Diaconis width, so
+the count scales like <span class="math inline">\(n^{1/3}\)</span> and is measured in units of the feature's own
+robust spread. A flat feature gets few bins, a narrow one gets many — sometimes
+so many that <code>max_bins</code> is what actually decides.</li>
+<li><code>adaptive</code> chooses the count by maximising a leave-one-out log-likelihood and
+places the edges at quantiles rather than at equal widths, so resolution follows
+the density instead of the range.</li>
+</ul>
+<p>Neither data-driven rule is uniformly better, and the demo measures that too. On a
+sample that is 85% a narrow Gaussian and 15% a wide one, ten equal-width bins cost
+3.02 nats per held-out point and quantile bins 0.94; on a plain Gaussian the same
+comparison is 2.89 against 2.96. A fixed count is a fixed <em>resolution</em>, and
+resolution is adequate only when the data's scale agrees with it.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">bin count</th>
+<th style="text-align:left">edges</th>
+<th style="text-align:left">fit cost</th>
+<th style="text-align:left">measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>static_bins</code></td>
+<td style="text-align:left"><code>n_bins</code>, 10</td>
+<td style="text-align:left">equal width</td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left">3.02 nats on peaky data</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dynamic_bins</code></td>
+<td style="text-align:left">Freedman–Diaconis, capped</td>
+<td style="text-align:left">equal width</td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left">1.01 nats on peaky data</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adaptive</code></td>
+<td style="text-align:left">leave-one-out maximiser</td>
+<td style="text-align:left">quantiles</td>
+<td style="text-align:left"><span class="math inline">\(O(Knd)\)</span></td>
+<td style="text-align:left">0.94 nats on peaky data</td>
+</tr>
+</tbody>
+</table>
+<p>The measured column is held-out mean negative log density on a 2-feature sample of
+600 training points scored on 3000 fresh ones — lower is a better density model.
+On that sample <code>static_bins</code> chooses 20 bins in total, <code>dynamic_bins</code> 128 (both
+features hit the cap of 64) and <code>adaptive</code> 84. On a plain Gaussian the same three
+give 2.89, 2.88 and 2.96 over 20, 38 and 53 bins: the ordering reverses, <code>adaptive</code>
+spending its extra 33 bins on variance to model a shape 20 bins already cover.</p>
+<p><code>static_bins</code> is the right choice when the data are smooth, roughly unimodal and
+already on a comparable scale, and when you want a number that does not depend on
+<span class="math inline">\(n\)</span> — a detector fitted on a 200-row calibration window and then applied to live
+traffic should not change its notion of resolution because the window grew.
+<code>dynamic_bins</code> is the sane default: it adapts to <span class="math inline">\(n\)</span> and to each feature's robust
+spread at no measurable cost, and it degrades gracefully. <code>adaptive</code> is for data
+whose density varies by orders of magnitude across its range — a mixture, a
+lognormal, a count — where equal-width edges are structurally wrong.</p>
+<p>On the lognormal feature in the demo the three rules choose 10, 45 and 22 bins, and
+the fixed count puts 68% of the sample in its largest bin against 5% for quantile
+bins. The leave-one-out criterion behind <code>adaptive</code> is <span class="math inline">\(-1.4572\)</span> at <span class="math inline">\(k = 16\)</span>,
+<span class="math inline">\(-1.4571\)</span> at <span class="math inline">\(k = 24\)</span> and <span class="math inline">\(-1.4638\)</span> at <span class="math inline">\(k = 48\)</span>: the optimum is flat, which is why
+the variant can land anywhere inside it and still be right.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-from-the-product-model-to-the-score">1. From the product model to the score <a class="header-anchor" href="#1-from-the-product-model-to-the-score">#</a></h3>
+<p>Under independence the joint density factorises, so</p>
+<div class="math block">
+\[-\log p(x) = \sum_{j=1}^{d} -\log p_j(x_j)\]
+</div>
+<p>and replacing each marginal by its histogram estimate gives the score. The
+estimator itself is the usual one, with two floors that matter:</p>
+<div class="math block">
+\[\hat p_j(v) = \frac{\max(N_b, 1)}{n\, w_b},
+\quad v \in \text{bin } b
+\qquad (1)\]
+</div>
+<div class="math block">
+\[\mathrm{HBOS}(x) = \sum_{j=1}^{d} -\log \hat p_j(x_j)
+\qquad (2)\]
+</div>
+<p>The <span class="math inline">\(\max(N_b, 1)\)</span> turns an empty bin from an infinite score into a finite one. It
+is a modelling decision rather than a numerical guard: a region with no training
+points is not infinitely improbable, only unobserved, and one pseudo-count says so.
+The demo shows the consequence in the degenerate case — a constant column gets one
+bin holding everything, so its density is exactly 1 and its contribution exactly 0,
+which is the right answer for a feature that cannot distinguish anything.</p>
+<p>Values outside the fitted range have no bin at all. They get half a point in the
+adjacent edge bin,</p>
+<div class="math block">
+\[\hat p_j(v) = \frac{1}{2\,n\,w_{\text{edge}}}, \qquad v \notin [\min x_j, \max x_j]
+\qquad (3)\]
+</div>
+<p>which is &quot;less plausible than anything observed, still finite&quot;. The number is
+arbitrary and the arbitrariness is visible: with <code>n_bins=1</code> every training point
+scores 3.76 and a point outside scores 16.91, exactly <span class="math inline">\(3\log 80 = 13.15\)</span> more — the
+same whether it is one unit or a thousand beyond the edge. That is what a
+histogram knows about the tail: nothing.</p>
+<h3 id="2-why-the-chi-square-law-fails">2. Why the chi-square law fails <a class="header-anchor" href="#2-why-the-chi-square-law-fails">#</a></h3>
+<p>The paper's calibration argument is that under the null each <span class="math inline">\(-\log \hat p_j(x_j)\)</span>
+is exponential with rate one, so twice the score is a sum of <span class="math inline">\(d\)</span> chi-squares with
+two degrees of freedom each:</p>
+<div class="math block">
+\[2\,\mathrm{HBOS}(x) \sim \chi^2_{2d}
+\qquad (4)\]
+</div>
+<p>This is not a theorem, and the reason is dimensional. The mean of <span class="math inline">\(-\log \hat p_j\)</span>
+is the differential entropy of the marginal plus a discretisation term:</p>
+<div class="math block">
+\[\mathbb{E}\left[-\log \hat p_j(X_j)\right] = H_{\text{bin}} + \log w
+= h(p_j) + O(w^2)
+\qquad (5)\]
+</div>
+<p>with <span class="math inline">\(H_{\text{bin}} = -\sum_b p_b \log p_b\)</span> the entropy of the binned variable.
+For a standard normal <span class="math inline">\(h = \tfrac12 \log(2\pi e) = 1.4189\)</span>, and ten bins over the
+sample range measure 1.443 — the <span class="math inline">\(O(w^2)\)</span> term from <span class="math inline">\(\hat p\)</span> being a step function.
+So each term has mean 1.443, not the 1 that a unit-rate exponential has, and the
+score is centred <span class="math inline">\(0.443\,d\)</span> above where (4) puts it. The threshold allows only
+<span class="math inline">\(1.645\sqrt{d}\)</span> of tail room above a mean of <span class="math inline">\(d\)</span>, so that offset eats a growing
+share of the budget as <span class="math inline">\(d\)</span> rises — and the variance is not chi-square's either,
+since each term is a handful of atoms rather than an exponential. The result is
+measured: at a nominal 5%, <code>static_bins</code> flags 5.9% of held-out points in two
+dimensions, 10.5% in four and 20.7% in eight.</p>
+<p>There is a stronger objection, and the demo makes it in one line of arithmetic.
+Density has units, so negative log density does too:</p>
+<div class="math block">
+\[\hat p_j(v/s) = s\,\hat p_j(v)
+\;\Longrightarrow\;
+\mathrm{HBOS}(x \text{ after } x_j \mapsto x_j/s) = \mathrm{HBOS}(x) + \log s
+\qquad (6)\]
+</div>
+<p>Multiply one feature by 1000 and every score rises by exactly <span class="math inline">\(\log 1000 = 6.91\)</span>
+nats, measured to <span class="math inline">\(10^{-6}\)</span>, while the threshold in (4) is a constant. The demo's
+detector then flags 100% of the same data. No threshold that does not move with the
+score can be calibrated for all data, and a constant cannot move. This is the real
+content of (4): it is a rule of thumb that happens to land near the right answer
+when the marginals have entropy near one <em>in the units you happen to use</em>.</p>
+<p>The fix costs twenty lines and is exact where (4) is approximate. Under the fitted
+model a point lands in bin <span class="math inline">\(b\)</span> of feature <span class="math inline">\(j\)</span> with probability <span class="math inline">\(N_b/n\)</span> and
+contributes a known quantity there, so the null distribution of (2) can be sampled
+without any data:</p>
+<pre class="highlight"><code>        <span class="n">value</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">counts_</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">n_</span> <span class="o">*</span> <span class="n">widths</span><span class="p">))</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">counts_</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">/</span> <span class="n">model</span><span class="o">.</span><span class="n">n_</span>
+        <span class="n">total</span> <span class="o">+=</span> <span class="n">value</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mass</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="n">reps</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">mass</span><span class="p">)]</span>
+</code></pre>
+<p>That threshold is calibrated by construction — 4.9%, 7.1% and 9.3% at <span class="math inline">\(d\)</span> = 2, 4,
+8 instead of 5.9%, 10.5% and 20.7% — and it shifts with the units because the score
+it is derived from does. The residue is real and does not vanish with <span class="math inline">\(n\)</span>: at <span class="math inline">\(d=8\)</span>
+it falls from 7.1% at <span class="math inline">\(n = 500\)</span> to 5.3% at <span class="math inline">\(n = 2000\)</span> and then sits at 5.5% at
+<span class="math inline">\(n = 8000\)</span>, because what is left is the gap between a ten-bin histogram and the
+Gaussian it is modelling, not estimation error. The chi-square rate is 19.4% at
+every <span class="math inline">\(n\)</span>: it is not measuring the model at all.</p>
+<h3 id="3-the-bin-counts">3. The bin counts <a class="header-anchor" href="#3-the-bin-counts">#</a></h3>
+<p><code>dynamic_bins</code> is the Freedman–Diaconis rule, which is the same rule the histogram
+atom uses. The width that minimises integrated squared error for a smooth density
+is of order <span class="math inline">\(\mathrm{IQR}\, n^{-1/3}\)</span>, so</p>
+<div class="math block">
+\[k_j = \left\lceil \frac{\max x_j - \min x_j}{2\,\mathrm{IQR}_j\, n^{-1/3}} \right\rceil
+\qquad (7)\]
+</div>
+<p>clipped to <span class="math inline">\([1, \texttt{max\_bins}]\)</span>. The rule is invariant to the units of the
+feature, which is the point: it expresses a width in units of the data's own robust
+spread. It is also blind to shape beyond the IQR, which is why a peaky sample gets
+a count that hits the cap and a flat one gets a handful.</p>
+<p><code>adaptive</code> maximises a leave-one-out likelihood. For a histogram this is free of
+resampling, because removing point <span class="math inline">\(i\)</span> from its own bin changes that bin from <span class="math inline">\(N\)</span>
+to <span class="math inline">\(N-1\)</span> and nothing else:</p>
+<div class="math block">
+\[\hat p_j^{(-i)}(x_i) = \frac{N_{b(i)} - 1}{(n-1)\, w_{b(i)}}
+\qquad (8)\]
+</div>
+<p>so the criterion is</p>
+<div class="math block">
+\[k_j = \arg\max_k \; \frac{1}{n}\sum_{i=1}^{n} \log \hat p_j^{(-i)}(x_i)
+\qquad (9)\]
+</div>
+<p>evaluated over every <span class="math inline">\(k\)</span> from 2 to <span class="math inline">\(\min(\texttt{max\_bins}, \lfloor n/2 \rfloor)\)</span>
+(floored at three), with the edges placed at quantiles so each bin carries the same
+mass. Two things follow. The count is chosen by the data rather than by a formula,
+and the placement follows the density rather than the range — on a lognormal, quantile edges put 5% of the sample in the
+largest bin against 68% for equal widths.</p>
+<p>The criterion has a subtlety that is easy to miss. (8) is exact, but the edges were
+chosen using every point including <span class="math inline">\(i\)</span>, so the criterion is not a held-out estimate
+of the model's performance; it removes the count's dependence on the point and not
+the edges'. That is why the optimum is flat and why <code>adaptive</code> can lose to a fixed
+count on data where a fixed count is already right.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="1-scoring-one-feature">1. Scoring one feature <a class="header-anchor" href="#1-scoring-one-feature">#</a></h3>
+<pre class="highlight"><code>            <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">edges</span><span class="p">,</span> <span class="n">X</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span> <span class="n">side</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                            <span class="mi">0</span><span class="p">,</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="c1"># Equation (1): never a zero density, so one point in a bin is</span>
+            <span class="c1"># enough to make it plausible and an empty bin is not a wall.</span>
+            <span class="n">density</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">counts</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_</span> <span class="o">*</span> <span class="n">widths</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+            <span class="n">outside</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">|</span> <span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">edges</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="c1"># A value beyond the fitted range is worth half a point in the edge</span>
+            <span class="c1"># bin: less plausible than anything observed, still finite.</span>
+            <span class="n">edge</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">density</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">outside</span><span class="p">,</span> <span class="mf">0.5</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_</span> <span class="o">*</span> <span class="n">widths</span><span class="p">[</span><span class="n">edge</span><span class="p">]),</span> <span class="n">density</span><span class="p">)</span>
+            <span class="n">out</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">density</span><span class="p">,</span> <span class="n">FLOOR</span><span class="p">))</span>
+</code></pre>
+<p>The whole method is these seven lines, repeated per feature. <code>searchsorted</code> with
+<code>side=&quot;right&quot;</code> reproduces <code>np.histogram</code>'s convention that the last bin includes
+its right edge, which is why the counts stored at fit time and the indices
+computed at score time agree; getting the side wrong silently sends every value
+that equals an internal edge into the bin above and skews the score. The clip is
+needed because a value exactly equal to the largest edge sorts past the last bin.
+<code>FLOOR</code> is a guard rather than part of the method: no reachable density is zero,
+since (1) floors the count, so it cannot fire unless a bin width has collapsed —
+and one <code>np.maximum</code> is cheaper than an argument about whether that is impossible
+after a future edit.</p>
+<h3 id="2-the-leave-one-out-criterion">2. The leave-one-out criterion <a class="header-anchor" href="#2-the-leave-one-out-criterion">#</a></h3>
+<pre class="highlight"><code>    <span class="n">counts</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">edges</span><span class="p">)</span>
+    <span class="n">widths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">edges</span><span class="p">)</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">edges</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">held</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">held</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+    <span class="n">density</span> <span class="o">=</span> <span class="n">held</span> <span class="o">/</span> <span class="p">((</span><span class="n">n</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">widths</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">density</span><span class="p">)))</span>
+</code></pre>
+<p>Equation (8), one line per term. The <code>held &lt;= 0</code> guard is doing real work: a bin
+with a single point gives its occupant zero held-out density and a log of <span class="math inline">\(-\infty\)</span>,
+so any partition that isolates a point is rejected outright. That is what stops the
+criterion from running to <span class="math inline">\(k = n/2\)</span> and declaring a perfect fit, and it is why the
+optimum in the demo is an interior <span class="math inline">\(k\)</span> rather than the largest allowed one. Note
+that the denominator is <span class="math inline">\(n-1\)</span>, not <span class="math inline">\(n\)</span>: every point is scored against a histogram
+built from the other <span class="math inline">\(n-1\)</span>.</p>
+<h3 id="3-choosing-the-count">3. Choosing the count <a class="header-anchor" href="#3-choosing-the-count">#</a></h3>
+<pre class="highlight"><code>        <span class="n">best_score</span><span class="p">,</span> <span class="n">best</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">_frequency_edges</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_bins</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">column</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">edges</span> <span class="o">=</span> <span class="n">_frequency_edges</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">score</span> <span class="o">=</span> <span class="n">_loo_score</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">edges</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;</span> <span class="n">best_score</span><span class="p">:</span>
+                <span class="n">best_score</span><span class="p">,</span> <span class="n">best</span> <span class="o">=</span> <span class="n">score</span><span class="p">,</span> <span class="n">edges</span>
+        <span class="k">return</span> <span class="n">best</span>
+</code></pre>
+<p>A linear scan over every allowed count, which is affordable because each evaluation
+is one <code>np.histogram</code> and one vectorised logarithm. The initial <code>best</code> matters when
+every count scores <span class="math inline">\(-\infty\)</span> — with three distinct values no <span class="math inline">\(k\)</span> can satisfy the
+guard — in which case the two-bin quantile split is returned rather than an
+unbound variable. The upper limit <span class="math inline">\(n/2\)</span> is a sanity bound: beyond it bins are
+guaranteed to be nearly empty. Strict improvement (<code>&gt;</code>) rather than <code>&gt;=</code> makes the
+choice deterministic at the flat part of the optimum, and it picks the smallest <span class="math inline">\(k\)</span>
+among ties, which is the conservative direction.</p>
+<h3 id="4-the-threshold">4. The threshold <a class="header-anchor" href="#4-the-threshold">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_threshold</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">contamination</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scores_</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">contamination</span><span class="p">))</span>
+        <span class="n">dof</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">_chi2_ppf</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">dof</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+</code></pre>
+<p>Two regimes. <code>contamination</code> is a quantile of the training scores and therefore
+flags at most the requested share of any sample, clean or not — 4.8% here, where
+ties at the quantile resolve outward. <code>contamination=None</code> asks for the
+distribution-free threshold of (4), which the demo shows is neither
+distribution-free nor a threshold. Both are supplied because the honest empirical
+option makes no claim that can be wrong, and the analytic option is what the
+literature uses.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For <span class="math inline">\(n\)</span> points, <span class="math inline">\(d\)</span> features, <span class="math inline">\(m\)</span> queries, <span class="math inline">\(k\)</span> bins and <span class="math inline">\(K\)</span> = <code>max_bins</code>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">stage</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>static_bins</code> / <code>dynamic_bins</code> fit</td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(dk)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adaptive</code> fit</td>
+<td style="text-align:left"><span class="math inline">\(O(Knd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(dK)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">score <span class="math inline">\(m\)</span> points</td>
+<td style="text-align:left"><span class="math inline">\(O(md\log k)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(m)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Fitting is a pass over the data per feature, plus one sort for quantile edges. The
+<code>adaptive</code> factor of <span class="math inline">\(K\)</span> is the whole extra cost, and it is why the default
+<code>max_bins</code> is 64 rather than <span class="math inline">\(n/2\)</span>: the criterion is flat near its optimum, so
+searching further buys nothing and costs linearly. Scoring is a binary search per
+feature per point, so it is logarithmic in the bin count and linear in the
+dimension: the same order as a Euclidean distance, and a factor of <span class="math inline">\(n\)</span> cheaper than
+a kernel density estimate, which is the entire reason the method exists. Returning
+the per-feature terms rather than the sum costs no extra time and <span class="math inline">\(O(md)\)</span> instead
+of <span class="math inline">\(O(m)\)</span> memory — usually the better trade, since the breakdown is the only
+explanation a product model can offer.</p>
+<p>The memory figure for <code>adaptive</code> counts the stored edges and counts; the search
+itself reuses one histogram at a time.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<h3 id="correlation-blindness">Correlation blindness <a class="header-anchor" href="#correlation-blindness">#</a></h3>
+<p>The demo's headline. Two features correlated at 0.971, anomalies on the
+anti-diagonal at radius 0.8 to 1.5, and the AUC is 0.365 to 0.474 — the planted
+points score <em>lower</em> than the ordinary ones and none of the forty is flagged at a
+10% budget. This is not a tuning problem, it is the product model working exactly
+as specified: the score never sees the pair. Any dataset with real dependence
+between features — which is most of them — will contain anomalies of this shape,
+and they are precisely the anomalies that a naive detector misses. If the
+dependence matters, transform first (PCA or a whitening step), or use a joint
+method.</p>
+<h3 id="the-threshold-is-not-the-one-in-the-paper">The threshold is not the one in the paper <a class="header-anchor" href="#the-threshold-is-not-the-one-in-the-paper">#</a></h3>
+<p><code>contamination=None</code> uses (4), and the demo shows what that is worth: 5.9% at
+<span class="math inline">\(d=2\)</span>, 20.7% at <span class="math inline">\(d=8\)</span> on clean standard normal data at a nominal 5%, and 100% after
+rescaling one feature by 1000. The score's mean is the marginal's differential
+entropy, not 1, and the score has units. Both defects are structural and neither
+shrinks with <span class="math inline">\(n\)</span>. Use <code>contamination</code>, or resample the null from the fitted model.</p>
+<h3 id="resolution-versus-shape">Resolution versus shape <a class="header-anchor" href="#resolution-versus-shape">#</a></h3>
+<p>A fixed count is a fixed width, and a width that suits a Gaussian is wrong for a
+mixture. On the demo's peaky sample <code>static_bins</code> costs 3.02 nats per held-out
+point against 0.94 for quantile bins, a factor of eight in likelihood. The symptom
+is a score that is nearly constant over a large region — the mode is one bin, so
+every point near it is tied — followed by a cliff between adjacent bins. Ties are
+also the mechanism by which a fine histogram overfits: with <span class="math inline">\(n\)</span> points and <span class="math inline">\(k\)</span>
+bins, <span class="math inline">\(k \gtrsim n/10\)</span> leaves about ten counts per bin on average and one or two in
+the tail bins, so the density estimate there is a single observation.</p>
+<h3 id="contamination-stretches-the-range">Contamination stretches the range <a class="header-anchor" href="#contamination-stretches-the-range">#</a></h3>
+<p>Fitting on data that contains a few far outliers widens every edge, so every
+density falls and the resolution available to the bulk collapses: the good data is
+compressed into a handful of bins while empty space gets bins of its own. HBOS has
+no notion of robustness — the fit is a set of counts, and a count is an average.
+The practical remedy is to fit on a window known to be clean, or to clip the
+feature at robust quantiles before fitting, and to remember that the score is
+therefore conditional on that window.</p>
+<h3 id="saturation-outside-the-range">Saturation outside the range <a class="header-anchor" href="#saturation-outside-the-range">#</a></h3>
+<p>Every point beyond the fitted range gets the same score, (3), whatever its
+distance. That is one of the reasons HBOS is a triage tool rather than a
+measurement: it tells you a coordinate went somewhere unseen, not how far. It also
+means a drifted feature — one whose whole distribution has moved — produces a
+constant, undifferentiated alarm rather than a graded one.</p>
+<h3 id="degenerate-and-discrete-features">Degenerate and discrete features <a class="header-anchor" href="#degenerate-and-discrete-features">#</a></h3>
+<p>A constant column contributes exactly zero, which is correct and also means it
+silently disappears from the score. A feature with few distinct values gets few
+quantile bins, because duplicate edges are removed — four distinct values repeated
+ten times each occupy four bins — and <code>adaptive</code> narrowing itself is the right
+response rather than a division by a zero-width bin. But it does mean the effective
+dimension can be smaller than <code>X.shape[1]</code>, and a score threshold calibrated on
+<code>n_features_</code> may be wrong about the number of terms that actually vary.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Network intrusion detection.</strong> HBOS was proposed for exactly this: many
+features, a need for speed, and a stream where the model must be refitted often.
+Per-feature histograms are cheap to update and the score is additive, so a stale
+fit degrades one coordinate at a time.</li>
+<li><strong>Credit and fraud triage.</strong> Each feature's contribution is interpretable —
+&quot;this transaction is unusual in amount and ordinary in everything else&quot; — which
+matters more in a regulated setting than a slightly better AUC.</li>
+<li><strong>Manufacturing and sensor monitoring.</strong> Independent channels, each with its own
+scale, is the setting the method was designed for; <code>dynamic_bins</code> handles the
+differing spreads without any per-channel tuning.</li>
+<li><strong>A first pass over high-volume logs.</strong> Aggregate counts, latencies and payload
+sizes per entity, score every entity, and send the top fraction to something
+expensive. Linear cost is the whole point.</li>
+<li><strong>Feature attribution inside a bigger detector.</strong> <code>feature_scores</code> returns the
+per-feature terms, so HBOS is often the explainable layer wrapped around, or
+underneath, a joint model — the terms say which coordinate moved.</li>
+<li><strong>Benchmark baseline.</strong> Goldstein and Uchida score it against much slower
+multivariate detectors, and it is the reference anything more elaborate has to
+beat on independent features — which is the profile this atom derives.</li>
+<li><strong>Where it is a trap.</strong> Correlated or redundant features, strong interaction
+effects, anomalies defined by combination rather than by magnitude, and any
+threshold taken from (4) without checking the units.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>M. Goldstein and A. Dengel, <em>Histogram-based outlier score (HBOS): a fast
+unsupervised anomaly detection algorithm</em>, KI-2012 Poster and Demo Track (2012).
+The method, the fixed ten-bin default, and the chi-square calibration of (4).</li>
+<li>D. Freedman and P. Diaconis, <em>On the histogram as a density estimator: <span class="math inline">\(L^2\)</span>
+theory</em>, Zeitschrift für Wahrscheinlichkeitstheorie 57:453–476 (1981). The width
+behind (7).</li>
+<li>D. W. Scott, <em>Multivariate Density Estimation: Theory, Practice, and
+Visualization</em>, 2nd ed., Wiley (2015). Bin-count rules, and why the count grows
+like <span class="math inline">\(n^{1/3}\)</span>.</li>
+<li>L. Birgé and Y. Rozenholc, <em>How many bins should be put in a regular histogram</em>,
+ESAIM: Probability and Statistics 10:24–45 (2006). Penalised-likelihood counts,
+and the degeneracy that the guard in (8) is standing in for.</li>
+<li>L. Wasserman, <em>All of Nonparametric Statistics</em>, Springer (2006). Histogram
+entropy and the discretisation term in (5).</li>
+<li>F. T. Liu, K. M. Ting and Z.-H. Zhou, <em>Isolation forest</em>, ICDM (2008). The
+random-split alternative, and the atom in this chapter with the opposite failure
+profile.</li>
+<li>M. Goldstein and S. Uchida, <em>A comparative evaluation of unsupervised anomaly
+detection algorithms for multivariate data</em>, PLoS ONE 11(4):e0152173 (2016).
+Benchmarks HBOS against considerably slower multivariate detectors, and measures
+where the independence assumption costs it.</li>
+<li>C. C. Aggarwal, <em>Outlier Analysis</em>, 2nd ed., Springer (2017). The product-model
+assumption in the wider taxonomy of detectors.</li>
+<li>Z. Li, Y. Zhao, X. Hu, N. Botta, C. Ionescu and G. Chen, <em>ECOD: unsupervised
+outlier detection using empirical cumulative distribution functions</em>, TKDE
+(2023). The successor in this chapter: same per-feature decomposition, no bins.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="mahalanobis.html"><small>Previous</small><span>Mahalanobis / MCD</span></a><a class="next" href="autoencoder_anomaly.html"><small>Next</small><span>Autoencoder anomaly</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">09 · Density &amp; anomaly</p><ul class="rail-list"><li><a href="kde.html"><span class="tick">✓</span><span>Kernel density estimation</span></a></li><li><a href="isolation_forest.html"><span class="tick">✓</span><span>Isolation forest</span></a></li><li><a href="lof.html"><span class="tick">✓</span><span>Local outlier factor</span></a></li><li><a href="histogram_density.html"><span class="tick">✓</span><span>Histogram density</span></a></li><li><a href="mahalanobis.html"><span class="tick">✓</span><span>Mahalanobis / MCD</span></a></li><li><a href="hbos.html" aria-current="page"><span class="tick">✓</span><span>HBOS</span></a></li><li><a href="autoencoder_anomaly.html"><span class="tick">✓</span><span>Autoencoder anomaly</span></a></li><li><a href="change_point.html"><span class="tick">✓</span><span>Change-point detection</span></a></li><li><a href="elliptic_envelope.html"><span class="tick">✓</span><span>Elliptic envelope</span></a></li><li><a href="copod.html"><span class="tick">✓</span><span>COPOD</span></a></li><li><a href="extreme_value.html"><span class="tick">✓</span><span>Extreme value theory</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../08-manifold/index.html"><span class="jump">← 08 · Manifolds &amp; embeddings</span></a></li><li><a href="../10-sequences/index.html"><span class="jump">10 · Sequences&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-from-the-product-model-to-the-score">1. From the product model to the score</a></li><li class="lvl3"><a href="#2-why-the-chi-square-law-fails">2. Why the chi-square law fails</a></li><li class="lvl3"><a href="#3-the-bin-counts">3. The bin counts</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-scoring-one-feature">1. Scoring one feature</a></li><li class="lvl3"><a href="#2-the-leave-one-out-criterion">2. The leave-one-out criterion</a></li><li class="lvl3"><a href="#3-choosing-the-count">3. Choosing the count</a></li><li class="lvl3"><a href="#4-the-threshold">4. The threshold</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl3"><a href="#correlation-blindness">Correlation blindness</a></li><li class="lvl3"><a href="#the-threshold-is-not-the-one-in-the-paper">The threshold is not the one in the paper</a></li><li class="lvl3"><a href="#resolution-versus-shape">Resolution versus shape</a></li><li class="lvl3"><a href="#contamination-stretches-the-range">Contamination stretches the range</a></li><li class="lvl3"><a href="#saturation-outside-the-range">Saturation outside the range</a></li><li class="lvl3"><a href="#degenerate-and-discrete-features">Degenerate and discrete features</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/09-density-and-anomaly/hbos.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

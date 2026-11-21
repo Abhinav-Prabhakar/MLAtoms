@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaussian process regression · MLAtoms</title>
+<meta name="description" content="Kernels, posterior mean/variance and marginal likelihood by Cholesky. A Gaussian process is a distribution over functions: pick any finite set of inputs and…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/gaussian_process.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Gaussian process regression">
+<meta property="og:description" content="Kernels, posterior mean/variance and marginal likelihood by Cholesky. A Gaussian process is a distribution over functions: pick any finite set of inputs and…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/gaussian_process.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Gaussian process regression">
+<meta name="twitter:description" content="Kernels, posterior mean/variance and marginal likelihood by Cholesky. A Gaussian process is a distribution over functions: pick any finite set of inputs and…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Gaussian process regression", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/gaussian_process.html", "description": "Kernels, posterior mean/variance and marginal likelihood by Cholesky. A Gaussian process is a distribution over functions: pick any finite set of inputs and\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>9 variants</span><span class="page-meta__sep">/</span><a href="gaussian_process.py.html">source</a></p><h1>Gaussian process regression</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A Gaussian process is a distribution over <em>functions</em>: pick any finite set of
+inputs and the function's values there are jointly Gaussian. The covariance of
+that Gaussian is given by a kernel, which is where all modelling choices live.</p>
+<div class="math block">
+\[f \sim \mathcal{GP}(0, k), \qquad
+y = f(x) + \varepsilon, \quad \varepsilon \sim N(0, \sigma_n^2) \qquad (1)\]
+</div>
+<p>Because the prior is Gaussian and the likelihood is Gaussian, conditioning is
+linear algebra. No sampling loop, no gradient descent, no evidence lower bound:
+the posterior mean is <code>K* K⁻¹ y</code> and the posterior variance is
+<code>K** − K* K⁻¹ K*ᵀ</code>. Everything the model knows is a matrix inverse.</p>
+<p>The consequence that matters is that the model returns a <strong>distribution</strong>, not a
+point. <code>predict</code> gives a mean <em>and</em> a standard deviation, the standard deviation
+shrinks toward zero as you approach observed data, and it grows back to the
+prior when you leave the data behind. That is what makes GPs the default
+surrogate in Bayesian optimisation and active learning, and it is also why
+nobody uses them on a million rows: the inverse costs <code>O(n³)</code>.</p>
+<p>The kernel is the model. <code>rbf</code> says the function is infinitely differentiable;
+<code>matern</code> says it is differentiable a specific number of times; <code>periodic</code> says
+it repeats; <code>linear</code> says it is a line, and a GP with that kernel is exactly
+Bayesian linear regression. Composition (<code>sum_kernel</code>, <code>product_kernel</code>) is how
+a &quot;trend plus seasonal plus noise&quot; model gets built without a new algorithm.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Kernel</th>
+<th style="text-align:left">Say it when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rbf</code></td>
+<td style="text-align:left"><code>σ²exp(−r²/2ℓ²)</code></td>
+<td style="text-align:left">smooth, no reason to doubt infinite differentiability</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>matern</code></td>
+<td style="text-align:left"><code>(1+√3r)exp(−√3r)</code> per <code>ν</code></td>
+<td style="text-align:left">physical data; <code>ν = 1/2</code> gives rough, OU-like paths</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rational_quadratic</code></td>
+<td style="text-align:left"><code>σ²(1+r²/2αℓ²)^{−α}</code></td>
+<td style="text-align:left">a mixture of length scales (heavy-tailed spectrum)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>periodic</code></td>
+<td style="text-align:left"><code>σ²exp(−2sin²(πΔ/p)/ℓ²)</code></td>
+<td style="text-align:left">a hard period <code>p</code>: orbits, seasons, duty cycles</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>linear</code></td>
+<td style="text-align:left"><code>σ²xᵀx'</code></td>
+<td style="text-align:left">you want to <em>prove</em> it is ridge regression</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sum_kernel</code></td>
+<td style="text-align:left"><code>k₁ + k₂</code></td>
+<td style="text-align:left">trend plus local wiggle, additive structure</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>product_kernel</code></td>
+<td style="text-align:left"><code>k₁ · k₂</code></td>
+<td style="text-align:left">periodicity whose amplitude decays away from the trend</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sparse_gp</code></td>
+<td style="text-align:left"><code>K ≈ K_nm K_mm⁻¹ K_mn</code></td>
+<td style="text-align:left"><code>n</code> too large for <code>O(n³)</code>; <code>m</code> inducing points</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>warped</code></td>
+<td style="text-align:left"><code>y = log(z − a)</code></td>
+<td style="text-align:left">positive, skewed targets; a plain GP over-smooths the peaks</td>
+</tr>
+</tbody>
+</table>
+<p>The first seven change the <em>prior</em>; the last two change the <em>computation</em>.
+<code>sparse_gp</code> trades a little accuracy for a much smaller matrix, and <code>warped</code>
+changes the observation model rather than the function class.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="conditioning-a-joint-gaussian">Conditioning a joint Gaussian <a class="header-anchor" href="#conditioning-a-joint-gaussian">#</a></h3>
+<p>Stack the observed outputs and the values at test inputs:</p>
+<div class="math block">
+\[\begin{bmatrix} y \\ f_* \end{bmatrix} \sim
+N\!\left(0, \begin{bmatrix} K + \sigma_n^2 I & K_* \\ K_*^\top & K_{**}\end{bmatrix}\right),
+\qquad (2)\]
+</div>
+<p>with <code>K = k(X,X)</code>, <code>K_* = k(X,X_*)</code>, <code>K_{**} = k(X_*,X_*)</code>. The conditional of a
+partitioned Gaussian is the Schur complement:</p>
+<div class="math block">
+\[\mu_* = K_*^\top (K+\sigma_n^2I)^{-1} y, \qquad
+\Sigma_* = K_{**} - K_*^\top (K+\sigma_n^2I)^{-1} K_*. \qquad (3)\]
+</div>
+<p>That is the whole algorithm, and every implementation detail below exists to
+compute it without ever forming an inverse.</p>
+<h3 id="cholesky-not-inverse">Cholesky, not inverse <a class="header-anchor" href="#cholesky-not-inverse">#</a></h3>
+<p>Let <code>K + σ²I = LLᵀ</code>. Then <code>α = L⁻ᵀL⁻¹y</code> and <code>v = L⁻¹K_*</code>, so</p>
+<div class="math block">
+\[\mu_* = K_*^\top\alpha, \qquad
+\Sigma_* = K_{**} - v^\top v. \qquad (4)\]
+</div>
+<p>Two triangular solves per prediction, no <code>np.linalg.inv</code> anywhere. The variance
+is a difference of two positive numbers, which is why it is clipped at zero in
+the code — with a badly conditioned <code>K</code> the subtraction can go slightly
+negative, and a negative variance is a silent <code>nan</code> in the standard deviation.</p>
+<h3 id="the-evidence-choosing-a-kernel-without-a-validation-set">The evidence: choosing a kernel without a validation set <a class="header-anchor" href="#the-evidence-choosing-a-kernel-without-a-validation-set">#</a></h3>
+<p>The marginal likelihood of the data under the prior is available in closed form
+because everything is Gaussian:</p>
+<div class="math block">
+\[\log p(y \mid X) = -\tfrac12 y^\top(K+\sigma_n^2I)^{-1}y
+- \tfrac12\log\lvert K+\sigma_n^2I\rvert - \tfrac{n}{2}\log 2\pi. \qquad (5)\]
+</div>
+<p>The first term rewards fitting the data; the second is an <strong>Occam factor</strong> — a
+kernel that claims the data is surprising has a small <code>|K|</code>, and the log
+determinant punishes it. This is the principled way to compare <code>rbf</code> against
+<code>matern</code> on the same data, and it is why the demo reports both RMSE and
+evidence: they do not have to agree, and the disagreement is informative.</p>
+<h3 id="the-kernels">The kernels <a class="header-anchor" href="#the-kernels">#</a></h3>
+<p><em>RBF.</em> Stationary, isotropic, infinitely mean-square differentiable:</p>
+<div class="math block">
+\[k(x,x') = \sigma_f^2\exp\!\left(-\frac{\lVert x-x'\rVert^2}{2\ell^2}\right). \qquad (6)\]
+</div>
+<p><em>Matérn.</em> The spectral density is a Student-t, so the sample paths are only
+<code>ν</code>-times differentiable in mean square. Only half-integer <code>ν</code> avoid a Bessel
+function, and those are the three that matter:</p>
+<div class="math block">
+\[k_{1/2} = e^{-r}, \qquad k_{3/2} = (1+\sqrt3 r)e^{-\sqrt3 r}, \qquad
+k_{5/2} = (1+\sqrt5 r+\tfrac53 r^2)e^{-\sqrt5 r}, \qquad (7)\]
+</div>
+<p>with <code>r = ‖x−x'‖/ℓ</code>. <code>ν = 1/2</code> is the Ornstein–Uhlenbeck process: continuous
+everywhere, differentiable nowhere. <code>ν → ∞</code> recovers the RBF. If a fitted RBF
+looks too smooth for the data, the fix is a Matérn, not a smaller length scale.</p>
+<p><em>Rational quadratic.</em> An infinite scale mixture of RBFs, <code>ℓ</code> distributed
+inverse-gamma:</p>
+<div class="math block">
+\[k = \sigma_f^2\left(1+\frac{r^2}{2\alpha\ell^2}\right)^{-\alpha},
+\qquad \alpha \to \infty \text{ gives RBF}. \qquad (8)\]
+</div>
+<p><em>Periodic.</em> Correlation depends on <code>sin</code> of the distance, so it is exactly
+periodic in <code>p</code> and smooth in between:</p>
+<div class="math block">
+\[k = \sigma_f^2\exp\!\left(-\frac{2\sin^2(\pi\lvert x-x'\rvert/p)}{\ell^2}\right). \qquad (9)\]
+</div>
+<p><em>Linear.</em> <code>k = σ_f² xᵀx'</code>. Substituting into (4) and using Woodbury gives</p>
+<div class="math block">
+\[\mu_* = x_*^\top\left(X^\top X + \frac{\sigma_n^2}{\sigma_f^2}I\right)^{-1}X^\top y,
+\qquad (10)\]
+</div>
+<p>which is ridge regression with <code>λ = σ_n²/\sigma_f²</code> and no intercept. A GP with
+a linear kernel <em>is</em> a Bayesian linear model — the prior on <code>w</code> is
+<code>N(0, I/σ_f²)</code>. The demo asserts this to <code>1e-8</code>, which is a much stronger test
+of the GP solver than any regression score.</p>
+<p><em>Composition.</em> Covariances of independent functions add when the functions add
+and multiply when the functions multiply, so</p>
+<div class="math block">
+\[k_{1+2} = k_1 + k_2, \qquad k_{1\cdot2} = k_1\,k_2, \qquad (11)\]
+</div>
+<p>and the result is a valid kernel because the pointwise operations preserve
+positive semi-definiteness (Schur product theorem for the product). That is the
+entire &quot;automatic statistician&quot; idea: a grammar of kernels, and one search over
+it.</p>
+<h3 id="sparse-replace-k_nn-by-a-low-rank-approximation">Sparse: replace <code>K_nn</code> by a low-rank approximation <a class="header-anchor" href="#sparse-replace-k_nn-by-a-low-rank-approximation">#</a></h3>
+<p>With <code>m</code> inducing points <code>Z</code>, the subset-of-regressors approximation is</p>
+<div class="math block">
+\[K_{nn} \approx Q = K_{nm}K_{mm}^{-1}K_{mn}, \qquad (12)\]
+</div>
+<p>which is the exact covariance if the function is determined by its values at
+<code>Z</code>. Substituting into (3) would form an <code>n×n</code> matrix; the Woodbury identity
+keeps everything at <code>m×m</code>. Writing <code>A = L_m^{-1}K_{mn}</code> (so <code>Q = A^\top A</code>) and
+<code>B = \sigma_n^2 I_m + AA^\top</code>:</p>
+<div class="math block">
+\[(Q+\sigma_n^2I)^{-1} = \sigma_n^{-2}\left(I - A^\top B^{-1}A\right), \qquad
+\lvert Q+\sigma_n^2I\rvert = \sigma_n^{2(n-m)}\lvert B\rvert, \qquad (13)\]
+</div>
+<p>so both the mean and the evidence cost <code>O(nm²)</code> and no <code>n×n</code> matrix is allocated.
+The price is a variance that is too small between inducing points, because the
+approximation is exact only <em>on</em> the manifold spanned by <code>k(·, Z)</code>.</p>
+<h3 id="warped-a-gaussian-process-for-a-non-gaussian-target">Warped: a Gaussian process for a non-Gaussian target <a class="header-anchor" href="#warped-a-gaussian-process-for-a-non-gaussian-target">#</a></h3>
+<p>If <code>y</code> is positive and skewed, a GP on <code>y</code> wastes its prior on impossible values
+and over-smooths the peaks. Warped GPs put the GP on a transformed scale,</p>
+<div class="math block">
+\[g(y) = \log(y - a), \qquad p(y) = p(g)\,\lvert g'(y)\rvert,
+\qquad \log p(y) = \log p(g) - \log(y-a), \qquad (14)\]
+</div>
+<p>and choose <code>a</code> by maximising that Jacobian-corrected likelihood. Forgetting the
+Jacobian term is the classic bug: it biases <code>a</code> toward the boundary and makes
+the warp look better than it is.</p>
+<p>Prediction has to come back through a non-linear map, and the mean of a
+log-normal is not the exponential of the mean:</p>
+<div class="math block">
+\[\mathbb{E}[y] = a + e^{\mu+\sigma^2/2}, \qquad
+\mathrm{Var}[y] = e^{2\mu+\sigma^2}\left(e^{\sigma^2}-1\right). \qquad (15)\]
+</div>
+<p>That <code>σ²/2</code> is not a detail — it is the difference between a calibrated
+prediction and one that is biased low by exactly the uncertainty.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>sqdist</code> is the only geometry primitive in the file, and it uses the expansion
+<code>‖a−b‖² = ‖a‖² + ‖b‖² − 2a·b</code> so nothing of size <code>n×m×d</code> is ever allocated. The
+clip matters: floating point can return <code>-1e-17</code> for a point against itself, and
+<code>sqrt</code> of that is <code>nan</code>:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">sqdist</span><span class="p">(</span><span class="n">A</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">B</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""`‖a − b‖²` for every pair, without forming the `n×m×d` tensor."""</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="p">(</span><span class="n">A</span> <span class="o">*</span> <span class="n">A</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">B</span> <span class="o">*</span> <span class="n">B</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">A</span> <span class="o">@</span> <span class="n">B</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>Every kernel is a <code>__call__(A, B)</code> plus a <code>diag</code>, and the diag override is the
+reason prediction is <code>O(n)</code> per point rather than <code>O(n²)</code>: the diagonal of an RBF
+Gram matrix is the constant <code>σ_f²</code>, and computing it as <code>np.diag(self(A, A))</code>
+would build the whole matrix to read <code>n</code> entries:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">):</span>
+        <span class="n">r2</span> <span class="o">=</span> <span class="n">sqdist</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">length_scale</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_f</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">r2</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">diag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_f</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+</code></pre>
+<p>The Matérn branch is a lookup, but the <code>ν</code> guard is load-bearing: <code>ν = 1</code> has no
+closed form without a Bessel function and silently returns the wrong kernel if
+it is allowed through:</p>
+<pre class="highlight"><code>        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">sqdist</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">))</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">length_scale</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nu</span> <span class="o">==</span> <span class="mf">0.5</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">r</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">nu</span> <span class="o">==</span> <span class="mf">1.5</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">3.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">r</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">s</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">5.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">r</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">s</span> <span class="o">+</span> <span class="n">s</span> <span class="o">*</span> <span class="n">s</span> <span class="o">/</span> <span class="mf">3.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">s</span><span class="p">)</span>
+</code></pre>
+<p><code>_solve</code> is the numerical core: one Cholesky, two triangular solves, and the
+evidence accumulated at the same time. <code>np.log(np.diag(L)).sum()</code> is the
+log-determinant, and it is the only way to get it without underflow:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Cholesky of `K + σ²I`, the linear solve, and the log-likelihood."""</span>
+        <span class="n">s2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_n</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">s2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">jitter</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+        <span class="n">ll</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">y</span> <span class="o">@</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">L</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+              <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">y</span><span class="o">.</span><span class="n">size</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">L</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">ll</span><span class="p">)</span>
+</code></pre>
+<p>Prediction is (4) twice — once for the mean, once for the variance. Solving with
+<code>L</code> rather than forming <code>K⁻¹</code> is <code>O(n²)</code> per test point instead of <code>O(n³)</code>:</p>
+<pre class="highlight"><code>        <span class="n">Ks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X_</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">Ks</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_L</span><span class="p">,</span> <span class="n">Ks</span><span class="p">)</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">v</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mean</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">var</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>The sparse fit is (13) in six lines. <code>A</code> is <code>L_m⁻¹K_mn</code>, <code>B</code> is the <code>m×m</code>
+matrix the Woodbury identity asks for, and <code>w</code> is <code>(Q+σ²I)⁻¹y</code> computed without
+ever knowing <code>Q</code>:</p>
+<pre class="highlight"><code>        <span class="n">Kmm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">Z</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">jitter</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+        <span class="n">Lm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">Kmm</span><span class="p">)</span>
+        <span class="c1"># A = Lm⁻¹ K_mn, so that Q = AᵀA = K_nm K_mm⁻¹ K_mn</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">Lm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">X</span><span class="p">))</span>              <span class="c1"># (m, n)</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="n">s2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">+</span> <span class="n">A</span> <span class="o">@</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span>                             <span class="c1"># (m, m)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">A</span> <span class="o">@</span> <span class="n">y</span><span class="p">)</span>                            <span class="c1"># (m,)</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">c</span><span class="p">)</span> <span class="o">/</span> <span class="n">s2</span>                                   <span class="c1"># (Q+σ²I)⁻¹ y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inducing_mean_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">Lm</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">A</span> <span class="o">@</span> <span class="n">w</span><span class="p">)</span>       <span class="c1"># K_mm⁻¹K_mn w</span>
+</code></pre>
+<p>The warping objective is the marginal likelihood of the <em>transformed</em> data minus
+<code>Σ log z</code>, the Jacobian of (14). One line of golden-section search over <code>θ</code>
+recovers the offset, and there is no gradient because there is only one
+parameter:</p>
+<pre class="highlight"><code>        <span class="k">def</span><span class="w"> </span><span class="nf">objective</span><span class="p">(</span><span class="n">theta</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">ymin</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">a</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">z</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">return</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ll</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solve</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ll</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">z</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>      <span class="c1"># the Jacobian of the warping</span>
+</code></pre>
+<p>Back-transforming is where a warped GP quietly goes wrong. Both the mean and the
+variance need the <code>σ²/2</code> term, and the observation noise enters scaled by
+<code>(dg/dz)² = e^{2g}</code>:</p>
+<pre class="highlight"><code>            <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">mean</span><span class="p">)</span>
+            <span class="n">ymean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">warp_a_</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">mean</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">var</span><span class="p">)</span>
+            <span class="n">yvar</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">expm1</span><span class="p">(</span><span class="n">var</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_n</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">ymean</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">yvar</span><span class="p">))</span> <span class="k">if</span> <span class="n">return_std</span> <span class="k">else</span> <span class="n">ymean</span>
+</code></pre>
+<p>Sampling needs the full posterior covariance, not just its diagonal. Drawing
+<code>N(mean_i, var_i)</code> independently at each point would match the marginals and
+produce white noise instead of smooth functions, so <code>_posterior_cov</code> forms the
+Schur complement and <code>sample</code> takes its square root:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_posterior_cov</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""`K** − K*ᵀ K⁻¹ K*`: the covariance `predict` only reports the diagonal of."""</span>
+        <span class="n">Kss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"sparse_gp"</span><span class="p">:</span>
+            <span class="n">Ksm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inducing_</span><span class="p">)</span>                  <span class="c1"># (n*, m)</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">Kss</span> <span class="o">-</span> <span class="n">Ksm</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Lm</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Lm</span><span class="p">,</span> <span class="n">Ksm</span><span class="o">.</span><span class="n">T</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_L</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X_</span><span class="p">,</span> <span class="n">X</span><span class="p">))</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">Kss</span> <span class="o">-</span> <span class="n">v</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">v</span>
+        <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">C</span> <span class="o">+</span> <span class="n">C</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><code>n</code> training points, <code>n_*</code> test points, <code>d</code> dimensions, <code>m</code> inducing points.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Stage</th>
+<th style="text-align:left">Exact GP</th>
+<th style="text-align:left">Sparse GP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>fit</code></td>
+<td style="text-align:left"><code>O(n³)</code> (Cholesky)</td>
+<td style="text-align:left"><code>O(nm² + m³)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">memory</td>
+<td style="text-align:left"><code>O(n²)</code></td>
+<td style="text-align:left"><code>O(nm)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>predict</code> mean</td>
+<td style="text-align:left"><code>O(nn_*)</code></td>
+<td style="text-align:left"><code>O(mn_*)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>predict</code> variance</td>
+<td style="text-align:left"><code>O(n²n_*)</code></td>
+<td style="text-align:left"><code>O(m²n_*)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sample</code></td>
+<td style="text-align:left"><code>O(n³ + n²n_*)</code></td>
+<td style="text-align:left"><code>O(n_*³)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>n³</code> is the wall. A laptop handles <code>n</code> in the low thousands; beyond that the
+matrix alone does not fit and an approximation is not optional. Kernel
+composition does not change the asymptotics — a sum of twenty kernels is still
+one <code>n×n</code> Cholesky — it only changes the constant by the number of terms.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The <code>n³</code> wall.</strong> At <code>n = 10⁴</code> the <code>K</code> matrix is 800 MB and a Cholesky is
+<code>10¹²</code> flops; at <code>n = 10⁵</code> it is impossible. The diagnostic is simply the size of
+the data. The fix is inducing points (<code>sparse_gp</code>), a variational bound, or a
+different model — not a bigger machine.</p>
+<p><strong>The length scale is the model, and it is not fitted here.</strong> Hyperparameters
+are inputs in this file. A length scale much smaller than the typical spacing
+makes the GP interpolate noise and grow spurious wiggles between points; much
+larger than the data range makes it a constant. The diagnostic is the evidence
+from (5) compared across a grid of <code>ℓ</code>, and the fix is an optimiser over it
+(which is <code>01-optimization</code>'s problem, not this atom's).</p>
+<p><strong>Duplicate points plus a tiny noise floor.</strong> Two identical rows make <code>K</code>
+exactly singular, and <code>cholesky</code> raises <code>LinAlgError</code> rather than producing a
+bad answer. <code>jitter</code> in the constructor is the fix; the diagnostic is the
+exception itself, or <code>np.linalg.eigvalsh(K).min() ≤ 0</code>.</p>
+<p><strong>Confident in the wrong direction.</strong> Away from the data the variance returns to
+<code>k(x,x)</code>, which looks reassuring, but &quot;away&quot; is measured in the kernel's metric.
+In high dimensions every test point is far from every training point under
+<code>‖·‖</code>, so the GP reports near-prior uncertainty everywhere and still returns a
+mean that extrapolates linearly. The signal is a predictive band that never
+shrinks regardless of how much data you add.</p>
+<p><strong>A wrong warp is worse than no warp.</strong> <code>warped</code> assumes a specific one-parameter
+family. If the target is skewed in a way <code>log(y−a)</code> cannot represent, the
+Jacobian term can make the likelihood prefer a <code>a</code> that flattens the data, and
+the fit degrades below the plain GP. Compare the two on held-out data — the demo
+does — rather than trusting the training evidence alone.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Bayesian optimisation is the flagship: the GP is cheap to update and its
+variance is exactly the exploration signal an acquisition function needs.
+Surrogate modelling and computer-experiment emulation are the same use case with
+a different name — fit a GP to 200 expensive simulations, optimise the cheap
+surrogate. Kriging in geostatistics is a GP with a Matérn kernel under a
+different vocabulary.</p>
+<p>Time series with honest error bars, active learning (query where the variance
+is largest), and calibration of simulation models all lean on the same two
+formulas. Kernel composition is what makes it practical: <code>sum_kernel</code> of a
+linear trend and a periodic component is a seasonal regression with a
+principled uncertainty band.</p>
+<p>Where it is a trap: high-dimensional inputs (<code>d &gt; 20</code> needs a learned metric or
+a deep kernel), more than a few thousand points, non-stationary processes
+(a GP assumes the same smoothness everywhere), and any setting where only the
+point prediction matters — a gradient-boosted tree will be faster and often more
+accurate.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>C. E. Rasmussen and C. K. I. Williams, <em>Gaussian Processes for Machine
+Learning</em>, MIT Press 2006 — the reference; chapters 2 and 5 cover everything
+here, and chapter 8 the approximations.</li>
+<li>M. L. Stein, <em>Interpolation of Spatial Data</em>, Springer 1999 — the Matérn
+family and why the smoothness parameter is not cosmetic.</li>
+<li>J. Quiñonero-Candela and C. E. Rasmussen, <em>A unifying view of sparse
+approximate Gaussian process regression</em>, JMLR 6 (2005) — SoR, DTC, FITC and
+the rest, in one framework.</li>
+<li>E. Snelson and Z. Ghahramani, <em>Warped Gaussian processes</em>, NeurIPS 2004 — the
+warping, the Jacobian, and why the mean needs the variance term.</li>
+<li>D. Duvenaud, <em>Automatic model construction with Gaussian processes</em>, PhD
+thesis, Cambridge 2014 — the kernel grammar behind <code>sum_kernel</code> and
+<code>product_kernel</code>.</li>
+<li>C. K. I. Williams and D. Barber, <em>Bayesian classification with Gaussian
+processes</em>, IEEE TPAMI 20 (1998) — the Woodbury and determinant identities
+that make the sparse variant <code>O(nm²)</code>.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="discriminant_analysis.html"><small>Previous</small><span>Discriminant analysis</span></a><a class="next" href="bayesian_inference.html"><small>Next</small><span>Bayesian inference</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html" aria-current="page"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#conditioning-a-joint-gaussian">Conditioning a joint Gaussian</a></li><li class="lvl3"><a href="#cholesky-not-inverse">Cholesky, not inverse</a></li><li class="lvl3"><a href="#the-evidence-choosing-a-kernel-without-a-validation-set">The evidence: choosing a kernel without a validation set</a></li><li class="lvl3"><a href="#the-kernels">The kernels</a></li><li class="lvl3"><a href="#sparse-replace-k_nn-by-a-low-rank-approximation">Sparse: replace Knn by a low-rank approximation</a></li><li class="lvl3"><a href="#warped-a-gaussian-process-for-a-non-gaussian-target">Warped: a Gaussian process for a non-Gaussian target</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/gaussian_process.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

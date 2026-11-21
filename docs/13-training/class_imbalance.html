@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class imbalance · MLAtoms</title>
+<meta name="description" content="SMOTE, ADASYN, focal loss and threshold moving. A classifier trained on 300 majority and 30 minority points will usually predict the majority class and be…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/class_imbalance.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Class imbalance">
+<meta property="og:description" content="SMOTE, ADASYN, focal loss and threshold moving. A classifier trained on 300 majority and 30 minority points will usually predict the majority class and be…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/class_imbalance.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Class imbalance">
+<meta name="twitter:description" content="SMOTE, ADASYN, focal loss and threshold moving. A classifier trained on 300 majority and 30 minority points will usually predict the majority class and be…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Class imbalance", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/class_imbalance.html", "description": "SMOTE, ADASYN, focal loss and threshold moving. A classifier trained on 300 majority and 30 minority points will usually predict the majority class and be\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="class_imbalance.py.html">source</a></p><h1>Class imbalance — eight remedies for a skewed dataset</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A classifier trained on 300 majority and 30 minority points will usually
+predict the majority class and be right 91% of the time. That number is worse
+than useless: it hides the only thing you cared about. Balanced accuracy —
+the average of the per-class recalls — is 0.717 for the same model, and the
+minority recall is 0.467.</p>
+<p>There are three places to intervene. Resample the training set: SMOTE
+interpolates new minority points, ADASYN puts them where the minority is most
+outnumbered, borderline-SMOTE only near the frontier, Tomek links and edited
+nearest neighbours remove ambiguous majority points instead. Change the loss:
+inverse-frequency weights give each class the same total mass, and focal loss
+down-weights the easy examples that dominate a skewed gradient. Or keep the
+model and move the decision threshold afterwards.</p>
+<p>On the demo the plain model scores 0.717 balanced and 0.921 plain accuracy.
+SMOTE reaches 0.873, class weights 0.872, threshold moving 0.867, focal 0.860,
+and two under-samplers do less (0.777 and 0.688). The methods converge on the
+same answer because they are all correcting the same prior; the differences
+show up in what they cost and what they break.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">intervenes</th>
+<th style="text-align:left">changes</th>
+<th style="text-align:left">keeps</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>smote</code></td>
+<td style="text-align:left">data</td>
+<td style="text-align:left">interpolates minority points</td>
+<td style="text-align:left">all rows</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adasyn</code></td>
+<td style="text-align:left">data</td>
+<td style="text-align:left">interpolation, density-weighted</td>
+<td style="text-align:left">all rows</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>borderline_smote</code></td>
+<td style="text-align:left">data</td>
+<td style="text-align:left">interpolation near the frontier</td>
+<td style="text-align:left">all rows</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tomek</code></td>
+<td style="text-align:left">data</td>
+<td style="text-align:left">removes linked majority points</td>
+<td style="text-align:left">318 of 330</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>enn</code></td>
+<td style="text-align:left">data</td>
+<td style="text-align:left">removes misclassified points</td>
+<td style="text-align:left">308 of 330</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>focal</code></td>
+<td style="text-align:left">loss</td>
+<td style="text-align:left"><span class="math inline">\((1-p_t)^\gamma\)</span> modulation</td>
+<td style="text-align:left">all rows</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>class_weight</code></td>
+<td style="text-align:left">loss</td>
+<td style="text-align:left">inverse-frequency weights</td>
+<td style="text-align:left">all rows</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>threshold_moving</code></td>
+<td style="text-align:left">decision</td>
+<td style="text-align:left">threshold tuned on a split</td>
+<td style="text-align:left">all rows</td>
+</tr>
+</tbody>
+</table>
+<p>One logistic classifier, eight treatments. The five resamplers run before the
+fit, the two losses during it, and threshold moving after it; everything else
+is shared.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-metric">The metric <a class="header-anchor" href="#the-metric">#</a></h3>
+<p>With prior <span class="math inline">\(\pi=\Pr(y=1)\)</span> and predictions <span class="math inline">\(\hat y\)</span>, plain accuracy is</p>
+<div class="math block">
+\[\mathrm{acc}=\pi\,\mathrm{TPR}+(1-\pi)\,\mathrm{TNR},
+\qquad (1)\]
+</div>
+<p>so at <span class="math inline">\(\pi=0.091\)</span> a model with <span class="math inline">\(\mathrm{TPR}=0\)</span> and <span class="math inline">\(\mathrm{TNR}=1\)</span> scores
+0.909. Balanced accuracy removes the prior:</p>
+<div class="math block">
+\[\mathrm{BA}=\tfrac12\left(\mathrm{TPR}+\mathrm{TNR}\right),
+\qquad (2)\]
+</div>
+<p>and it is the number every table in this atom reports. The demo's plain model
+scores 0.921 plain and 0.717 balanced, with 0.467 minority recall.</p>
+<h3 id="the-plain-model-and-its-gradient">The plain model and its gradient <a class="header-anchor" href="#the-plain-model-and-its-gradient">#</a></h3>
+<p>The classifier is a logistic regression on the two input features,
+<span class="math inline">\(p=\sigma(w^\top x+b)\)</span>, trained by full-batch gradient descent on</p>
+<div class="math block">
+\[L_{\mathrm{CE}}=-\frac1n\sum_i\left[y_i\log p_i
++(1-y_i)\log(1-p_i)\right],\qquad
+\nabla_w L=\frac1n\sum_i (p_i-y_i)x_i.
+\qquad (3)\]
+</div>
+<p>Each majority point contributes the same gradient as each minority point, so
+the majority class sets the boundary. That is the whole mechanism of the skew,
+and every loss-based remedy below is a different way of reweighting (3).</p>
+<h3 id="class-weights">Class weights <a class="header-anchor" href="#class-weights">#</a></h3>
+<p>Give each class the same total mass:</p>
+<div class="math block">
+\[w_i=\frac{1}{2\,\mathrm{count}(y_i)},\qquad
+\nabla_w L=\sum_i w_i(p_i-y_i)x_i .
+\qquad (4)\]
+</div>
+<p>With 300 and 30 points the minority point carries <span class="math inline">\(300/30=10\)</span> times the weight
+of a majority point, in the sense that the two class totals are equal. The
+demo's <code>class_weight</code> uses exactly this and reaches 0.872, close to SMOTE's
+0.873. It costs nothing at training time and nothing at inference time, which
+is why it is the default first attempt.</p>
+<h3 id="focal-loss">Focal loss <a class="header-anchor" href="#focal-loss">#</a></h3>
+<p>Focal loss multiplies the cross-entropy by a factor that vanishes for easy
+examples:</p>
+<div class="math block">
+\[L_{\mathrm{focal}}=-\alpha_t\,(1-p_t)^{\gamma}\log p_t,
+\qquad (5)\]
+</div>
+<p>with <span class="math inline">\(p_t=p\)</span> for a positive and <span class="math inline">\(1-p\)</span> for a negative. For <span class="math inline">\(\gamma=2\)</span> a point
+the model already gets right at <span class="math inline">\(p_t=0.9\)</span> contributes <span class="math inline">\(0.01\)</span> of its loss, and
+a point at <span class="math inline">\(p_t=0.5\)</span> contributes <span class="math inline">\(0.25\)</span>. The gradient used in the code is the
+exact derivative of (5) with respect to the logit; for a positive point,</p>
+<div class="math block">
+\[\frac{\partial L}{\partial z}
+=(1-p)^{\gamma}\left[\gamma p\log p-(1-p)\right],
+\qquad (6)\]
+</div>
+<p>and the negative case is the same expression with <span class="math inline">\(p\leftrightarrow 1-p\)</span>. The
+demo uses <span class="math inline">\(\alpha=0.9\)</span> for the minority, so focal combines the reweighting of
+(4) with the hard-example focus of (5); without the <span class="math inline">\(\alpha\)</span> term it reaches
+only 0.75, because down-weighting the easy majority is not the same as
+up-weighting the rare class.</p>
+<h3 id="threshold-moving">Threshold moving <a class="header-anchor" href="#threshold-moving">#</a></h3>
+<p>A model trained at prior <span class="math inline">\(\pi\)</span> estimates <span class="math inline">\(p(y=1\mid x)\)</span> under that prior. To
+decide as if the classes were balanced, shift the odds:</p>
+<div class="math block">
+\[\frac{p'}{1-p'}=\frac{p}{1-p}\cdot\frac{1-\pi}{\pi},
+\qquad (7)\]
+</div>
+<p>so <span class="math inline">\(p'\ge\frac12\)</span> exactly when <span class="math inline">\(p\ge\pi\)</span>. The optimal threshold under balanced
+accuracy is therefore</p>
+<div class="math block">
+\[\tau^\star=\pi,
+\qquad (8)\]
+</div>
+<p>which for the demo is 0.091. The code does not use the closed form; it tunes
+the threshold on a stratified 25% split of the training set and finds 0.10,
+then retrains on everything. The agreement is not a coincidence: the closed
+form is the population version of exactly the quantity the split estimates.</p>
+<h3 id="smote">SMOTE <a class="header-anchor" href="#smote">#</a></h3>
+<p>SMOTE synthesises a point on the segment between a minority point and one of
+its <span class="math inline">\(k\)</span> minority neighbours:</p>
+<div class="math block">
+\[x_{\mathrm{new}}=x_i+\lambda\left(x_{nn(i)}-x_i\right),\qquad
+\lambda\sim U(0,1).
+\qquad (9)\]
+</div>
+<p>The demo adds 270 points, bringing the set to 600 and the minority share to
+0.5, and reaches 0.873. The assumption is that the minority class is locally
+connected: interpolating between two minority points stays in the minority
+region. When the minority is a set of separated clusters, or when the nearest
+minority neighbour is across a majority region, (9) manufactures points in
+places the data never occupied.</p>
+<h3 id="borderline-smote-and-adasyn">Borderline-SMOTE and ADASYN <a class="header-anchor" href="#borderline-smote-and-adasyn">#</a></h3>
+<p>Borderline-SMOTE only interpolates from points that are in danger — minority
+points whose <span class="math inline">\(k\)</span> nearest neighbours in the whole set are mostly majority:</p>
+<div class="math block">
+\[\mathcal D=\{i:y_i=1,\ \textstyle\sum_{j\in\mathrm{kNN}(i)}
+\mathbf{1}[y_j=0]\ge k/2\}.
+\qquad (10)\]
+</div>
+<p>ADASYN keeps all minority points but allocates synthetic points in proportion
+to the same majority fraction:</p>
+<div class="math block">
+\[r_i=\frac{1}{k}\sum_{j\in\mathrm{kNN}(i)}\mathbf{1}[y_j=0],\qquad
+n_i=\left\lfloor n_{\mathrm{new}}\frac{r_i}{\sum_j r_j}\right\rfloor .
+\qquad (11)\]
+</div>
+<p>The demo's borderline variant adds 270 points from the danger set and reaches
+0.847; ADASYN adds 261 and reaches 0.858. Both are more selective than plain
+SMOTE, and both pay for it with fewer new points in the interior where the
+class is already easy.</p>
+<h3 id="tomek-links-and-edited-nearest-neighbours">Tomek links and edited nearest neighbours <a class="header-anchor" href="#tomek-links-and-edited-nearest-neighbours">#</a></h3>
+<p>A Tomek link is a pair of opposite-class points that are each other's nearest
+neighbour:</p>
+<div class="math block">
+\[(i,j)\ \text{is a link}\iff nn(i)=j,\ nn(j)=i,\ y_i\ne y_j .
+\qquad (12)\]
+</div>
+<p>Removing the majority member of each link cleans the boundary without touching
+the class balance. Edited nearest neighbours is stronger: drop any point whose
+class disagrees with the majority of its <span class="math inline">\(k\)</span> neighbours. The demo removes 12
+majority points with Tomek (330 → 318, 0.777) and 22 with ENN (330 → 308,
+0.688). Cleaning the frontier does not fix the prior, and ENN makes balanced
+accuracy slightly worse by pulling the boundary further into the minority.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>SMOTE needs the minority set, its neighbour graph, and a uniform draw per
+synthetic point:</p>
+<pre class="highlight"><code>    <span class="n">picks</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">majority_count</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">peers</span> <span class="o">=</span> <span class="n">order</span><span class="p">[</span><span class="n">picks</span><span class="p">,</span> <span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">order</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">majority_count</span><span class="p">)]</span>
+    <span class="n">fraction</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="n">majority_count</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">synthetic</span> <span class="o">=</span> <span class="n">minority</span><span class="p">[</span><span class="n">picks</span><span class="p">]</span> <span class="o">+</span> <span class="n">fraction</span> <span class="o">*</span> <span class="p">(</span><span class="n">minority</span><span class="p">[</span><span class="n">peers</span><span class="p">]</span>
+                                              <span class="o">-</span> <span class="n">minority</span><span class="p">[</span><span class="n">picks</span><span class="p">])</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">synthetic</span><span class="p">]),</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">y</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">majority_count</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)]))</span>
+</code></pre>
+<p>The borderline variant differs only in which rows become <code>source</code>: a point is
+in danger when at least half of its full-set neighbours are majority:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">borderline</span><span class="p">:</span>
+        <span class="n">overall</span> <span class="o">=</span> <span class="n">_neighbours</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">danger</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">overall</span><span class="p">[</span><span class="n">row</span><span class="p">]]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">&gt;=</span> <span class="n">k</span>
+                           <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">index</span><span class="p">])</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">danger</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
+            <span class="n">source</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">minority</span><span class="p">))</span>
+</code></pre>
+<p>ADASYN computes the same fraction as a continuous ratio and uses it as the
+allocation:</p>
+<pre class="highlight"><code>    <span class="n">overall</span> <span class="o">=</span> <span class="n">_neighbours</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">overall</span><span class="p">[</span><span class="n">row</span><span class="p">]]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">index</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">ratio</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+        <span class="n">ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">minority</span><span class="p">))</span>
+    <span class="n">share</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">target</span> <span class="o">*</span> <span class="n">ratio</span> <span class="o">/</span> <span class="n">ratio</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+</code></pre>
+<p>Tomek links are mutual-nearest-neighbour pairs; the majority member is the one
+that goes, and a mutual check is what distinguishes a link from a one-sided
+nearest neighbour:</p>
+<pre class="highlight"><code>    <span class="n">drop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)):</span>
+        <span class="n">partner</span> <span class="o">=</span> <span class="n">nearest</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">y</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">!=</span> <span class="n">y</span><span class="p">[</span><span class="n">partner</span><span class="p">]</span> <span class="ow">and</span> <span class="n">nearest</span><span class="p">[</span><span class="n">partner</span><span class="p">]</span> <span class="o">==</span> <span class="n">index</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">y</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">drop</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">drop</span><span class="p">[</span><span class="n">partner</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">[</span><span class="o">~</span><span class="n">drop</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="o">~</span><span class="n">drop</span><span class="p">]</span>
+</code></pre>
+<p>ENN keeps a point only when its neighbours agree with it:</p>
+<pre class="highlight"><code>    <span class="n">votes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">nearest</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="p">(</span><span class="n">votes</span> <span class="o">&gt;=</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">==</span> <span class="n">y</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">[</span><span class="n">keep</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span>
+</code></pre>
+<p>Class weights are the inverse-frequency rule of (4), normalised so the two
+class masses are equal before the batch mean:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Inverse frequency: each class contributes the same total mass."""</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">counts</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mf">1.0</span><span class="p">),</span>
+                        <span class="mf">0.5</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">counts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">1.0</span><span class="p">))</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+</code></pre>
+<p>The focal gradient is written out rather than autodiffed, because the
+modulation factor is the whole algorithm and hiding it behind a library would
+hide the derivation:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">gamma</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">derivative</span> <span class="o">=</span> <span class="n">probs</span> <span class="o">-</span> <span class="n">y</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="n">probs</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">probs</span><span class="p">)</span>
+            <span class="n">base</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">true</span><span class="p">)</span> <span class="o">**</span> <span class="n">gamma</span>
+            <span class="n">positive</span> <span class="o">=</span> <span class="n">base</span> <span class="o">*</span> <span class="p">(</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">probs</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">probs</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)</span>
+                               <span class="o">-</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">probs</span><span class="p">))</span>
+            <span class="n">negative</span> <span class="o">=</span> <span class="n">probs</span> <span class="o">*</span> <span class="n">base</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">gamma</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="mf">1.0</span> <span class="o">-</span> <span class="n">probs</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">))</span>
+            <span class="n">derivative</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="n">positive</span><span class="p">,</span> <span class="n">negative</span><span class="p">)</span>
+</code></pre>
+<p>Threshold moving carves a stratified validation split, scans the grid, keeps
+the best balanced accuracy, and refits on everything:</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_train</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">keep</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">keep</span><span class="p">])</span>
+        <span class="n">probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_probs</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">validation</span><span class="p">])</span>
+        <span class="n">best</span><span class="p">,</span> <span class="n">chosen</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.5</span>
+        <span class="k">for</span> <span class="n">threshold</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.02</span><span class="p">,</span> <span class="mf">0.98</span><span class="p">,</span> <span class="mi">25</span><span class="p">):</span>
+            <span class="n">score</span> <span class="o">=</span> <span class="n">_balanced</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">validation</span><span class="p">],</span> <span class="n">probs</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;</span> <span class="n">best</span><span class="p">:</span>
+                <span class="n">best</span><span class="p">,</span> <span class="n">chosen</span> <span class="o">=</span> <span class="n">score</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threshold_</span> <span class="o">=</span> <span class="n">chosen</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_train</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(n\)</span> training points, <span class="math inline">\(k\)</span> neighbours and <span class="math inline">\(n_{\mathrm{new}}\)</span> synthetic
+points:</p>
+<ul>
+<li><strong>SMOTE, borderline-SMOTE, ADASYN:</strong> one <span class="math inline">\(n\times n\)</span> distance matrix,
+<span class="math inline">\(O(n^2)\)</span>, then <span class="math inline">\(O(k)\)</span> per synthetic point. The demo's 330 points make the
+matrix trivial; at a million points the exact kNN graph is the bottleneck
+and is usually replaced by an approximate index.</li>
+<li><strong>Tomek, ENN:</strong> the same distance matrix and a scan, <span class="math inline">\(O(n^2)\)</span>.</li>
+<li><strong>Class weights, focal:</strong> no extra work — the weights are folded into the
+existing gradient, and the fit is <span class="math inline">\(O(n)\)</span> per step.</li>
+<li><strong>Threshold moving:</strong> one extra fit on 75% of the data and a scan over 25
+candidate thresholds, <span class="math inline">\(O(\text{steps})\)</span> on top of one fit.</li>
+<li><strong>The demo:</strong> eight treatments, a threshold sweep and a resampling table, all
+under a second. The logistic model is two parameters; the distance matrices
+are the only superlinear part, and at 330 points they are negligible.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Accuracy hides the failure.</strong> The demo's plain model is 0.921 accurate and
+0.717 balanced, with less than half the minority found. Any report that leads
+with accuracy on a skewed problem is a report that has not measured the thing
+that matters. Balanced accuracy, per-class recall and the confusion matrix are
+the minimum.</p>
+<p><strong>SMOTE interpolates through the wrong regions.</strong> Equation (9) assumes the
+minority class is locally connected. If a minority point's nearest minority
+neighbour is on the other side of a majority cluster, the synthetic point
+lands in majority territory and adds noise. In high dimensions the neighbour
+graph is also much sparser, which is why SMOTE's gains shrink as the dimension
+grows.</p>
+<p><strong>Duplicate minority points make SMOTE a no-op.</strong> If a minority point's
+nearest neighbour is itself at distance zero, every interpolated point is that
+point again. Real implementations deduplicate first; this demo's data is
+continuous, so it does not arise.</p>
+<p><strong>Under-sampling throws away the majority class.</strong> Tomek removes 12 points and
+reaches 0.777; ENN removes 22 and reaches 0.688, below the plain model. Both
+clean the boundary, neither rebalances the prior, and ENN's extra removals
+move the boundary in the wrong direction. Under-sampling is a tool for label
+noise, not a remedy for skew.</p>
+<p><strong>Focal loss without <span class="math inline">\(\alpha\)</span> is not reweighting.</strong> The pure <span class="math inline">\((1-p_t)^\gamma\)</span>
+factor down-weights easy examples for both classes, and with a 10:1 prior the
+majority still dominates. The demo's unweighted focal run reaches 0.75; the
+<span class="math inline">\(\alpha=0.9\)</span> version reaches 0.860. The <code>alpha</code> in (5) is what does the
+rebalancing, and it is the parameter people forget.</p>
+<p><strong>The threshold is tuned on data you may not have.</strong> Equation (8) needs an
+estimate of <span class="math inline">\(\pi\)</span>; the demo estimates it from a split and finds 0.10 against
+the true 0.091. With a small validation split that estimate is noisy, and with
+a test set that has a different prior the tuned threshold is simply wrong.
+Threshold moving is a prior correction, so it needs the deployment prior.</p>
+<p><strong>The methods are not additive for free.</strong> SMOTE inside a cross-validation
+loop must be fitted on the training fold only; synthesising before the split
+leaks minority structure into validation. The same is true of threshold
+tuning. The demo's split is inside <code>fit</code>, which is the right place.</p>
+<p><strong>Resampling changes calibration.</strong> A model trained on a balanced set outputs
+probabilities for that prior, not the deployment one. If you need calibrated
+probabilities — for a cost-sensitive decision, say — resampling must be
+followed by a prior correction, or the threshold moving must be redone.</p>
+<p><strong>The minority class may be heterogeneous.</strong> SMOTE and ADASYN treat the
+minority as one blob; if it is three subpopulations, interpolation between
+them creates points in the gaps. Cluster the minority first, or use a method
+that conditions on the local density.</p>
+<p><strong>A balanced test set is not a deployment set.</strong> The demo's test set has the
+same 10:1 skew as training, and balanced accuracy is invariant to the test
+prior, which is why the numbers are comparable. If you report plain accuracy
+on a rebalanced test set, you have changed the question.</p>
+<p><strong>Class weights can destabilise a deep model.</strong> In a neural network the
+reweighted gradient is larger for rare batches, and with batch norm or a large
+learning rate it can oscillate. The logistic model here has neither problem;
+the same weights in a transformer need a warmup and a sanity check.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Credit scoring, fraud detection, medical diagnosis and defect detection are
+the canonical skewed problems, and class weighting plus threshold moving is
+the standard first pass because both are one-line changes to an existing
+pipeline. Focal loss is the default in dense object detection, where the
+background anchors outnumber the objects by orders of magnitude, and in
+segmentation, where the same imbalance appears per pixel.</p>
+<p>SMOTE and its descendants are used when the minority is genuinely
+under-sampled and the feature space is low-dimensional or well-behaved: tabular
+credit data, sensor faults, rare-event logs. ADASYN and borderline-SMOTE are
+the standard upgrades when the minority sits on a boundary. Tomek links and
+ENN are used as cleaning steps in undersampling pipelines and as a
+preprocessing step before SMOTE in SMOTE-ENN and SMOTE-Tomek.</p>
+<p>The threshold is the cheapest lever of all, and it is also the one most often
+forgotten. A model that outputs a probability and a separate decision rule can
+be re-tuned for any prior without retraining, which is why the separation
+between score and threshold matters in production.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Chawla, N. V., Bowyer, K. W., Hall, L. O., Kegelmeyer, W. P. (2002).
+<em>SMOTE: synthetic minority over-sampling technique.</em> JAIR. Equation (9).</li>
+<li>Han, H., Wang, W.-Y., Mao, B.-H. (2005). <em>Borderline-SMOTE: a new
+over-sampling method in imbalanced data sets learning.</em> ICIC. (10).</li>
+<li>He, H., Bai, Y., Garcia, E. A., Li, S. (2008). <em>ADASYN: adaptive synthetic
+sampling approach for imbalanced learning.</em> IJCNN. (11).</li>
+<li>Tomek, I. (1976). <em>Two modifications of CNN.</em> IEEE Transactions on Systems,
+Man, and Cybernetics. Tomek links, (12).</li>
+<li>Wilson, D. L. (1972). <em>Asymptotic properties of nearest neighbor rules using
+edited data.</em> IEEE Transactions on Systems, Man, and Cybernetics. ENN.</li>
+<li>Lin, T.-Y., Goyal, P., Girshick, R., He, K., Dollár, P. (2017). <em>Focal loss
+for dense object detection.</em> ICCV. Equations (5)–(6).</li>
+<li>King, G., Zeng, L. (2001). <em>Logistic regression in rare events data.</em>
+Political Analysis. Prior correction and the threshold shift, (7)–(8).</li>
+<li>Saito, T., Rehmsmeier, M. (2015). <em>The precision-recall plot is more
+informative than the ROC plot when evaluating binary classifiers on
+imbalanced datasets.</em> PLoS ONE. Why accuracy and ROC mislead.</li>
+<li>Johnson, J. M., Khoshgoftaar, T. M. (2019). <em>Survey on deep learning with
+class imbalance.</em> Journal of Big Data. The loss-level remedies at scale.</li>
+<li>He, H., Garcia, E. A. (2009). <em>Learning from imbalanced data.</em> IEEE
+Transactions on Knowledge and Data Engineering. The resampling taxonomy.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="semi_supervised.html"><small>Previous</small><span>Semi-supervised learning</span></a><a class="next" href="nas.html"><small>Next</small><span>Neural architecture search</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html" aria-current="page"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-metric">The metric</a></li><li class="lvl3"><a href="#the-plain-model-and-its-gradient">The plain model and its gradient</a></li><li class="lvl3"><a href="#class-weights">Class weights</a></li><li class="lvl3"><a href="#focal-loss">Focal loss</a></li><li class="lvl3"><a href="#threshold-moving">Threshold moving</a></li><li class="lvl3"><a href="#smote">SMOTE</a></li><li class="lvl3"><a href="#borderline-smote-and-adasyn">Borderline-SMOTE and ADASYN</a></li><li class="lvl3"><a href="#tomek-links-and-edited-nearest-neighbours">Tomek links and edited nearest neighbours</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/class_imbalance.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

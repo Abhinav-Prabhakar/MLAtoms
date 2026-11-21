@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>k-nearest neighbours · MLAtoms</title>
+<meta name="description" content="Voting and regression with trees, weights and dimensionality caveats. fit does nothing. Prediction scans the training set for the k closest points and lets…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/knn.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="k-nearest neighbours">
+<meta property="og:description" content="Voting and regression with trees, weights and dimensionality caveats. fit does nothing. Prediction scans the training set for the k closest points and lets…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/knn.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="k-nearest neighbours">
+<meta name="twitter:description" content="Voting and regression with trees, weights and dimensionality caveats. fit does nothing. Prediction scans the training set for the k closest points and lets…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "k-nearest neighbours", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/knn.html", "description": "Voting and regression with trees, weights and dimensionality caveats. fit does nothing. Prediction scans the training set for the k closest points and lets\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">03 · Kernels &amp; instance-based</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>9 variants</span><span class="page-meta__sep">/</span><a href="knn.py.html">source</a></p><h1>k-nearest neighbours</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p><code>fit</code> does nothing. Prediction scans the training set for the <code>k</code> closest
+points and lets them vote (or averages them). There is no parameter vector, no
+loss to minimise, no gradient — the training set <em>is</em> the model.</p>
+<p>With <code>k = 1</code> the decision boundary is the Voronoi tessellation of the training
+points: every cell is labelled by the point at its centre.</p>
+<pre class="highlight"><code>        class 0                 class 1
+      ●     ●                ○       ○
+        ╲   ╱                 ╲     ╱
+   ●─────●─────●───────────────○───○─────○
+        ╱   ╲                 ╱     ╲
+      ●     ●                ○       ○
+              ↑ boundary is an edge of the Voronoi diagram
+</code></pre>
+<p>That is also the whole problem. A single noisy point owns a whole cell, so
+<code>k = 1</code> has zero training error and a jagged boundary. Raising <code>k</code> averages
+away the noise and blurs the boundary — the entire bias-variance trade-off of
+this atom is one integer.</p>
+<p>The cost model is inverted relative to every other atom in the book: training
+is free and prediction is <code>O(nd)</code>. That is why most of the interesting work
+here is not in the vote but in the two things that make the scan survivable —
+spatial trees and pruning the training set itself.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">What changes</th>
+<th style="text-align:left">Why you would pick it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>classification</code></td>
+<td style="text-align:left">majority vote over <code>k</code></td>
+<td style="text-align:left">labels, not numbers</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>regression</code></td>
+<td style="text-align:left">mean of the <code>k</code> targets</td>
+<td style="text-align:left">local averaging; no linearity assumption</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>uniform</code></td>
+<td style="text-align:left">every neighbour counts 1</td>
+<td style="text-align:left">simplest, and robust to a single very close point</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>distance_weighted</code></td>
+<td style="text-align:left">weight <code>1/d</code></td>
+<td style="text-align:left">smooths the discontinuity when a neighbour enters or leaves</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kd_tree</code></td>
+<td style="text-align:left">axis-aligned median splits</td>
+<td style="text-align:left">low <code>d</code>, many queries, exact search</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ball_tree</code></td>
+<td style="text-align:left">nested balls, radius pruning</td>
+<td style="text-align:left">clustered data; better than kd for <code>d ≳ 10</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cosine</code></td>
+<td style="text-align:left"><code>1 − cos(x, z)</code></td>
+<td style="text-align:left">text, embeddings; direction matters, length does not</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>edited_knn</code></td>
+<td style="text-align:left">drop points its neighbours disagree with</td>
+<td style="text-align:left">label noise in the training set</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>condensed_knn</code></td>
+<td style="text-align:left">keep only decision-changing points</td>
+<td style="text-align:left">storage and query cost; smaller store, same boundary</td>
+</tr>
+</tbody>
+</table>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="why-it-works">Why it works <a class="header-anchor" href="#why-it-works">#</a></h3>
+<p>For <code>k = 1</code>, let <code>R*</code> be the Bayes error. Cover and Hart showed that the
+<code>1</code>-NN error <code>R</code> satisfies</p>
+<div class="math block">
+\[R^* \le R \le 2R^*\left(1 - \frac{k}{2}R^*\right)^{-1} \xrightarrow{k=1} 2R^*,\]
+</div>
+<p>so half the information in an infinite sample is captured by the single nearest
+neighbour. Consistency needs more: Stone's theorem requires <code>k → ∞</code> and
+<code>k/n → 0</code>, which is the honest statement of the bias-variance trade — the cell
+must shrink (so the label is constant inside it) and must contain many points
+(so the vote is stable), and in a fixed dimension both can happen at once.</p>
+<p>In dimension <code>d</code> the cell radius shrinks like <code>n^{-1/d}</code>, so the bias is
+<code>O(n^{-2/d})</code> and the variance <code>O(1/k)</code>:</p>
+<div class="math block">
+\[\mathbb{E}[\text{error}] \approx R^* + c_1 n^{-2/d} + c_2/k ,
+\qquad k^\star \sim n^{4/(d+4)} .\]
+</div>
+<p>The exponent is the curse in one symbol: the sample size needed for a fixed
+cell radius grows exponentially in <code>d</code>. Concretely, to have <code>m</code> points inside a
+ball of radius <code>r</code> in <code>[0,1]^d</code> you need <code>n ≈ m/r^d</code>.</p>
+<h3 id="distance-concentration">Distance concentration <a class="header-anchor" href="#distance-concentration">#</a></h3>
+<p>The same fact destroys the ranking, not just the rate. For i.i.d. coordinates,
+<code>(d_max − d_min)/d_min → 0</code> as <code>d → ∞</code>, so the nearest and the farthest point
+become equally far and &quot;nearest&quot; loses its meaning.</p>
+<p>The diagnostic that matters is the <strong>hubness</strong> ratio: for each query, compare
+the <code>k</code>-th neighbour distance to the 1st. A ratio near 1 means every point is
+equally close — the vote is a coin flip dressed up as a model.</p>
+<h3 id="kd-tree-prune-with-the-splitting-plane">kd-tree: prune with the splitting plane <a class="header-anchor" href="#kd-tree-prune-with-the-splitting-plane">#</a></h3>
+<p>Build by splitting on the axis with the largest spread, at the median (so the
+tree is balanced and depth is <code>≈ log₂ n</code>). A query descends to the leaf that
+contains <code>x</code>, keeping a max-heap of the <code>k</code> best distances seen. Then it
+backtracks, and here is the only idea in the structure: the whole far subtree
+lies on the far side of one axis-aligned plane, so every point in it is at
+least <code>|x_axis − value|</code> away. If that is larger than the current <code>k</code>-th best
+distance, the subtree cannot contain a neighbour and is skipped unvisited.</p>
+<pre class="highlight"><code>   │            query ●
+   │        ·   │
+   │     ·      │      ← gap = |x[axis] − value|
+   │  ·         │
+   └────────────┼──────────────
+        near    far: skip if gap² ≥ kth²
+</code></pre>
+<p>The expected query cost is <code>O(log n)</code> only in fixed dimension. In <code>d</code> dimensions
+the ball of radius <code>k</code>-th distance overlaps <code>n^{1-1/d}</code> cells on average, so the
+cost degrades to that — at <code>d = 20</code> a kd-tree is a linear scan with extra steps.
+That is why the demo reports the <em>share</em> of brute force rather than a speedup.</p>
+<h3 id="ball-tree-prune-with-a-radius">Ball tree: prune with a radius <a class="header-anchor" href="#ball-tree-prune-with-a-radius">#</a></h3>
+<p>Each node stores a centre <code>c</code> and a radius <code>r</code> that contains all of its points.
+A query can then skip a node entirely when</p>
+<div class="math block">
+\[\|q - c\| - r \;\ge\; \text{(current k-th best distance)} .\]
+</div>
+<p>The bound is looser than an axis-aligned plane in low dimension but much
+tighter when the data is clustered, and it does not degrade as fast with <code>d</code>
+because it adapts to the local shape. Building uses the two-farthest-point
+heuristic: pick the point farthest from the centroid, then the point farthest
+from that one, and split by which is closer.</p>
+<h3 id="distance-weighting">Distance weighting <a class="header-anchor" href="#distance-weighting">#</a></h3>
+<p><code>uniform</code> is a step function of the geometry: a point crossing the <code>k</code>-th
+distance boundary changes the vote discontinuously. Weighting by <code>1/d</code> removes
+the jump and biases the vote towards the closest neighbour, at the cost of
+letting one point with <code>d ≈ 0</code> decide alone (hence the <code>EPS</code> floor).</p>
+<p>It also changes the effective <code>k</code>. With <code>1/d</code> weights on well-spread data the
+vote behaves like a much smaller neighbourhood; the demo shows a case where
+<code>1/0.1 = 10</code> outweighs five neighbours at <code>d ≈ 0.9</code>.</p>
+<h3 id="editing-attack-the-training-set">Editing: attack the training set <a class="header-anchor" href="#editing-attack-the-training-set">#</a></h3>
+<p><strong>Wilson editing</strong> removes every point whose <code>k</code> neighbours (excluding itself)
+disagree with its label, iterating until stable. Noise points have label
+inconsistent neighbours and go; the boundary sharpens because the noisy points
+were voting. The failure is asymmetric and worth knowing: in an imbalanced
+problem, <em>rare-class</em> points often look like noise, so editing can delete the
+class you care about. Edit the majority class only, or edit per class.</p>
+<p><strong>Hart's condensed nearest neighbour</strong> keeps the smallest store that still
+classifies the training set correctly with <code>1</code>-NN. Start with one stored point,
+scan the data; every misclassified point is added. A correctly classified point
+never needs to be added, because the store only grows — the decision boundary
+can only move towards the point, never away. Termination is guaranteed
+(each pass adds at least one point or stops), the store is consistent by
+construction, and the price is that a single pass is <code>O(n²)</code> and the result
+depends on the scan order.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>Three metrics, and the Euclidean one uses the expansion rather than a broadcast
+subtraction — <code>(n, m, d)</code> temporaries are how a nearest-neighbour search runs
+out of memory before it runs out of time:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">metric</span> <span class="o">==</span> <span class="s2">"euclidean"</span><span class="p">:</span>
+        <span class="n">d2</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span> <span class="o">*</span> <span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">Z</span> <span class="o">*</span> <span class="n">Z</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">X</span> <span class="o">@</span> <span class="n">Z</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">metric</span> <span class="o">==</span> <span class="s2">"manhattan"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">Z</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">metric</span> <span class="o">==</span> <span class="s2">"cosine"</span><span class="p">:</span>
+        <span class="n">xn</span> <span class="o">=</span> <span class="n">X</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">EPS</span><span class="p">)</span>
+        <span class="n">zn</span> <span class="o">=</span> <span class="n">Z</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">EPS</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">xn</span> <span class="o">@</span> <span class="n">zn</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p>The cosine branch is worth pausing on: <code>‖x̂ − ẑ‖² = 2(1 − cos)</code>, so cosine k-NN
+<em>is</em> Euclidean k-NN on <code>L2</code>-normalised rows. The variant exists as a metric
+because normalising up front is cheaper than remembering to do it.</p>
+<p>The kd-tree backtrack is the prune, in one line. <code>heap[0][0]</code> is <code>−dist</code>, so
+squaring it recovers the <code>k</code>-th best <em>squared</em> distance:</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">(</span><span class="n">near</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">heap</span><span class="p">)</span>
+        <span class="n">gap</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">-</span> <span class="n">node</span><span class="p">[</span><span class="s2">"value"</span><span class="p">]</span>
+        <span class="c1"># the plane is the only thing the far subtree can be closer than</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">heap</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">k</span> <span class="ow">or</span> <span class="n">gap</span> <span class="o">*</span> <span class="n">gap</span> <span class="o">&lt;</span> <span class="n">heap</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">(</span><span class="n">far</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">heap</span><span class="p">)</span>
+</code></pre>
+<p>Getting that comparison wrong in either direction is silent: too aggressive and
+the search returns wrong neighbours, too conservative and it is merely a slow
+linear scan. The demo pins it down by requiring <em>identical</em> neighbour indices
+against brute force, not just similar accuracy.</p>
+<p>The ball-tree prune is the same shape with a different bound, and the early
+return is what makes the structure worth its build cost:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">heap</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">k</span><span class="p">:</span>
+            <span class="n">bound</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(((</span><span class="n">x</span> <span class="o">-</span> <span class="n">node</span><span class="p">[</span><span class="s2">"centre"</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span> <span class="o">-</span> <span class="n">node</span><span class="p">[</span><span class="s2">"radius"</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">bound</span> <span class="o">&gt;</span> <span class="o">-</span><span class="n">heap</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">return</span>                      <span class="c1"># the whole ball is farther than k</span>
+</code></pre>
+<p>The vote is a scatter over classes. <code>np.bincount</code>-style logic in matrix form
+keeps the tie-break deterministic: <code>argmax</code> takes the lowest class index, which
+matters when <code>k</code> is even and the vote is split.</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_vote</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dist</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Weighted vote; ties go to the lowest class index, deterministically."""</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">EPS</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">==</span> <span class="s2">"distance"</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">dist</span><span class="p">)</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">idx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+            <span class="n">score</span><span class="p">[:,</span> <span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y_enc_</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">==</span> <span class="n">c</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)]</span>
+</code></pre>
+<p>Editing is a fixpoint loop, and the <code>pool</code> is recomputed every round because
+removing points changes every subsequent vote:</p>
+<pre class="highlight"><code>        <span class="n">keep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_rounds</span><span class="p">):</span>
+            <span class="n">pool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">keep</span><span class="p">)</span>
+            <span class="n">drop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">keep</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_at</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">pool</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_enc_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">drop</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">break</span>
+            <span class="n">keep</span> <span class="o">&amp;=</span> <span class="o">~</span><span class="n">drop</span>
+</code></pre>
+<p>Condensing is the mirror image — a store that only grows:</p>
+<pre class="highlight"><code>                <span class="k">if</span> <span class="n">label</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_enc_</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+                    <span class="n">store</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                    <span class="n">added</span> <span class="o">+=</span> <span class="mi">1</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Path</th>
+<th style="text-align:left">Fit</th>
+<th style="text-align:left">Predict (per point)</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">brute force</td>
+<td style="text-align:left"><code>O(1)</code></td>
+<td style="text-align:left"><code>O(nd)</code></td>
+<td style="text-align:left"><code>O(nd)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">kd-tree build/query</td>
+<td style="text-align:left"><code>O(n log n)</code></td>
+<td style="text-align:left"><code>O(log n)</code> in fixed <code>d</code>, <code>O(n^{1-1/d})</code> asymptotically</td>
+<td style="text-align:left"><code>O(nd)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">ball-tree build/query</td>
+<td style="text-align:left"><code>O(n log n)</code></td>
+<td style="text-align:left">same order, better constants on clustered data</td>
+<td style="text-align:left"><code>O(nd)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>edited_knn</code></td>
+<td style="text-align:left"><code>O(r·n²)</code> for <code>r</code> rounds</td>
+<td style="text-align:left">unchanged</td>
+<td style="text-align:left"><code>O(nd)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>condensed_knn</code></td>
+<td style="text-align:left"><code>O(p·n²)</code> for <code>p</code> passes</td>
+<td style="text-align:left"><code>O(sd)</code> with <code>s</code> stored points</td>
+<td style="text-align:left"><code>O(sd)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Trees trade build time for query time; they pay off only when the number of
+queries is much larger than the number of points, which is exactly the
+inference-server regime.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Unscaled features.</strong> Euclidean distance sums squared differences over
+dimensions, so a feature measured in thousands dominates one measured in
+fractions. Standardise first; this is not optional and there is no <code>k</code> that
+fixes it.</p>
+<p><strong>High dimension.</strong> Past <code>d ≈ 20</code>, the neighbour ranking is noise: distances
+concentrate and the vote approaches the class prior. Diagnostic: the ratio of
+the <code>k</code>-th to the 1st neighbour distance, or simply the gap between train and
+test accuracy (<code>k=1</code> giving 1.0 train and 0.6 test is a symptom, not a result).
+Reduce dimension first — PCA, or an embedding.</p>
+<p><strong>Imbalance.</strong> The majority class occupies most of the space, so most cells
+belong to it. <code>k=5</code> on a 95/5 split predicts the majority almost everywhere.
+Fix by weighting votes by inverse class frequency, or by editing <em>within</em> each
+class rather than globally.</p>
+<p><strong>Even <code>k</code> in a two-class problem.</strong> Ties are resolved by class index, which is
+an arbitrary ordering. Use odd <code>k</code>, or distance weighting, or accept that
+roughly <code>(k/2)</code>-sized neighbourhoods are decided by an accident of <code>np.unique</code>.</p>
+<p><strong>Editing the wrong set.</strong> <code>edited_knn</code> must see only training data. Editing the
+combined train+test set to &quot;clean&quot; the evaluation is leakage and inflates every
+number that follows.</p>
+<p><strong><code>k = n</code>.</strong> The model predicts the global majority class everywhere. This is
+the correct limit of the algorithm and a useful sanity check, not a bug.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>The default baseline for recommender systems (&quot;users who bought this also
+bought…&quot;) is item-item nearest neighbours with a cosine metric, and it is still
+hard to beat at small scale.</p>
+<p>Distance to the <code>k</code>-th neighbour is a density estimate, which makes k-NN the
+backbone of anomaly detection and of the <code>k</code>-NN graph construction used by
+spectral clustering, UMAP, and every manifold-learning method in chapter 08.</p>
+<p>Imputation, record linkage, and duplicate detection are all nearest-neighbour
+problems in disguise — usually with a learned metric (<code>metric_learning.py</code>)
+because the default one is the whole difficulty.</p>
+<p>It is a trap when <code>n</code> is large and queries are few (build a model instead), when
+the data is high-dimensional without a meaningful metric, and whenever the
+answer must be smooth in the inputs rather than piecewise constant.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Cover, T. &amp; Hart, P. (1967). Nearest neighbor pattern classification. <em>IEEE Trans. Information Theory</em> 13(1).</li>
+<li>Stone, C. (1977). Consistent nonparametric regression. <em>Annals of Statistics</em> 5(4).</li>
+<li>Friedman, J., Bentley, J. &amp; Finkel, R. (1977). An algorithm for finding best matches in logarithmic expected time. <em>ACM TOMS</em> 3(3).</li>
+<li>Omohundro, S. (1989). Five balltree construction algorithms. ICSI technical report.</li>
+<li>Wilson, D. (1972). Asymptotic properties of nearest neighbor rules using edited data. <em>IEEE Trans. Systems, Man and Cybernetics</em> 2(3).</li>
+<li>Hart, P. (1968). The condensed nearest neighbor rule. <em>IEEE Trans. Information Theory</em> 14(3).</li>
+<li>Devroye, L., Györfi, L. &amp; Lugosi, G. (1996). <em>A Probabilistic Theory of Pattern Recognition</em>, ch. 5–11. Springer.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="kernel_ridge.html"><small>Previous</small><span>Kernel ridge</span></a><a class="next" href="svr.html"><small>Next</small><span>Support vector regression</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">03 · Kernels &amp; instance-based</p><ul class="rail-list"><li><a href="svm.html"><span class="tick">✓</span><span>Support vector machine</span></a></li><li><a href="kernel_ridge.html"><span class="tick">✓</span><span>Kernel ridge</span></a></li><li><a href="knn.html" aria-current="page"><span class="tick">✓</span><span>k-nearest neighbours</span></a></li><li><a href="svr.html"><span class="tick">✓</span><span>Support vector regression</span></a></li><li><a href="rbf_network.html"><span class="tick">✓</span><span>RBF networks</span></a></li><li><a href="random_features.html"><span class="tick">✓</span><span>Random features</span></a></li><li><a href="one_class.html"><span class="tick">✓</span><span>One-class models</span></a></li><li><a href="nearest_centroid.html"><span class="tick">✓</span><span>Nearest centroid</span></a></li><li><a href="nystrom.html"><span class="tick">✓</span><span>Nystrom approximation</span></a></li><li><a href="metric_learning.html"><span class="tick">✓</span><span>Metric learning</span></a></li><li><a href="multiple_kernel.html"><span class="tick">✓</span><span>Multiple kernel learning</span></a></li><li><a href="mmd.html"><span class="tick">✓</span><span>MMD &amp; HSIC</span></a></li><li><a href="lvq.html"><span class="tick">✓</span><span>Learning vector quantisation</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../02-linear-models/index.html"><span class="jump">← 02 · Linear models</span></a></li><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">04 · Trees &amp; ensembles&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#why-it-works">Why it works</a></li><li class="lvl3"><a href="#distance-concentration">Distance concentration</a></li><li class="lvl3"><a href="#kd-tree-prune-with-the-splitting-plane">kd-tree: prune with the splitting plane</a></li><li class="lvl3"><a href="#ball-tree-prune-with-a-radius">Ball tree: prune with a radius</a></li><li class="lvl3"><a href="#distance-weighting">Distance weighting</a></li><li class="lvl3"><a href="#editing-attack-the-training-set">Editing: attack the training set</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/03-kernels-and-instance/knn.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

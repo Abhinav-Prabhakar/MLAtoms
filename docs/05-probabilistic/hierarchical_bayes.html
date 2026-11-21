@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hierarchical Bayes · MLAtoms</title>
+<meta name="description" content="Partial pooling, shrinkage and empirical Bayes. You have measurements from a dozen groups — schools, stores, patients, A/B test cells — and you want each…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/hierarchical_bayes.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Hierarchical Bayes">
+<meta property="og:description" content="Partial pooling, shrinkage and empirical Bayes. You have measurements from a dozen groups — schools, stores, patients, A/B test cells — and you want each…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/hierarchical_bayes.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hierarchical Bayes">
+<meta name="twitter:description" content="Partial pooling, shrinkage and empirical Bayes. You have measurements from a dozen groups — schools, stores, patients, A/B test cells — and you want each…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Hierarchical Bayes", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/hierarchical_bayes.html", "description": "Partial pooling, shrinkage and empirical Bayes. You have measurements from a dozen groups \u2014 schools, stores, patients, A/B test cells \u2014 and you want each\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="hierarchical_bayes.py.html">source</a></p><h1>Hierarchical Bayes</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>You have measurements from a dozen groups — schools, stores, patients, A/B test
+cells — and you want each group's mean. Two obvious estimators, both wrong in an
+instructive way.</p>
+<p>Pool everything: one grand mean, applied to every group. Unbiased if the groups
+really are identical, hopeless if they are not. Use each group's own data: the
+mean of four observations, with a standard error of <span class="math inline">\(\sigma/2\)</span>. Unbiased, and so
+noisy that the ranking of twelve groups is mostly noise.</p>
+<p>The hierarchical model says: the group means are themselves drawn from a
+distribution. That single assumption produces a third estimator which is neither,
+and which is better than both.</p>
+<div class="math block">
+\[y_{ij} = \mu + a_j + \varepsilon_{ij}, \qquad a_j \sim N(0, \tau^2), \qquad \varepsilon_{ij} \sim N(0, \sigma^2) \qquad (1)\]
+</div>
+<p><span class="math inline">\(\tau^2\)</span> is how different the groups really are; <span class="math inline">\(\sigma^2\)</span> is how noisy one
+observation is. Given those two numbers, the posterior mean of group <span class="math inline">\(j\)</span>'s mean
+is a weighted average of the grand mean and the group's own average:</p>
+<div class="math block">
+\[\hat\theta_j = \lambda_j\,\mu + (1-\lambda_j)\,\bar y_j, \qquad \lambda_j = \frac{\sigma^2/n_j}{\tau^2 + \sigma^2/n_j} \qquad (2)\]
+</div>
+<p>Read the weight. When the group has lots of data (<span class="math inline">\(n_j\)</span> large) or the groups
+really differ (<span class="math inline">\(\tau^2\)</span> large), <span class="math inline">\(\lambda_j \to 0\)</span> and you trust the group. When
+the data are noisy or the groups are nearly identical, <span class="math inline">\(\lambda_j \to 1\)</span> and you
+trust the pool. The estimate is <em>shrunk</em> toward the centre by exactly the amount
+the model says is justified.</p>
+<p>This is the whole atom. The variants are the three special cases and the two ways
+to fill in <span class="math inline">\(\tau^2\)</span> and <span class="math inline">\(\sigma^2\)</span>: closed-form shrinkage with the variances
+known (<code>partial_pooling</code>), the two limits (<code>no_pooling</code>, <code>full_pooling</code>),
+empirical Bayes by EM (<code>empirical_bayes</code>), and a sampler that puts a prior on the
+variances too (<code>noncentered</code>).</p>
+<p>The demo's headline is the risk comparison. With twelve groups of four, and a
+true <span class="math inline">\(\tau^2 = 0.36\)</span> against <span class="math inline">\(\sigma^2 = 1\)</span>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Estimator</th>
+<th style="text-align:right">MSE against the true group means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">no pooling</td>
+<td style="text-align:right">0.2609</td>
+</tr>
+<tr>
+<td style="text-align:left">full pooling</td>
+<td style="text-align:right">0.1868</td>
+</tr>
+<tr>
+<td style="text-align:left">partial pooling (<span class="math inline">\(\lambda = 0.410\)</span>)</td>
+<td style="text-align:right"><strong>0.1263</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The shrinkage estimator beats both extremes, and it is not a lucky draw: it is
+the Bayes estimator under (1), so no other function of the data has lower
+expected squared error when the model is true.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left"><span class="math inline">\(\tau^2, \sigma^2\)</span></th>
+<th style="text-align:left">Estimate of <span class="math inline">\(\theta_j\)</span></th>
+<th style="text-align:left">Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>partial_pooling</code></td>
+<td style="text-align:left">given</td>
+<td style="text-align:left"><span class="math inline">\(\lambda_j\mu + (1-\lambda_j)\bar y_j\)</span></td>
+<td style="text-align:left">you know the variance components, or are testing the shrinkage itself</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>no_pooling</code></td>
+<td style="text-align:left">—</td>
+<td style="text-align:left"><span class="math inline">\(\bar y_j\)</span></td>
+<td style="text-align:left">groups are genuinely unrelated; the baseline the other two must beat</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>full_pooling</code></td>
+<td style="text-align:left"><span class="math inline">\(\tau^2 = 0\)</span></td>
+<td style="text-align:left"><span class="math inline">\(\bar y\)</span> for every group</td>
+<td style="text-align:left">the groups are exchangeable and identical</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>empirical_bayes</code></td>
+<td style="text-align:left">estimated by EM</td>
+<td style="text-align:left">plug-in shrinkage</td>
+<td style="text-align:left">the standard default: two unknowns, fitted by maximum marginal likelihood</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>noncentered</code></td>
+<td style="text-align:left">sampled</td>
+<td style="text-align:left">posterior mean over draws</td>
+<td style="text-align:left">you want the uncertainty in <span class="math inline">\(\tau^2\)</span> and <span class="math inline">\(\sigma^2\)</span>, not a point plug-in</td>
+</tr>
+</tbody>
+</table>
+<p>The middle three are one line each and exist to be compared against. The
+interesting pair is <code>empirical_bayes</code> — which treats <span class="math inline">\((\tau^2, \sigma^2)\)</span> as
+fixed at their MLEs and is therefore overconfident, because it ignores its own
+uncertainty in them — and <code>noncentered</code>, which integrates over them.</p>
+<p>Then there is the parameterisation. <code>noncentered</code> is named for a numerical trick,
+not a model: write <span class="math inline">\(a_j = \tau z_j\)</span> with <span class="math inline">\(z_j \sim N(0, 1)\)</span> and the sampler's
+geometry stops depending on <span class="math inline">\(\tau\)</span>. Same posterior, but a sampler that can
+traverse it when <span class="math inline">\(\tau\)</span> is small. The demo measures the difference in effective
+sample size: 2839 against 96 for <span class="math inline">\(\log\tau\)</span> over 3000 draws, at identical cost.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-shrinkage-weight">1. The shrinkage weight <a class="header-anchor" href="#1-the-shrinkage-weight">#</a></h3>
+<p>Condition on <span class="math inline">\(a_j\)</span>. The group mean is Gaussian around the group effect,</p>
+<div class="math block">
+\[\bar y_j \mid a_j \;\sim\; N\!\left(\mu + a_j,\; \sigma^2/n_j\right) \qquad (3)\]
+</div>
+<p>and the prior is <span class="math inline">\(a_j \sim N(0, \tau^2)\)</span>. Two Gaussians make a Gaussian, with
+precision the sum of precisions:</p>
+<div class="math block">
+\[P_j = \frac{n_j}{\sigma^2} + \frac{1}{\tau^2}, \qquad \mathbb{E}[a_j \mid y] = \frac{n_j(\bar y_j - \mu)/\sigma^2}{P_j}, \qquad \mathrm{Var}(a_j \mid y) = \frac{1}{P_j}\]
+</div>
+<p>Adding <span class="math inline">\(\mu\)</span> back and rearranging gives (2). Two identities are worth keeping:</p>
+<div class="math block">
+\[1 - \lambda_j = \frac{n_j/\sigma^2}{P_j}, \qquad \mathrm{Var}(\theta_j \mid y) = \frac{1}{P_j} = (1-\lambda_j)\,\frac{\sigma^2}{n_j}\]
+</div>
+<p>The second is the one that matters downstream: the posterior variance is the
+sampling variance discounted by the same factor that shrinks the mean. Borrowing
+strength buys precision, not just a better point estimate.</p>
+<h3 id="2-why-it-beats-both-extremes">2. Why it beats both extremes <a class="header-anchor" href="#2-why-it-beats-both-extremes">#</a></h3>
+<p>Write the risk of an estimator <span class="math inline">\(\lambda\mu + (1-\lambda)\bar y_j\)</span>, averaging over
+the prior on <span class="math inline">\(\theta_j\)</span> and the sampling noise. The two error terms are
+independent, so</p>
+<div class="math block">
+\[R(\lambda) = \lambda^2\tau^2 + (1-\lambda)^2\frac{\sigma^2}{n_j} \qquad (4)\]
+</div>
+<p>a quadratic in <span class="math inline">\(\lambda\)</span>. Minimise it:</p>
+<div class="math block">
+\[\lambda^\star = \frac{\sigma^2/n_j}{\tau^2 + \sigma^2/n_j}, \qquad R(\lambda^\star) = \frac{\tau^2\sigma^2/n_j}{\tau^2 + \sigma^2/n_j} \;<\; \min\!\left(\tau^2,\; \frac{\sigma^2}{n_j}\right) \qquad (5)\]
+</div>
+<p>So the optimal weight is exactly the posterior weight (2), and the risk at the
+optimum is <em>below both endpoints</em> — the harmonic-mean-looking expression is
+smaller than either argument. That is Stein's phenomenon in its simplest
+hierarchical form, and it is why the demo's MSE ordering is a theorem rather
+than a coincidence.</p>
+<p>With the demo's numbers, <span class="math inline">\(\sigma^2/n = 0.25\)</span> and <span class="math inline">\(\tau^2 = 0.36\)</span> give
+<span class="math inline">\(\lambda = 0.410\)</span>: the estimate is 59% the group's own mean, 41% the grand mean.</p>
+<p>Three of the twelve groups had a sample variance below <span class="math inline">\(\sigma^2\)</span>. For those
+groups <code>no_pooling</code> is <em>more</em> confident than the hierarchical answer, because a
+single <span class="math inline">\(s_j^2\)</span> is itself a noisy estimate of <span class="math inline">\(\sigma^2\)</span> and happened to come out
+low. The pooled estimate wins on average precisely because it does not chase
+that noise.</p>
+<h3 id="3-marginal-likelihood-and-empirical-bayes">3. Marginal likelihood and empirical Bayes <a class="header-anchor" href="#3-marginal-likelihood-and-empirical-bayes">#</a></h3>
+<p>To fit <span class="math inline">\(\tau^2\)</span> and <span class="math inline">\(\sigma^2\)</span>, integrate the group effects out — they are
+Gaussian, so this is exact. Two sufficient statistics survive, and they are
+independent:</p>
+<div class="math block">
+\[\bar y_j \sim N\!\left(\mu,\; \tau^2 + \frac{\sigma^2}{n_j}\right), \qquad \frac{ss_j}{\sigma^2} \sim \chi^2_{n_j-1}, \qquad ss_j = \sum_i (y_{ij} - \bar y_j)^2 \qquad (6)\]
+</div>
+<p>so the marginal log-likelihood is a sum of two easy pieces:</p>
+<div class="math block">
+\[\log p(y) = \sum_j\left[-\tfrac12\log\!\left(2\pi(\tau^2 + \sigma^2/n_j)\right) - \frac{(\bar y_j - \mu)^2}{2(\tau^2 + \sigma^2/n_j)}\right] + \sum_j\left[-\tfrac{n_j-1}{2}\log(2\pi\sigma^2) - \frac{ss_j}{2\sigma^2}\right] \qquad (7)\]
+</div>
+<p>This is the objective <code>empirical_bayes</code> maximises, and it is also the quantity
+reported as <code>loglik_</code>. The second bracket is the part that is easy to forget —
+drop it and <span class="math inline">\(\sigma^2 \to 0\)</span> becomes a free lunch, as Section 4 of the failure
+modes describes.</p>
+<p>EM alternates the posterior of the missing <span class="math inline">\(a_j\)</span> with the M-step that maximises
+the expected complete-data log-likelihood. With <span class="math inline">\(\theta_j\)</span> the posterior mean of
+<span class="math inline">\(a_j\)</span> and <span class="math inline">\(v_j\)</span> its variance:</p>
+<div class="math block">
+\[\mu = \frac{1}{N}\sum_j n_j(\bar y_j - \theta_j), \qquad \tau^2 = \frac{1}{J}\sum_j\left[(\theta_j - \mu)^2 + v_j\right] \qquad (8)\]
+</div>
+<div class="math block">
+\[\sigma^2 = \frac{1}{N}\sum_j\left[ss_j + n_j\left((\bar y_j - \mu - \theta_j)^2 + v_j\right)\right] \qquad (9)\]
+</div>
+<p>Every term has a job. The <span class="math inline">\(v_j\)</span> in (8) is what stops <span class="math inline">\(\tau^2\)</span> collapsing to zero:
+the effects are not observed, and their posterior variance is part of their
+second moment. The <span class="math inline">\((\bar y_j - \mu - \theta_j)^2\)</span> in (9) is what stops <span class="math inline">\(\sigma^2\)</span>
+being biased low: the residual of the group mean around its fitted value is
+still a residual. In the demo, EM raises the marginal likelihood from <span class="math inline">\(-60.497\)</span>
+to <span class="math inline">\(-59.917\)</span> monotonically, and lands at <span class="math inline">\(\tau^2 = 0.259\)</span>, <span class="math inline">\(\sigma^2 = 0.830\)</span>
+against the truth <span class="math inline">\(0.360\)</span> and <span class="math inline">\(1.000\)</span> — both within sampling error at twelve
+groups.</p>
+<h3 id="4-centered-and-non-centered">4. Centered and non-centered <a class="header-anchor" href="#4-centered-and-non-centered">#</a></h3>
+<p>Write the group effect two ways:</p>
+<div class="math block">
+\[a_j \sim N(0, \tau^2) \qquad\text{or}\qquad a_j = \tau z_j, \quad z_j \sim N(0, 1) \qquad (10)\]
+</div>
+<p>They describe the same distribution, and the joint density in
+<span class="math inline">\((\mu, z, \log\tau, \log\sigma)\)</span> is the same function of the data. But the
+<em>geometry</em> is not. In the centered form the conditional precision of <span class="math inline">\(a_j\)</span> is</p>
+<div class="math block">
+\[P_j = \frac{n_j}{\sigma^2} + \frac{1}{\tau^2} \qquad (11)\]
+</div>
+<p>so as <span class="math inline">\(\tau \to 0\)</span> the coordinate <span class="math inline">\(a_j\)</span> becomes arbitrarily stiff, while its
+typical value is of order <span class="math inline">\(\tau\)</span> — a neck of width <span class="math inline">\(\tau\)</span> inside a funnel of
+height <span class="math inline">\(1/\tau^2\)</span>. A leapfrog step small enough for the neck cannot cross the
+mouth; a step large enough for the mouth overshoots the neck. In the non-centered
+form <span class="math inline">\(z_j\)</span> is always <span class="math inline">\(O(1)\)</span> and <span class="math inline">\(\tau\)</span> enters only through the likelihood, so the
+curvature stays bounded as <span class="math inline">\(\tau \to 0\)</span>.</p>
+<p>The demo samples both with the same kernel, the same step size (0.15, sixteen
+leapfrog steps), the same 500 warm-up draws, and reports the ESS of <span class="math inline">\(\log\tau\)</span>:
+<strong>2839 non-centered against 96 centered</strong> out of 3000 draws. The centered
+sampler is not wrong — it is exact, just catastrophically autocorrelated, which
+is what an ESS of 3% means.</p>
+<p>The target includes priors, since <span class="math inline">\(\tau\)</span> and <span class="math inline">\(\sigma\)</span> are now parameters:</p>
+<div class="math block">
+\[\mu \sim N(0, 5^2), \qquad \log\tau \sim N(0, 2^2), \qquad \log\sigma \sim N(0, 2^2) \qquad (12)\]
+</div>
+<p>Weak on purpose. A tight prior on <span class="math inline">\(\log\tau\)</span> would decide the variance
+components, and then the comparison between parameterisations would be measuring
+the prior rather than the sampler.</p>
+<h3 id="5-checking-the-sampler-against-the-exact-answer">5. Checking the sampler against the exact answer <a class="header-anchor" href="#5-checking-the-sampler-against-the-exact-answer">#</a></h3>
+<p>The group effects can be integrated out analytically, so the marginal posterior
+over <span class="math inline">\((\mu, \log\tau, \log\sigma)\)</span> is a three-dimensional integral of (7) times
+the priors. The demo evaluates it on a <span class="math inline">\(61 \times 111 \times 81\)</span> grid and uses it
+as an independent answer:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Quantity</th>
+<th style="text-align:right">Sampler (3000 draws)</th>
+<th style="text-align:right">Exact grid</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><span class="math inline">\(\mathbb{E}[\tau^2]\)</span></td>
+<td style="text-align:right">0.097</td>
+<td style="text-align:right">0.108</td>
+</tr>
+<tr>
+<td style="text-align:left"><span class="math inline">\(\mathbb{E}[\sigma^2]\)</span></td>
+<td style="text-align:right">1.710</td>
+<td style="text-align:right">1.726</td>
+</tr>
+<tr>
+<td style="text-align:left">group means</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">max difference 0.015</td>
+</tr>
+</tbody>
+</table>
+<p>The grid never touches the sampler, so this is evidence rather than a tautology.
+It also surfaces something a single number would hide: the data put
+<span class="math inline">\(\tau^2 \approx 0.11\)</span>, not the true <span class="math inline">\(0.0225\)</span>. With ten groups of two observations,
+<span class="math inline">\(\tau\)</span> is barely identified — the spread of the group means is dominated by
+<span class="math inline">\(\sigma/\sqrt{n}\)</span> — and that weak identification is exactly why the funnel is
+severe and why the parameterisation matters.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The public surface is one frozenset and a class whose <code>fit</code> dispatches on it.</p>
+<pre class="highlight"><code><span class="n">VARIANTS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">[</span><span class="s2">"partial_pooling"</span><span class="p">,</span> <span class="s2">"full_pooling"</span><span class="p">,</span> <span class="s2">"no_pooling"</span><span class="p">,</span> <span class="s2">"empirical_bayes"</span><span class="p">,</span> <span class="s2">"noncentered"</span><span class="p">]</span>
+<span class="p">)</span>
+</code></pre>
+<p>Three of the five branches are one-liners, and they are worth reading as the
+definitions they are: no pooling reports the group mean and its own standard
+error; full pooling reports the grand mean for everyone, with the variance of
+<em>that</em> estimate, <span class="math inline">\(\sigma^2/N\)</span>; partial pooling calls the shrinkage routine.</p>
+<pre class="highlight"><code>        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"empirical_bayes"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_em</span><span class="p">(</span><span class="n">ybar</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">ss</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_shrink</span><span class="p">(</span><span class="n">ybar</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">ss</span><span class="p">,</span> <span class="n">mu</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"noncentered"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hmc</span><span class="p">(</span><span class="n">ys</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tau2_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma2_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tau2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_shrink</span><span class="p">(</span><span class="n">ybar</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">ss</span><span class="p">)</span>
+</code></pre>
+<p><code>_shrink</code> is (2) and its variance identity in five lines. The clamp is the
+<span class="math inline">\(\tau^2 \to 0\)</span> limit: empirical Bayes can legitimately return zero between-group
+variance, and the correct answer there is full pooling (<span class="math inline">\(\lambda = 1\)</span>), not a
+division by zero.</p>
+<pre class="highlight"><code>        <span class="n">tau2</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tau2_</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+        <span class="n">prec</span> <span class="o">=</span> <span class="n">n</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma2_</span> <span class="o">+</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">tau2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group_mean_</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">ybar</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma2_</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_</span> <span class="o">/</span> <span class="n">tau2</span><span class="p">)</span> <span class="o">/</span> <span class="n">prec</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group_var_</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">prec</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lambda_</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma2_</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">tau2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma2_</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
+</code></pre>
+<p>The EM loop is (8)–(9). The E-step computes the posterior of <span class="math inline">\(a_j\)</span>, not of the
+group mean: <code>theta</code> is the deviation from <span class="math inline">\(\mu\)</span>, which is why the M-step for
+<span class="math inline">\(\mu\)</span> subtracts it rather than averaging it.</p>
+<pre class="highlight"><code>            <span class="n">prec</span> <span class="o">=</span> <span class="n">n</span> <span class="o">/</span> <span class="n">sigma2</span> <span class="o">+</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">tau2</span>
+            <span class="n">var</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">prec</span>
+            <span class="n">theta</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">ybar</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">/</span> <span class="n">sigma2</span><span class="p">)</span> <span class="o">/</span> <span class="n">prec</span>
+</code></pre>
+<p>The M-step is where the two easily-dropped terms live. Both are in the code, and
+both have a comment, because each one alone produces a plausible-looking fit that
+is quietly wrong.</p>
+<pre class="highlight"><code>            <span class="n">mu</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">ybar</span> <span class="o">-</span> <span class="n">theta</span><span class="p">))</span> <span class="o">/</span> <span class="n">N</span><span class="p">)</span>
+            <span class="n">tau2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">theta</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">var</span><span class="p">))</span>
+            <span class="n">sigma2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">ss</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="p">((</span><span class="n">ybar</span> <span class="o">-</span> <span class="n">mu</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">var</span><span class="p">))</span> <span class="o">/</span> <span class="n">N</span><span class="p">)</span>
+</code></pre>
+<p>The marginal likelihood is (7), and it is the same function the EM is
+monotone in — which is what makes the demo's monotonicity check meaningful
+rather than decorative.</p>
+<pre class="highlight"><code>    <span class="n">var</span> <span class="o">=</span> <span class="n">tau2</span> <span class="o">+</span> <span class="n">sigma2</span> <span class="o">/</span> <span class="n">n</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">LOG2PI</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">var</span><span class="p">))</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">ybar</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">var</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">ss</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">LOG2PI</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sigma2</span><span class="p">))</span>
+                            <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">ss</span> <span class="o">/</span> <span class="n">sigma2</span><span class="p">))</span>
+</code></pre>
+<p><code>_model</code> is the sampler's target, and the one line that is not obvious is the
+normalisation: <code>-N * ls</code>, not <code>-N/2 * ls</code>, because <code>ls</code> is <span class="math inline">\(\log\sigma\)</span> and
+there is one factor of <span class="math inline">\(\sigma\)</span> per observation. The <code>ss_total</code> term is the
+within-group sum of squares; without it the posterior is improper.</p>
+<pre class="highlight"><code>        <span class="n">ll</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">N</span> <span class="o">*</span> <span class="n">LOG2PI</span> <span class="o">-</span> <span class="n">N</span> <span class="o">*</span> <span class="n">ls</span>
+              <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">resid</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">ss_total</span><span class="p">)</span> <span class="o">/</span> <span class="n">sigma2</span><span class="p">)</span>
+        <span class="n">ll</span> <span class="o">+=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">J</span> <span class="o">*</span> <span class="n">LOG2PI</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">eff</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">tau2</span>
+        <span class="k">if</span> <span class="n">centered</span><span class="p">:</span>
+            <span class="n">ll</span> <span class="o">-=</span> <span class="n">J</span> <span class="o">*</span> <span class="n">lt</span>
+</code></pre>
+<p>The gradient is written out by hand, in both parameterisations, because the whole
+point is that they differ. In the centered branch the prior contributes
+<span class="math inline">\(-a_j/\tau^2\)</span>; in the non-centered branch the Jacobian of <span class="math inline">\(a = \tau z\)</span> cancels
+the <span class="math inline">\(-\log\tau\)</span> of the prior, so <span class="math inline">\(z_j\)</span> is pulled to zero by <span class="math inline">\(-z_j\)</span> alone and
+<span class="math inline">\(\tau\)</span> appears only through the likelihood.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">centered</span><span class="p">:</span>
+            <span class="c1"># `a` is the effect itself; the prior pulls it to 0 with precision</span>
+            <span class="c1"># 1/τ², so a small τ makes this coordinate stiff — the funnel.</span>
+            <span class="n">g</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">1</span> <span class="o">+</span> <span class="n">J</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span> <span class="o">*</span> <span class="n">resid</span> <span class="o">/</span> <span class="n">sigma2</span> <span class="o">-</span> <span class="n">a</span> <span class="o">/</span> <span class="n">tau2</span>
+            <span class="n">g</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.25</span> <span class="o">*</span> <span class="n">lt</span> <span class="o">-</span> <span class="n">J</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">tau2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># z = a/τ is N(0, 1), so its prior term has no τ in it at all: the</span>
+            <span class="c1"># log τ from the change of variables cancels the -log τ in N(0, τ²)</span>
+            <span class="n">g</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">1</span> <span class="o">+</span> <span class="n">J</span><span class="p">]</span> <span class="o">=</span> <span class="n">tau</span> <span class="o">*</span> <span class="n">n</span> <span class="o">*</span> <span class="n">resid</span> <span class="o">/</span> <span class="n">sigma2</span> <span class="o">-</span> <span class="n">a</span>
+            <span class="n">g</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.25</span> <span class="o">*</span> <span class="n">lt</span> <span class="o">+</span> <span class="n">tau</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">resid</span> <span class="o">*</span> <span class="n">a</span><span class="p">)</span> <span class="o">/</span> <span class="n">sigma2</span>
+</code></pre>
+<p>Both closures are handed to the same kernel, with the same step size. That is
+what makes the ESS comparison a comparison of <em>geometry</em> and not of tuning.</p>
+<pre class="highlight"><code>        <span class="n">sampler</span> <span class="o">=</span> <span class="n">MCMC</span><span class="p">(</span><span class="n">log_prob</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">"hmc"</span><span class="p">,</span> <span class="n">grad</span><span class="o">=</span><span class="n">grad</span><span class="p">,</span> <span class="n">step_size</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span>
+                       <span class="n">n_leapfrog</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">n_warmup</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_warmup</span><span class="p">)</span>
+        <span class="n">chain</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">))</span>
+</code></pre>
+<p>The ESS call has one trap: <code>mcmc.ess</code> wants <code>(n_chains, n_samples)</code>, so a single
+coordinate is passed as <code>chain[None, :, k]</code>. Passing <code>chain[:, k][:, None]</code>
+instead makes it think there are 3000 chains of length 1 and it returns the
+number of draws, which looks like perfect mixing.</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">ess_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ess</span><span class="p">(</span><span class="n">chain</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="n">k</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">chain</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])])</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(J\)</span> groups, <span class="math inline">\(N\)</span> observations, and <span class="math inline">\(N = \sum_j n_j\)</span>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>no_pooling</code></td>
+<td style="text-align:left"><span class="math inline">\(O(N)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(J)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>full_pooling</code></td>
+<td style="text-align:left"><span class="math inline">\(O(N)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(J)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>partial_pooling</code></td>
+<td style="text-align:left"><span class="math inline">\(O(N + J)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(J)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>empirical_bayes</code></td>
+<td style="text-align:left"><span class="math inline">\(O(IJ)\)</span> for <span class="math inline">\(I\)</span> EM sweeps</td>
+<td style="text-align:left"><span class="math inline">\(O(J)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>noncentered</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T L (J+3))\)</span> for <span class="math inline">\(T\)</span> draws, <span class="math inline">\(L\)</span> leapfrogs</td>
+<td style="text-align:left"><span class="math inline">\(O(T(J+3))\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The closed forms are linear in the data and effectively free. EM is linear in the
+number of groups per sweep and converged in 5 sweeps here, 60 in the
+hand-rolled monotonicity check that starts from <span class="math inline">\(\tau^2 = \sigma^2 = 1\)</span> — the
+number of sweeps is set by how far the start is from the answer, not by <span class="math inline">\(J\)</span>.</p>
+<p>The sampler is the expensive one: 3000 draws plus 500 warm-up, 16 leapfrog steps
+each, on a parameter of dimension <span class="math inline">\(J + 3 = 13\)</span>, so about 730,000 gradient
+evaluations per chain and two chains in the demo. That is the price of
+integrating over <span class="math inline">\((\tau^2, \sigma^2)\)</span> instead of plugging in their MLEs, and it is
+why <code>empirical_bayes</code> is the default and <code>noncentered</code> is the honest answer when
+you can afford it.</p>
+<p>The grid check is <span class="math inline">\(O(A B C J)\)</span>: <span class="math inline">\(61 \times 111 \times 81 \times 10 \approx 5.5\)</span>
+million evaluations, vectorised in numpy, about 0.1 s. It is affordable only
+because the model has three scalar parameters after marginalising the groups; the
+same trick in a general hierarchical model is what INLA and Laplace
+approximations are for.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Dropping the within-group sum of squares.</strong> The first version of the sampler
+targeted the group means only, as if the data were one observation per group.
+That makes the posterior improper: send <span class="math inline">\(\sigma \to 0\)</span> and every group effect to
+its group mean, and the log density diverges to <span class="math inline">\(+\infty\)</span> while the prior
+penalty stays finite. HMC does exactly what the target says and runs down the
+ridge, ending at <span class="math inline">\(\sigma^2 \approx 0.01\)</span> with a 3% acceptance rate. The fix is
+one term, <code>ss_total</code>, and it is the difference between a proper posterior and a
+divergence. <em>Diagnostic:</em> the sampler's <span class="math inline">\(\log\sigma\)</span> quantiles. If they sit far
+below the plausible noise scale, the target is missing a term, not mis-tuned.</p>
+<p><strong>Dropping the residual in the <span class="math inline">\(\sigma^2\)</span> M-step.</strong> Use
+<span class="math inline">\(\sigma^2 = \sum_j(ss_j + n_j v_j)/N\)</span> and the estimate is biased low — <span class="math inline">\(0.741\)</span>
+against the correct <span class="math inline">\(0.830\)</span> on this data — and the EM is no longer monotone in
+the marginal likelihood it claims to maximise (the demo catches this as a
+<span class="math inline">\(-0.004\)</span> step). The missing piece is
+<span class="math inline">\(n_j(\bar y_j - \mu - \theta_j)^2\)</span>: the group mean is not at its fitted value, and
+that residual is data.</p>
+<p><strong>Dropping the <span class="math inline">\(v_j\)</span> in the <span class="math inline">\(\tau^2\)</span> M-step.</strong> Then <span class="math inline">\(\tau^2\)</span> is the variance of
+the <em>estimated</em> effects, which already include shrinkage toward zero, so it
+shrinks further every sweep and collapses. With <span class="math inline">\(\tau^2 = 0\)</span> the model becomes
+full pooling and every group mean is the same number. This is the classic
+empirical-Bayes failure, and the fix is to remember that the missing effects have
+posterior variance.</p>
+<p><strong>The centered funnel.</strong> With a small true <span class="math inline">\(\tau\)</span>, a centered sampler's ESS for
+<span class="math inline">\(\log\tau\)</span> can fall to a few percent of the draws while its point estimates still
+look fine, because the rare accepted moves are large. The demo's 96 out of 3000
+is a 3% ESS — and the posterior means it produces are still close, which is
+exactly why ESS and not the estimate is the diagnostic. <em>Fix:</em> non-centered
+parameterisation, or a mass matrix adapted to the funnel.</p>
+<p><strong>A single observation in a group.</strong> <code>no_pooling</code> raises, because
+<span class="math inline">\(s_j^2/(n_j-1)\)</span> is undefined at <span class="math inline">\(n_j = 1\)</span>. Partial pooling is defined: the group
+contributes its one observation with a wide posterior, and <span class="math inline">\(\lambda_j\)</span> is large
+because <span class="math inline">\(\sigma^2/n_j = \sigma^2\)</span> is large compared with <span class="math inline">\(\tau^2\)</span>. This is the
+case hierarchical models exist for — small-area estimation is entirely about
+groups too small to estimate alone.</p>
+<p><strong>The exchangeability assumption.</strong> The model treats the group labels as
+interchangeable draws from one distribution. If the groups are actually two
+clusters — a treatment and a control, say — the prior is wrong and the shrinkage
+pulls both toward a mean that neither belongs to. The symptom is a residual
+pattern by group that no <span class="math inline">\(\tau^2\)</span> can fix. <em>Diagnostic:</em> plot the group means
+against the shrunken estimates; structure in the residuals means the prior is
+missing a covariate, not that <span class="math inline">\(\tau^2\)</span> is wrong.</p>
+<p><strong>An informative prior on the log-scales.</strong> With ten groups and two observations
+each, the data barely identify <span class="math inline">\(\tau\)</span>. A tight prior on <span class="math inline">\(\log\tau\)</span> — the default
+in some software is a half-Cauchy with a small scale — will dominate the
+posterior, and the &quot;estimate&quot; is then the prior. The demo uses <span class="math inline">\(N(0, 2^2)\)</span>
+deliberately and still finds <span class="math inline">\(\mathbb{E}[\tau^2] \approx 0.11\)</span> against a true
+<span class="math inline">\(0.0225\)</span>: weak identification, not a bug.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Small-area estimation.</strong> The original use: a survey with 4 respondents in a
+county and 400 in a city, where the county estimate borrows from the state. The
+US Census Bureau's SAIPE programme and every &quot;model-based&quot; official statistic is
+this file with covariates added.</p>
+<p><strong>Meta-analysis.</strong> Each study estimates an effect with a standard error; the
+between-study variance <span class="math inline">\(\tau^2\)</span> is the heterogeneity. Random-effects meta-analysis
+is (7) with <span class="math inline">\(n_j\)</span> replaced by <span class="math inline">\(1/\mathrm{se}_j^2\)</span>, and the shrinkage estimate is
+the pooled effect for a study of that size. <a href="bayesian_inference.py.html"><code>bayesian_inference.py</code></a>
+has the single-study conjugate version.</p>
+<p><strong>A/B testing with many cells.</strong> Ten variants, each with a few hundred users:
+ranking the raw conversion rates is mostly noise, and ranking the shrunken ones
+is not. This is the &quot;empirical Bayes&quot; that makes high-dimensional online
+experiments work, and it is the same arithmetic as the demo.</p>
+<p><strong>Education and health-care report cards.</strong> Value-added models for teachers,
+hospital mortality rates, and surgeon league tables are all hierarchical: the
+whole point is that the noisy small-<span class="math inline">\(n\)</span> units are not ranked on their raw
+averages. The policy debate about whether to publish shrunken or raw estimates
+is a debate about (2).</p>
+<p><strong>Genomics.</strong> <code>limma</code>'s moderated <span class="math inline">\(t\)</span>-statistic is empirical Bayes on gene-wise
+variances: each gene's variance is shrunk toward a pooled estimate, exactly as
+(2) shrinks a group mean, and the degrees of freedom are the <span class="math inline">\(v_j\)</span> correction in
+a different guise. Millions of features, one variance component.</p>
+<p><strong>Priors in machine learning.</strong> Hierarchical priors are how multilevel models,
+mixed-effects packages (<code>lme4</code>, <code>brms</code>), and Bayesian deep learning share
+parameters across groups. The non-centered parameterisation is standard advice in
+Stan and PyMC for exactly the funnel reason the demo measures.</p>
+<p>Where it is a trap: when the groups are not exchangeable, when <span class="math inline">\(J\)</span> is very small
+(fewer than about five groups, <span class="math inline">\(\tau^2\)</span> is not estimable and a fixed prior is
+more honest), and when the group means are the quantity of interest and you
+cannot afford to integrate over the variance components — the plug-in EB answer
+is then overconfident by exactly the amount it ignores. <a href="mcmc.py.html"><code>mcmc.py</code></a> is
+the sampler underneath the last variant, and <a href="variational_inference.py.html"><code>variational_inference.py</code></a>
+is the alternative when <span class="math inline">\(J\)</span> is in the thousands and MCMC is too slow.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>James &amp; Stein (1961). <em>Estimation with quadratic loss.</em> Proceedings of the
+Fourth Berkeley Symposium. Shrinkage dominates the MLE; (4)–(5) is the
+one-dimensional case.</li>
+<li>Lindley &amp; Smith (1972). <em>Bayes estimates for the linear model.</em> JRSS-B 34, 1.
+The hierarchical normal model and the shrinkage formula (2).</li>
+<li>Efron &amp; Morris (1975). <em>Data analysis using Stein's estimator and its
+generalizations.</em> JASA 70, 311. The baseball example that made empirical Bayes
+mainstream.</li>
+<li>Dempster, Laird &amp; Rubin (1977). <em>Maximum likelihood from incomplete data via
+the EM algorithm.</em> JRSS-B 39, 1. The algorithm behind <code>_em</code>.</li>
+<li>Laird &amp; Ware (1982). <em>Random-effects models for longitudinal data.</em> Biometrics
+38, 963. The EM updates (8)–(9), including the two terms that are easy to drop.</li>
+<li>Casella (1985). <em>An introduction to empirical Bayes data analysis.</em> The
+American Statistician 39, 83. The best short account of the plug-in view.</li>
+<li>Robinson (1991). <em>That BLUP is a good thing: the estimation of random effects.</em>
+Statistical Science 6, 15. Why the shrinkage estimator is also the best linear
+unbiased predictor.</li>
+<li>Gelman, Carlin, Stern, Dunson, Vehtari &amp; Rubin (2013). <em>Bayesian Data
+Analysis</em>, 3rd ed. CRC. Chapters 5 and 11: hierarchical models, and the funnel
+in Figure 11.6.</li>
+<li>Papaspiliopoulos, Roberts &amp; Sköld (2007). <em>A general framework for the
+parametrisation of hierarchical Bayesian models.</em> Bayesian Analysis 2, 59. The
+centered/non-centered dichotomy, and when each is better.</li>
+<li>Betancourt &amp; Girolami (2015). <em>Hamiltonian Monte Carlo for hierarchical
+models.</em> In <em>Current Trends in Bayesian Methodology with Applications.</em> The
+funnel as a geometric pathology, with the diagnostics.</li>
+<li>Rue, Martino &amp; Chopin (2009). <em>Approximate Bayesian inference for latent
+Gaussian models using integrated nested Laplace approximations.</em> JRSS-B 71,
+319. What to do when the grid check is not affordable.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="particle_filter.html"><small>Previous</small><span>Particle filter</span></a><a class="next" href="pgm.html"><small>Next</small><span>Graphical models</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html" aria-current="page"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-shrinkage-weight">1. The shrinkage weight</a></li><li class="lvl3"><a href="#2-why-it-beats-both-extremes">2. Why it beats both extremes</a></li><li class="lvl3"><a href="#3-marginal-likelihood-and-empirical-bayes">3. Marginal likelihood and empirical Bayes</a></li><li class="lvl3"><a href="#4-centered-and-non-centered">4. Centered and non-centered</a></li><li class="lvl3"><a href="#5-checking-the-sampler-against-the-exact-answer">5. Checking the sampler against the exact answer</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/hierarchical_bayes.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adam / AdamW · MLAtoms</title>
+<meta name="description" content="Bias-corrected moments with decoupled weight decay. Adam gives every coordinate its own learning rate, derived from the history of that coordinate&#x27;s gradient:">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/adam.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Adam / AdamW">
+<meta property="og:description" content="Bias-corrected moments with decoupled weight decay. Adam gives every coordinate its own learning rate, derived from the history of that coordinate&#x27;s gradient:">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/adam.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Adam / AdamW">
+<meta name="twitter:description" content="Bias-corrected moments with decoupled weight decay. Adam gives every coordinate its own learning rate, derived from the history of that coordinate&#x27;s gradient:">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Adam / AdamW", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/adam.html", "description": "Bias-corrected moments with decoupled weight decay. Adam gives every coordinate its own learning rate, derived from the history of that coordinate's gradient:", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">01 · Optimization</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="adam.py.html">source</a></p><h1>Adam</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Adam gives every coordinate its own learning rate, derived from the history of
+that coordinate's gradient:</p>
+<div class="math block">
+\[\theta_i \leftarrow \theta_i - \eta\,\frac{\hat m_i}{\sqrt{\hat v_i} + \epsilon}\]
+</div>
+<p><code>m</code> is a smoothed gradient (direction), <code>v</code> is a smoothed squared gradient
+(scale). Dividing by <code>√v</code> makes the step roughly scale-free: a coordinate whose
+gradients are consistently 100× larger gets a 100× smaller step. In the first
+steps, where <code>v</code> is tiny, this behaves like sign descent — <code>|Δθ| ≈ η</code> per
+coordinate — which is why Adam is so forgiving about the initial LR and so bad at
+actually converging to high precision.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Change from Adam</th>
+<th style="text-align:left">When it wins</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>adam</code></td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">default for transformers, sparse gradients, fast prototyping</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adamw</code></td>
+<td style="text-align:left">weight decay applied to <code>θ</code>, not <code>g</code></td>
+<td style="text-align:left">any regularised transformer; the modern default</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>amsgrad</code></td>
+<td style="text-align:left">denominator uses <code>max(v_t)</code> over time</td>
+<td style="text-align:left">non-stationary objectives; fixes Adam's non-convergence counterexample</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nadam</code></td>
+<td style="text-align:left">Nesterov-style momentum on <code>m</code></td>
+<td style="text-align:left">slight speed-up on vision tasks</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adamax</code></td>
+<td style="text-align:left"><code>v</code> replaced by running `max</td>
+<td style="text-align:left">g</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>radam</code></td>
+<td style="text-align:left">variance rectification, no update while <code>v</code> is unreliable</td>
+<td style="text-align:left">early training, warmup-free recipes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adan</code></td>
+<td style="text-align:left">second statistic is <code>(g_t − g_{t−1})</code>, Nesterov update</td>
+<td style="text-align:left">faster convergence at low LR; used in some diffusion code</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>eps_inside_sqrt</code></td>
+<td style="text-align:left"><code>√(v̂ + ε)</code> instead of <code>√v̂ + ε</code></td>
+<td style="text-align:left">fp16/BF16, and any case where <code>v</code> underflows</td>
+</tr>
+</tbody>
+</table>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Why <code>m/√v</code>.</strong> With independent coordinates, the natural gradient is
+<code>H⁻¹g</code>; the diagonal of the Hessian is approximately the second moment of the
+gradient, <code>E[g_i²]</code>. So <code>m_i/√v_i</code> is diagonal natural gradient descent with a
+smoothed estimate of the metric. That is the honest justification; &quot;it normalises
+the gradients&quot; is the intuition.</p>
+<p><strong>Bias correction.</strong> With <code>m_0 = v_0 = 0</code>:</p>
+<div class="math block">
+\[m_t = (1-\beta_1)\sum_{k=1}^{t}\beta_1^{t-k}g_k
+\;\Longrightarrow\;
+\mathbb{E}[m_t] = (1-\beta_1^t)\,\mathbb{E}[g]\]
+</div>
+<p>so dividing by <code>1−β₁ᵗ</code> (and <code>1−β₂ᵗ</code>) makes the moments unbiased. Without it the
+first step is smaller by <code>(1−β₁)/√(1−β₂)</code>: the demo measures 0.316η instead of
+η at <code>β = (0.9, 0.999)</code>. That factor is also why &quot;Adam needs warmup&quot; is only half
+true — the bias correction already handles the start; warmup handles the large
+early <em>variance</em>.</p>
+<p><strong>AMSGrad.</strong> Reddi et al. showed a convex problem where Adam's effective learning
+rate <code>η/√v̂_t</code> increases, which breaks convergence. Replacing <code>v̂_t</code> with
+<code>v̂_max,t = max_{s≤t} v̂_s</code> makes the rate non-increasing and restores the
+<code>O(1/√T)</code> bound.</p>
+<p><strong>AdamW.</strong> For SGD, <code>g + λθ</code> and the decoupled <code>θ ← θ(1−ηλ)</code> coincide. For Adam
+they do not, because the decay is divided by <code>√v</code>:</p>
+<div class="math block">
+\[\text{coupled: } \Delta\theta = \eta\,\frac{\hat m + \lambda\theta}{\sqrt{\hat v}+\epsilon},
+\qquad
+\text{decoupled: } \Delta\theta = \eta\,\frac{\hat m}{\sqrt{\hat v}+\epsilon} + \eta\lambda\theta\]
+</div>
+<p>Coordinates with small <code>v</code> get their weight decay amplified enormously by the
+coupled form — the reason L2-Adam under-regularises some layers and blows up
+others. AdamW's fix is one line and is now the default in every transformer
+training code.</p>
+<p><strong>RAdam.</strong> Early on, <code>v̂</code> is estimated from very few samples, so its reciprocal is
+biased and unstable. RAdam computes <code>ρ_t = ρ_∞ − 2tβ₂ᵗ/(1−β₂ᵗ)</code> with
+<code>ρ_∞ = 2/(1−β₂) − 1</code>, the effective number of samples behind <code>v̂</code>, and:</p>
+<ul>
+<li>if <code>ρ_t ≤ 4</code> (usually the first ~5 steps): take a plain momentum step, no
+adaptive scaling;</li>
+<li>otherwise: scale the adaptive step by
+<code>r_t = √(((ρ_t−4)(ρ_t−2)ρ_∞)/((ρ_∞−4)(ρ_∞−2)ρ_t))</code>, which → 1 as <code>t → ∞</code>.</li>
+</ul>
+<p>So RAdam <em>is</em> Adam plus a smooth, automatic warmup — no LR schedule needed for
+stability.</p>
+<p><strong>Adan.</strong> The second moment of the gradient measures magnitude but not
+<em>agreement</em>. Adan instead smooths the difference <code>d_t = g_t − g_{t−1}</code>:</p>
+<div class="math block">
+\[m_t = (1-\beta_1)m_{t-1} + \beta_1 g_t,\quad
+v_t = (1-\beta_2)v_{t-1} + \beta_2 d_t,\quad
+n_t = (1-\beta_3)n_{t-1} + \beta_3 d_t^2\]
+</div>
+<div class="math block">
+\[\theta \leftarrow \theta - \eta\,\frac{\hat m + \beta_2\hat v}{\sqrt{\hat n}+\epsilon}\]
+</div>
+<p>This is a Nesterov-style acceleration in which the denominator shrinks exactly when
+the gradient stops changing — i.e. when the iterate is near a stationary point with
+consistent curvature. The flip side, visible in the demo, is that the stationary
+error scales with <code>η</code>: <code>n</code> vanishes like <code>d²</code> while <code>m</code> vanishes like <code>d</code>, so the
+step does not go to zero. Adan wants a decaying LR at the end.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>All eight variants share one <code>step</code>; the variant decides which statistics are
+updated and which denominator is used. The denominator is isolated because that is
+where the numerical bugs live:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_denom</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">vmax</span><span class="p">,</span> <span class="n">eps</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"eps_inside_sqrt"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">v</span> <span class="o">+</span> <span class="n">eps</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"amsgrad"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">vmax</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span> <span class="o">+</span> <span class="n">eps</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">+</span> <span class="n">eps</span>
+</code></pre>
+<p><code>sqrt(v) + eps</code> is the original form; <code>sqrt(v + eps)</code> is the fp16/BF16 fix. The
+difference is not cosmetic: when <code>v</code> underflows to zero, the first gives <code>1/eps</code>
+(<code>1e8</code>) and the second gives <code>1/sqrt(eps)</code> (<code>1e4</code>) — a four-orders-of-magnitude
+difference in the step. The <code>amsgrad</code> branch takes <code>max(vmax, v)</code>; <code>vmax</code> is already
+the running max of <code>vhat</code>, so the extra <code>maximum</code> only matters on the first step,
+where <code>vmax</code> is zero and <code>v</code> is not.</p>
+<p>The main loop keeps the moments in place:</p>
+<pre class="highlight"><code>            <span class="n">m</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">m</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span>
+            <span class="n">m</span> <span class="o">+=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span>
+</code></pre>
+<p>In-place <code>*=</code> then <code>+=</code> is one pass over memory, and <code>m</code>/<code>v</code> are aliases into
+<code>self.m[i]</code>, so the buffers update without a rebind. The weights are Adam's
+convention: old history gets <code>β₁</code>, the new gradient gets <code>1−β₁</code>. Adan swaps them
+(below), which is easy to miss.</p>
+<p>Adamax replaces the second moment with a running max:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"adamax"</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">g</span><span class="p">))</span>
+                <span class="n">p</span> <span class="o">-=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span><span class="o">**</span><span class="n">t</span><span class="p">))</span> <span class="o">*</span> <span class="n">m</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+                <span class="k">continue</span>
+</code></pre>
+<p><code>u</code> tracks <code>max(β₂u, |g|)</code>, the weighted <code>∞</code>-norm, so the denominator is bounded by
+the largest gradient ever seen rather than by its RMS. The bias correction is folded
+into the outer factor <code>lr/(1−β₁ᵗ)</code> instead of being applied to <code>m</code> — algebraically
+identical, and it keeps the <code>u</code> update free of the <code>t</code>-dependent scale.</p>
+<p>RAdam has two regimes and the boundary is <code>ρ_t = 4</code>:</p>
+<pre class="highlight"><code>                <span class="n">rho_inf</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span>
+                <span class="n">rho_t</span> <span class="o">=</span> <span class="n">rho_inf</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">t</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span><span class="o">**</span><span class="n">t</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span><span class="o">**</span><span class="n">t</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">rho_t</span> <span class="o">&gt;</span> <span class="mf">4.0</span><span class="p">:</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+                        <span class="p">((</span><span class="n">rho_t</span> <span class="o">-</span> <span class="mf">4.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">rho_t</span> <span class="o">-</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">rho_inf</span><span class="p">)</span>
+                        <span class="o">/</span> <span class="p">((</span><span class="n">rho_inf</span> <span class="o">-</span> <span class="mf">4.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">rho_inf</span> <span class="o">-</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">rho_t</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">l_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span><span class="o">**</span><span class="n">t</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+                    <span class="n">p</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">r</span> <span class="o">*</span> <span class="n">l_t</span> <span class="o">*</span> <span class="n">m</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span><span class="o">**</span><span class="n">t</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">p</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">mhat</span>
+</code></pre>
+<p><code>ρ_t</code> is the effective sample size behind <code>v̂</code>: at <code>t=1</code> with <code>β₂=0.999</code> it is <code>1</code>,
+far below 4, so the first step is the plain momentum step <code>lr·mhat</code> — no adaptive
+denominator at all. That is why <code>radam</code> and <code>adam</code> agree exactly on step one (the
+demo asserts <code>0.99</code> for both) and diverge later. <code>r</code> is a smooth ramp from 0 to 1,
+so RAdam is &quot;Adam with an automatic warmup&quot;, not a different optimiser.</p>
+<p>Nadam folds the lookahead into the numerator:</p>
+<pre class="highlight"><code>                <span class="n">g_eff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span> <span class="o">*</span> <span class="n">mhat</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span><span class="o">**</span><span class="n">t</span><span class="p">)</span>
+                <span class="n">vhat</span> <span class="o">=</span> <span class="n">v</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span><span class="o">**</span><span class="n">t</span><span class="p">)</span>
+                <span class="n">p</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">g_eff</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vhat</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+</code></pre>
+<p><code>β₁·mhat + (1−β₁)·g/(1−β₁ᵗ)</code> is the bias-corrected version of <code>β₁m + (1−β₁)g</code>,
+i.e. the gradient evaluated one momentum step ahead. The <code>/(1−β₁ᵗ)</code> on the <em>second</em>
+term is the part that is usually dropped when copying the formula; without it the
+first step is smaller than <code>lr</code> and the &quot;Nesterov&quot; variant is just Adam.</p>
+<p><code>adamw</code> is one line, applied before the gradient path:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"adamw"</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">wd</span><span class="p">:</span>
+                <span class="n">p</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">wd</span> <span class="o">*</span> <span class="n">p</span>  <span class="c1"># decoupled: no gradient term</span>
+</code></pre>
+<p>and the coupled branch is explicitly excluded afterwards:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wd</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"adamw"</span><span class="p">:</span>
+                <span class="n">g</span> <span class="o">=</span> <span class="n">g</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">wd</span> <span class="o">*</span> <span class="n">p</span>
+</code></pre>
+<p>That <code>!= &quot;adamw&quot;</code> is what stops the decay from being applied twice. With a zero
+gradient the difference is stark: coupled Adam divides the decay by <code>√v</code>, which
+after a few zero-gradient steps is tiny, so it barely shrinks; AdamW multiplies by
+<code>(1−ηλ)</code> every step regardless. The demo's <code>0.508</code> vs <code>0.774</code> after five steps is
+that divergence.</p>
+<p>Adan is a separate method because its state is different:</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b1</span> <span class="o">*</span> <span class="n">g</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">g</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">g_prev</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span> <span class="o">*</span> <span class="n">d</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b3</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b3</span> <span class="o">*</span> <span class="n">d</span> <span class="o">*</span> <span class="n">d</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g_prev</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span>
+</code></pre>
+<p>Note the coefficient order: <code>(1−β)·old + β·new</code>, the reverse of Adam. This is Adan's
+paper convention, and mixing it with Adam's convention changes the effective horizon
+from <code>1/(1−β)</code> to <code>1/β</code>. <code>g_prev</code> starts at zero, so the first difference is the full
+gradient; from the second step on, a constant gradient gives <code>d = 0</code>, <code>n</code> decays
+geometrically, and the step becomes <code>m/√ε</code>-dominated. The demo checks exactly that
+decay (<code>9.9e-1 → 9.9e-7</code>) because it is the property that forces Adan to use a
+decaying LR.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Time <code>O(P)</code> per step. Memory <code>3P</code> for Adam (<code>θ, m, v</code>), <code>4P</code> for AMSGrad
+(<code>+v_max</code>), <code>5P</code> for Adan (<code>m, v, n, g_prev</code>). That ratio is why Adan and AMSGrad
+are rarely used at LLM scale even when they converge faster per step. All variants
+vectorise to a handful of fused elementwise kernels; on a GPU the memory traffic,
+not the arithmetic, is the cost.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Non-convergence at the end.</strong> Adam's step does not vanish as <code>g → 0</code> (the
+<code>ε</code> floor and the EMA keep <code>m/√v</code> at <code>O(1)</code>). Use a decaying LR, or switch to
+SGD+momentum for the last 10% of training.</li>
+<li><strong>Coupled weight decay.</strong> <code>adam(weight_decay=0.1)</code> is not AdamW and the effect
+depends on the gradient scale of each layer. Use <code>adamw</code> and tune <code>λ</code> directly.</li>
+<li><strong><code>ε</code> in the wrong place.</strong> <code>√v + ε</code> vs <code>√(v + ε)</code>: in fp16, <code>v</code> can underflow
+to 0 and the first form produces a division by <code>ε = 1e-8</code>, i.e. a gigantic step.
+Post-LN transformers trained in fp16 crashed on exactly this; BF16 plus
+<code>eps_inside_sqrt</code> is the robust combination.</li>
+<li><strong><code>β₂</code> too high for small batches.</strong> <code>v</code> averages over <code>1/(1−β₂) = 1000</code> steps;
+with 32-sample batches that is 32k examples, which is fine, but with highly
+non-stationary data it lags. <code>β₂ = 0.95–0.98</code> is common in RL for this reason.</li>
+<li><strong>Bias correction with a resumed checkpoint.</strong> <code>t</code> must be restored too;
+restarting at <code>t=0</code> reintroduces the transient (usually harmless, occasionally
+a visible loss spike).</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Transformers:</strong> AdamW, <code>β=(0.9, 0.95)</code>, <code>ε=1e-8</code>, decoupled <code>λ=0.1</code>, warmup
+<ul>
+<li>cosine decay. This is the canonical LLM recipe.</li>
+</ul>
+</li>
+<li><strong>Diffusion models:</strong> Adam or Adan with <code>β₂=0.999</code> and a long warmup; the
+gradient noise is large and the second moment is genuinely informative.</li>
+<li><strong>Sparse features (recommenders, NLP with rare tokens):</strong> Adam-family updates
+are per-coordinate, so a feature seen once still gets a sensible step — the
+main reason it beat SGD there.</li>
+<li><strong>Fine-tuning with tiny data:</strong> AdamW + low LR is more robust than SGD, because
+the per-coordinate scaling is effectively a per-layer LR.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Kingma &amp; Ba, <em>Adam: A Method for Stochastic Optimization</em>, 2015. arXiv:1412.6980</li>
+<li>Reddi, Kale &amp; Kumar, <em>On the Convergence of Adam and Beyond</em> (AMSGrad), 2018. arXiv:1904.09237</li>
+<li>Loshchilov &amp; Hutter, <em>Decoupled Weight Decay Regularization</em> (AdamW), 2019. arXiv:1711.05101</li>
+<li>Liu et al., <em>On the Variance of the Adaptive Learning Rate and Beyond</em> (RAdam), 2019. arXiv:1908.03265</li>
+<li>Dozat, <em>Incorporating Nesterov Momentum into Adam</em> (Nadam), ICLR workshop 2016.</li>
+<li>Xie et al., <em>Adan: Adaptive Nesterov Momentum Algorithm for Faster Optimizing Deep Models</em>, 2022. arXiv:2208.06677</li>
+<li>Kunstner, Hennig &amp; Balles, <em>Limitations of the empirical Fisher approximation</em>, 2019 (why <code>√v</code> is not the Hessian).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="sgd.html"><small>Previous</small><span>SGD</span></a><a class="next" href="adaptive.html"><small>Next</small><span>Adaptive methods</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">01 · Optimization</p><ul class="rail-list"><li><a href="sgd.html"><span class="tick">✓</span><span>SGD</span></a></li><li><a href="adam.html" aria-current="page"><span class="tick">✓</span><span>Adam / AdamW</span></a></li><li><a href="adaptive.html"><span class="tick">✓</span><span>Adaptive methods</span></a></li><li><a href="schedules.html"><span class="tick">✓</span><span>Schedules</span></a></li><li><a href="em.html"><span class="tick">✓</span><span>EM / MM</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Second-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Proximal methods</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Weight averaging</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lion</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>LAMB</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Muon</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SOAP</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Natural gradient</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SAM</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Zeroth-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lookahead</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../00-primitives/index.html"><span class="jump">← 00 · Primitives</span></a></li><li><a href="../02-linear-models/index.html"><span class="jump">02 · Linear models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/01-optimization/adam.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

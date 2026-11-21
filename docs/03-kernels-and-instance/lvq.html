@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learning vector quantisation · MLAtoms</title>
+<meta name="description" content="Prototype-based classifiers with attraction/repulsion updates. k-nearest neighbours stores the training set and calls it a model. Learning vector…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/lvq.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Learning vector quantisation">
+<meta property="og:description" content="Prototype-based classifiers with attraction/repulsion updates. k-nearest neighbours stores the training set and calls it a model. Learning vector…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/lvq.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Learning vector quantisation">
+<meta name="twitter:description" content="Prototype-based classifiers with attraction/repulsion updates. k-nearest neighbours stores the training set and calls it a model. Learning vector…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Learning vector quantisation", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/lvq.html", "description": "Prototype-based classifiers with attraction/repulsion updates. k-nearest neighbours stores the training set and calls it a model. Learning vector\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">03 · Kernels &amp; instance-based</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="lvq.py.html">source</a></p><h1>Learning vector quantisation — prototypes that move under supervision</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>k-nearest neighbours stores the training set and calls it a model. Learning
+vector quantisation stores a dozen labelled points and calls it a model: the
+prediction is</p>
+<div class="math block">
+\[\hat y(x)=y_{\,c},\qquad c=\arg\min_k\ \lVert x-w_k\rVert^2,
+\qquad (1)\]
+</div>
+<p>and the whole algorithm is a rule for moving the <span class="math inline">\(w_k\)</span>. The labels are attached
+to prototypes and never change, so each prototype is a small, human-readable
+statement — &quot;this is what class 2 looks like here&quot; — and the decision boundary
+is the Voronoi diagram of a few dozen points.</p>
+<p>Training is competitive: for each sample, the nearest prototype wins the right to
+move, and supervision decides the direction. A winner whose label matches the
+sample is pulled towards it; a winner whose label is wrong is pushed away. That
+single sentence is LVQ1, and every other variant in this file is a refinement of
+which prototypes move and how far.</p>
+<p>There are two eras here and the file covers both. Kohonen's LVQ1, LVQ2.1 and
+LVQ3 are <em>heuristics</em>: plausible local updates with no objective, no convergence
+proof, and a window parameter. GLVQ defines a cost per sample and derives the
+update as its gradient, which turns the heuristic into an optimisation; GRLVQ
+then attaches a relevance weight to every axis and learns the metric as well.
+The difference is measurable. In the demo the first four variants all score
+0.62 on a linear boundary buried under six axes with twice the spread — they are
+Euclidean and cannot know which axes matter — while GRLVQ scores 0.98 with a
+relevance vector of <span class="math inline">\((0.73, 0.69, 0, \dots, 0)\)</span>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">which prototypes move</th>
+<th style="text-align:left">ingredient</th>
+<th style="text-align:left">metric</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>lvq1</code></td>
+<td style="text-align:left">the nearest one</td>
+<td style="text-align:left">its label</td>
+<td style="text-align:left">fixed</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lvq2</code></td>
+<td style="text-align:left">the two nearest</td>
+<td style="text-align:left">distance window</td>
+<td style="text-align:left">fixed</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lvq3</code></td>
+<td style="text-align:left">the two nearest, plus a shrink</td>
+<td style="text-align:left">window and <span class="math inline">\(\epsilon\)</span></td>
+<td style="text-align:left">fixed</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>glvq</code></td>
+<td style="text-align:left">nearest correct and nearest wrong</td>
+<td style="text-align:left">gradient of <span class="math inline">\(\mu\)</span></td>
+<td style="text-align:left">fixed</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>grlvq</code></td>
+<td style="text-align:left">same two</td>
+<td style="text-align:left">gradient of <span class="math inline">\(\mu\)</span></td>
+<td style="text-align:left">learned diagonal</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>lvq1</code></strong> is one prototype per class in the simplest case and the default to
+start from. It is fast, it never diverges for <span class="math inline">\(\alpha<1\)</span>, and it inherits every
+weakness of Euclidean distance.</p>
+<p><strong><code>lvq2</code></strong> (properly LVQ2.1) only updates when the sample falls in a <em>window</em>
+between the nearest correct and nearest wrong prototype. The idea is that a point
+deep inside a class carries no boundary information, so only near-boundary
+samples should move anything. On easy data the window almost never opens: the
+demo records 3 updates out of 7 200 samples.</p>
+<p><strong><code>lvq3</code></strong> adds the missing case. When the two nearest prototypes are both of the
+correct class, both are shrunk towards the sample by a small factor
+<span class="math inline">\(\epsilon\in[0.1,0.5]\)</span>, which stops prototypes from drifting apart in regions
+where they agree. It is the version Kohonen recommended for multi-prototype
+classes.</p>
+<p><strong><code>glvq</code></strong> replaces the winner-take-all rule with the cost of (7) and its exact
+gradient. Every update now has a sign and a magnitude that come from
+differentiating something, and the epoch cost is a diagnostic rather than a
+guess.</p>
+<p><strong><code>grlvq</code></strong> puts a relevance <span class="math inline">\(\lambda_j\)</span> on each axis and learns it by the same
+gradient. It is the variant to use when the features have unequal importance and
+you want the model to say which ones matter: the relevance vector is the answer,
+and it is directly interpretable.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="setup">Setup <a class="header-anchor" href="#setup">#</a></h3>
+<p>Prototypes <span class="math inline">\(w_1,\dots,w_P\in\mathbb R^d\)</span> carry labels <span class="math inline">\(\ell_k\in\{1,\dots,K\}\)</span>,
+seeded from the training data (one or more rows per class). Define
+<span class="math inline">\(d_k(x)=\lVert x-w_k\rVert^2\)</span> for the Euclidean variants and the weighted form
+of (8) for GRLVQ. Prediction is (1). The learning rate is annealed linearly,</p>
+<div class="math block">
+\[\alpha(t)=\alpha_0\Big(1-\frac{t}{T}\Big),
+\qquad (2)\]
+</div>
+<p>so the last epoch takes steps of <span class="math inline">\(\alpha_0/T\)</span> and the prototypes settle instead
+of oscillating.</p>
+<h3 id="lvq1">LVQ1 <a class="header-anchor" href="#lvq1">#</a></h3>
+<p>For a sample <span class="math inline">\((x,y)\)</span> let <span class="math inline">\(c=\arg\min_k d_k(x)\)</span> and
+<span class="math inline">\(s=+1\)</span> if <span class="math inline">\(\ell_c=y\)</span>, <span class="math inline">\(-1\)</span> otherwise. Then</p>
+<div class="math block">
+\[w_c\ \leftarrow\ w_c+\alpha\,s\,(x-w_c),
+\qquad (3)\]
+</div>
+<p>which is <span class="math inline">\((1-\alpha)w_c+\alpha x\)</span> on a match and <span class="math inline">\((1+\alpha)w_c-\alpha x\)</span> on a
+miss. For a match the prototype is an exponential moving average of the samples
+it wins; for a miss it steps away from <span class="math inline">\(x\)</span> by the same fraction. The demo
+asserts both closed forms: <span class="math inline">\((0.5,1.0)\)</span> from <span class="math inline">\((0,0)\)</span> with <span class="math inline">\(\alpha=0.5\)</span> and
+<span class="math inline">\(x=(1,2)\)</span>, and <span class="math inline">\((3.25,3.25)\)</span> from <span class="math inline">\((3,3)\)</span> with a mismatched sample at
+<span class="math inline">\((2.5,2.5)\)</span>.</p>
+<p>Because only the winner moves, the prototypes partition the space between them
+and each one specialises. The cost is that a single outlier can drag a prototype
+across a boundary and there is no objective to say so.</p>
+<h3 id="the-window-lvq21-and-lvq3">The window: LVQ2.1 and LVQ3 <a class="header-anchor" href="#the-window-lvq21-and-lvq3">#</a></h3>
+<p>Let <span class="math inline">\(c\)</span> be the nearest prototype of the correct class and <span class="math inline">\(r\)</span> the nearest of any
+other class. LVQ2.1 updates only when the sample lies in the window</p>
+<div class="math block">
+\[s<\frac{\min(d_c,d_r)}{\max(d_c,d_r)}\le 1,
+\qquad s\approx 0.7,
+\qquad (4)\]
+</div>
+<p>and then moves both, in opposite directions:</p>
+<div class="math block">
+\[w_c\leftarrow w_c+\alpha(x-w_c),\qquad
+w_r\leftarrow w_r-\alpha(x-w_r).
+\qquad (5)\]
+</div>
+<p>The ratio test is a cheap proxy for &quot;the sample is near the boundary&quot;. A point
+with <span class="math inline">\(d_c/d_r=0.06\)</span> is deep inside class <span class="math inline">\(c\)</span>; moving <span class="math inline">\(w_r\)</span> towards it would be
+noise. The demo's constructed pair gives 0.0625 (no move) and 0.818 (inside,
+total movement 1.00), which is exactly the window doing its job.</p>
+<p>LVQ3 keeps (5) and adds the case where the two nearest prototypes are <em>both</em>
+correct:</p>
+<div class="math block">
+\[w_k\leftarrow w_k+\epsilon\,\alpha\,(x-w_k),
+\qquad k\in\{\text{two nearest}\},\ \ \epsilon\in[0.1,0.5].
+\qquad (6)\]
+</div>
+<p>Without it, two prototypes of one class can drift apart and leave a hole that a
+wrong prototype fills. With it, they cohere.</p>
+<h3 id="glvq">GLVQ <a class="header-anchor" href="#glvq">#</a></h3>
+<p>Define the per-sample cost from the two distances</p>
+<div class="math block">
+\[\mu(x)=\frac{d_+(x)-d_-(x)}{d_+(x)+d_-(x)}\in[-1,1],
+\qquad (7)\]
+</div>
+<p>where <span class="math inline">\(d_+\)</span> is the distance to the nearest correct prototype and <span class="math inline">\(d_-\)</span> the
+distance to the nearest wrong one. Minimising <span class="math inline">\(\mu\)</span> pulls the correct prototype
+closer than the wrong one; the floor <span class="math inline">\(-1\)</span> is reached when the sample sits exactly
+on its correct prototype. Differentiating (7) with <span class="math inline">\(d_k=\lVert x-w_k\rVert^2\)</span>,</p>
+<div class="math block">
+\[\frac{\partial\mu}{\partial w_+}=-\frac{4d_-}{(d_++d_-)^2}(x-w_+),\qquad
+\frac{\partial\mu}{\partial w_-}=+\frac{4d_+}{(d_++d_-)^2}(x-w_-),
+\qquad (8)\]
+</div>
+<p>so a gradient step is</p>
+<div class="math block">
+\[w_+\leftarrow w_++\eta\frac{4d_-}{s^2}(x-w_+),\qquad
+w_-\leftarrow w_--\eta\frac{4d_+}{s^2}(x-w_-),
+\qquad s=d_++d_-.
+\qquad (9)\]
+</div>
+<p>The factor 4 is not cosmetic: the derivative of the squared distance brings a 2,
+and the quotient brings another 2. The demo checks (8) against a finite
+difference and gets <span class="math inline">\(-0.369822\)</span> from both. It also checks the floor of the cost
+path: on the blobs GLVQ drives the epoch mean from <span class="math inline">\(-0.9090\)</span> to <span class="math inline">\(-0.9232\)</span>.</p>
+<h3 id="grlvq">GRLVQ <a class="header-anchor" href="#grlvq">#</a></h3>
+<p>Replace the Euclidean distance by a diagonal metric with relevance vector
+<span class="math inline">\(\lambda\in\mathbb R^d_{\ge0}\)</span>, <span class="math inline">\(\lVert\lambda\rVert_2=1\)</span>:</p>
+<div class="math block">
+\[d^\lambda(x,w)=\sum_{j=1}^{d}\lambda_j^2\,(x_j-w_j)^2 .
+\qquad (10)\]
+</div>
+<p>The squared relevance is the weight, so <span class="math inline">\(\lambda_j\)</span> is a scale and <span class="math inline">\(\lambda_j^2\)</span>
+a share of the metric. The prototype update is (9) with <span class="math inline">\(d^\lambda\)</span> and with each
+coordinate additionally multiplied by <span class="math inline">\(\lambda_j^2\)</span>; differentiating (7) in
+<span class="math inline">\(\lambda\)</span> gives</p>
+<div class="math block">
+\[\frac{\partial\mu}{\partial\lambda_j}
+=\frac{4\lambda_j}{s^2}\Big(d_-^\lambda(x_j-w_{+j})^2
+-d_+^\lambda(x_j-w_{-j})^2\Big),
+\qquad (11)\]
+</div>
+<p>and the relevance takes a descent step followed by projection onto the
+non-negative unit sphere:</p>
+<div class="math block">
+\[\lambda\leftarrow
+\frac{\max\big(\lambda-\eta_\lambda\nabla_\lambda\mu,\ 0\big)}
+{\big\lVert\max(\lambda-\eta_\lambda\nabla_\lambda\mu,\ 0)\big\rVert_2}.
+\qquad (12)\]
+</div>
+<p>The bracket in (11) is the whole mechanism: an axis on which the wrong prototype
+is <em>closer</em> than the correct one contributes a positive gradient and loses
+relevance, and an axis on which the correct prototype wins gains it. On the
+demo's buried linear boundary the six noise axes end at exactly zero and the two
+signal axes at <span class="math inline">\(0.73\)</span> and <span class="math inline">\(0.69\)</span>.</p>
+<p>One check makes the relationship between the two variants exact: at uniform
+<span class="math inline">\(\lambda_j=1/\sqrt d\)</span> the weighted distance is <span class="math inline">\(1/d\)</span> times the Euclidean one, so
+<span class="math inline">\(s^2\)</span> gains <span class="math inline">\(1/d^2\)</span> and <span class="math inline">\(\lambda_j^2\)</span> gains <span class="math inline">\(1/d\)</span>; in (9) the factors cancel and
+the GRLVQ step equals the GLVQ step. The demo asserts that to machine precision,
+which is why GRLVQ can be read as &quot;GLVQ plus directions&quot; rather than as a
+different algorithm.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>Prototypes are seeded per class from the training rows, using the same seeded
+generator that later shuffles the epochs:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">classes</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">codes</span> <span class="o">==</span> <span class="n">code</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">members</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_per_class</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"a class has fewer rows than prototypes requested"</span><span class="p">)</span>
+            <span class="n">chosen</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">members</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_per_class</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre>
+<p>Choosing rows rather than class means matters: a prototype is then an actual
+example, which is what makes the model readable, and GRLVQ's relevance is learned
+from distances between real points instead of a synthetic centroid.</p>
+<p>The distance function is where the metric enters. Two branches, one <code>einsum</code>
+each, and no materialised <span class="math inline">\((P,n,d)\)</span> cube beyond the temporary:</p>
+<pre class="highlight"><code>        <span class="n">diff</span> <span class="o">=</span> <span class="n">X</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">relevance_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"npd,npd-&gt;np"</span><span class="p">,</span> <span class="n">diff</span><span class="p">,</span> <span class="n">diff</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"d,npd,npd-&gt;np"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">relevance_</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">diff</span><span class="p">,</span> <span class="n">diff</span><span class="p">)</span>
+</code></pre>
+<p>Squaring the relevance in the second branch is the convention of (10); using
+<span class="math inline">\(\lambda_j\)</span> directly would make a negative relevance indistinguishable from a
+positive one of the same size.</p>
+<p>LVQ1 is (3) in five lines, including the sign:</p>
+<pre class="highlight"><code>        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distances</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="kc">None</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">rate</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototype_codes_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">==</span> <span class="n">label</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="n">delta</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">-=</span> <span class="n">delta</span>
+</code></pre>
+<p>Computing <code>delta</code> once and flipping the sign is the difference between (3) and
+two separate code paths that can drift apart. Note that <code>d</code> is recomputed for
+every sample: the prototypes change after each update, so caching distances
+across samples is wrong, not merely slower.</p>
+<p>LVQ2.1's window test is a ratio of the two smallest distances, computed by
+sorting rather than by two <code>argmin</code> passes:</p>
+<pre class="highlight"><code>        <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">d</span><span class="p">)[:</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">near</span><span class="p">,</span> <span class="n">far</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="n">first</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="n">second</span><span class="p">]</span>
+<span class="o">...</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototype_codes_</span><span class="p">[</span><span class="n">first</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototype_codes_</span><span class="p">[</span><span class="n">second</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="mf">0.0</span>
+        <span class="k">if</span> <span class="n">near</span> <span class="o">/</span> <span class="n">far</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.0</span>
+        <span class="n">correct</span> <span class="o">=</span> <span class="n">first</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototype_codes_</span><span class="p">[</span><span class="n">first</span><span class="p">]</span> <span class="o">==</span> <span class="n">label</span> <span class="k">else</span> <span class="n">second</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototype_codes_</span><span class="p">[</span><span class="n">correct</span><span class="p">]</span> <span class="o">!=</span> <span class="n">label</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.0</span>
+        <span class="n">wrong</span> <span class="o">=</span> <span class="n">second</span> <span class="k">if</span> <span class="n">correct</span> <span class="o">==</span> <span class="n">first</span> <span class="k">else</span> <span class="n">first</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">correct</span><span class="p">]</span> <span class="o">+=</span> <span class="n">rate</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">correct</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">wrong</span><span class="p">]</span> <span class="o">-=</span> <span class="n">rate</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">wrong</span><span class="p">])</span>
+</code></pre>
+<p>The <code>near + far &lt;= 0</code> guard above these lines is not paranoia: a sample sitting
+exactly on a prototype makes the ratio <code>0/0</code>. The <code>correct</code>/<code>wrong</code> resolution
+through the labels, rather than assuming <code>first</code> is right, is what lets the same
+block serve LVQ2.1 and LVQ3.</p>
+<p>The <span class="math inline">\(\epsilon\)</span> term of (6) is the only difference between those two variants, and
+it lives in the branch where both nearest prototypes are correct:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">both_correct</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"lvq3"</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">second</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span> <span class="o">*</span> <span class="n">rate</span> <span class="o">*</span> <span class="p">(</span>
+                        <span class="n">x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+</code></pre>
+<p>GLVQ and GRLVQ share the search for the two operative prototypes, which is worth
+reading closely: <code>np.where(same, d, inf)</code> and <code>np.where(same, inf, d)</code> select
+the nearest correct and nearest wrong in the same pass, with no Python loop and
+no risk of picking the same prototype twice.</p>
+<pre class="highlight"><code>        <span class="n">plus</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">same</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)))</span>
+        <span class="n">minus</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">same</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">d</span><span class="p">)))</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="n">plus</span><span class="p">]</span> <span class="o">+</span> <span class="n">d</span><span class="p">[</span><span class="n">minus</span><span class="p">]</span>
+<span class="o">...</span>
+        <span class="n">toward</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">plus</span><span class="p">]</span>
+        <span class="n">away</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">minus</span><span class="p">]</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="mf">4.0</span> <span class="o">*</span> <span class="n">rate</span> <span class="o">/</span> <span class="n">total</span> <span class="o">**</span> <span class="mi">2</span>
+</code></pre>
+<p><code>toward</code> and <code>away</code> are computed <em>before</em> either prototype is mutated, and that
+ordering is the one subtle line in the GRLVQ branch. The relevance gradient needs
+the pre-update differences; computing it after the prototype step would
+differentiate the wrong point.</p>
+<pre class="highlight"><code>            <span class="n">lam_sq</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relevance_</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">plus</span><span class="p">]</span> <span class="o">+=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">d</span><span class="p">[</span><span class="n">minus</span><span class="p">]</span> <span class="o">*</span> <span class="n">lam_sq</span> <span class="o">*</span> <span class="n">toward</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prototypes_</span><span class="p">[</span><span class="n">minus</span><span class="p">]</span> <span class="o">-=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">d</span><span class="p">[</span><span class="n">plus</span><span class="p">]</span> <span class="o">*</span> <span class="n">lam_sq</span> <span class="o">*</span> <span class="n">away</span>
+            <span class="n">gradient</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">relevance_</span> <span class="o">/</span> <span class="n">total</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="n">d</span><span class="p">[</span><span class="n">minus</span><span class="p">]</span> <span class="o">*</span> <span class="n">toward</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">d</span><span class="p">[</span><span class="n">plus</span><span class="p">]</span> <span class="o">*</span> <span class="n">away</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">proposal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">relevance_</span> <span class="o">-</span> <span class="n">relevance_rate</span> <span class="o">*</span> <span class="n">gradient</span><span class="p">,</span>
+                                  <span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">proposal</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">norm</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">relevance_</span> <span class="o">=</span> <span class="n">proposal</span> <span class="o">/</span> <span class="n">norm</span>
+</code></pre>
+<p>The projection is (12): clip at zero, then divide by the norm. Skipping the
+renormalisation lets the relevance vector grow without bound — the gradient is
+homogeneous, so nothing else constrains its scale — and the metric then collapses
+onto whichever axis accumulated the most mass first.</p>
+<p>Prediction is a nearest-prototype lookup and nothing else, which is the point of
+the atom:</p>
+<pre class="highlight"><code>        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distances</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">prototype_codes_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)]]</span>
+</code></pre>
+<p><code>prototype_codes_</code> holds integer class indices and <code>classes_</code> maps them back, so
+the labels can be strings without any per-sample conversion.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(n\)</span> samples, <span class="math inline">\(d\)</span> features, <span class="math inline">\(P\)</span> prototypes, <span class="math inline">\(K\)</span> classes, <span class="math inline">\(T\)</span> epochs:</p>
+<ul>
+<li><strong>One update:</strong> <span class="math inline">\(O(Pd)\)</span> to find the nearest prototype, plus <span class="math inline">\(O(d)\)</span> to move it.
+GRLVQ adds <span class="math inline">\(O(d)\)</span> for the relevance step.</li>
+<li><strong>One epoch:</strong> <span class="math inline">\(O(nPd)\)</span>; the whole fit is <span class="math inline">\(O(TnPd)\)</span>.</li>
+<li><strong>Memory:</strong> <span class="math inline">\(O(Pd)\)</span> for the prototypes, <span class="math inline">\(O(1)\)</span> per sample. Seeds and shuffles
+are <span class="math inline">\(O(n)\)</span>.</li>
+<li><strong>Against the chapter:</strong> this is the cheapest atom in it. Kernel ridge is
+<span class="math inline">\(O(n^3)\)</span>, metric learning forms an <span class="math inline">\(n\times n\)</span> matrix, and even kNN pays
+<span class="math inline">\(O(nd)\)</span> memory. LVQ pays for that with a fixed-capacity model: <span class="math inline">\(P\)</span> prototypes
+cannot represent more than <span class="math inline">\(P\)</span> prototypes' worth of boundary.</li>
+</ul>
+<p>The demo's largest fit is 300 samples with 4 prototypes over 30 epochs, which is
+36 000 distance rows — less than one <span class="math inline">\(200\times200\)</span> kernel matrix.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The window closes and the model stops learning.</strong> On well-separated classes
+LVQ2.1 and LVQ3 update on almost nothing: 3 of 7 200 samples in the demo, with
+the accuracy essentially LVQ1's. If <code>n_updates_</code> is tiny, the window variants are
+LVQ1 with two extra hyperparameters. Diagnose by counting updates; fix by
+seeding more prototypes per class or by accepting that the data has no boundary
+to refine.</p>
+<p><strong>Prototype initialisation decides the outcome.</strong> LVQ1/2/3 have no objective, and
+even GLVQ's cost has local minima. A prototype seeded on an outlier can stay
+there for the whole fit, because it only moves when it wins and it wins only
+nearby samples. A control run outside the demo — a 2-d XOR embedded in six loud
+axes — recovered the two signal axes on three training seeds out of five and
+stalled at chance on the other two, with relevance mass spread over the noise.
+Diagnose with several seeds and a held-out score; the fix is more prototypes or
+a relevance warm-up, not a smaller learning rate.</p>
+<p><strong>Euclidean blindness, and the diagonal metric that only partly fixes it.</strong>
+LVQ1 and GLVQ score 0.62 on the demo's buried boundary because six axes with
+twice the spread dominate the distance. GRLVQ fixes that case, but its metric is
+diagonal: it can down-weight an axis, not rotate the space, so two informative
+axes that are strongly correlated are still seen as two axes. When the useful
+directions are oblique, the full matrix of <code>metric_learning</code> is the right tool.</p>
+<p><strong>A learning rate that does not decay.</strong> With <span class="math inline">\(\alpha=1\)</span> a prototype lands
+exactly on the sample and forgets everything else; with a constant <span class="math inline">\(\alpha\)</span> the
+last epoch undoes part of the previous one. The schedule in (2) is not a
+formality — it is what makes the final prototypes an average rather than a
+snapshot.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>LVQ was built for phoneme recognition and handwritten digit classification, and
+it remains a strong choice when the model must be <strong>small and inspectable</strong>: a
+few dozen prototypes can be printed, plotted and argued about with a domain
+expert, which no kernel machine or forest offers. In clinical and industrial
+settings that readability is often the deciding feature.</p>
+<p>GRLVQ's relevance vector is a feature-ranking device. Training it on a
+high-dimensional panel and reading off the nonzero <span class="math inline">\(\lambda_j\)</span> is a supervised
+screening step that accounts for interactions through the prototypes, and it
+costs a fraction of a wrapper search. The same idea underlies divergence-based
+LVQ, where the metric is chosen to match the data's statistics rather than the
+Euclidean prior.</p>
+<p>As a baseline, one prototype per class is the cheapest classifier worth reporting
+— it is nearest-centroid with a learned instead of an averaged position — and it
+often beats logistic regression on small, well-separated problems.</p>
+<p>It is a trap when the classes are not convex and <span class="math inline">\(P\)</span> is small: prototypes tile
+the space with Voronoi cells, so a class that wraps around another needs many
+prototypes. It is also a trap for high-stakes probability estimates: LVQ outputs
+a label and a distance, not a calibrated posterior, and the distance is not a
+confidence.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Kohonen (1990). <em>The self-organizing map.</em> Proceedings of the IEEE 78(9).
+The paper that introduced LVQ1, LVQ2.1 and LVQ3 alongside the map.</li>
+<li>Sato, Yamada (1996). <em>Generalized learning vector quantization.</em> NIPS.
+The cost (7) and the gradient that turns LVQ into an optimisation.</li>
+<li>Hammer, Villmann (2002). <em>Generalized relevance learning vector
+quantization.</em> Neural Networks 15. The relevance vector and (11)–(12).</li>
+<li>Nova, Estévez (2014). <em>A review of learning vector quantization
+classifiers.</em> Neural Computing and Applications 25. The survey that puts the
+variants, and the many later ones, in one place.</li>
+<li>Biehl, Hammer, Villmann (2013). <em>Distance measures for prototype based
+classification.</em> Lecture Notes in Computer Science. Why the metric, not the
+update rule, is usually what decides LVQ's accuracy.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="mmd.html"><small>Previous</small><span>MMD &amp; HSIC</span></a><a class="next" href="../04-trees-and-ensembles/index.html"><small>Next</small><span>04 · Trees &amp; ensembles</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">03 · Kernels &amp; instance-based</p><ul class="rail-list"><li><a href="svm.html"><span class="tick">✓</span><span>Support vector machine</span></a></li><li><a href="kernel_ridge.html"><span class="tick">✓</span><span>Kernel ridge</span></a></li><li><a href="knn.html"><span class="tick">✓</span><span>k-nearest neighbours</span></a></li><li><a href="svr.html"><span class="tick">✓</span><span>Support vector regression</span></a></li><li><a href="rbf_network.html"><span class="tick">✓</span><span>RBF networks</span></a></li><li><a href="random_features.html"><span class="tick">✓</span><span>Random features</span></a></li><li><a href="one_class.html"><span class="tick">✓</span><span>One-class models</span></a></li><li><a href="nearest_centroid.html"><span class="tick">✓</span><span>Nearest centroid</span></a></li><li><a href="nystrom.html"><span class="tick">✓</span><span>Nystrom approximation</span></a></li><li><a href="metric_learning.html"><span class="tick">✓</span><span>Metric learning</span></a></li><li><a href="multiple_kernel.html"><span class="tick">✓</span><span>Multiple kernel learning</span></a></li><li><a href="mmd.html"><span class="tick">✓</span><span>MMD &amp; HSIC</span></a></li><li><a href="lvq.html" aria-current="page"><span class="tick">✓</span><span>Learning vector quantisation</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../02-linear-models/index.html"><span class="jump">← 02 · Linear models</span></a></li><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">04 · Trees &amp; ensembles&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#setup">Setup</a></li><li class="lvl3"><a href="#lvq1">LVQ1</a></li><li class="lvl3"><a href="#the-window-lvq21-and-lvq3">The window: LVQ2.1 and LVQ3</a></li><li class="lvl3"><a href="#glvq">GLVQ</a></li><li class="lvl3"><a href="#grlvq">GRLVQ</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/03-kernels-and-instance/lvq.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

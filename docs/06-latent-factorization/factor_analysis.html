@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factor analysis · MLAtoms</title>
+<meta name="description" content="Unique variances, rotation and interpretable factors. Probabilistic PCA says every feature is measured with the same noise. Factor analysis says each feature…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/factor_analysis.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Factor analysis">
+<meta property="og:description" content="Unique variances, rotation and interpretable factors. Probabilistic PCA says every feature is measured with the same noise. Factor analysis says each feature…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/factor_analysis.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Factor analysis">
+<meta name="twitter:description" content="Unique variances, rotation and interpretable factors. Probabilistic PCA says every feature is measured with the same noise. Factor analysis says each feature…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Factor analysis", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/factor_analysis.html", "description": "Unique variances, rotation and interpretable factors. Probabilistic PCA says every feature is measured with the same noise. Factor analysis says each feature\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">06 · Latent structure &amp; factorisation</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="factor_analysis.py.html">source</a></p><h1>Factor analysis</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Probabilistic PCA says every feature is measured with the same noise. Factor
+analysis says each feature has its own noise level, and that is the entire
+difference:</p>
+<div class="math block">
+\[x = \Lambda f + \mu + \varepsilon, \qquad f \sim \mathcal{N}(0, \Phi), \qquad \varepsilon \sim \mathcal{N}(0, \Psi), \qquad (1)\]
+</div>
+<div class="math block">
+\[x \sim \mathcal{N}(\mu, \Sigma), \qquad \Sigma = \Lambda \Phi \Lambda^\top + \Psi, \qquad \Psi = \mathrm{diag}(\psi_1, \ldots, \psi_d). \qquad (2)\]
+</div>
+<p>PPCA is the case <span class="math inline">\(\Phi = I\)</span>, <span class="math inline">\(\Psi = \sigma^2 I\)</span>. Dropping the second constraint
+is what makes the model honest about instruments: a microphone has one noise
+floor, a thermometer another, and a model that averages them fits neither. The
+loadings then have to arrange themselves around a <em>fixed</em> noise profile instead
+of absorbing it.</p>
+<p>The cost is one parameter per feature, which is exactly the parameter that is
+hardest to estimate from a small sample.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"></th>
+<th style="text-align:left">PCA</th>
+<th style="text-align:left">PPCA</th>
+<th style="text-align:left">Factor analysis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">parameters in the covariance</td>
+<td style="text-align:left"><span class="math inline">\(dk - k(k-1)/2\)</span></td>
+<td style="text-align:left"><span class="math inline">\(dk + 1 - k(k-1)/2\)</span></td>
+<td style="text-align:left"><span class="math inline">\(dk + d - k(k-1)/2\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">noise</td>
+<td style="text-align:left">none</td>
+<td style="text-align:left">one <span class="math inline">\(\sigma^2\)</span></td>
+<td style="text-align:left">one <span class="math inline">\(\psi_j\)</span> per feature</td>
+</tr>
+<tr>
+<td style="text-align:left">likelihood</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">yes</td>
+</tr>
+<tr>
+<td style="text-align:left">a partial row</td>
+<td style="text-align:left">cannot project it</td>
+<td style="text-align:left"><span class="math inline">\(E[x_{\text{miss}} \mid x_{\text{obs}}]\)</span></td>
+<td style="text-align:left">no (see below)</td>
+</tr>
+<tr>
+<td style="text-align:left">a rotation worth choosing</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">yes, <span class="math inline">\(k \ge 3\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The last row is the second half of the story. For <strong>any</strong> orthogonal <span class="math inline">\(R\)</span>,</p>
+<div class="math block">
+\[\Lambda R R^\top \Lambda^\top = \Lambda \Lambda^\top, \qquad (3)\]
+</div>
+<p>so the likelihood is completely flat along the <span class="math inline">\(k(k-1)/2\)</span> rotation directions.
+With <span class="math inline">\(k = 2\)</span> that is a single angle and the fitted basis is arbitrary; with
+<span class="math inline">\(k = 3\)</span> it is three angles. The model is identified in <span class="math inline">\(\Sigma\)</span> and not in
+<span class="math inline">\(\Lambda\)</span>, and a loading matrix is only as interpretable as the rotation you
+chose. That is why two of the five variants are not estimators at all.</p>
+<pre class="highlight"><code>    the same Σ, three bases
+
+      factor 2                        factor 2                       factor 2
+         │   ●                           │                              │
+         │  ●  ●                         │  ●  ●                        │ ●
+         │ ●     ●                       │ ●     ●                      │  ●
+         │●        ●                     │●        ●                    │   ●
+         └──────────── factor 1          └──────────── factor 1         └──────── factor 1
+       unrotated (ML, PCA)             varimax (orthogonal)          promax (oblique)
+       every variable on               one factor per                one factor per
+       every factor                    variable, Φ = I               variable, Φ ≠ I
+</code></pre>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Optimises</th>
+<th style="text-align:left">Algorithm</th>
+<th style="text-align:left">What it is for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ml_fa</code></td>
+<td style="text-align:left">the likelihood</td>
+<td style="text-align:left">Jöreskog fixed point on <span class="math inline">\(\psi\)</span></td>
+<td style="text-align:left">the estimate, and the likelihood</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pca_fa</code></td>
+<td style="text-align:left">nothing</td>
+<td style="text-align:left">one eigendecomposition</td>
+<td style="text-align:left">the fast moment estimator</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>minres</code></td>
+<td style="text-align:left">off-diagonal residual</td>
+<td style="text-align:left">iterated principal axes</td>
+<td style="text-align:left">the least-squares alternative</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>varimax</code></td>
+<td style="text-align:left">loadings simplicity</td>
+<td style="text-align:left">polar/SVD iterations</td>
+<td style="text-align:left">an orthogonal, readable basis</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>promax</code></td>
+<td style="text-align:left">fit to a simple target</td>
+<td style="text-align:left">Procrustes to <span class="math inline">\(\lvert \Lambda \rvert^p\)</span></td>
+<td style="text-align:left">an oblique, readable basis</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>ml_fa</code></strong> is the maximum-likelihood estimator, and it is a fixed point rather
+than a gradient ascent: at fixed <span class="math inline">\(\psi\)</span> the optimal <span class="math inline">\(\Lambda\)</span> is available in
+closed form from an eigendecomposition of the scaled sample covariance, and at
+fixed <span class="math inline">\(\Lambda\)</span> the optimal <span class="math inline">\(\psi\)</span> is the diagonal residual. Alternating the two
+exact steps gives a monotone iteration that converges in 30–40 sweeps on the
+demo's data. Every claim in the demo is one of its stationarity conditions.</p>
+<p><strong><code>pca_fa</code></strong> is the principal-component method: take the top <span class="math inline">\(k\)</span> eigenvectors of
+<span class="math inline">\(S\)</span>, scale them by the square roots of the eigenvalues, and set the uniquenesses
+to whatever the diagonal leaves over. It is one eigendecomposition, it never
+iterates, and it is not a likelihood estimator — its <span class="math inline">\(\psi\)</span> can come out
+negative and has to be clipped, which is why its fitted covariance is not an
+optimum of anything. It exists because it is what people ran before computers,
+and because it makes a clean baseline: on the demo's wide-noise data it loses
+0.20 nats per row and leaves an off-diagonal residual ten times larger.</p>
+<p><strong><code>minres</code></strong> minimises the off-diagonal residual directly. Given <span class="math inline">\(\psi\)</span>, the
+best <span class="math inline">\(\Lambda\)</span> is the top <span class="math inline">\(k\)</span> eigenpairs of the reduced matrix <span class="math inline">\(S -
+\mathrm{diag}(\psi)\)</span> — the sample covariance with its diagonal replaced by
+communalities — and <span class="math inline">\(\psi\)</span> is then updated from the new diagonal residual. It is
+the same iteration as <code>pca_fa</code> with the diagonal replaced at every step, and it
+converges to the least-squares solution. The demo's measured result is worth
+stating plainly: <strong><code>ml_fa</code> and <code>minres</code> are the same estimator in effect</strong> on
+this data. Their held-out likelihoods agree to <span class="math inline">\(10^{-4}\)</span> and their residuals to
+0.015. They are different objectives with the same answer, which is the
+asymptotic equivalence the theory predicts.</p>
+<p><strong><code>varimax</code></strong> fits <code>ml_fa</code> and then rotates. Kaiser's criterion is the variance
+of the squared loadings within each column, summed over columns:</p>
+<div class="math block">
+\[V = \sum_{j=1}^{k} \mathrm{Var}_i\left( (\Lambda R)_{ij}^2 \right), \qquad (4)\]
+</div>
+<p>which is maximised exactly when the squared loadings within a column are as
+spread out as possible — a few large, the rest near zero. That is the formal
+version of &quot;simple structure&quot;. It is a local method: it ascends a non-convex
+quartic, and the demo verifies local optimality (200 random rotations, none
+improves) rather than global optimality.</p>
+<p><strong><code>promax</code></strong> relaxes orthogonality. It fits the varimax solution to its own
+fourth power — a Procrustes problem with a closed-form answer — and reads the
+result as an oblique pattern <span class="math inline">\(\Lambda = P\)</span> together with the factor correlation
+<span class="math inline">\(\Phi\)</span>:</p>
+<div class="math block">
+\[\Sigma = P \Phi P^\top + \Psi, \qquad P \Phi P^\top = \Lambda_v \Lambda_v^\top. \qquad (5)\]
+</div>
+<p>The identity on the right is exact, and it is the reason an oblique rotation is
+a reparameterisation rather than a new model: the same <span class="math inline">\(\Sigma\)</span>, the same
+likelihood, a different basis. What <span class="math inline">\(\Phi\)</span> is <em>not</em> is an estimate of the
+population factor correlation. It is a diagnostic of how far the orthogonal
+solution had to be pushed.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-why-the-diagonal-is-the-whole-difference">1. Why the diagonal is the whole difference <a class="header-anchor" href="#1-why-the-diagonal-is-the-whole-difference">#</a></h3>
+<p>Both models match the off-diagonals with <span class="math inline">\(\Lambda \Lambda^\top\)</span>, so any
+difference between them is confined to the diagonal — and the diagonal is
+exactly where a covariance has to stay positive definite. Write <span class="math inline">\(h_j^2 =
+\sum_i \lambda_{ij}^2\)</span> for the communality of feature <span class="math inline">\(j\)</span>, the variance it shares
+with the others. Then</p>
+<div class="math block">
+\[S_{jj} = h_j^2 + \psi_j, \qquad (6)\]
+</div>
+<p>so <span class="math inline">\(\psi_j\)</span> is the part of feature <span class="math inline">\(j\)</span>'s variance that no factor explains. In
+PPCA all <span class="math inline">\(d\)</span> of those residuals are tied to one number; in factor analysis they
+are free. That is why factor analysis is the model you reach for when the
+features have visibly different noise, and why it needs <span class="math inline">\(d\)</span> more parameters.</p>
+<h3 id="2-profiling--out-the-scaled-spectrum">2. Profiling <span class="math inline">\(\Lambda\)</span> out: the scaled spectrum <a class="header-anchor" href="#2-profiling--out-the-scaled-spectrum">#</a></h3>
+<p>Fix <span class="math inline">\(\psi\)</span>. Maximising the likelihood over <span class="math inline">\(\Lambda\)</span> is a regression problem in
+disguise. Whiten the data by <span class="math inline">\(\Psi^{-1/2}\)</span>, which makes the noise the identity:</p>
+<div class="math block">
+\[\Psi^{-1/2} S \Psi^{-1/2} = G\, \Theta\, G^\top, \qquad \theta_1 \ge \theta_2 \ge \cdots \ge \theta_d. \qquad (7)\]
+</div>
+<p>The transformed model is <span class="math inline">\(\tilde S = \tilde\Lambda \tilde\Lambda^\top + I\)</span>, and
+the top-<span class="math inline">\(k\)</span> eigenpairs of <span class="math inline">\(\tilde S\)</span> are the answer:</p>
+<div class="math block">
+\[\tilde\Lambda = G_k\left(\Theta_k - I\right)^{1/2}, \qquad \Lambda = \Psi^{1/2} \tilde\Lambda. \qquad (8)\]
+</div>
+<p>This is the same statement as PPCA's closed form with <span class="math inline">\(\sigma^2 = 1\)</span> in the
+whitened coordinates. The <span class="math inline">\(\theta_j - 1\)</span> is the signal <em>above</em> the noise: a
+direction whose scaled eigenvalue is below 1 has less variance than the noise
+floor, so its loading is clipped to zero (the code's <code>np.maximum(..., 0.0)</code>).</p>
+<p>Substituting (8) back gives the update for the noise,</p>
+<div class="math block">
+\[\psi_j = S_{jj} - \sum_{i=1}^{k} \lambda_{ij}^2, \qquad (9)\]
+</div>
+<p>which is (6) rearranged. Iterating (7)–(9) is Jöreskog's algorithm, and it is
+what <code>_fit_ml</code> does.</p>
+<h3 id="3-the-three-stationarity-conditions">3. The three stationarity conditions <a class="header-anchor" href="#3-the-three-stationarity-conditions">#</a></h3>
+<p>The demo does not assert (9) — it could only recompute it. It asserts the deeper
+conditions, each of which is a different expression:</p>
+<p><strong>(i) <span class="math inline">\(\Sigma\)</span> is optimal over <span class="math inline">\(\Lambda\)</span> at fixed <span class="math inline">\(\psi\)</span>.</strong> This is where
+<span class="math inline">\(\mathrm{tr}(\Sigma^{-1}S) = d\)</span> comes from, and it makes the profile likelihood
+possible:</p>
+<div class="math block">
+\[\ell(\psi) = -\frac{n}{2}\left[ d\log 2\pi + \sum_j \log \psi_j + \sum_{j \le k} \log \theta_j + d \right]. \qquad (10)\]
+</div>
+<p>The determinant identity behind it is clean: <span class="math inline">\(\lvert \Sigma \rvert =
+\lvert \Psi \rvert \cdot \lvert I + \tilde\Lambda\tilde\Lambda^\top \rvert =
+\prod_j \psi_j \cdot \prod_{j\le k}\theta_j\)</span>, because the whitened loadings have
+eigenvalues <span class="math inline">\(\theta_j - 1\)</span> on <span class="math inline">\(k\)</span> directions and zero elsewhere.</p>
+<p><strong>(ii) <span class="math inline">\(\psi\)</span> is optimal given <span class="math inline">\(\Lambda\)</span>.</strong> Differentiating (10) gives</p>
+<div class="math block">
+\[\frac{\partial \ell}{\partial \psi_j} = \tfrac{1}{2}\left[ (\Sigma^{-1} S \Sigma^{-1})_{jj} - (\Sigma^{-1})_{jj} \right], \qquad (11)\]
+</div>
+<p>and the demo measures its max-abs at <span class="math inline">\(3.7 \times 10^{-8}\)</span> over the eight
+features. That is a genuine derivative check: <code>score_samples</code> forms <span class="math inline">\(\Sigma^{-1}\)</span>
+and never differentiates anything.</p>
+<p><strong>(iii) the scaled spectrum keeps its weight.</strong> From (8),
+<span class="math inline">\(\mathrm{tr}(\Lambda^\top \Psi^{-1} \Lambda) = \sum_{j\le k}(\theta_j - 1)\)</span>, so</p>
+<div class="math block">
+\[\mathrm{tr}\!\left(\Psi^{-1/2} S \Psi^{-1/2}\right) = \sum_{j\le k}\theta_j + (d - k) \quad\Longrightarrow\quad \sum_{j>k}\theta_j = d - k. \qquad (12)\]
+</div>
+<p>The tail eigenvalues are near 1 but not equal to it — the demo's are 1.081,
+1.040, 1.012, 0.999, 0.942, 0.926 — and yet their sum is exactly <span class="math inline">\(d - k =
+6.000000\)</span>. That is a sharper check than &quot;they are all around 1&quot;, and it is an
+identity, not a tolerance.</p>
+<h3 id="4-the-fitted-covariance-is-the-identity-in-units-of-the-noise">4. The fitted covariance is the identity in units of the noise <a class="header-anchor" href="#4-the-fitted-covariance-is-the-identity-in-units-of-the-noise">#</a></h3>
+<p>Multiply (2) by <span class="math inline">\(\Psi^{-1/2}\)</span> on both sides. With <span class="math inline">\(\Phi = I\)</span>,</p>
+<div class="math block">
+\[\Psi^{-1/2}\Sigma\Psi^{-1/2} = I + \tilde\Lambda \tilde\Lambda^\top, \qquad (13)\]
+</div>
+<p>whose eigenvalues are <span class="math inline">\(\theta_1, \ldots, \theta_k\)</span> on the factor directions and
+exactly 1 on the other <span class="math inline">\(d - k\)</span>. The demo prints them: <span class="math inline">\((10.7806, 6.4830)\)</span> then
+<code>1.000</code> six times. This is the geometric statement of the whole model — <strong>the
+factors are the only directions in which a feature's variance exceeds its
+noise</strong>, and everything else sits at the noise level by construction.</p>
+<h3 id="5-rotations-are-reparameterisations">5. Rotations are reparameterisations <a class="header-anchor" href="#5-rotations-are-reparameterisations">#</a></h3>
+<p>Because (3) holds, the likelihood cannot prefer <span class="math inline">\(R\)</span>. So pick <span class="math inline">\(R\)</span> by a criterion
+about the loadings. Varimax's is (4), and the standard algorithm is a sequence
+of exact orthogonal Procrustes steps. Write <span class="math inline">\(B = A R\)</span> for the row-normalised
+loadings at the current rotation. The derivative of the criterion with respect
+to <span class="math inline">\(R\)</span>, evaluated and then projected onto the orthogonal group, says the next
+rotation is the orthogonal polar factor of</p>
+<div class="math block">
+\[M = B^\top\left(B^{\circ 3} - B\,\mathrm{diag}\!\left(\overline{B^2}\right)\right), \qquad M = U \Sigma V^\top \;\Longrightarrow\; R \leftarrow R\,(UV^\top). \qquad (14)\]
+</div>
+<p><span class="math inline">\(B^{\circ 3}\)</span> is the elementwise cube and <span class="math inline">\(\overline{B^2}\)</span> the column means of
+the squared loadings. Each step increases the criterion; because the criterion
+is bounded above on a compact group, it converges. It can converge to a local
+maximum, which is why the demo checks local and not global optimality.</p>
+<p>The row normalisation matters for a reason that is easy to miss. Without it, a
+feature with communality 0.9 dominates the variance being maximised and the
+rotation is decided by the noisiest variables. Dividing each row by its
+communality turns the criterion into a statement about <em>shares</em>, and since an
+orthogonal rotation preserves row norms, the communalities are unchanged when
+the rotation is applied to the unnormalised matrix — the demo asserts that to
+<span class="math inline">\(10^{-10}\)</span>.</p>
+<p>Promax starts from the varimax solution <span class="math inline">\(\Lambda_v\)</span>, chooses a target
+<span class="math inline">\(T = \lvert \Lambda_v \rvert^p\)</span> with <span class="math inline">\(p = 4\)</span>, and solves the least-squares
+problem <span class="math inline">\(\Lambda_v A \approx T\)</span> with the constraint <span class="math inline">\(\mathrm{diag}(A) = 1\)</span>.
+With <span class="math inline">\(A\)</span> in hand,</p>
+<div class="math block">
+\[P = \Lambda_v A^{-\top}, \qquad \Phi = A^\top A, \qquad P\Phi P^\top = \Lambda_v A^{-\top} A^\top A A^{-1} \Lambda_v^\top = \Lambda_v\Lambda_v^\top. \qquad (15)\]
+</div>
+<p><span class="math inline">\(A\)</span> has a unit diagonal by construction but <span class="math inline">\(\Phi = A^\top A\)</span> does not, so a
+final rescaling makes <span class="math inline">\(\Phi\)</span> a correlation matrix:</p>
+<div class="math block">
+\[P \leftarrow P\,\mathrm{diag}(s), \qquad \Phi \leftarrow \mathrm{diag}(1/s)\,\Phi\,\mathrm{diag}(1/s), \qquad s_j = \sqrt{\Phi_{jj}}, \qquad (16)\]
+</div>
+<p>and the two rescalings cancel inside <span class="math inline">\(P\Phi P^\top\)</span>. That cancellation is
+exactly what a wrong transpose in (15) destroys: the first version of this file
+computed <span class="math inline">\(P = \Lambda A^{-1}\)</span>, and the identity failed at the third decimal
+while everything else looked fine.</p>
+<h3 id="6-why-a-pattern-loading-can-exceed-1">6. Why a pattern loading can exceed 1 <a class="header-anchor" href="#6-why-a-pattern-loading-can-exceed-1">#</a></h3>
+<p>In the orthogonal model a loading is a correlation-like quantity: <span class="math inline">\(\lambda_{ij}^2
+\le h_j^2 \le S_{jj}\)</span> after standardisation. In the oblique model the pattern
+entry <span class="math inline">\(p_{ij}\)</span> is a <strong>regression weight</strong> — the effect of factor <span class="math inline">\(i\)</span> on variable
+<span class="math inline">\(j\)</span> holding the other factors fixed. Collinearity among the factors inflates
+regression weights, so <span class="math inline">\(p_{ij}\)</span> can exceed 1 while the communality stays below
+<span class="math inline">\(S_{jj}\)</span>. The demo's promax pattern reaches 1.05 where the varimax solution
+stopped at 0.93, and that is not a bug; it is the difference between a
+coefficient and a correlation. The structural loading is <span class="math inline">\((P\Phi)_{ij}\)</span>, and
+<em>that</em> is bounded.</p>
+<h3 id="7-the-heywood-boundary">7. The Heywood boundary <a class="header-anchor" href="#7-the-heywood-boundary">#</a></h3>
+<p>Maximise (10) and nothing stops <span class="math inline">\(\psi_j\)</span> from reaching 0. At <span class="math inline">\(\psi_j = 0\)</span> the
+log-likelihood has a <span class="math inline">\(\log 0\)</span> in it, so the boundary is not a finite optimum —
+the likelihood is unbounded as <span class="math inline">\(\psi_j \to 0\)</span> whenever the data can be fitted
+exactly at that feature. That happens when one feature is (nearly) a linear
+combination of the others, or when <span class="math inline">\(k\)</span> is too large for the sample. The estimate
+is then said to be a <strong>Heywood case</strong>: a feature with no unique variance, an
+improper solution, and <span class="math inline">\(d\)</span>-dimensional standard errors that do not exist.</p>
+<p>The code treats it as a boundary event rather than a numerical accident:</p>
+<ul>
+<li>the iteration stops as soon as a <span class="math inline">\(\psi_j\)</span> falls below <span class="math inline">\(10^{-6} S_{jj}\)</span>,</li>
+<li>the offending entries are set to that floor so the arithmetic stays finite,</li>
+<li>and <code>heywood_</code> is set so a caller can find out.</li>
+</ul>
+<p>The floor is relative to each feature's own variance, which makes the test
+scale-free: a feature measured in millimetres and one in metres are compared on
+the same footing.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>FactorAnalysis(n_components, variant=..., max_iter=..., tol=..., power=...)</code>
+with <code>fit</code>, <code>transform</code> (<span class="math inline">\(E[f \mid x]\)</span>), <code>fit_transform</code>, <code>reconstruct</code>,
+<code>score_samples</code>, and the attributes <code>loadings_</code> <span class="math inline">\((d,k)\)</span>, <code>noise_variance_</code>
+(<span class="math inline">\(\psi\)</span>), <code>uniquenesses_</code> (the same array under its factor-analysis name),
+<code>communalities_</code>, <code>covariance_</code>, <code>rotation_</code>, <code>phi_</code>, <code>heywood_</code>, <code>loglik_</code>,
+<code>loglik_curve_</code>, <code>n_iter_</code>.</p>
+<p>The orientation is <code>(d, k)</code> — feature by factor — because a loading <em>is</em> a
+regression coefficient of a feature on a factor, and <code>pca.PCA.components_</code> uses
+the transpose of that. Stating which one is meant is not pedantry: every
+transpose bug in this file was an orientation bug.</p>
+<h3 id="1-the-fixed-point-in-seven-lines">1. The fixed point, in seven lines <a class="header-anchor" href="#1-the-fixed-point-in-seven-lines">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="c1"># Ψ^{-1/2} S Ψ^{-1/2}: the likelihood in coordinates where the</span>
+            <span class="c1"># uniquenesses are 1, which is where the closed form lives</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">S</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span> <span class="n">psi</span><span class="p">))</span>
+            <span class="n">theta</span><span class="p">,</span> <span class="n">G</span> <span class="o">=</span> <span class="n">_eigh_desc</span><span class="p">(</span><span class="n">C</span><span class="p">)</span>
+            <span class="n">keep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">theta</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>     <span class="c1"># the signal above the noise</span>
+            <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">psi</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">G</span><span class="p">[:,</span> <span class="p">:</span><span class="n">k</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">keep</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span>
+            <span class="n">psi_new</span> <span class="o">=</span> <span class="n">diag</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">L</span> <span class="o">*</span> <span class="n">L</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>That is (7), (8), (9) in order. <code>np.outer(psi, psi)</code> broadcast through a square
+root is the whitening matrix without forming it: dividing entry <span class="math inline">\((j,l)\)</span> by
+<span class="math inline">\(\sqrt{\psi_j\psi_l}\)</span> is exactly <span class="math inline">\(\Psi^{-1/2} S \Psi^{-1/2}\)</span>. <code>_eigh_desc</code> sorts
+descending because <code>np.linalg.eigh</code> does not, and <code>theta[:k] - 1.0</code> is the
+whitened signal. The <code>np.maximum</code> is the clip that makes a factor with less
+variance than the noise contribute nothing rather than a <code>nan</code>.</p>
+<p>Note what is <em>not</em> built: no <span class="math inline">\(d \times d\)</span> inverse of <span class="math inline">\(\Sigma\)</span>, no gradient, no
+step size, no line search. Each sweep is one symmetric eigendecomposition and two
+matrix products.</p>
+<h3 id="2-the-profile-likelihood-which-never-inverts-">2. The profile likelihood, which never inverts <span class="math inline">\(\Sigma\)</span> <a class="header-anchor" href="#2-the-profile-likelihood-which-never-inverts-">#</a></h3>
+<pre class="highlight"><code>        <span class="n">d</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>                                <span class="c1"># S is a covariance: (d, d)</span>
+        <span class="n">psi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+        <span class="n">theta</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_eigh_desc</span><span class="p">(</span><span class="n">S</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span> <span class="n">psi</span><span class="p">)))</span>
+        <span class="n">keep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">theta</span><span class="p">[:</span><span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">],</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">d</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">psi</span><span class="p">))</span>
+                             <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">keep</span><span class="p">))</span> <span class="o">+</span> <span class="n">d</span><span class="p">))</span>
+</code></pre>
+<p>(10), per row of data. <code>keep = max(theta, 1)</code> rather than <code>theta - 1</code> because
+this is <span class="math inline">\(\log \lvert \Sigma \rvert\)</span>, where a clipped factor contributes
+<span class="math inline">\(\log 1 = 0\)</span>: the model does not claim that direction. <code>score_samples</code> computes
+the same quantity by inverting <span class="math inline">\(\Sigma\)</span> and forming a quadratic form. The two
+agree to <span class="math inline">\(3 \times 10^{-10}\)</span> relative on the demo's fit, which is the point of
+having both: a wrong constant in either one shows up immediately.</p>
+<p>There is a trap here worth spelling out, because the first version of this file
+fell into it. (10) is valid <strong>only at the fixed point</strong>, since it uses
+<span class="math inline">\(\mathrm{tr}(\Sigma^{-1}S) = d\)</span> to replace a quadratic form it never computes.
+Evaluating it at a perturbed <span class="math inline">\(\psi\)</span> therefore returns a number that is not the
+likelihood of anything, and a &quot;perturb and check it does not improve&quot; test built
+on it is meaningless. The demo tests stationarity with (11) instead.</p>
+<h3 id="3-the-two-moment-estimators">3. The two moment estimators <a class="header-anchor" href="#3-the-two-moment-estimators">#</a></h3>
+<pre class="highlight"><code>        <span class="n">lam</span><span class="p">,</span> <span class="n">V</span> <span class="o">=</span> <span class="n">_eigh_desc</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">V</span><span class="p">[:,</span> <span class="p">:</span><span class="n">k</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">lam</span><span class="p">[:</span><span class="n">k</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loadings_</span> <span class="o">=</span> <span class="n">L</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noise_variance_</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">diagonal</span><span class="p">()</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">L</span> <span class="o">*</span> <span class="n">L</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>This is <code>pca_fa</code>: the principal-component method, which is PPCA's closed form
+with <span class="math inline">\(\sigma^2 = 0\)</span>. It is one line of real work, and its <span class="math inline">\(\psi\)</span> is whatever the
+diagonal has left over — possibly negative when <span class="math inline">\(k\)</span> is large relative to <span class="math inline">\(d\)</span> or
+the data has redundant features, which is why <code>_finish</code> exists.</p>
+<pre class="highlight"><code>            <span class="n">lam</span><span class="p">,</span> <span class="n">V</span> <span class="o">=</span> <span class="n">_eigh_desc</span><span class="p">(</span><span class="n">S</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">psi</span><span class="p">))</span>
+            <span class="n">L</span> <span class="o">=</span> <span class="n">V</span><span class="p">[:,</span> <span class="p">:</span><span class="n">k</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">lam</span><span class="p">[:</span><span class="n">k</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">))</span>
+            <span class="n">psi_new</span> <span class="o">=</span> <span class="n">diag</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">L</span> <span class="o">*</span> <span class="n">L</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>This is <code>minres</code>: the same two lines with <span class="math inline">\(S\)</span> replaced by the reduced matrix
+<span class="math inline">\(S - \mathrm{diag}(\psi)\)</span>. Given <span class="math inline">\(\psi\)</span>, that is the exact least-squares
+solution for <span class="math inline">\(\Lambda\)</span> against the off-diagonals — the diagonal of the reduced
+matrix holds the communalities, which is precisely the part of <span class="math inline">\(S\)</span> that
+<span class="math inline">\(\Lambda\Lambda^\top\)</span> is supposed to reproduce on the diagonal. Substituting
+the diagonal back in and iterating is principal-axis factoring, whose fixed
+point is the MINRES solution.</p>
+<p>The difference between the two is one subtraction, and it is the difference
+between a consistent estimator and a biased one: <code>pca_fa</code> never updates <span class="math inline">\(\psi\)</span>,
+so its loadings are computed as if the noise were zero on the diagonal, and the
+bias grows with the noise-to-signal ratio. On the demo's 40× noise spread that
+is 0.20 nats per row.</p>
+<h3 id="4-the-model-assembled-from-its-parts">4. The model, assembled from its parts <a class="header-anchor" href="#4-the-model-assembled-from-its-parts">#</a></h3>
+<pre class="highlight"><code>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">loadings_</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phi</span><span class="p">()</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">loadings_</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">noise_variance_</span><span class="p">)</span>
+</code></pre>
+<p>(2) with <span class="math inline">\(\Phi = I\)</span> for the orthogonal variants and the fitted <span class="math inline">\(\Phi\)</span> for
+promax. <code>np.diag</code> rather than a diagonal matrix stored as an attribute keeps the
+memory at <span class="math inline">\(O(d^2 + d)\)</span> and makes the structure of the model visible in one line:
+low rank plus diagonal.</p>
+<p>Everything downstream — <code>score_samples</code>, <code>covariance_</code>, the residual checks —
+goes through this expression, so a wrong orientation in <code>loadings_</code> cannot hide.
+It is also why promax's identity (15) is checkable: both variants must return
+the same matrix to <span class="math inline">\(10^{-10}\)</span>, and they do.</p>
+<h3 id="5-factor-scores-are-a-ridge-regression">5. Factor scores are a ridge regression <a class="header-anchor" href="#5-factor-scores-are-a-ridge-regression">#</a></h3>
+<pre class="highlight"><code>        <span class="n">L</span><span class="p">,</span> <span class="n">psi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loadings_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_variance_</span>
+        <span class="c1"># E[f|x] = (I + Λᵀ Ψ⁻¹ Λ)⁻¹ Λᵀ Ψ⁻¹ (x − μ)   -- Thomson's scores</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span> <span class="o">/</span> <span class="n">psi</span><span class="p">)</span> <span class="o">@</span> <span class="n">L</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="p">((</span><span class="n">X</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_</span><span class="p">)</span> <span class="o">/</span> <span class="n">psi</span><span class="p">)</span> <span class="o">@</span> <span class="n">L</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p>The posterior of <span class="math inline">\(f\)</span> given <span class="math inline">\(x\)</span> under (1). Dividing by <code>psi</code> is <span class="math inline">\(\Psi^{-1}\)</span> on
+both sides, and <code>np.linalg.solve</code> keeps the <span class="math inline">\(k \times k\)</span> system on the left
+instead of forming its inverse. This is Thomson's score; the alternative,
+Bartlett's, is the weighted least-squares estimate that ignores the prior on
+<span class="math inline">\(f\)</span> and is unbiased but has a larger variance. Thomson's is the conditional
+mean, which is the one that belongs in a probabilistic model.</p>
+<p>Note that the scores are well defined even when <span class="math inline">\(\Psi\)</span> has a tiny entry. The
+ridge term <span class="math inline">\(I\)</span> is the prior on <span class="math inline">\(f\)</span>, so the system is always positive definite;
+what is <em>not</em> well defined is the interpretation of a score on a factor that a
+nearly noise-free feature determines exactly.</p>
+<h3 id="6-varimax-and-why-the-rotation-accumulates">6. Varimax, and why the rotation accumulates <a class="header-anchor" href="#6-varimax-and-why-the-rotation-accumulates">#</a></h3>
+<pre class="highlight"><code>        <span class="n">B</span> <span class="o">=</span> <span class="n">A</span> <span class="o">@</span> <span class="n">R</span>
+        <span class="n">crit</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">B</span> <span class="o">*</span> <span class="n">B</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">crit</span> <span class="o">-</span> <span class="n">best</span> <span class="o">&lt;=</span> <span class="n">tol</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">crit</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">):</span>
+            <span class="k">break</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="n">crit</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">B</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">B</span> <span class="o">**</span> <span class="mi">3</span> <span class="o">-</span> <span class="n">B</span> <span class="o">*</span> <span class="p">(</span><span class="n">B</span> <span class="o">*</span> <span class="n">B</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+        <span class="n">u</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">vt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">M</span><span class="p">)</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">R</span> <span class="o">@</span> <span class="p">(</span><span class="n">u</span> <span class="o">@</span> <span class="n">vt</span><span class="p">)</span>                     <span class="c1"># accumulate: B was already rotated</span>
+</code></pre>
+<p>(14). <code>B ** 3</code> is the elementwise cube, <code>(B * B).mean(axis=0)</code> is the per-column
+mean of the squared loadings, and the SVD of the resulting <span class="math inline">\(k \times k\)</span> matrix
+gives its orthogonal polar factor <span class="math inline">\(UV^\top\)</span>.</p>
+<p>The accumulation is the subtle line. <span class="math inline">\(B\)</span> already contains <span class="math inline">\(R\)</span>, so the step from
+<span class="math inline">\(B\)</span> is a <em>further</em> rotation; applying it to <span class="math inline">\(R\)</span> rather than replacing <span class="math inline">\(R\)</span> is
+what makes the iteration converge instead of oscillate. Returning <code>R</code> as well as
+the rotated loadings costs nothing and makes the whole thing reproducible: the
+demo uses <code>rotation_</code> to check the criterion under arbitrary extra rotations,
+and a later fit can be aligned to an earlier one with it.</p>
+<h3 id="7-promax-in-nine-lines">7. Promax in nine lines <a class="header-anchor" href="#7-promax-in-nine-lines">#</a></h3>
+<pre class="highlight"><code>    <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">L</span><span class="p">)</span> <span class="o">**</span> <span class="n">power</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">L</span><span class="p">,</span> <span class="n">L</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">target</span><span class="p">)</span>          <span class="c1"># least squares, L A ≈ target</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">A</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">A</span><span class="p">))</span>                   <span class="c1"># unit diagonal, by column</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">L</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>                       <span class="c1"># P = L A^{-T}</span>
+    <span class="n">phi</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">A</span>
+    <span class="c1"># rescale so that Φ is a correlation matrix and P Φ Pᵀ is untouched:</span>
+    <span class="c1"># P -&gt; P diag(s) and Φ -&gt; diag(1/s) Φ diag(1/s) cancel exactly</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">phi</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">P</span> <span class="o">*</span> <span class="n">s</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">phi</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+</code></pre>
+<p>Line 1 is the target, line 2 the unconstrained least-squares solution of
+<span class="math inline">\(\Lambda A \approx T\)</span>, line 3 the column rescaling that gives <span class="math inline">\(A\)</span> a unit
+diagonal — last because rescaling columns of <span class="math inline">\(A\)</span> is what moves the diagonal.
+Line 4 is (15) for the pattern, and at this point <span class="math inline">\(\Phi = A^\top A\)</span> is a
+covariance rather than a correlation. Lines 6–9 are (16): rescale so the
+diagonal is 1, in the only way that leaves <span class="math inline">\(P\Phi P^\top\)</span> alone.</p>
+<p>The transpose in <code>np.linalg.solve(A, L.T).T</code> is the whole reason this file had a
+bug. <code>P = L A^{-\top}</code> wants to solve with <span class="math inline">\(A\)</span>; writing
+<code>np.linalg.solve(A.T, L.T).T</code> computes <span class="math inline">\(L A^{-1}\)</span>, which is a different matrix
+whenever <span class="math inline">\(A\)</span> is not symmetric, and the identity in (15) then fails at the third
+decimal while the loadings still look plausible. The demo's assertion on
+<span class="math inline">\(P\Phi P^\top\)</span> is what catches it.</p>
+<h3 id="8-which-variants-rotate-and-in-what-order">8. Which variants rotate, and in what order <a class="header-anchor" href="#8-which-variants-rotate-and-in-what-order">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"varimax"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loadings_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotation_</span> <span class="o">=</span> <span class="n">_varimax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loadings_</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phi_</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">varimax_L</span><span class="p">,</span> <span class="n">rot</span> <span class="o">=</span> <span class="n">_varimax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loadings_</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loadings_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi_</span> <span class="o">=</span> <span class="n">_promax</span><span class="p">(</span><span class="n">varimax_L</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">power</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rotation_</span> <span class="o">=</span> <span class="n">rot</span>
+</code></pre>
+<p><code>varimax</code> and <code>promax</code> fit by maximum likelihood and then rotate, so
+<code>variant=&quot;varimax&quot;</code> is <strong>not</strong> a different estimator: its <code>covariance_</code> and
+<code>score_samples</code> are identical to <code>ml_fa</code>'s to machine precision. That is the
+design, and the demo asserts it. Only <code>loadings_</code> changes, by an orthogonal map
+that leaves <span class="math inline">\(\Sigma\)</span> alone.</p>
+<p>Promax rotates twice — varimax first, then the oblique Procrustes — which is why
+<code>rotation_</code> records the <em>orthogonal</em> part. The oblique map is not a rotation of
+the loadings in the same sense; it is the pair <span class="math inline">\((P, \Phi)\)</span>.</p>
+<h3 id="9-the-clipping-and-the-flag">9. The clipping, and the flag <a class="header-anchor" href="#9-the-clipping-and-the-flag">#</a></h3>
+<pre class="highlight"><code>        <span class="n">floor</span> <span class="o">=</span> <span class="mf">1e-6</span> <span class="o">*</span> <span class="n">S</span><span class="o">.</span><span class="n">diagonal</span><span class="p">()</span>             <span class="c1"># per feature, so the test is scale-free</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">heywood_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heywood_</span> <span class="ow">or</span> <span class="nb">bool</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">noise_variance_</span> <span class="o">&lt;=</span> <span class="n">floor</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noise_variance_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">noise_variance_</span><span class="p">,</span> <span class="n">floor</span><span class="p">)</span>
+</code></pre>
+<p>Two lines: detect, then clip. The detection is against each feature's own
+variance rather than a global threshold, so the test means the same thing after
+a unit change. <code>or</code> rather than assignment because <code>_finish</code> is called after
+<code>_fit_ml</code> has already had a chance to set the flag on the boundary.</p>
+<p>Clipping is the smaller half of the job. The fitted <span class="math inline">\(\Sigma\)</span> is then positive
+definite by construction and <code>score_samples</code> returns a finite number — which is
+exactly the danger: a Heywood solution <em>looks</em> like a good fit and has a
+slightly better likelihood than the honest one. <code>heywood_</code> is the only warning.</p>
+<h3 id="10-two-refusals-that-keep-the-api-honest">10. Two refusals that keep the API honest <a class="header-anchor" href="#10-two-refusals-that-keep-the-api-honest">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span> <span class="o">&gt;</span> <span class="n">d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span>
+            <span class="n">n_par</span> <span class="o">=</span> <span class="n">d</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="n">d</span> <span class="o">-</span> <span class="n">k</span> <span class="o">*</span> <span class="p">(</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>     <span class="c1"># loadings + uniquenesses − rotations</span>
+</code></pre>
+<p>At <span class="math inline">\(k = d\)</span> the parameter count is <span class="math inline">\(d^2 + d - d(d-1)/2 = (d^2 + 3d)/2\)</span> against
+<span class="math inline">\(d(d+1)/2\)</span> entries in <span class="math inline">\(\Sigma\)</span>: exactly <span class="math inline">\(d\)</span> more parameters than the covariance
+has numbers, so <span class="math inline">\(\psi\)</span> is not identified and no amount of data fixes it.
+Refusing with a pointer to <code>probabilistic_pca</code> — which does have a <span class="math inline">\(d\)</span>-component
+model, with <span class="math inline">\(\sigma^2 = 0\)</span> — is more useful than returning something.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"factor analysis needs a complete matrix; "</span>
+                             <span class="s2">"use probabilistic_pca with variant='missing_data'"</span><span class="p">)</span>
+</code></pre>
+<p>Missing data is not a missing feature here: the M-step needs <span class="math inline">\(\psi\)</span> per feature
+and the E-step needs a complete row. Silently dropping rows changes the sample
+without saying so; silently imputing biases <span class="math inline">\(\psi\)</span> towards zero and manufactures
+Heywood cases. The sibling atom has the correct machinery, so the error message
+names it.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><span class="math inline">\(n\)</span> rows, <span class="math inline">\(d\)</span> features, <span class="math inline">\(k\)</span> factors, <span class="math inline">\(T\)</span> sweeps.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Operation</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:left">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ml_fa</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd^2 + Td^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d^2)\)</span></td>
+<td style="text-align:left">one covariance, then <span class="math inline">\(T\)</span> eigendecompositions</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pca_fa</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd^2 + d^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d^2)\)</span></td>
+<td style="text-align:left">one eigendecomposition, no iteration</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>minres</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd^2 + Td^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d^2)\)</span></td>
+<td style="text-align:left">same cost as <code>ml_fa</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_varimax</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T_r d k^2 + T_r k^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(dk)\)</span></td>
+<td style="text-align:left">SVD of a <span class="math inline">\(k \times k\)</span> matrix per step</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_promax</code></td>
+<td style="text-align:left"><span class="math inline">\(O(dk^2 + k^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(dk)\)</span></td>
+<td style="text-align:left">one Procrustes solve, no iteration</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>transform</code></td>
+<td style="text-align:left"><span class="math inline">\(O(mdk + k^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(mk)\)</span></td>
+<td style="text-align:left">Thomson's scores for <span class="math inline">\(m\)</span> rows</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>score_samples</code></td>
+<td style="text-align:left"><span class="math inline">\(O(d^3 + md^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d^2)\)</span></td>
+<td style="text-align:left">inverts <span class="math inline">\(\Sigma\)</span> once</td>
+</tr>
+</tbody>
+</table>
+<p>Two things follow. First, factor analysis is linear in <span class="math inline">\(n\)</span> only through the
+covariance: everything after that is <span class="math inline">\(O(d^3)\)</span> per sweep, so the method's cost is
+set by <span class="math inline">\(d\)</span>, not by the number of rows — the opposite of what a gradient method
+would give, and the reason it is feasible on <span class="math inline">\(d = 10^3\)</span> response matrices but not
+on <span class="math inline">\(d = 10^5\)</span>. Second, the rotation costs are negligible compared with the
+fitting, which is why <code>varimax</code> and <code>promax</code> are offered as variants rather than
+as a separate post-processing atom.</p>
+<p>The demo fits <span class="math inline">\(d = 8\)</span> in 35 sweeps and the whole six-section script runs in
+0.13 s.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>1. ML and MINRES are not distinguishable at this sample size.</strong> The demo's
+numbers, on a 40× noise spread: held-out likelihood <span class="math inline">\(-11.8504\)</span> for <code>ml_fa</code>
+against <span class="math inline">\(-11.8503\)</span> for <code>minres</code>, off-diagonal residual 0.142 against 0.127. The
+earlier version of this demo asserted <code>ml &gt; minres</code> on a narrower noise profile
+and it is false at the third digit — the two criteria are asymptotically
+equivalent, and reporting a winner from a <span class="math inline">\(10^{-4}\)</span> gap is reporting noise.
+What <em>is</em> distinguishable is <code>pca_fa</code>: 0.20 nats per row and a residual ten
+times larger. Comparisons between the two proper estimators need either much
+more data or a criterion-specific argument.</p>
+<p><strong>2. Varimax cannot undo a correlated <span class="math inline">\(\Phi\)</span>.</strong> On the demo's oblique truth the
+recovered simple structure is off by 0.24 at the largest entry — better than
+the unrotated 0.61 share of mid-range loadings, but nowhere near exact. An
+orthogonal rotation is a rotation within the same <span class="math inline">\(k\)</span>-space, and a simple
+structure generated by correlated factors is simply not reachable by one. If
+the factors are really correlated, the honest options are promax, a targeted
+rotation, or a confirmatory model; treating varimax output as the truth
+systematically overstates the distinctness of the factors.</p>
+<p><strong>3. Promax's <span class="math inline">\(\Phi\)</span> is a rotation artefact.</strong> It is real as a
+reparameterisation — the demo verifies <span class="math inline">\(P \Phi P^\top = \Lambda_v \Lambda_v^\top\)</span>
+to <span class="math inline">\(10^{-10}\)</span> — and it is not an estimate of the population factor correlation.
+On the demo's truth <span class="math inline">\((\lvert \phi_{12} \rvert, \lvert \phi_{13} \rvert, \lvert
+\phi_{23} \rvert) = (0.40, 0.20, 0.00)\)</span>, promax returns <span class="math inline">\((0.40, 0.23, 0.07)\)</span>
+sorted: right in magnitude, wrong in correspondence, and with a small correlation
+invented where the truth has none. The magnitudes come back because the
+Procrustes target is built from the data; the correspondence does not, because
+which factor is which is decided by the rotation. Report <span class="math inline">\(\Phi\)</span> as &quot;how oblique
+the simple structure is&quot;, never as &quot;the correlation between factor 1 and factor
+2&quot;.</p>
+<p><strong>4. The rotation is local, and the basis is arbitrary.</strong> Varimax ascends a
+non-convex quartic. The demo checks local optimality — 200 random rotations of
+the fitted basis, none improves the criterion — which is the strongest statement
+available without an exhaustive search. Different starting rotations, different
+implementations and different software can land on different local optima, and
+factor order and sign are arbitrary in every one of them: two fits of the same
+model are only comparable after a Procrustes match. The <code>_match</code> helper in the
+demo exists for exactly this, and the atom exposes <code>rotation_</code> so a fit can be
+reproduced exactly rather than approximately.</p>
+<p><strong>5. Heywood cases are not errors, and that is the problem.</strong> The demo builds
+one deliberately: 11 features, one of which is an exact linear combination of two
+others, fitted with <span class="math inline">\(k = 4\)</span>. One of 12 uniquenesses is driven to the floor
+(<span class="math inline">\(3.0 \times 10^{-6}\)</span>) and <code>heywood_</code> is set. No exception is raised, no
+convergence warning fires, the likelihood is finite, and the model is not a
+model. The tell is the flag; the sanity check is that <span class="math inline">\(\psi_j\)</span> should be
+positive and not absurdly small relative to <span class="math inline">\(S_{jj}\)</span>. In published work the
+Heywood case is often a sign that <span class="math inline">\(k\)</span> is too large, that two variables are
+collinear, or that the sample is too small for the parameter count.</p>
+<p><strong>6. <span class="math inline">\(k\)</span> is bounded by the data, not by ambition.</strong> The code refuses
+<span class="math inline">\(k \ge d\)</span>, but the real bound is Ledermann's: the parameter count must not
+exceed the number of distinct covariance entries,</p>
+<div class="math block">
+\[d k + d - \frac{k(k-1)}{2} \le \frac{d(d+1)}{2} \qquad\Longleftrightarrow\qquad (d-k)^2 \ge d + k, \qquad (17)\]
+</div>
+<p>which for <span class="math inline">\(d = 12\)</span> allows at most <span class="math inline">\(k = 7\)</span>, and for <span class="math inline">\(d = 8\)</span> at most <span class="math inline">\(k = 4\)</span>.
+Beyond that the model is not identified however well the iteration converges —
+a <span class="math inline">\(d = 8\)</span>, <span class="math inline">\(k = 5\)</span> fit will return eight numbers for <span class="math inline">\(\psi\)</span> and they will all be
+meaningless. The code's guard only refuses <span class="math inline">\(k \ge d\)</span>, so the counting bound is
+not enforced; it is stated here so that a fit inside the guard but outside (17)
+is not mistaken for an estimate.</p>
+<p><strong>7. It needs complete data.</strong> The E-step is a conditional mean over a complete
+row and the M-step updates <span class="math inline">\(\psi\)</span> per feature; there is no observed-block
+version of either. <code>probabilistic_pca</code>'s <code>missing_data</code> variant has the
+machinery, at the cost of the per-feature noise. Silently mean-imputing instead
+biases <span class="math inline">\(\psi\)</span> towards zero — imputation <em>creates</em> a feature with no unique
+variance — and manufactures Heywood cases out of missingness.</p>
+<p><strong>8. Scale changes the answer.</strong> Loadings, uniquenesses and communalities are in
+the units of the data. A feature in metres and the same feature in millimetres
+produce the same <span class="math inline">\(\Sigma\)</span> up to the change of basis and visibly different
+loadings, and the varimax criterion, which averages over features, is sensitive
+to that. Standardise before fitting unless the units are meaningful, and if they
+are meaningful, say so — the whole reason to prefer factor analysis to PPCA is
+that the per-feature noise is interpretable.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Psychometrics and educational testing.</strong> The origin of the method: a battery
+of test items, a handful of latent abilities, and loadings you want to read.
+Varimax is the default rotation in that literature precisely because the goal
+is a table a human can interpret.</li>
+<li><strong>Finance.</strong> Barra-style risk models are factor models of returns with
+correlated style factors; the oblique parameterisation, not the orthogonal
+one, is the one that matches how exposures actually co-move.</li>
+<li><strong>Genomics.</strong> Expression modules: genes that load on the same factor are
+co-regulated, and the uniqueness is the measurement noise of that probe. The
+Heywood case is common with near-duplicate probes, and flagging it is part of
+standard QC.</li>
+<li><strong>Sensor fusion and metrology.</strong> Per-instrument noise is the model's stated
+purpose. If you know the noise levels from calibration, fixing <span class="math inline">\(\psi\)</span> and
+solving for <span class="math inline">\(\Lambda\)</span> is a smaller, better-conditioned problem, and the
+likelihood in (10) gives a test of whether the calibrated values are
+consistent with the data.</li>
+<li><strong>Structural equation modelling.</strong> Factor analysis is the measurement model
+half of SEM; the identification condition <span class="math inline">\(k \le d - 1\)</span>, the rotation problem
+and the Heywood case all reappear there with different names.</li>
+<li><strong>Dimension reduction before regression.</strong> Factor scores are a lower-variance
+summary than principal components when the features have unequal noise, which
+is why they are used as predictors in econometrics and chemometrics.</li>
+<li><strong>A testbed for identifiability.</strong> The rotation non-identifiability is the
+cleanest example in statistics of a likelihood that is flat along a manifold of
+parameters — the same phenomenon as label switching in mixtures and sign
+flips in matrix factorisation, in its most tractable form.</li>
+</ul>
+<p>Where it is a trap: reading an unrotated ML solution as interpretable (it is
+not — the basis is whatever the eigendecomposition returned); reading a rotated
+solution as a hypothesis test (it is a description, chosen after seeing the
+data); and reading <span class="math inline">\(\psi\)</span> as measurement noise when it is really everything the
+factors do not explain, including model misspecification.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li><strong>Spearman (1904),</strong> <em>General intelligence, objectively determined and
+measured</em> — the two-factor model this all descends from.</li>
+<li><strong>Lawley &amp; Maxwell (1971),</strong> <em>Factor Analysis as a Statistical Method</em> — the
+likelihood derivation, the identification conditions, and the Heywood case,
+stated as statistics rather than as a computational recipe.</li>
+<li><strong>Jöreskog (1967),</strong> <em>Some contributions to maximum likelihood factor
+analysis</em> — the fixed point on <span class="math inline">\(\Psi^{-1/2} S \Psi^{-1/2}\)</span> that <code>_fit_ml</code>
+implements, and the convergence argument.</li>
+<li><strong>Kaiser (1958),</strong> <em>The varimax criterion for analytic rotation in factor
+analysis</em> — the criterion (4) and the iterative algorithm.</li>
+<li><strong>Hendrickson &amp; White (1964),</strong> <em>Promax: a quick method for rotation to
+oblique simple structure</em> — the power target and the Procrustes step.</li>
+<li><strong>Harman (1976),</strong> <em>Modern Factor Analysis</em> — the principal-axis and MINRES
+iterations, and the classical notation this file follows.</li>
+<li><strong>Anderson &amp; Rubin (1956),</strong> <em>Statistical inference in factor analysis</em> — the
+identifiability conditions, including the bound (17), and the asymptotics that
+make the likelihood usable.</li>
+<li><strong>Bartlett (1937)</strong> and <strong>Thomson (1934)</strong> — the two factor-score estimators,
+and why the conditional mean is the one with the smaller variance.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="probabilistic_pca.html"><small>Previous</small><span>Probabilistic PCA</span></a><a class="next" href="ica.html"><small>Next</small><span>Independent component analysis</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">06 · Latent structure &amp; factorisation</p><ul class="rail-list"><li><a href="pca.html"><span class="tick">✓</span><span>PCA</span></a></li><li><a href="nmf.html"><span class="tick">✓</span><span>Non-negative matrix factorisation</span></a></li><li><a href="probabilistic_pca.html"><span class="tick">✓</span><span>Probabilistic PCA</span></a></li><li><a href="factor_analysis.html" aria-current="page"><span class="tick">✓</span><span>Factor analysis</span></a></li><li><a href="ica.html"><span class="tick">✓</span><span>Independent component analysis</span></a></li><li><a href="lsa.html"><span class="tick">✓</span><span>Latent semantic analysis</span></a></li><li><a href="lda_topic.html"><span class="tick">✓</span><span>Latent Dirichlet allocation</span></a></li><li><a href="cca.html"><span class="tick">✓</span><span>Canonical correlation</span></a></li><li><a href="sparse_coding.html"><span class="tick">✓</span><span>Sparse coding</span></a></li><li><a href="dictionary_learning.html"><span class="tick">✓</span><span>Dictionary learning</span></a></li><li><a href="tensor_decomposition.html"><span class="tick">✓</span><span>Tensor decomposition</span></a></li><li><a href="plsa.html"><span class="tick">✓</span><span>Probabilistic LSA</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../05-probabilistic/index.html"><span class="jump">← 05 · Probabilistic models</span></a></li><li><a href="../07-clustering/index.html"><span class="jump">07 · Clustering&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-why-the-diagonal-is-the-whole-difference">1. Why the diagonal is the whole difference</a></li><li class="lvl3"><a href="#2-profiling--out-the-scaled-spectrum">2. Profiling \Lambda out: the scaled spectrum</a></li><li class="lvl3"><a href="#3-the-three-stationarity-conditions">3. The three stationarity conditions</a></li><li class="lvl3"><a href="#4-the-fitted-covariance-is-the-identity-in-units-of-the-noise">4. The fitted covariance is the identity in units of the noise</a></li><li class="lvl3"><a href="#5-rotations-are-reparameterisations">5. Rotations are reparameterisations</a></li><li class="lvl3"><a href="#6-why-a-pattern-loading-can-exceed-1">6. Why a pattern loading can exceed 1</a></li><li class="lvl3"><a href="#7-the-heywood-boundary">7. The Heywood boundary</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-the-fixed-point-in-seven-lines">1. The fixed point, in seven lines</a></li><li class="lvl3"><a href="#2-the-profile-likelihood-which-never-inverts-">2. The profile likelihood, which never inverts \Sigma</a></li><li class="lvl3"><a href="#3-the-two-moment-estimators">3. The two moment estimators</a></li><li class="lvl3"><a href="#4-the-model-assembled-from-its-parts">4. The model, assembled from its parts</a></li><li class="lvl3"><a href="#5-factor-scores-are-a-ridge-regression">5. Factor scores are a ridge regression</a></li><li class="lvl3"><a href="#6-varimax-and-why-the-rotation-accumulates">6. Varimax, and why the rotation accumulates</a></li><li class="lvl3"><a href="#7-promax-in-nine-lines">7. Promax in nine lines</a></li><li class="lvl3"><a href="#8-which-variants-rotate-and-in-what-order">8. Which variants rotate, and in what order</a></li><li class="lvl3"><a href="#9-the-clipping-and-the-flag">9. The clipping, and the flag</a></li><li class="lvl3"><a href="#10-two-refusals-that-keep-the-api-honest">10. Two refusals that keep the API honest</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/06-latent-factorization/factor_analysis.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

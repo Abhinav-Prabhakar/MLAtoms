@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interpretability · MLAtoms</title>
+<meta name="description" content="Permutation importance, SHAP, PDP/ICE and integrated gradients. Two different questions hide behind &quot;why did the model say that&quot;, and mixing them up is the…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/20-evaluation/interpretability.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Interpretability">
+<meta property="og:description" content="Permutation importance, SHAP, PDP/ICE and integrated gradients. Two different questions hide behind &quot;why did the model say that&quot;, and mixing them up is the…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/20-evaluation/interpretability.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Interpretability">
+<meta name="twitter:description" content="Permutation importance, SHAP, PDP/ICE and integrated gradients. Two different questions hide behind &quot;why did the model say that&quot;, and mixing them up is the…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Interpretability", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/20-evaluation/interpretability.html", "description": "Permutation importance, SHAP, PDP/ICE and integrated gradients. Two different questions hide behind \"why did the model say that\", and mixing them up is the\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">20 · Evaluation &amp; uncertainty</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>9 variants</span><span class="page-meta__sep">/</span><a href="interpretability.py.html">source</a></p><h1>Interpretability</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Two different questions hide behind &quot;why did the model say that&quot;, and mixing them up is
+the source of most bad explanations.</p>
+<p><strong>Which features does the model rely on?</strong> This is a property of the fitted function, and
+it is answered by deleting or perturbing a feature and watching the loss. <code>permutation</code>
+does exactly that. <code>pdp</code>, <code>ice</code> and <code>ale</code> answer a softer version — how does the
+prediction move as one feature sweeps its range — which is the question a stakeholder
+usually means by &quot;what is the effect of age&quot;.</p>
+<p><strong>Why <em>this</em> prediction?</strong> This is a property of one row, and it needs an attribution:
+a decomposition of the single number <code>f(x)</code> into per-feature contributions that add up.
+<code>shap</code>, <code>kernel_shap</code>, <code>tree_shap</code>, <code>lime</code> and <code>integrated_gradients</code> all produce one, and
+they differ only in what &quot;contribution&quot; is defined to mean.</p>
+<p>Both families have a trap the others do not: the output is a chart, charts look
+plausible, and nothing in the pipeline will fail when the chart is wrong. So every
+variant here is verified against something exact in the demo:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Verified against</th>
+<th style="text-align:left">Demo residual</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>permutation</code></td>
+<td style="text-align:left">a pure-noise column must be worth nothing</td>
+<td style="text-align:left"><code>+0.005</code> vs max <code>7.32</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>shap</code></td>
+<td style="text-align:left">efficiency: attributions sum to prediction − baseline</td>
+<td style="text-align:left"><code>4e-16</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kernel_shap</code></td>
+<td style="text-align:left">exact Shapley over the same coalitions</td>
+<td style="text-align:left"><code>4.4e-16</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tree_shap</code></td>
+<td style="text-align:left">brute-force enumeration of all <code>2^d</code> coalitions</td>
+<td style="text-align:left"><code>4.4e-16</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pdp</code></td>
+<td style="text-align:left">convexity of a known squared effect</td>
+<td style="text-align:left"><code>+0.057</code> per unit</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ice</code></td>
+<td style="text-align:left">parallel curves for an additive model</td>
+<td style="text-align:left"><code>2.2e-15</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ale</code></td>
+<td style="text-align:left">centring, and an interaction PDP averages away</td>
+<td style="text-align:left">spans <code>3.33</code> vs <code>0.03</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>integrated_gradients</code></td>
+<td style="text-align:left">exact for a linear model, completeness for a quadratic</td>
+<td style="text-align:left"><code>0.0</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lime</code></td>
+<td style="text-align:left">recovering a known linear coefficient vector</td>
+<td style="text-align:left"><code>3.2e-06</code></td>
+</tr>
+</tbody>
+</table>
+<p>The demo's model is a 25-tree forest fitted to
+<code>y = 2x₀ + x₁² − x₂ + 0.5x₀x₂ + noise</code>: one dominant linear feature, one convex feature,
+one linear feature that also interacts, and one pure noise column.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Question</th>
+<th style="text-align:left">What a &quot;contribution&quot; is</th>
+<th style="text-align:left">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>permutation</code></td>
+<td style="text-align:left">global</td>
+<td style="text-align:left">loss increase when a column is shuffled</td>
+<td style="text-align:left"><code>d·R</code> predictions</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>shap</code></td>
+<td style="text-align:left">local</td>
+<td style="text-align:left">Shapley value over a background distribution</td>
+<td style="text-align:left"><code>2^d</code> coalition evaluations</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kernel_shap</code></td>
+<td style="text-align:left">local</td>
+<td style="text-align:left">the same, by weighted least squares</td>
+<td style="text-align:left"><code>2^d</code> evaluations, <code>d²</code> solve</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tree_shap</code></td>
+<td style="text-align:left">local</td>
+<td style="text-align:left">Shapley value under the tree's own conditional</td>
+<td style="text-align:left"><code>O(L·D²)</code> per tree</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pdp</code></td>
+<td style="text-align:left">global</td>
+<td style="text-align:left">average prediction with one feature fixed</td>
+<td style="text-align:left"><code>G</code> prediction passes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ice</code></td>
+<td style="text-align:left">global</td>
+<td style="text-align:left">the same, one curve per row</td>
+<td style="text-align:left"><code>G</code> prediction passes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ale</code></td>
+<td style="text-align:left">global</td>
+<td style="text-align:left">average <em>change</em> within bins, accumulated</td>
+<td style="text-align:left"><code>2B</code> prediction passes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>integrated_gradients</code></td>
+<td style="text-align:left">local</td>
+<td style="text-align:left">integral of the gradient along a path</td>
+<td style="text-align:left"><code>steps</code> gradient calls</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lime</code></td>
+<td style="text-align:left">local</td>
+<td style="text-align:left">coefficients of a weighted local linear fit</td>
+<td style="text-align:left"><code>n_samples</code> predictions</td>
+</tr>
+</tbody>
+</table>
+<p>Three of the nine compute the same mathematical object. <code>shap</code>, <code>kernel_shap</code> and
+<code>tree_shap</code> are the same Shapley value under three different computational strategies —
+except that <code>tree_shap</code> uses a <em>different value function</em>, which is the subject of the
+next section and the most important thing on this page.</p>
+<p><code>permutation</code> is not an attribution: it returns <code>d</code> numbers, one per feature, and they do
+not sum to anything. It is the right tool for &quot;which columns matter&quot; and the wrong tool
+for &quot;why this row&quot;. The demo returns <code>[7.32, 1.16, 1.45, 0.005]</code> for the four features —
+<code>x₀</code> dominates (coefficient <code>2.0</code> plus half the interaction), and <code>x₃</code> appears in no
+term at all, so its importance is <code>0.005</code>, which is only sampling noise from re-predicting
+the same rows.</p>
+<p><code>pdp</code> and <code>ice</code> differ only in whether the per-row curves are averaged away. <code>ice</code> is
+strictly more informative and strictly harder to read, so the usual workflow is to plot
+ICE and overlay the PDP. <code>ale</code> differs from both in that it computes <em>within-bin
+differences</em> rather than <em>levels</em>, which is what makes it immune to the failure the demo
+shows: for <code>y = x₀x₂</code> with <code>x₂ = 0.9x₀</code>, the PDP of <code>x₀</code> spans <code>0.03</code> because
+<code>E[x₂] ≈ 0</code>, while the ALE spans <code>3.33</code> and is convex — the honest conditional effect.</p>
+<p><code>lime</code> is the only variant that fits a model. It is a local surrogate, not a
+decomposition of <code>f</code>: its coefficients are approximately the gradient at <code>x</code>, and they
+add up to nothing in particular. <code>integrated_gradients</code> also uses gradients but is exact
+by construction for differentiable models, in the sense that its attributions satisfy
+completeness.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="shapley-values">Shapley values <a class="header-anchor" href="#shapley-values">#</a></h3>
+<p>Let <code>N = {1, …, d}</code> be the features and <code>v(S)</code> the value of the model when only the
+features in <code>S</code> are &quot;known&quot; — for a prediction task, the expected prediction given
+that subset. The Shapley value is the unique attribution satisfying four axioms:</p>
+<ul>
+<li><strong>Efficiency</strong> — <code>Σ_i φ_i = v(N) − v(∅)</code>: the parts add up to the whole.</li>
+<li><strong>Symmetry</strong> — if <code>v(S ∪ {i}) = v(S ∪ {j})</code> for all <code>S</code> not containing <code>i, j</code>, then
+<code>φ_i = φ_j</code>.</li>
+<li><strong>Dummy</strong> — if <code>v(S ∪ {i}) = v(S)</code> for all <code>S</code>, then <code>φ_i = 0</code>.</li>
+<li><strong>Additivity</strong> — the attribution of <code>v + w</code> is the sum of the attributions.</li>
+</ul>
+<p>and it is given by averaging each feature's marginal contribution over all orderings:</p>
+<div class="math block">
+\[\varphi_i(v) = \sum_{S \subseteq N \setminus \{i\}}
+\frac{|S|!\,(d - |S| - 1)!}{d!}\,\bigl(v(S \cup \{i\}) - v(S)\bigr)\]
+</div>
+<p>Equivalently: pick a random permutation of the features, add them one at a time, and
+record how much <code>v</code> moved when feature <code>i</code> arrived. The weight <code>|S|!(d−|S|−1)!/d!</code> is the
+probability that the features before <code>i</code> are exactly <code>S</code>. Uniqueness of the axioms is
+Shapley's 1953 theorem; the coefficient array is <code>shapley_coefficients(d)</code> in the file.</p>
+<p>The axioms force the <em>formula</em> but not the <em>game</em>. <code>v</code> is where all disagreement lives,
+and there is no canonical choice. Two conventions dominate:</p>
+<p><strong>Interventional.</strong> <code>v(S) = E_{X_bg}[f(x_S, X_{bg,\bar S})]</code> — break the dependence
+between the features by substituting background values. This is what <code>shap</code> and
+<code>kernel_shap</code> compute. It is well-defined for any model, it satisfies the axioms, and it
+can evaluate <code>f</code> on rows that never occur in the data (a 30-year-old with a 40-year
+tenure), which is why it is the default in the <code>shap</code> package.</p>
+<p><strong>Path-dependent (conditional).</strong> <code>v(S) = E[f(X) | X_S = x_S]</code> under the model's own
+estimate of that conditional. For a tree, that estimate is exact and free: at a split
+whose feature is not in <code>S</code>, average the two children weighted by their cover. This is
+what <code>tree_shap</code> computes, and it is <em>not</em> the same number:</p>
+<pre class="highlight"><code>exact Shapley, interventional background   [ 1.828, -0.350,  0.259, -0.002 ]  Σ = 1.734
+tree_shap, path-dependent conditional       [ 1.675, -0.375,  0.281, -0.004 ]  Σ = 1.578
+</code></pre>
+<p>Both are internally consistent — each sums to its own <code>v(N) − v(∅)</code> — and both are
+&quot;SHAP&quot;. Reporting one and describing it as the other is the single most common error in
+applied interpretability. The interventional version answers &quot;what if this feature had
+been different, holding the rest to the background&quot;; the conditional version answers
+&quot;what if this feature had been different, given what the rest of this row tells us about
+the correlations&quot;. With correlated features those are different questions.</p>
+<h3 id="kernelshap">KernelSHAP <a class="header-anchor" href="#kernelshap">#</a></h3>
+<p>Evaluating <code>v</code> on all <code>2^d</code> coalitions is the bottleneck, and KernelSHAP's observation is
+that the Shapley value is the solution of a <em>weighted least-squares</em> problem. Take the
+regression</p>
+<div class="math block">
+\[\hat\varphi = \arg\min_{\varphi}\; \sum_{S \subseteq N}
+\pi(S)\,\Bigl(v(S) - \sum_{i \in S}\varphi_i\Bigr)^2
+\quad\text{subject to}\quad \sum_i \varphi_i = v(N) - v(\varnothing)\]
+</div>
+<p>with the SHAP kernel</p>
+<div class="math block">
+\[\pi(S) = \frac{d-1}{\binom{d}{|S|}\,|S|\,(d-|S|)}, \qquad 0 < |S| < d\]
+</div>
+<p>Lundberg &amp; Lee's theorem is that this kernel is the unique weighting for which the
+solution satisfies local accuracy, missingness and consistency — i.e. the solution <em>is</em>
+the Shapley value. The intuition for the <code>1/(|S|(d−|S|)C(d,|S|))</code> shape: it is the
+reciprocal of the number of orderings that produce a coalition of that size, so the
+regression weights coalitions by how many permutations realise them, which is exactly
+how the Shapley sum is organised.</p>
+<p>The constraint matters numerically. Dropping it and hoping the kernel enforces efficiency
+gives a badly conditioned matrix (the endpoints have weight <code>∞</code>); assigning them a huge
+finite weight gives answers that are only accurate to that weight's reciprocal. The
+implementation performs the elimination exactly:</p>
+<pre class="highlight"><code>        <span class="c1"># impose efficiency exactly by eliminating the last coordinate</span>
+        <span class="n">reduced</span> <span class="o">=</span> <span class="n">A</span><span class="p">[:,</span> <span class="p">:</span><span class="n">d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">A</span><span class="p">[:,</span> <span class="n">d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span><span class="n">d</span><span class="p">]</span>
+        <span class="n">rhs</span> <span class="o">=</span> <span class="n">target</span> <span class="o">-</span> <span class="n">A</span><span class="p">[:,</span> <span class="n">d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">total</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">coef</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">reduced</span> <span class="o">*</span> <span class="n">root</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">rhs</span> <span class="o">*</span> <span class="n">root</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre>
+<p>Substituting <code>φ_d = total − Σ_{i&lt;d} φ_i</code> turns each row <code>Σ_i φ_i z_i</code> into
+<code>Σ_{i&lt;d} φ_i(z_i − z_d) + z_d·total</code>, which is a <code>(d−1)</code>-column regression with no
+constraint. Efficiency then holds by construction rather than by tolerance, and the demo
+matches the exact enumeration to <code>4.4e-16</code> over the <code>14</code> interior coalitions.</p>
+<p>KernelSHAP is not asymptotically cheaper: it still needs all <code>2^d</code> values unless the
+coalitions are <em>sampled</em>. Sampling is what makes it usable for <code>d = 1000</code>, and it is also
+what makes the answer stochastic — the regression then has fewer rows than columns and
+the solution depends on which coalitions were drawn.</p>
+<h3 id="treeshap">TreeSHAP <a class="header-anchor" href="#treeshap">#</a></h3>
+<p>Trees make <code>v(S)</code> cheap to compute but the naive recursion is still exponential, because
+a split whose feature is not in <code>S</code> must be averaged over both children. TreeSHAP's
+contribution is to compute the whole attribution in <code>O(T L D²)</code> — linear in the number of
+trees, leaves and depth.</p>
+<p>The derivation that matches this file is a per-leaf decomposition. For a leaf <code>L</code>, let
+<code>F(L)</code> be the set of distinct features on its root path and let</p>
+<div class="math block">
+\[Q_i(L) = \prod_{\text{positions of } L\text{ splitting on } i}
+\frac{\text{cover}(\text{child on } L)}{\text{cover}(\text{parent})}\]
+</div>
+<p>so <code>Π_{i∈F} Q_i = cover(L)/cover(root)</code> telescopes. The path-dependent value function is</p>
+<div class="math block">
+\[v(S) = \sum_{L} v_L \cdot \mathbf{1}\bigl[S \cap D(L) = \varnothing\bigr]
+\cdot \prod_{i \in F(L) \setminus S} Q_i(L)\]
+</div>
+<p>where <code>D(L)</code> is the set of features at which the leaf's path <strong>diverges</strong> from <code>x</code>'s
+path. The indicator is the whole subtlety: if a feature in <code>S</code> is one where <code>L</code> went the
+other way, then conditioning on that feature excludes <code>L</code> entirely. For a leaf on <code>x</code>'s
+own path, <code>D(L) = ∅</code> and the indicator vanishes; for every other leaf it is what keeps
+the sum honest.</p>
+<p>Because the product factors over features, each leaf contributes independently to each
+<code>φ_i</code>, and the only thing left is to count coalitions by size. Let <code>A = F∖D</code> be the
+&quot;agreeing&quot; features. A coalition may put any subset of <code>A</code> into <code>S</code>, but none of <code>D</code>; the
+<code>d − |F|</code> features not on the path are unconstrained. For a subset of size <code>k</code> from <code>A</code>,
+the number of coalitions of total size <code>k + m</code> is <code>C(d−|F|, m)</code>, so the effective weight is</p>
+<div class="math block">
+\[W(k) = \sum_{m=0}^{d-|F|} \binom{d-|F|}{m}\, c(k+m),
+\qquad c(j) = \frac{j!\,(d-j-1)!}{d!}\]
+</div>
+<p>and the sum over subsets of size <code>k</code> of <code>Π_{j∈A∖S} Q_j</code> is the coefficient of <code>t^k</code> in
+<code>Π_{j∈A}(Q_j + t)</code>. That polynomial is built in <code>poly</code>, and the whole leaf collapses to
+two dot products. Summing over all leaves gives the exact Shapley values for the tree;
+summing over trees and dividing by the tree count gives the forest.</p>
+<p>The demo verifies it the only way that matters: enumerate all <code>2^d</code> coalitions with
+<code>_tree_value</code> (the definition, written naively and recursively), compute the Shapley sum
+directly, and compare. The two agree to <code>4.4e-16</code> on every feature, and the efficiency
+identity <code>Σφ = v(x's leaf) − mean</code> holds to <code>1e-10</code> at the forest level.</p>
+<h3 id="permutation-importance">Permutation importance <a class="header-anchor" href="#permutation-importance">#</a></h3>
+<p>Shuffle column <code>j</code>, re-predict, and measure the loss increase:</p>
+<div class="math block">
+\[\mathrm{PI}_j = \mathbb{E}\bigl[\ell(y, f(X^{(j)}))\bigr] - \ell(y, f(X))\]
+</div>
+<p>with <code>X^{(j)}</code> the data with column <code>j</code> permuted. It is model-agnostic, needs only
+predictions, and is unnormalised (units are loss units), which is why importance values
+are usually compared as ratios rather than read absolutely.</p>
+<p>The estimator is biased in two ways worth knowing. Permuting breaks the correlation
+between <code>j</code> and the other features, so the model is evaluated on rows that never occur —
+which <em>inflates</em> importance for correlated features (the model is being asked to predict
+from a feature that no longer carries its usual companions). And the split is random, so
+the estimate has the usual finite-sample noise, which is why the file averages
+<code>n_repeats</code> shuffles per column.</p>
+<h3 id="partial-dependence-ice-ale">Partial dependence, ICE, ALE <a class="header-anchor" href="#partial-dependence-ice-ale">#</a></h3>
+<p>For a feature <code>j</code> fixed at value <code>v</code>,</p>
+<div class="math block">
+\[\mathrm{PD}_j(v) = \mathbb{E}_{X_{-j}}\bigl[f(v, X_{-j})\bigr],
+\qquad
+\mathrm{ICE}_i(v) = f(v, x_{i,-j})\]
+</div>
+<p>ICE keeps the expectation undone, one curve per row; PDP is their average. Both are
+estimated by substituting <code>v</code> into every row and averaging predictions — <code>G</code> prediction
+passes for a grid of <code>G</code> values.</p>
+<p>The failure mode is visible in the definition: <code>E_{X_{-j}}</code> is taken over the <em>marginal</em>
+of the other features. If <code>x_j</code> is correlated with <code>x_{-j}</code>, the average includes
+combinations that no real row has, and interactions get averaged into oblivion. The
+demo's <code>y = x₀x₂</code> with <code>x₂ = 0.9x₀</code> is the extreme case: <code>PD₀(v) = v·E[x₂] ≈ 0</code> for all
+<code>v</code>, so the PDP is flat and claims the feature does nothing.</p>
+<p>ALE fixes this by never evaluating the model off the data manifold. Bin the feature into
+<code>B</code> intervals, and within each bin compare the prediction at the upper edge with the
+prediction at the lower edge, using only the rows in that bin:</p>
+<div class="math block">
+\[\Delta_k = \frac{1}{|I_k|}\sum_{i \in I_k}
+\bigl[f(z_k^{+}, x_{i,-j}) - f(z_k^{-}, x_{i,-j})\bigr],
+\qquad
+\mathrm{ALE}(k) = \sum_{l \le k} \Delta_l - \text{centre}\]
+</div>
+<p>For <code>y = x₀x₂</code> the within-bin average of <code>x₂</code> is <code>0.9·E[x₀ | bin]</code>, so
+<code>Δ_k = (z⁺−z⁻)·0.9·E[x₀|bin]</code> and the accumulation is convex — the demo gets a span of
+<code>3.33</code> against the PDP's <code>0.03</code>, and a per-unit second difference that is positive.</p>
+<p>The centring constant is the count-weighted mean of the bin midpoints. Without it the
+curve depends on the arbitrary choice of first bin; with it, <code>Σ_b w_b · mid_b = 0</code> exactly,
+which the demo checks at <code>2.9e-16</code>.</p>
+<h3 id="integrated-gradients">Integrated gradients <a class="header-anchor" href="#integrated-gradients">#</a></h3>
+<p>For a differentiable <code>f</code>, pick a baseline <code>x'</code> (the &quot;absence&quot; of all features — zeros, or
+the data mean) and integrate the gradient along the straight line:</p>
+<div class="math block">
+\[\mathrm{IG}_i(x) = (x_i - x'_i)\int_0^1
+\frac{\partial f\bigl(x' + \alpha(x - x')\bigr)}{\partial x_i}\,d\alpha\]
+</div>
+<p>This is the unique attribution satisfying <strong>completeness</strong>,
+<code>Σ_i IG_i = f(x) − f(x')</code>, which is just the fundamental theorem of calculus applied
+component-wise. The demo verifies completeness for a quadratic at <code>0.0</code>, and verifies
+exactness for a linear model: <code>IG_i = w_i(x_i − x'_i)</code> identically, because the gradient
+is constant along the path.</p>
+<p>The integral is approximated by a midpoint rule with <code>steps</code> points, which for a
+piecewise-smooth <code>f</code> has error <code>O(1/steps²)</code>. Two limitations follow from the definition:
+the gradient must exist (no trees, no ReLU kinks exactly on the path), and the answer
+depends on <code>x'</code>. Completeness holds for <em>any</em> baseline, so it cannot tell you whether the
+baseline was sensible — a fact that surprises people who expect an axiom to be a
+guarantee.</p>
+<p>Note what completeness does <strong>not</strong> imply: the attributions are not Shapley values, and
+they can disagree sharply with SHAP for an interaction-heavy <code>f</code>. IG satisfies sensitivity
+and implementation invariance (its own axioms, from Sundararajan et al.) and fails
+dummy-ness in general — a feature that <code>f</code> ignores gets zero, but a feature that matters
+only through an interaction gets a share that depends on the path.</p>
+<h3 id="lime">LIME <a class="header-anchor" href="#lime">#</a></h3>
+<p>Fit a weighted linear model around <code>x</code>:</p>
+<div class="math block">
+\[\hat\beta = \arg\min_\beta \sum_{z \sim \mathcal{N}(x, \sigma)}
+K(z, x)\,\bigl(f(z) - f(x) - \beta^\top(z - x)\bigr)^2 + \lambda\|\beta\|^2\]
+</div>
+<p>with <code>K</code> a distance kernel. The coefficients <code>β</code> are the explanation: &quot;locally, moving
+feature <code>i</code> by one unit moves the prediction by <code>β_i</code>&quot;.</p>
+<p>For a linear <code>f</code>, every weight <code>K</code> gives <code>β = w</code> exactly, which is the demo's
+<code>3.2e-06</code> (the residual is the ridge term). For a nonlinear <code>f</code>, <code>β</code> approximates the
+gradient at <code>x</code>, and the kernel width is a genuine hyperparameter: too narrow and the
+surrogate sees only noise, too wide and it approximates the global model instead of the
+local one. The demo's kernel is <code>exp(−‖u‖²/(2·0.75²·d))</code> on standardised offsets.</p>
+<p>LIME is <em>not</em> Shapley. If the kernel happened to be the SHAP kernel and the surrogate were
+fitted on coalitions rather than Gaussian perturbations, the coefficients would converge
+to Shapley values; as implemented they do not, and the demo's correlation with <code>tree_shap</code>
+on the forest is <code>0.849</code> rather than <code>1.0</code>. That is the honest relationship between the
+two methods: same direction, different numbers, different guarantees.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The coalition value is one line of substitution, and it is the only place the background
+distribution enters:</p>
+<pre class="highlight"><code>        <span class="n">Z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_background</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">Z</span><span class="p">[:,</span> <span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">_predict</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">Z</span><span class="p">)))</span>
+</code></pre>
+<p><code>Z</code> is a copy of the background rows, and the boolean <code>mask</code> selects which columns are
+taken from the row being explained. This is the <em>interventional</em> value: the substituted
+features come from <code>x</code>, the rest from the background, and nothing models the correlation
+between them. <code>_predict</code> accepts either a model with <code>.predict</code> or a bare callable, which
+is what lets the demo explain an analytic function and a forest with the same code.</p>
+<p>The exact Shapley sum is the definition, transcribed:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+            <span class="n">bit</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">i</span>
+            <span class="k">for</span> <span class="n">mask</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">d</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">mask</span> <span class="o">&amp;</span> <span class="n">bit</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="nb">bin</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">"1"</span><span class="p">)</span>
+                <span class="n">phi</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">c</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="n">mask</span> <span class="o">|</span> <span class="n">bit</span><span class="p">]</span> <span class="o">-</span> <span class="n">value</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+</code></pre>
+<p><code>mask | bit</code> is <code>S ∪ {i}</code> and <code>mask</code> is <code>S</code>; the loop skips masks that already contain
+<code>i</code>, so each marginal <code>v(S ∪ i) − v(S)</code> is counted once with the weight <code>c[|S|]</code>. Note
+that <code>value</code> is precomputed for all <code>2^d</code> masks before the loop — the same array is reused
+for every feature, which is what makes the naive implementation <code>O(2^d · d)</code> rather than
+<code>O(2^d · d²)</code>.</p>
+<p>KernelSHAP's kernel and its exact constraint handling:</p>
+<pre class="highlight"><code>        <span class="n">k</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="p">(</span><span class="n">d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">math</span><span class="o">.</span><span class="n">comb</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">ki</span><span class="p">))</span> <span class="k">for</span> <span class="n">ki</span> <span class="ow">in</span> <span class="n">k</span><span class="p">])</span>
+                            <span class="o">*</span> <span class="n">k</span> <span class="o">*</span> <span class="p">(</span><span class="n">d</span> <span class="o">-</span> <span class="n">k</span><span class="p">))</span>
+        <span class="c1"># impose efficiency exactly by eliminating the last coordinate</span>
+        <span class="n">reduced</span> <span class="o">=</span> <span class="n">A</span><span class="p">[:,</span> <span class="p">:</span><span class="n">d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">A</span><span class="p">[:,</span> <span class="n">d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span><span class="n">d</span><span class="p">]</span>
+        <span class="n">rhs</span> <span class="o">=</span> <span class="n">target</span> <span class="o">-</span> <span class="n">A</span><span class="p">[:,</span> <span class="n">d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">total</span>
+</code></pre>
+<p><code>A</code> is the <code>(2^d−2) × d</code> matrix of coalition indicators, <code>k</code> is each coalition's size, and
+<code>weight</code> is <code>π(S)</code>. <code>np.sqrt(weight)</code> multiplies both sides so that <code>lstsq</code> — which
+minimises an unweighted residual — solves the weighted problem; this is the standard trick
+for turning weights into a rescaling, and it avoids <code>diag(π)^{1/2}</code> as an explicit matrix.
+The (d−1)-column reduction is the efficiency constraint, substituted in rather than
+appended, so the answer is exact instead of depending on a penalty large enough.</p>
+<p>TreeSHAP's per-leaf polynomial:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">poly</span><span class="p">(</span><span class="n">features</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">q</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Coefficients of prod_{i in features} (Q_i + t), degree len(features)."""</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">features</span><span class="p">:</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">step</span><span class="p">[:</span><span class="n">out</span><span class="o">.</span><span class="n">size</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span> <span class="o">*</span> <span class="n">q</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>        <span class="c1"># feature i is not in S</span>
+            <span class="n">step</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+=</span> <span class="n">out</span>                     <span class="c1"># feature i is in S</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">step</span>
+        <span class="k">return</span> <span class="n">out</span>
+</code></pre>
+<p>Multiplying by <code>(Q_i + t)</code> encodes exactly the two cases: feature <code>i</code> is not in <code>S</code>, which
+contributes the factor <code>Q_i</code> and leaves the degree alone; or it is in <code>S</code>, which
+contributes <code>1</code> and increments the degree. After processing every feature of the path,
+coefficient <code>k</code> is the sum over <code>k</code>-subsets of the product of the <em>excluded</em> features'
+<code>Q</code>s — which is precisely the quantity the Shapley sum needs. Duplicated features are
+handled for free because <code>Q_i</code> is the product of that feature's per-position fractions.</p>
+<p>The size marginalisation is the other half of the derivation:</p>
+<pre class="highlight"><code>            <span class="n">size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                <span class="nb">sum</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">comb</span><span class="p">(</span><span class="n">n_off</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="o">*</span> <span class="n">c</span><span class="p">[</span><span class="n">k</span> <span class="o">+</span> <span class="n">m</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_off</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">k</span> <span class="o">+</span> <span class="n">m</span> <span class="o">&lt;=</span> <span class="n">n_features</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">inside</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="p">])</span>
+</code></pre>
+<p><code>n_off = d − |F|</code> counts the features that never appear on this leaf's path — they can be
+in or out of <code>S</code> without changing anything, so each coalition size <code>k</code> is multiplied by
+<code>C(n_off, m)</code>. The guard <code>k + m &lt;= d − 1</code> exists because a marginal is only defined up to
+coalitions of size <code>d − 1</code>; the full coalition is the efficiency endpoint, not a term.</p>
+<p>The leaf accumulation distinguishes the two signs:</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">distinct</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">diverge</span><span class="p">:</span>
+                    <span class="c1"># forcing i into S kills this leaf entirely</span>
+                    <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">poly</span><span class="p">(</span><span class="n">inside</span><span class="p">,</span> <span class="n">q</span><span class="p">),</span> <span class="n">size</span><span class="p">))</span>
+                    <span class="n">phi</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-=</span> <span class="n">value</span> <span class="o">*</span> <span class="n">forced</span> <span class="o">*</span> <span class="n">total</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">others</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">inside</span> <span class="k">if</span> <span class="n">f</span> <span class="o">!=</span> <span class="n">i</span><span class="p">]</span>
+                    <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">poly</span><span class="p">(</span><span class="n">others</span><span class="p">,</span> <span class="n">q</span><span class="p">),</span> <span class="n">size</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">others</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]))</span>
+                    <span class="n">phi</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">value</span> <span class="o">*</span> <span class="n">forced</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">q</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">*</span> <span class="n">total</span>
+</code></pre>
+<p>For a feature where the leaf <em>agrees</em> with <code>x</code>, the marginal is
+<code>(1 − Q_i) · Π_{others}</code>: the leaf's value changes when <code>i</code> is added to <code>S</code> exactly by the
+fraction of mass that <code>i</code> was diverting. For a feature where the leaf <em>diverges</em>, the
+leaf's weight is <code>−Π</code> with no <code>(1−Q)</code> factor, because adding <code>i</code> to <code>S</code> removes the leaf
+entirely rather than rescaling it. Both cases multiply <code>forced = Π_{j∈D} Q_j</code>, the
+factors of the divergence features, which stay in the product no matter what <code>S</code> is.</p>
+<p>ALE's bin differences, then the centring:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">edges</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">==</span> <span class="n">k</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">rows</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">continue</span>
+            <span class="n">Z</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">rows</span><span class="p">]</span>
+            <span class="n">lo</span> <span class="o">=</span> <span class="n">Z</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">hi</span> <span class="o">=</span> <span class="n">Z</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">lo</span><span class="p">[:,</span> <span class="n">feature</span><span class="p">]</span> <span class="o">=</span> <span class="n">edges</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">hi</span><span class="p">[:,</span> <span class="n">feature</span><span class="p">]</span> <span class="o">=</span> <span class="n">edges</span><span class="p">[</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">delta</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">_predict</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">hi</span><span class="p">)</span> <span class="o">-</span> <span class="n">_predict</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">lo</span><span class="p">)))</span>
+</code></pre>
+<p><code>Z = X[rows]</code> restricts to the rows in the bin, so both <code>lo</code> and <code>hi</code> keep each row's own
+values of the other features — that is what &quot;conditional on being in this bin&quot; means, and
+it is the difference from PDP. Subtracting before averaging is also deliberate: averaging
+the two predictions and then subtracting would give the same number in exact arithmetic,
+but the difference-of-means form cancels the row's baseline and keeps the floating-point
+error proportional to the effect instead of to the prediction.</p>
+<pre class="highlight"><code>        <span class="n">curve</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">delta</span><span class="p">)])</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">edges</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">centre</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">counts</span> <span class="o">/</span> <span class="n">counts</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                              <span class="o">*</span> <span class="p">(</span><span class="n">curve</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">curve</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">))</span>
+</code></pre>
+<p><code>np.cumsum</code> accumulates the local effects into a curve anchored at zero at the lowest
+edge, and <code>counts</code> weights the centring by how many rows each bin actually contains — the
+bins are quantiles, so unweighted centring would be wrong whenever the edges are uneven.
+The curve is defined at the <em>edges</em>, so the bin midpoint is <code>(curve[k] + curve[k+1])/2</code>.</p>
+<p>Integrated gradients is the midpoint rule and one multiplication:</p>
+<pre class="highlight"><code>        <span class="n">alphas</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span>   <span class="c1"># midpoint rule</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">grad_fn</span><span class="p">(</span><span class="n">base</span> <span class="o">+</span> <span class="n">a</span> <span class="o">*</span> <span class="n">delta</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">alphas</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">delta</span> <span class="o">*</span> <span class="n">grads</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</code></pre>
+<p><code>+ 0.5</code> shifts the nodes to interval centres, which is second-order accurate for a smooth
+integrand; the endpoints would be first-order and would also evaluate the gradient exactly
+at the baseline, where it is often degenerate. <code>delta</code> multiplies <em>after</em> the average,
+because <code>(x_i − x'_i)</code> does not depend on <code>α</code> — the same factor can be pulled out of the
+integral, and doing so avoids dividing by zero when <code>x = x'</code>.</p>
+<p>LIME is a weighted ridge solve:</p>
+<pre class="highlight"><code>        <span class="n">u</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">/</span> <span class="n">scale</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">u</span> <span class="o">*</span> <span class="n">u</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">0.75</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">*</span> <span class="n">weight</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">gram</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">offset</span>
+        <span class="n">ridge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">l2</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="n">gram</span><span class="p">))</span> <span class="o">/</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="n">EPS</span>
+        <span class="n">coef</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">gram</span> <span class="o">+</span> <span class="n">ridge</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">target</span><span class="p">)</span>
+</code></pre>
+<p>Distances are standardised by each feature's standard deviation, otherwise a feature
+measured in thousands would always be &quot;far&quot; and would always get zero weight. Folding
+<code>weight[:, None]</code> into <code>A</code> turns the weighted normal equations <code>AᵀWA</code> into an unweighted
+product, so only one matrix is formed. The ridge term is scaled by <code>trace(AᵀWA)/d</code> rather
+than used raw, which makes <code>l2</code> mean &quot;shrink by this fraction&quot; and keeps the fit
+independent of <code>n_samples</code> and of the units.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Cost</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>permutation</code></td>
+<td style="text-align:left"><code>d·R</code> prediction passes over <code>n</code> rows</td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>shap</code></td>
+<td style="text-align:left"><code>2^d</code> coalition evaluations, each <code>O(B + n_bg)</code></td>
+<td style="text-align:left"><code>O(2^d + n_bg·d)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kernel_shap</code></td>
+<td style="text-align:left"><code>2^d</code> evaluations + one <code>(2^d × d)</code> lstsq</td>
+<td style="text-align:left"><code>O(2^d·d)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tree_shap</code></td>
+<td style="text-align:left"><code>O(T·L·D²)</code>; <code>D ≤ d</code></td>
+<td style="text-align:left"><code>O(L·D)</code> per tree</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pdp</code></td>
+<td style="text-align:left"><code>G</code> prediction passes</td>
+<td style="text-align:left"><code>O(n·G)</code> for ICE, <code>O(G)</code> for PDP</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ice</code></td>
+<td style="text-align:left"><code>G</code> prediction passes</td>
+<td style="text-align:left"><code>O(n·G)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ale</code></td>
+<td style="text-align:left"><code>2B</code> prediction passes on subsets</td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>integrated_gradients</code></td>
+<td style="text-align:left"><code>steps</code> gradient evaluations</td>
+<td style="text-align:left"><code>O(steps·d)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lime</code></td>
+<td style="text-align:left"><code>n_samples</code> predictions + <code>O(d³)</code> solve</td>
+<td style="text-align:left"><code>O(n_samples·d)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>2^d</code> in the two exact Shapley variants is the whole story: at <code>d = 4</code> it is 16
+coalitions and the demo is instant, at <code>d = 20</code> it is a million and at <code>d = 100</code> it is not
+a number. KernelSHAP's practical form samples coalitions instead, which trades exactness
+for tractability and gives an answer whose error you must estimate. TreeSHAP has no such
+wall — its <code>L·D²</code> is why it is the default for gradient-boosted models — which is exactly
+why the two implementations produce different numbers in the demo: not because one is
+wrong, but because <code>tree_shap</code> is using a different value function.</p>
+<p>Memory is the other asymmetry: <code>shap</code> and <code>kernel_shap</code> materialise a value for every
+coalition, while <code>tree_shap</code> walks paths and returns <code>d</code> floats.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Correlated features, interventional attributions.</strong> Shapley splits credit among
+correlated features by averaging over coalitions that substitute background values.
+With <code>x₁ ≈ x₂</code>, the pair gets roughly half the credit each no matter which one the
+model actually uses. This is not a bug in SHAP — it is what the axioms say — but it
+does mean &quot;feature importance&quot; and &quot;causal effect&quot; are different objects.</li>
+<li><strong>Confusing path-dependent and interventional SHAP.</strong> The demo's two attributions
+differ by <code>0.15</code> on the dominant feature and by <code>0.02</code> on the third, from the same
+forest and the same row. Pick one, name it, and never mix libraries in one report.</li>
+<li><strong>PDP under dependence.</strong> The demo's PDP of <code>x₀</code> spans <code>0.03</code> for a feature that is
+fully responsible for a <code>3.33</code>-wide ALE. Averaging over the marginal puts half the mass
+on rows that do not exist. If features are correlated, plot ALE, or plot ICE and look
+at the spread rather than the mean.</li>
+<li><strong>PDP hides interactions.</strong> A flat PDP is consistent with &quot;no effect&quot; and with
+&quot;positive for half the rows, negative for the other half&quot;. Always check the ICE spread
+before concluding a feature is irrelevant — the demo's <code>x₂</code> curves have a slope spread
+of <code>85</code> around a mean that looks modest.</li>
+<li><strong>Permutation importance on correlated features.</strong> Shuffling <code>x₁</code> destroys its
+relationship with <code>x₂</code>, so the model is scored on impossible rows and <code>x₁</code> looks more
+important than it is. Group correlated features, or use a conditional permutation
+scheme.</li>
+<li><strong>Attributions that do not sum.</strong> <code>lime</code> coefficients, permutation importances and
+PDP spans are not decompositions, and adding them up is meaningless. Only <code>shap</code>,
+<code>kernel_shap</code>, <code>tree_shap</code> and <code>integrated_gradients</code> come with a stated efficiency
+property; if you need &quot;these parts explain the prediction&quot;, check that property on one
+row before trusting the rest.</li>
+<li><strong>Baseline games in integrated gradients.</strong> Completeness holds for every baseline, so
+a convenient choice (zeros) silently defines &quot;absence&quot; as an all-zero input, which may
+be far outside the data. The attributions move when the baseline moves. Report it.</li>
+<li><strong>LIME instability.</strong> Perturbation sampling is random, so two runs give two different
+explanations; with <code>n_samples</code> too small and a kernel width too narrow, the surrogate
+fits noise. Increase the sample count, and average over seeds before believing a
+coefficient.</li>
+<li><strong>Explaining a bad model.</strong> All nine variants faithfully explain whatever function
+they are handed, including one that has learned a shortcut. An explanation is evidence
+about the model, not about the world, and a plausible waterfall plot of a leaky model
+is the most convincing wrong artifact in machine learning.</li>
+<li><strong>Attributions as causal claims.</strong> Shapley values distribute credit for a <em>prediction</em>
+under a stated value function. They say nothing about what happens if you intervene
+on a feature. That requires a causal graph, and no amount of averaging over coalitions
+substitutes for one.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Debugging a surprising prediction.</strong> A single row explained by <code>tree_shap</code> often
+reveals a leaked feature, a unit error or a bad default faster than any aggregate metric.</li>
+<li><strong>Model auditing and fairness review.</strong> Per-group attributions show whether a decision
+leans on a protected attribute, or on a proxy that correlates with one.</li>
+<li><strong>Feature engineering triage.</strong> Permutation importance ranks columns by how much the
+model actually relies on them, which is the cheapest way to find dead features.</li>
+<li><strong>Regulatory and clinical explanation.</strong> Credit decisions and risk scores are legally
+required to give reasons; Shapley attributions are the most defensible default because
+the axioms are stated and the efficiency property is checkable.</li>
+<li><strong>Sanity-checking a pipeline.</strong> If <code>pdp</code> shows a non-monotone effect for a feature you
+know is monotone, the bug is in the data pipeline, not the plot.</li>
+<li><strong>Scientific sensitivity analysis.</strong> ALE and PDP are standard tools for reporting how a
+fitted response surface depends on each input, especially when interactions matter.</li>
+<li><strong>Distillation and rule extraction.</strong> Attributions on a large model guide which features
+a small surrogate should keep, and where a local linear fit is good enough.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Shapley, <em>A Value for n-Person Games</em>, 1953, Contributions to the Theory of Games II —
+the axioms and the formula.</li>
+<li>Lundberg &amp; Lee, <em>A Unified Approach to Interpreting Model Predictions</em>, 2017, NeurIPS —
+SHAP, the SHAP kernel, and KernelSHAP's weighted-regression formulation.</li>
+<li>Lundberg, Erion &amp; Lee, <em>Consistent Individualized Feature Attribution for Tree
+Ensembles</em>, 2019 — TreeSHAP, the path-dependent value function, and the <code>O(TLD²)</code>
+recursion.</li>
+<li>Štrumbelj &amp; Kononenko, <em>Explaining Prediction Models and Individual Predictions with
+Feature Contributions</em>, 2014, Knowledge and Information Systems — the sampling
+estimator that KernelSHAP generalises.</li>
+<li>Ribeiro, Singh &amp; Guestrin, <em>&quot;Why Should I Trust You?&quot;: Explaining the Predictions of Any
+Classifier</em>, 2016, KDD — LIME and the local surrogate framing.</li>
+<li>Sundararajan, Taly &amp; Yan, <em>Axiomatic Attribution for Deep Networks</em>, 2017, ICML —
+integrated gradients, completeness and sensitivity.</li>
+<li>Friedman, <em>Greedy Function Approximation: A Gradient Boosting Machine</em>, 2001, Annals of
+Statistics — partial dependence plots.</li>
+<li>Goldstein, Kapelner, Bleich &amp; Pitkin, <em>Peeking Inside the Black Box: Visualizing
+Statistical Learning with Plots of Individual Conditional Expectation</em>, 2015, JCGS —
+ICE curves and their advantage over PDP.</li>
+<li>Apley &amp; Zhu, <em>Visualizing the Effects of Predictor Variables in Black Box Supervised
+Learning Models</em>, 2020, JRSS-B — ALE, the within-bin differences, and the argument that
+PDP is biased under dependence.</li>
+<li>Hooker, Mentch &amp; Zhou, <em>Unrestricted Permutation Forces Extrapolation: Variable
+Importance for Correlated Predictors</em>, 2021, AISTATS — why drop-column importance is
+biased when features are correlated.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="calibration.html"><small>Previous</small><span>Calibration</span></a><a class="next" href="../21-causality/index.html"><small>Next</small><span>21 · Causality</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">20 · Evaluation &amp; uncertainty</p><ul class="rail-list"><li><a href="resampling.html"><span class="tick">✓</span><span>Resampling</span></a></li><li><a href="bootstrap.html"><span class="tick">✓</span><span>Bootstrap</span></a></li><li><a href="calibration.html"><span class="tick">✓</span><span>Calibration</span></a></li><li><a href="interpretability.html" aria-current="page"><span class="tick">✓</span><span>Interpretability</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Conformal prediction</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Uncertainty estimation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Drift detection</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>A/B testing</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Hypothesis tests</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Selective prediction</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Fairness metrics</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../19-tabular/index.html"><span class="jump">← 19 · Tabular frontier</span></a></li><li><a href="../21-causality/index.html"><span class="jump">21 · Causality&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#shapley-values">Shapley values</a></li><li class="lvl3"><a href="#kernelshap">KernelSHAP</a></li><li class="lvl3"><a href="#treeshap">TreeSHAP</a></li><li class="lvl3"><a href="#permutation-importance">Permutation importance</a></li><li class="lvl3"><a href="#partial-dependence-ice-ale">Partial dependence, ICE, ALE</a></li><li class="lvl3"><a href="#integrated-gradients">Integrated gradients</a></li><li class="lvl3"><a href="#lime">LIME</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/20-evaluation/interpretability.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

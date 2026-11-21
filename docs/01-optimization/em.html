@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EM / MM · MLAtoms</title>
+<meta name="description" content="The monotone algorithm hiding inside k-means, GMMs, HMMs and VAEs. If the latent variables were visible, the model would be a one-line MLE. They are not, so…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/em.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="EM / MM">
+<meta property="og:description" content="The monotone algorithm hiding inside k-means, GMMs, HMMs and VAEs. If the latent variables were visible, the model would be a one-line MLE. They are not, so…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/em.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="EM / MM">
+<meta name="twitter:description" content="The monotone algorithm hiding inside k-means, GMMs, HMMs and VAEs. If the latent variables were visible, the model would be a one-line MLE. They are not, so…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "EM / MM", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/em.html", "description": "The monotone algorithm hiding inside k-means, GMMs, HMMs and VAEs. If the latent variables were visible, the model would be a one-line MLE. They are not, so\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">01 · Optimization</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="em.py.html">source</a></p><h1>EM and friends</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>If the latent variables were visible, the model would be a one-line MLE. They are
+not, so EM alternates between guessing them (E) and re-fitting the model as if the
+guesses were data (M). The surprising part is that this cannot make the likelihood
+worse — each iteration increases a lower bound, and the bound touches the true
+likelihood at the current parameters.</p>
+<p>Everything else here is a variation on that loop: what you do when the M-step has
+no closed form (<strong>MM</strong>), when you have priors (<strong>MAP-EM</strong>), when the data does not
+fit in memory (<strong>incremental</strong>), or when you deliberately throw away the soft
+assignment (<strong>hard EM</strong>, a.k.a. k-means).</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">E-step</th>
+<th style="text-align:left">M-step</th>
+<th style="text-align:left">Guarantee</th>
+<th style="text-align:left">Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>em</code></td>
+<td style="text-align:left">responsibilities</td>
+<td style="text-align:left">closed form</td>
+<td style="text-align:left">LL non-decreasing</td>
+<td style="text-align:left">latent variable, tractable M</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mm</code></td>
+<td style="text-align:left">construct a tangent majoriser</td>
+<td style="text-align:left">minimise surrogate</td>
+<td style="text-align:left">objective non-increasing</td>
+<td style="text-align:left">no tractable M-step</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>map_em</code></td>
+<td style="text-align:left">responsibilities</td>
+<td style="text-align:left">penalised MLE</td>
+<td style="text-align:left">posterior non-decreasing</td>
+<td style="text-align:left">priors / regularisation</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gmm_em</code></td>
+<td style="text-align:left">Gaussian responsibilities</td>
+<td style="text-align:left">weighted moments</td>
+<td style="text-align:left">LL non-decreasing</td>
+<td style="text-align:left">the canonical instance</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>incremental_em</code></td>
+<td style="text-align:left">per-observation</td>
+<td style="text-align:left"><code>1/t</code> averaged stats</td>
+<td style="text-align:left">approximate</td>
+<td style="text-align:left">streaming / large <code>n</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>hard_em</code></td>
+<td style="text-align:left"><code>argmax</code> assignment</td>
+<td style="text-align:left">cluster moments</td>
+<td style="text-align:left">classification LL</td>
+<td style="text-align:left">speed, k-means equivalence</td>
+</tr>
+</tbody>
+</table>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>The ELBO.</strong> For observed <code>x</code>, latent <code>z</code>, parameters <code>θ</code>, and any distribution
+<code>q(z)</code>:</p>
+<div class="math block">
+\[\log p(x\mid\theta) = \underbrace{\mathbb{E}_q\!\left[\log\frac{p(x,z\mid\theta)}{q(z)}\right]}_{\mathcal{L}(q,\theta)}
++ \underbrace{\mathrm{KL}\!\left(q(z)\,\|\,p(z\mid x,\theta)\right)}_{\ge 0}\]
+</div>
+<p>EM maximises <code>L</code> by coordinate ascent. The E-step sets <code>q(z) = p(z|x,θ_old)</code>, which
+makes the KL zero and the bound tight:</p>
+<div class="math block">
+\[\mathcal{L} = \mathbb{E}_{z\sim p(z|x,\theta_{\text{old}})}\left[\log p(x,z\mid\theta)\right] + H(q)\]
+</div>
+<p>The M-step maximises that expectation over <code>θ</code> — the entropy term does not depend
+on <code>θ</code>. Since the bound is tight both before and after, the likelihood cannot
+decrease:</p>
+<div class="math block">
+\[\log p(x\mid\theta_{t+1}) \ge \mathcal{L}(q_t,\theta_{t+1}) \ge \mathcal{L}(q_t,\theta_t) = \log p(x\mid\theta_t)\]
+</div>
+<p>That is the entire proof, and it is why EM is robust and slow: it is a bound
+optimiser, so it inherits the bound's slack.</p>
+<p><strong>GMM equations.</strong> With <code>π_k, μ_k, Σ_k</code>:</p>
+<div class="math block">
+\[r_{ik} = \frac{\pi_k\,\mathcal{N}(x_i\mid\mu_k,\Sigma_k)}{\sum_j \pi_j\,\mathcal{N}(x_i\mid\mu_j,\Sigma_j)},
+\qquad
+N_k = \sum_i r_{ik}\]
+</div>
+<div class="math block">
+\[\pi_k = \frac{N_k}{n},\qquad
+\mu_k = \frac{1}{N_k}\sum_i r_{ik}x_i,\qquad
+\Sigma_k = \frac{1}{N_k}\sum_i r_{ik}(x_i-\mu_k)(x_i-\mu_k)^\top\]
+</div>
+<p>Notice that the M-step is exactly the MLE you would compute if <code>r</code> were a
+one-hot assignment — that is the sense in which EM &quot;fills in&quot; the labels.</p>
+<p><strong>MAP-EM.</strong> Add a prior and maximise <code>E[log p(x,z|θ)] + log p(θ)</code>. For a Beta(a,b)
+prior on the mixing weights the M-step becomes</p>
+<div class="math block">
+\[\pi_k = \frac{N_k + a - 1}{n + a + b - 2}\]
+</div>
+<p>which is the usual pseudo-count shrinkage. The monotonicity argument survives
+verbatim with the posterior in place of the likelihood.</p>
+<p><strong>MM.</strong> When the M-step is intractable, replace the objective with a surrogate that
+(a) touches it at the current point and (b) lies below it everywhere. Maximising the
+surrogate can only improve the true objective. The Student-t location is the
+cleanest example: <code>log(1+r²/ν)</code> is concave in <code>r²</code>, so its tangent at <code>r₀</code> is a
+global upper bound, and minimising the resulting quadratic gives a weighted mean
+with weights <code>(ν+1)/(ν+r²)</code>. Heavy-tailed data automatically gets down-weighted —
+this is robust statistics falling out of an optimisation argument.</p>
+<p><strong>Hard EM.</strong> Replace <code>r_{ik}</code> with <code>1[k = argmax_j r_{ij}]</code>. This maximises a
+different objective (the classification likelihood), so it is <em>not</em> monotone in
+<code>p(x|θ)</code> — but it converges much faster and, for a shared spherical covariance,
+the assignment rule is exactly nearest-mean. That is why k-means is hard EM with a
+Gaussian mixture: the &quot;algorithm&quot; and the &quot;model&quot; are the same thing viewed from
+two sides.</p>
+<p><strong>Incremental EM.</strong> Update the sufficient statistics with one observation at a
+time, weighting the new information by <code>1/t</code>, and recompute the parameters from the
+running averages. The cost per observation is <code>O(k)</code> instead of <code>O(nk)</code> per
+iteration, and it converges to the same fixed point under a step-size schedule that
+satisfies the Robbins–Monro conditions (<code>Σγ_t = ∞</code>, <code>Σγ_t² &lt; ∞</code>).</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>run_em</code> is the template in twelve lines; the models are callbacks:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">run_em</span><span class="p">(</span><span class="n">estep</span><span class="p">,</span> <span class="n">mstep</span><span class="p">,</span> <span class="n">init</span><span class="p">,</span> <span class="n">iters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="n">loglik</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">init</span>
+    <span class="n">hist</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">iters</span><span class="p">):</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="n">estep</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">mstep</span><span class="p">(</span><span class="n">resp</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">loglik</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loglik</span><span class="p">(</span><span class="n">params</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hist</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">abs</span><span class="p">(</span><span class="n">hist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">hist</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">hist</span>
+</code></pre>
+<p>The likelihood is recorded <strong>after</strong> the M-step, so <code>hist[0]</code> is the first updated
+iterate, not the initialisation. That matters for the monotonicity assertions: they
+compare successive <code>hist</code> entries, and a version that logged before the update would
+show <code>hist[0]</code> as the (usually worse) starting point and appear to violate the
+guarantee. The <code>len(hist) &gt; 1</code> guard exists because <code>hist[-2]</code> is invalid on the
+first pass, and the tolerance is on the <em>change</em>, not on the gradient.</p>
+<p><code>bernoulli_em</code> shows why the E-step is a matrix operation:</p>
+<pre class="highlight"><code>        <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">pi</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">X</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+                <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">X</span><span class="p">)</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="o">-</span><span class="n">theta</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+</code></pre>
+<p>For <code>X</code> of shape <code>(n,d)</code> and <code>theta</code> of shape <code>(k,d)</code>, this is <code>(n,k)</code> in two
+matmuls — no <code>(n,k,d)</code> tensor. <code>log1p(-theta)</code> rather than <code>log(1-theta)</code> keeps
+precision when <code>theta</code> is near zero; <code>theta</code> is clipped to <code>[1e-12, 1-1e-12]</code> first
+because a component can drive a feature probability to exactly 0 or 1, and both logs
+are then infinite. The E-step subtracts the row max before exponentiating:</p>
+<pre class="highlight"><code>        <span class="n">lp</span> <span class="o">-=</span> <span class="n">lp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">lp</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">r</span> <span class="o">/</span> <span class="n">r</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre>
+<p>This is <code>softmax</code> up to the normalisation constant, which cancels in the ratio. The
+M-step is the complete-data MLE with <code>r</code> in place of one-hot labels:</p>
+<pre class="highlight"><code>        <span class="n">nk</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="o">...</span>
+            <span class="n">theta</span> <span class="o">=</span> <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">nk</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)</span>
+</code></pre>
+<p><code>r.T @ X</code> sums each feature weighted by responsibility; dividing by the component's
+soft count <code>nk</code> gives the weighted frequency. The <code>1e-12</code> in both numerator and
+denominator is the smallest possible smoothing: without it, an empty component gives
+<code>0/0</code>. With a prior, the same lines become pseudo-counts:</p>
+<pre class="highlight"><code>            <span class="n">pi</span> <span class="o">=</span> <span class="p">(</span><span class="n">nk</span> <span class="o">+</span> <span class="n">a</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span> <span class="o">-</span> <span class="mf">2.0</span><span class="p">)</span>
+            <span class="n">theta</span> <span class="o">=</span> <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span> <span class="o">+</span> <span class="n">c</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">nk</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">c</span> <span class="o">+</span> <span class="n">e</span> <span class="o">-</span> <span class="mf">2.0</span><span class="p">)</span>
+</code></pre>
+<p><code>a−1</code> and <code>c−1</code> are the Beta pseudo-counts; the denominator adds the total prior mass
+minus 2 so that <code>a=b=1</code> (uniform prior) reduces exactly to the MLE. Using <code>a</code> instead
+of <code>a−1</code> is a one-off that looks harmless and shifts every weight.</p>
+<p><code>student_t_mm</code> is the smallest complete MM example:</p>
+<pre class="highlight"><code>        <span class="n">r2</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="p">(</span><span class="n">nu</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">nu</span> <span class="o">+</span> <span class="n">r2</span><span class="p">)</span>
+        <span class="n">mu_new</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">w</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">nu</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">r2</span> <span class="o">/</span> <span class="n">nu</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mu_new</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-12</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">mu_new</span>
+</code></pre>
+<p><code>w_i = (ν+1)/(ν+r_i²)</code> is the tangent majoriser's weight; a point at <code>r=0</code> gets
+weight <code>(ν+1)/ν</code>, a point at <code>r=10</code> gets <code>(ν+1)/(ν+100)</code> — the down-weighting is
+automatic. The convergence test uses <code>mu_new − mu</code> but does <strong>not</strong> assign on the
+final iteration; that is harmless for the output (<code>mu</code> and <code>mu_new</code> differ by
+<code>&lt;1e-12</code>) and keeps <code>hist</code> aligned with the iterates actually visited. <code>log1p(r²/ν)</code>
+is the Student-t NLL up to an additive constant — dropping the constant is fine for
+monotonicity but means the printed value is not comparable across <code>ν</code>.</p>
+<p><code>_log_gaussian</code> is the numerically important helper:</p>
+<pre class="highlight"><code>    <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+    <span class="n">diff</span> <span class="o">=</span> <span class="n">X</span> <span class="o">-</span> <span class="n">mu</span>
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">diff</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">logdet</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">L</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">d</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">+</span> <span class="n">logdet</span> <span class="o">+</span> <span class="p">(</span><span class="n">sol</span> <span class="o">*</span> <span class="n">sol</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+</code></pre>
+<p>The quadratic form is <code>‖L⁻¹(x−μ)‖²</code>, computed by a triangular solve, not
+<code>diff @ inv(cov) @ diff.T</code>. The inverse is <code>O(d³)</code> <em>and</em> loses precision when the
+covariance is ill-conditioned; the Cholesky factor is already needed for the
+log-determinant, so the solve is free. <code>logdet = 2Σ log L_ii</code> avoids <code>slogdet</code>'s sign
+bookkeeping and is exact for a PD matrix.</p>
+<p><code>gmm_em</code>'s E-step handles the shared-covariance case by shape:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">covs</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># shared spherical covariance</span>
+            <span class="n">lp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">_log_gaussian</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">means</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">covs</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">_log_gaussian</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">means</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">covs</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)])</span>
+</code></pre>
+<p>A shared covariance is a single <code>(d,d)</code> matrix; per-component covariances are
+<code>(k,d,d)</code>. The <code>ndim</code> check is what lets <code>cov=&quot;spherical&quot;</code> reuse the same code path
+with one matrix, rather than carrying <code>k</code> copies of the same array. The hard
+assignment is a one-hot built by indexing the identity:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">hard</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">k</span><span class="p">)[</span><span class="n">r</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)]</span>
+</code></pre>
+<p>This is both the assignment and a valid responsibility matrix, so the M-step below is
+unchanged — which is exactly the statement that hard EM is the same loop with a
+different E-step.</p>
+<p>The M-step is weighted moments, with <code>reg</code> added <em>after</em> the normalisation:</p>
+<pre class="highlight"><code>        <span class="n">nk</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-12</span>
+        <span class="n">pi</span> <span class="o">=</span> <span class="n">nk</span> <span class="o">/</span> <span class="n">n</span>
+        <span class="n">means</span> <span class="o">=</span> <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span><span class="p">)</span> <span class="o">/</span> <span class="n">nk</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="o">...</span>
+                <span class="n">covs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">r</span><span class="p">[:,</span> <span class="n">j</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">diff</span><span class="p">)</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">diff</span> <span class="o">/</span> <span class="n">nk</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">reg</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</code></pre>
+<p><code>(r[:,j,None]*diff).T @ diff</code> is <code>Σ_i r_ij (x_i−μ_j)(x_i−μ_j)ᵀ</code>, the weighted scatter.
+Adding <code>reg·I</code> after dividing keeps the result PD even when a component collapses
+onto one point — adding it before dividing would scale the regulariser by <code>nk</code> and
+make it vanish for small components, which is the opposite of what is needed. The
+spherical branch pools the variance over all coordinates:</p>
+<pre class="highlight"><code>            <span class="n">var</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">r</span> <span class="o">*</span> <span class="p">((</span><span class="n">X</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">means</span><span class="p">[</span><span class="kc">None</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                        <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">d</span><span class="p">))</span>
+            <span class="n">covs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">var</span><span class="p">,</span> <span class="n">reg</span><span class="p">)</span>
+</code></pre>
+<p><code>max(var, reg)</code> is a floor on the <em>variance</em>, not on the matrix; with <code>var</code> exactly
+zero, <code>_log_gaussian</code> would still fail on a singular Cholesky.</p>
+<p><code>incremental_em</code> is the only loop without a full E-step:</p>
+<pre class="highlight"><code>            <span class="n">gamma</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">t</span> <span class="o">/</span> <span class="n">k</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="n">nk</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">gamma</span><span class="p">)</span> <span class="o">*</span> <span class="n">nk</span> <span class="o">+</span> <span class="n">gamma</span> <span class="o">*</span> <span class="n">r</span>
+            <span class="n">sx</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">gamma</span><span class="p">)</span> <span class="o">*</span> <span class="n">sx</span> <span class="o">+</span> <span class="n">gamma</span> <span class="o">*</span> <span class="n">r</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">means</span> <span class="o">=</span> <span class="n">sx</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">nk</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+            <span class="n">pi</span> <span class="o">=</span> <span class="n">nk</span> <span class="o">/</span> <span class="n">nk</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</code></pre>
+<p><code>t</code> counts observations, not epochs, so <code>t/k</code> is &quot;observations per component&quot;; the
+<code>max(·, 1)</code> makes the first <code>k</code> updates fully replace the statistics (<code>gamma=1</code>)
+instead of averaging against zeros. After that, <code>gamma = k/t</code> decays like <code>1/t</code>,
+satisfying Robbins–Monro. <code>sx</code> is the weighted sum, <code>nk</code> the soft count, and the mean
+is their ratio — exactly the batch M-step, applied to running statistics. Dividing by
+<code>max(nk, 1e-12)</code> again handles a component that no observation has touched.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For a GMM with <code>n</code> points, <code>k</code> components, <code>d</code> dimensions, one EM iteration is
+<code>O(nkd²)</code> for full covariances (the Cholesky of each <code>d×d</code> covariance dominates
+when <code>d</code> is large) and <code>O(nkd)</code> for spherical ones. Memory is <code>O(nk)</code> for the
+responsibilities — the term that forces incremental or mini-batch EM at scale.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Singular covariances.</strong> A component that collapses onto one point has
+<code>|Σ| → 0</code> and the likelihood diverges. Fix: <code>reg·I</code> on the covariance (as here),
+a Wishart prior, or a minimum eigenvalue floor.</li>
+<li><strong>Local optima.</strong> EM is a bound optimiser and the bound has many stationary
+points. Run several restarts, or initialise with k-means++ instead of random
+points.</li>
+<li><strong>Label switching.</strong> Component indices are not identified; comparing two runs
+requires matching (Hungarian algorithm) before computing parameter error.</li>
+<li><strong>Hard EM is biased.</strong> Assigning <code>argmax</code> makes the effective sample size per
+component smaller than <code>N_k</code>, so variances are underestimated. Never use hard
+EM to fit a covariance you care about.</li>
+<li><strong>Incremental step sizes.</strong> A constant step size makes the estimate track the
+last few points rather than converge; <code>1/t</code> is required, and <code>1/t</code> makes early
+updates huge. The <code>max(t/k, 1)</code> guard in this implementation is the usual
+compromise.</li>
+<li><strong>Missing data treated as zero.</strong> EM handles missingness by integrating over it
+in the E-step; substituting the mean silently biases every covariance downward.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Mixtures:</strong> GMM for density estimation, speaker identification, and as the
+emission model in HMMs.</li>
+<li><strong>Missing data:</strong> the original EM application — fill in the missing entries in
+the E-step, re-estimate the covariance in the M-step.</li>
+<li><strong>Latent variable models:</strong> factor analysis, probabilistic PCA, and the VAE's
+precursor (the ELBO is EM's bound with an amortised <code>q</code>).</li>
+<li><strong>Robust estimation:</strong> MM for Student-t, Huber and other M-estimators; the
+weighted-mean update is the same one used in iteratively reweighted least
+squares.</li>
+<li><strong>Clustering at scale:</strong> hard EM = k-means, and mini-batch/incremental EM for
+datasets that do not fit in memory.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Dempster, Laird &amp; Rubin, <em>Maximum Likelihood from Incomplete Data via the EM Algorithm</em>, 1977. JRSS-B.</li>
+<li>Neal &amp; Hinton, <em>A View of the EM Algorithm that Justifies Incremental, Sparse, and other Variants</em>, 1998.</li>
+<li>Hunter &amp; Lange, <em>A Tutorial on MM Algorithms</em>, 2004. The American Statistician.</li>
+<li>Bishop, <em>Pattern Recognition and Machine Learning</em>, ch. 9 (mixtures and EM), 2006.</li>
+<li>Celeux &amp; Govaert, <em>A Classification EM Algorithm for Clustering and Two Stochastic Versions</em>, 1992.</li>
+<li>Cappé &amp; Moulines, <em>On-line Expectation–Maximization Algorithm for Latent Data Models</em>, 2009. JRSS-B.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="schedules.html"><small>Previous</small><span>Schedules</span></a><a class="next" href="../02-linear-models/index.html"><small>Next</small><span>02 · Linear models</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">01 · Optimization</p><ul class="rail-list"><li><a href="sgd.html"><span class="tick">✓</span><span>SGD</span></a></li><li><a href="adam.html"><span class="tick">✓</span><span>Adam / AdamW</span></a></li><li><a href="adaptive.html"><span class="tick">✓</span><span>Adaptive methods</span></a></li><li><a href="schedules.html"><span class="tick">✓</span><span>Schedules</span></a></li><li><a href="em.html" aria-current="page"><span class="tick">✓</span><span>EM / MM</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Second-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Proximal methods</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Weight averaging</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lion</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>LAMB</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Muon</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SOAP</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Natural gradient</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SAM</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Zeroth-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lookahead</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../00-primitives/index.html"><span class="jump">← 00 · Primitives</span></a></li><li><a href="../02-linear-models/index.html"><span class="jump">02 · Linear models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/01-optimization/em.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

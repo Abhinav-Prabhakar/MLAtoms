@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transformer block · MLAtoms</title>
+<meta name="description" content="Encoder/decoder blocks with pre-LN and gated feed-forward. A transformer block is two mixing operations with a residual around each. Attention mixes across…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/transformer.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Transformer block">
+<meta property="og:description" content="Encoder/decoder blocks with pre-LN and gated feed-forward. A transformer block is two mixing operations with a residual around each. Attention mixes across…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/transformer.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Transformer block">
+<meta name="twitter:description" content="Encoder/decoder blocks with pre-LN and gated feed-forward. A transformer block is two mixing operations with a residual around each. Attention mixes across…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Transformer block", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/transformer.html", "description": "Encoder/decoder blocks with pre-LN and gated feed-forward. A transformer block is two mixing operations with a residual around each. Attention mixes across\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">12 · Neural blocks</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="transformer.py.html">source</a></p><h1>Transformer blocks — attention, norms, and the order they run in</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A transformer block is two mixing operations with a residual around each.
+Attention mixes <strong>across positions</strong>: every token reads every other token and
+takes a weighted average of their values. The feed-forward network mixes
+<strong>across channels</strong>: each token independently passes through a wide hidden
+layer. Neither changes the shape of its input, so both can be added back.</p>
+<p>The variants are three decisions taken differently:</p>
+<ol>
+<li><strong>Where the normalisation goes.</strong> After each addition (<code>post_ln</code>) or before
+the branch (<code>pre_ln</code>, <code>encoder</code>, <code>rmsnorm_block</code>); <code>rmsnorm_block</code> also
+changes which normaliser is used.</li>
+<li><strong>Which positions attention may see.</strong> All of them, or only the past
+(<code>pre_ln</code> and <code>decoder</code> carry the causal mask).</li>
+<li><strong>What the feed-forward network computes.</strong> A ReLU pair, or a gated SiLU
+product (<code>swiglu_ffn</code>).</li>
+</ol>
+<p>A fourth axis is how many attention operations a block has: one (<code>encoder</code>,
+<code>pre_ln</code>, <code>post_ln</code>, <code>swiglu_ffn</code>, <code>rmsnorm_block</code>, <code>parallel_attention</code>), one
+that reads an external memory instead of itself (<code>cross_attention</code>), or two —
+self then cross — in <code>decoder</code>. A fifth is whether the two branches run in
+sequence or in parallel (<code>parallel_attention</code>).</p>
+<p>The demo's task separates these cleanly. Each sequence is eight tokens with two
+markers; the label is the sign of the product of their values. A block that can
+look both ways sees both markers and learns the product. A causal block cannot,
+when the second marker arrives after the first, and sits at chance. Trained for
+60 epochs at width 8, two heads and depth 2, the six bidirectional blocks score
+between 0.944 and 1.000 and the two causal blocks score 0.506 and 0.469.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">layout</th>
+<th style="text-align:left">attention</th>
+<th style="text-align:right">parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>post_ln</code></td>
+<td style="text-align:left">add, norm, ffn, add, norm</td>
+<td style="text-align:left">both ways</td>
+<td style="text-align:right">1154</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pre_ln</code></td>
+<td style="text-align:left">norm, add, norm, ffn, add</td>
+<td style="text-align:left">causal self</td>
+<td style="text-align:right">1154</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>encoder</code></td>
+<td style="text-align:left">norm, add, norm, ffn, add</td>
+<td style="text-align:left">both ways</td>
+<td style="text-align:right">1154</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>decoder</code></td>
+<td style="text-align:left">norm, add, norm, cross, add, norm, ffn, add</td>
+<td style="text-align:left">causal self + cross</td>
+<td style="text-align:right">1730</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cross_attention</code></td>
+<td style="text-align:left">norm, cross, add, norm, ffn, add</td>
+<td style="text-align:left">cross only</td>
+<td style="text-align:right">1154</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>swiglu_ffn</code></td>
+<td style="text-align:left">norm, add, norm, gated ffn, add</td>
+<td style="text-align:left">both ways</td>
+<td style="text-align:right">1442</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rmsnorm_block</code></td>
+<td style="text-align:left">norm, add, norm, ffn, add</td>
+<td style="text-align:left">both ways</td>
+<td style="text-align:right">1154</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>parallel_attention</code></td>
+<td style="text-align:left">norm, then attn and ffn in parallel</td>
+<td style="text-align:left">both ways</td>
+<td style="text-align:right">1154</td>
+</tr>
+</tbody>
+</table>
+<p>The counts are for the demo: dimension 8, two heads, hidden width 16, two
+blocks, two classes. A block with one attention costs 568 parameters —
+<span class="math inline">\(288\)</span> for the four projections and <span class="math inline">\(280\)</span> for the ReLU pair — so two blocks plus
+an 18-parameter head give 1154.</p>
+<p><strong><code>post_ln</code></strong> is the original 2017 layout. Each addition is followed by a layer
+norm; attention reads the raw stream and the feed-forward reads the normalised
+post-attention stream:</p>
+<div class="math block">
+\[a=\mathrm{LN}\bigl(x+\mathrm{Attn}(x)\bigr),
+\qquad
+y=\mathrm{LN}\bigl(a+\mathrm{FFN}(a)\bigr).
+\qquad (1)\]
+</div>
+<p><strong><code>pre_ln</code></strong> is the GPT layout: normalise, attend causally, add; normalise, run
+the feed-forward, add. The residual stream itself is never normalised, only the
+copies that branches read.</p>
+<p><strong><code>encoder</code></strong> is the same layout without the mask, which is the BERT block.</p>
+<p><strong><code>decoder</code></strong> adds a second attention: causal self-attention over the prefix,
+then causal cross-attention into an encoder memory, then the feed-forward. The
+demo passes the sequence itself as the memory, so the cross-attention becomes a
+second, independently parameterised full attention and the block reaches 1.000
+even though its self-attention is masked.</p>
+<p><strong><code>cross_attention</code></strong> is the decoder's middle section in isolation: no
+self-attention at all, only a query from its input against a supplied memory.</p>
+<p><strong><code>swiglu_ffn</code></strong> keeps the pre-LN layout and replaces the ReLU pair with</p>
+<div class="math block">
+\[h=\mathrm{silu}(xW_1+b_1)\odot(xW_g+b_g),
+\qquad
+\mathrm{FFN}(x)=hW_2+b_2 .
+\qquad (2)\]
+</div>
+<p><strong><code>rmsnorm_block</code></strong> keeps the layout and swaps layer norm for RMSNorm, which
+divides by the root mean square and does not subtract the mean.</p>
+<p><strong><code>parallel_attention</code></strong> computes attention and the feed-forward from the <em>same</em>
+normalised input and adds both to the stream in one step. There is no sequential
+dependency between the two halves, so their matrix products can be issued
+together.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="scaled-dot-product-attention">Scaled dot-product attention <a class="header-anchor" href="#scaled-dot-product-attention">#</a></h3>
+<p>For a query <span class="math inline">\(q\)</span>, keys <span class="math inline">\(k_j\)</span> and values <span class="math inline">\(v_j\)</span>,</p>
+<div class="math block">
+\[\mathrm{Attn}(q,K,V)
+=\sum_j \frac{\exp(q\cdot k_j/\sqrt{d_k})}
+{\sum_{j'}\exp(q\cdot k_{j'}/\sqrt{d_k})}\,v_j .
+\qquad (3)\]
+</div>
+<p>The softmax weights sum to one, so the output is a convex combination of the
+values — attention can only select and blend what is already in the sequence.
+The scaling matters because <span class="math inline">\(q\cdot k\)</span> is a sum of <span class="math inline">\(d_k\)</span> products: if the
+entries have unit variance the dot product has variance <span class="math inline">\(d_k\)</span>, so without the
+<span class="math inline">\(1/\sqrt{d_k}\)</span> the spread of the logits grows with width and the softmax
+saturates as models get wider. Dividing by <span class="math inline">\(\sqrt{d_k}\)</span> makes the score
+distribution width-independent.</p>
+<h3 id="multi-head">Multi-head <a class="header-anchor" href="#multi-head">#</a></h3>
+<p>One attention with depth <span class="math inline">\(d\)</span> has a single softmax per token. Splitting the
+width into <span class="math inline">\(H\)</span> heads of depth <span class="math inline">\(d_k=d/H\)</span> gives <span class="math inline">\(H\)</span> independent distributions:</p>
+<div class="math block">
+\[\mathrm{MHA}(x)=\Bigl[\mathrm{head}_1;\dots;\mathrm{head}_H\Bigr]W_O,
+\qquad
+\mathrm{head}_i=\mathrm{Attn}\bigl(xW_i^Q,\,xW_i^K,\,xW_i^V\bigr).
+\qquad (4)\]
+</div>
+<p>Each head is a <span class="math inline">\(d\times d_k\)</span> projection of the same input. The concatenation is
+an axis swap followed by a reshape, which is why the implementation transposes
+<code>(batch, length, heads, depth)</code> to <code>(batch, heads, length, depth)</code> once and
+never touches the layout again.</p>
+<h3 id="causal-masking">Causal masking <a class="header-anchor" href="#causal-masking">#</a></h3>
+<p>A decoder may not read the future, so scores with <span class="math inline">\(j>i\)</span> are set to a large
+negative number before the softmax:</p>
+<div class="math block">
+\[S_{ij}\leftarrow-\infty \quad\text{for } j>i,
+\qquad
+P=\mathrm{softmax}(S).
+\qquad (5)\]
+</div>
+<p>The implementation uses <span class="math inline">\(-10^{9}\)</span> rather than <span class="math inline">\(-\infty\)</span> to keep the array
+finite; after subtracting the row maximum the exponential of a masked entry is
+exactly zero in float64, so the weights are exactly zero. The mask must also be
+reapplied in the backward pass, otherwise the upstream gradient would flow into
+entries the forward pass never used.</p>
+<h3 id="layer-normalisation">Layer normalisation <a class="header-anchor" href="#layer-normalisation">#</a></h3>
+<div class="math block">
+\[\mu=\frac1d\sum_i x_i,
+\qquad
+\sigma^2=\frac1d\sum_i (x_i-\mu)^2,
+\qquad
+y_i=\frac{x_i-\mu}{\sqrt{\sigma^2+\epsilon}} .
+\qquad (6)\]
+</div>
+<p>For an upstream gradient <span class="math inline">\(g\)</span> and <span class="math inline">\(\hat y=(x-\mu)/\sigma\)</span>,</p>
+<div class="math block">
+\[\frac{\partial L}{\partial x}
+=\frac{1}{d\sigma}\Bigl(d\,g-\mathbf 1\sum_i g_i
+-\hat y\sum_i g_i\hat y_i\Bigr).
+\qquad (7)\]
+</div>
+<p>The first two terms remove the component of the gradient along the mean, the
+third removes the component along the variance. This is the derivative the code
+implements, with <code>centred</code> holding <span class="math inline">\(x-\mu\)</span> and <code>inverse</code> holding <span class="math inline">\(1/\sigma\)</span>.</p>
+<h3 id="rmsnorm">RMSNorm <a class="header-anchor" href="#rmsnorm">#</a></h3>
+<p>RMSNorm drops the mean subtraction and normalises by the root mean square:</p>
+<div class="math block">
+\[y=\frac{x}{r},
+\qquad
+r=\sqrt{\frac1d\sum_i x_i^2+\epsilon},
+\qquad
+\frac{\partial L}{\partial x}
+=\frac{1}{r}\Bigl(g-\frac{x\,(g\cdot x)}{d\,r^2}\Bigr).
+\qquad (8)\]
+</div>
+<p>Without the mean term there is no <span class="math inline">\(\mathbf 1\sum g_i\)</span> correction, and a constant
+offset in the input passes straight through. That is acceptable for a residual
+stream, whose mean carries no information, but not for standardised features.</p>
+<h3 id="post-ln-versus-pre-ln">Post-LN versus pre-LN <a class="header-anchor" href="#post-ln-versus-pre-ln">#</a></h3>
+<p>Post-LN puts the normaliser on the residual path, so the gradient from layer
+<span class="math inline">\(\ell+1\)</span> reaches layer <span class="math inline">\(\ell\)</span> through the layer-norm Jacobian of (7). That
+Jacobian has no identity term; it projects the gradient onto the
+zero-mean, zero-correlation subspace. Stacked deeply, the product of those
+projections shrinks, which is why the original transformer needed a learning-rate
+warm-up.</p>
+<p>Pre-LN moves the norm off the path:</p>
+<div class="math block">
+\[a=x+\mathrm{Attn}\bigl(\mathrm{LN}(x)\bigr),
+\qquad
+y=a+\mathrm{FFN}\bigl(\mathrm{LN}(a)\bigr).
+\qquad (9)\]
+</div>
+<p>Now <span class="math inline">\(\partial y/\partial a=I+\dots\)</span>, so the identity path is clean at every
+depth. The cost is that the stream itself accumulates unscaled branch outputs,
+so its variance grows with depth and a final normalisation before the head is
+the usual remedy. The demo's two-block stack is too shallow for the growth to
+hurt, but the effect is visible: at initialisation the SwiGLU model's loss is
+8.28 against 1.15 for post-LN, because the gated branch injects larger values
+into the stream.</p>
+<h3 id="the-backward-pass-through-the-softmax">The backward pass through the softmax <a class="header-anchor" href="#the-backward-pass-through-the-softmax">#</a></h3>
+<p>If <span class="math inline">\(P=\mathrm{softmax}(S)\)</span> and the upstream gradient is <span class="math inline">\(dP\)</span>, then</p>
+<div class="math block">
+\[dS_{ij}=P_{ij}\Bigl(dP_{ij}-\sum_{j'}dP_{ij'}P_{ij'}\Bigr).
+\qquad (10)\]
+</div>
+<p>In matrix form the code computes <code>d_weights = d_context @ v.T</code>, then applies
+(10) row by row, zeroes the masked entries, and only then multiplies by
+<span class="math inline">\(1/\sqrt{d_k}\)</span>. The order matters: masking after the softmax derivative would
+leave a nonzero gradient in positions the forward pass never read.</p>
+<h3 id="parameter-count">Parameter count <a class="header-anchor" href="#parameter-count">#</a></h3>
+<p>For width <span class="math inline">\(d\)</span>, <span class="math inline">\(H\)</span> heads, hidden width <span class="math inline">\(h\)</span> and <span class="math inline">\(K\)</span> classes, one block with a
+single attention and a ReLU pair has</p>
+<div class="math block">
+\[P_{\mathrm{block}}=4(d^2+d)+(dh+h)+(hd+d)
+=4d^2+4d+2dh+d+h .
+\qquad (11)\]
+</div>
+<p>At <span class="math inline">\(d=8\)</span>, <span class="math inline">\(h=16\)</span> that is <span class="math inline">\(288+144+136=568\)</span>; two blocks plus the <span class="math inline">\(dK+K=18\)</span>
+parameter head give 1154. SwiGLU adds <span class="math inline">\(dh+h=144\)</span> per block, and the decoder adds
+a second attention at <span class="math inline">\(4(d^2+d)=288\)</span> per block.</p>
+<h3 id="optimiser">Optimiser <a class="header-anchor" href="#optimiser">#</a></h3>
+<div class="math block">
+\[\theta\leftarrow\theta-\eta\,
+\frac{m/(1-0.9^{t})}{\sqrt{v/(1-0.999^{t})}+\epsilon},
+\qquad
+m=0.9m+0.1g,\quad v=0.999v+0.001g^2,
+\qquad (12)\]
+</div>
+<p>with <span class="math inline">\(t\)</span> the minibatch step. At 480 sequences and batch 64 the demo takes eight
+steps per epoch, 480 in total.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The softmax subtracts the row maximum before exponentiating, which is the only
+numerically stable way to write it:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_softmax</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="n">shifted</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">shifted</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">weights</span> <span class="o">/</span> <span class="n">weights</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre>
+<p>Attention itself is four projections, an axis swap, and a masked softmax:</p>
+<pre class="highlight"><code>        <span class="n">scores</span> <span class="o">=</span> <span class="p">(</span><span class="n">q</span> <span class="o">@</span> <span class="n">k</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">causal</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">length</span><span class="p">,</span> <span class="n">places</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">),</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">scores</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="o">-</span><span class="mf">1e9</span><span class="p">,</span> <span class="n">scores</span><span class="p">)</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">@</span> <span class="n">v</span>
+        <span class="n">merged</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span>
+</code></pre>
+<p>The mask is built with <code>triu</code> one diagonal above the main one, so position <span class="math inline">\(i\)</span>
+may read positions <span class="math inline">\(0..i\)</span> and nothing later. With <code>length</code> and <code>places</code> allowed
+to differ, the same code serves self-attention and cross-attention.</p>
+<p>The backward pass is (10) verbatim, with the mask zeroed before the scale is
+applied:</p>
+<pre class="highlight"><code>        <span class="n">d_weights</span> <span class="o">=</span> <span class="n">d_context</span> <span class="o">@</span> <span class="n">v</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">d_v</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">@</span> <span class="n">d_context</span>
+        <span class="n">d_scores</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="p">(</span><span class="n">d_weights</span>
+                              <span class="o">-</span> <span class="p">(</span><span class="n">d_weights</span> <span class="o">*</span> <span class="n">weights</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+                                                          <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">d_scores</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">d_scores</span><span class="p">)</span>
+        <span class="n">d_scores</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+</code></pre>
+<p>Layer norm returns both its output and the statistics its derivative needs:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_layer_norm</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">centred</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">mean</span>
+    <span class="n">inverse</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">centred</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-5</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">centred</span> <span class="o">*</span> <span class="n">inverse</span><span class="p">,</span> <span class="p">(</span><span class="n">centred</span><span class="p">,</span> <span class="n">inverse</span><span class="p">)</span>
+</code></pre>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_layer_norm_backward</span><span class="p">(</span><span class="n">gradient</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">cache</span><span class="p">):</span>
+    <span class="n">centred</span><span class="p">,</span> <span class="n">inverse</span> <span class="o">=</span> <span class="n">cache</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">scaled</span> <span class="o">=</span> <span class="p">(</span><span class="n">gradient</span> <span class="o">*</span> <span class="n">centred</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">inverse</span> <span class="o">/</span> <span class="n">width</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span>
+        <span class="n">width</span> <span class="o">*</span> <span class="n">gradient</span> <span class="o">-</span> <span class="n">total</span> <span class="o">-</span> <span class="n">centred</span> <span class="o">*</span> <span class="n">inverse</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">scaled</span><span class="p">)</span>
+</code></pre>
+<p>The two reductions are the two terms of (7): <code>total</code> removes the mean direction
+and <code>scaled</code> removes the variance direction.</p>
+<p>Post-LN is the layout of (1), and its backward pass is where the ordering shows
+up:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"post_ln"</span><span class="p">:</span>
+            <span class="n">attention</span><span class="p">,</span> <span class="n">attention_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">self_attention</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">normed</span><span class="p">,</span> <span class="n">norm_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">attention</span><span class="p">)</span>
+            <span class="n">branch</span><span class="p">,</span> <span class="n">ffn_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">feed_forward</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">normed</span><span class="p">)</span>
+            <span class="n">output</span><span class="p">,</span> <span class="n">final_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm</span><span class="p">(</span><span class="n">normed</span> <span class="o">+</span> <span class="n">branch</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">output</span><span class="p">,</span> <span class="p">(</span><span class="s2">"post"</span><span class="p">,</span> <span class="n">attention_cache</span><span class="p">,</span> <span class="n">norm_cache</span><span class="p">,</span> <span class="n">ffn_cache</span><span class="p">,</span>
+                            <span class="n">final_cache</span><span class="p">)</span>
+</code></pre>
+<pre class="highlight"><code>            <span class="n">d_mixed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm_backward</span><span class="p">(</span><span class="n">gradient</span><span class="p">,</span> <span class="n">final_cache</span><span class="p">)</span>
+            <span class="n">d_normed</span> <span class="o">=</span> <span class="n">d_mixed</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">feed_forward</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">d_mixed</span><span class="p">,</span>
+                                                           <span class="n">ffn_cache</span><span class="p">)</span>
+            <span class="n">d_residual</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm_backward</span><span class="p">(</span><span class="n">d_normed</span><span class="p">,</span> <span class="n">norm_cache</span><span class="p">)</span>
+            <span class="n">d_attention</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">self_attention</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">d_residual</span><span class="p">,</span>
+                                                          <span class="n">attention_cache</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">d_residual</span> <span class="o">+</span> <span class="n">d_attention</span><span class="p">,</span> <span class="kc">None</span>
+</code></pre>
+<p>The gradient out of the final norm is split: one copy goes into the
+feed-forward, the other continues along the skip, and they meet again as the
+input to the second layer norm — which is why <code>d_mixed</code> appears twice.</p>
+<p>Pre-LN keeps the stream clean by normalising only the copies the branches read:</p>
+<pre class="highlight"><code>        <span class="n">attention</span><span class="p">,</span> <span class="n">attention_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">self_attention</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span>
+            <span class="n">normed</span><span class="p">,</span> <span class="n">causal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">causal</span><span class="p">)</span>
+        <span class="n">mixed</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">attention</span>
+        <span class="n">normed2</span><span class="p">,</span> <span class="n">norm_cache2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm</span><span class="p">(</span><span class="n">mixed</span><span class="p">)</span>
+        <span class="n">branch</span><span class="p">,</span> <span class="n">ffn_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">feed_forward</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">normed2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mixed</span> <span class="o">+</span> <span class="n">branch</span><span class="p">,</span> <span class="p">(</span><span class="s2">"pre"</span><span class="p">,</span> <span class="n">norm_cache</span><span class="p">,</span> <span class="n">attention_cache</span><span class="p">,</span>
+                                <span class="n">norm_cache2</span><span class="p">,</span> <span class="n">ffn_cache</span><span class="p">)</span>
+</code></pre>
+<p>The decoder is the same pattern three times: normalise, attend, add, normalise,
+cross-attend, add, normalise, feed-forward, add:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"decoder"</span><span class="p">:</span>
+            <span class="n">normed</span><span class="p">,</span> <span class="n">norm_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">attention</span><span class="p">,</span> <span class="n">attention_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">self_attention</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span>
+                <span class="n">normed</span><span class="p">,</span> <span class="n">causal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">mixed</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">attention</span>
+            <span class="n">normed2</span><span class="p">,</span> <span class="n">norm_cache2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm</span><span class="p">(</span><span class="n">mixed</span><span class="p">)</span>
+            <span class="n">branch</span><span class="p">,</span> <span class="n">cross_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cross_attention</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span>
+                <span class="n">normed2</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="n">memory</span><span class="p">,</span> <span class="n">causal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">mixed2</span> <span class="o">=</span> <span class="n">mixed</span> <span class="o">+</span> <span class="n">branch</span>
+</code></pre>
+<p>The cross-attention takes its queries from <code>normed2</code> and its keys and values
+from <code>memory</code>, so its backward pass returns two gradients: one for the block's
+stream and one for the memory. This classifier discards the second — it only
+accumulates it and checks that it stays finite — but a model that is itself an
+encoder needs it.</p>
+<p>SwiGLU replaces the activation with a product of two projections:</p>
+<pre class="highlight"><code>            <span class="n">gate_pre</span> <span class="o">=</span> <span class="n">flat</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">.gate.W"</span><span class="p">]</span> \
+                <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">.gate.b"</span><span class="p">]</span>
+            <span class="n">hidden</span> <span class="o">=</span> <span class="n">_silu</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span> <span class="o">*</span> <span class="n">gate_pre</span>
+</code></pre>
+<pre class="highlight"><code>            <span class="n">d_pre</span> <span class="o">=</span> <span class="n">d_hidden</span> <span class="o">*</span> <span class="n">gate_pre</span> <span class="o">*</span> <span class="n">_silu_grad</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+            <span class="n">d_gate</span> <span class="o">=</span> <span class="n">d_hidden</span> <span class="o">*</span> <span class="n">_silu</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+</code></pre>
+<p>The gate is linear, so its derivative is the other factor's value; the activated
+branch carries the gate's value and the SiLU derivative. The <code>_sigmoid</code> helper
+splits at zero so that neither branch ever evaluates <code>exp</code> of a large positive
+number, which is what makes the gate stable for large pre-activations.</p>
+<p>The model counts what it built, rather than hard-coding the number:</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">n_params_</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">size</span>
+                                 <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+</code></pre>
+<p>which is how the demo can assert that post-LN, pre-LN, the encoder and the
+cross-only block all have 1154, that SwiGLU has 1442, and that the decoder has
+1730.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For batch <span class="math inline">\(B\)</span>, sequence length <span class="math inline">\(L\)</span>, width <span class="math inline">\(d\)</span>, <span class="math inline">\(H\)</span> heads, hidden width <span class="math inline">\(h\)</span> and
+depth <span class="math inline">\(N\)</span>:</p>
+<ul>
+<li><strong>Attention:</strong> <span class="math inline">\(O(BL^2d)\)</span> time for the scores and the weighted sum, <span class="math inline">\(O(BHL^2)\)</span>
+memory for the weights when they are kept for the backward pass. This is the
+term that makes long sequences expensive.</li>
+<li><strong>Feed-forward:</strong> <span class="math inline">\(O(BLdh)\)</span> time, <span class="math inline">\(O(BLh)\)</span> memory for the hidden state.
+With the usual <span class="math inline">\(h=4d\)</span> this is the larger term for short sequences.</li>
+<li><strong>One block:</strong> <span class="math inline">\(O(BL^2d+BLdh)\)</span>; the decoder doubles the attention term.</li>
+<li><strong>A stack of <span class="math inline">\(N\)</span> blocks:</strong> <span class="math inline">\(N\)</span> times that, with <span class="math inline">\(O(Nd^2+Ndh)\)</span> parameters.</li>
+<li><strong>Parallel attention:</strong> the same arithmetic as separate attention and
+feed-forward blocks, but the two halves have no dependency, so their matrix
+products can be scheduled together.</li>
+<li><strong>The demo:</strong> 480 sequences of 8 tokens at width 8 — a few tenths of a
+MFLOP per block per batch, which is why 60 epochs take seconds.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Post-LN needs a warm-up.</strong> The normaliser sits on the residual path, so the
+gradient is repeatedly projected by (7). At depth 2 the demo trains fine with a
+constant learning rate, but that is not evidence for depth 24; the original
+transformer's warm-up schedule exists because deep post-LN stacks diverge
+without it. Pre-LN removes the need, at the price of an unbounded stream.</p>
+<p><strong>Pre-LN's stream grows with depth.</strong> Each block adds an unscaled branch output,
+so the stream's variance is a sum over depth. The demo sees the first symptom at
+initialisation: the SwiGLU model starts at loss 8.28 while post-LN starts at
+1.15, because the gated branch's values are larger than the ReLU branch's. It
+still trains to 0.944, but a deeper stack needs the final norm that this
+classifier omits.</p>
+<p><strong>A masked entry must stay masked in the backward pass.</strong> If the <code>-1e9</code> entries
+are not zeroed after the softmax derivative, the gradient flows into positions
+the forward pass never read. The demo tests the forward direction by perturbing
+tokens 5 to 7 and asserting that positions 0 to 4 are bit-identical; the same
+check on the gradient would catch a missing mask.</p>
+<p><strong>Saturated softmax makes numerical gradient checks lie.</strong> With cross-entropy on
+a model whose logits are already confident, the probability of the true class can
+be <span class="math inline">\(10^{-7}\)</span>, and the relative rounding error of <code>1 + 1e-7</code> is <span class="math inline">\(10^{-9}\)</span>. A
+central difference with step <span class="math inline">\(10^{-6}\)</span> then reports errors of <span class="math inline">\(10^{-3}\)</span> on a
+gradient that is exact. The demo avoids this by checking a random linear
+projection of the logits instead of the loss; all eight variants agree to at most
+<span class="math inline">\(1.3\times10^{-8}\)</span>.</p>
+<p><strong>The scale factor is not optional at width.</strong> Without <span class="math inline">\(1/\sqrt{d_k}\)</span> the logits
+of a wide model have standard deviation <span class="math inline">\(\sqrt{d_k}\)</span> and the softmax is saturated
+from the first step. The failure looks like a dead model, not like a bug.</p>
+<p><strong>The head count must divide the width.</strong> <code>dim=8, heads=3</code> is refused rather than
+silently truncated. Real implementations pad the width to a multiple of the head
+count; hiding the mismatch produces heads of unequal depth.</p>
+<p><strong>Reading one position is a choice.</strong> The classifier reads token 0 and ignores
+the other seven. That works because attention lets token 0 aggregate the whole
+sequence in one block, but it also means the model has no reason to keep
+information anywhere else. Mean pooling is the alternative, and it dilutes a
+product: averaging eight positions mixes the two markers with six irrelevant
+ones, so the averaged feature is only weakly correlated with the label.</p>
+<p><strong>Parallel attention changes the function class.</strong> In <code>parallel_attention</code> the
+feed-forward cannot read the attention output, so a task that needs the result of
+one before the other is out of reach. The demo measures the cost: 0.956 against
+1.000 for the sequential encoder.</p>
+<p><strong>RMSNorm cannot remove an offset.</strong> A constant added to every channel survives
+the normalisation and passes into the next block. For a residual stream that
+carries no mean information this is harmless; applied to raw features with large
+means it is not.</p>
+<p><strong>There is no positional information here.</strong> Attention is permutation
+equivariant, so this block cannot tell &quot;a then b&quot; from &quot;b then a&quot;. The marker
+task is deliberately order-free; the next atom adds positions.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>The encoder block is BERT and its descendants, and the backbone of vision
+transformers once images are cut into patches. The causal pre-LN block is GPT and
+essentially every decoder-only language model. The full decoder — masked self
+attention plus cross attention — is the T5 and translation half of the original
+paper.</p>
+<p>Cross-attention alone is the retrieval and multimodal pattern: queries from one
+modality, keys and values from another, as in image-conditioned text models and
+in retrieval-augmented generators.</p>
+<p>Parallel attention is PaLM's and GPT-J's block. It saves the sequential
+dependency between the two halves at the cost of some accuracy, which is a good
+trade at very large scale where the matrix products dominate.</p>
+<p>SwiGLU is the standard feed-forward in modern language models; RMSNorm is the
+standard normaliser in the same models, usually paired with pre-LN.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N.,
+Kaiser, L., Polosukhin, I. (2017). <em>Attention is all you need.</em> NeurIPS.
+Equations (3), (4) and the post-LN layout of (1).</li>
+<li>Ba, J. L., Kiros, J. R., Hinton, G. E. (2016). <em>Layer normalization.</em>
+arXiv:1607.06450. Equations (6) and (7).</li>
+<li>Xiong, R., Yang, Y., He, D., Zheng, K., Zheng, S., Xing, C., Zhang, H., Lan,
+Y., Wang, L., Liu, T.-Y. (2020). <em>On layer normalization in the transformer
+architecture.</em> ICML. Why post-LN needs warm-up.</li>
+<li>Zhang, B., Sennrich, R. (2019). <em>Root mean square layer normalization.</em>
+NeurIPS. Equation (8).</li>
+<li>Shazeer, N. (2020). <em>GLU variants improve transformer.</em> arXiv:2002.05202.
+Equation (2).</li>
+<li>Chowdhery, A. et al. (2022). <em>PaLM: scaling language modeling with
+pathways.</em> arXiv:2204.02311. Parallel attention and feed-forward.</li>
+<li>Radford, A., Narasimhan, K., Salimans, T., Sutskever, I. (2018). <em>Improving
+language understanding by generative pre-training.</em> The causal pre-LN block.</li>
+<li>Devlin, J., Chang, M.-W., Lee, K., Toutanova, K. (2019). <em>BERT: pre-training
+of deep bidirectional transformers.</em> NAACL. The encoder block.</li>
+<li>Kingma, D. P., Ba, J. (2015). <em>Adam: a method for stochastic optimization.</em>
+ICLR. Equation (12).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="residual.html"><small>Previous</small><span>Residual blocks</span></a><a class="next" href="positional.html"><small>Next</small><span>Positional encoding</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">12 · Neural blocks</p><ul class="rail-list"><li><a href="mlp.html"><span class="tick">✓</span><span>MLP</span></a></li><li><a href="conv.html"><span class="tick">✓</span><span>Convolution</span></a></li><li><a href="pooling.html"><span class="tick">✓</span><span>Pooling</span></a></li><li><a href="residual.html"><span class="tick">✓</span><span>Residual blocks</span></a></li><li><a href="transformer.html" aria-current="page"><span class="tick">✓</span><span>Transformer block</span></a></li><li><a href="positional.html"><span class="tick">✓</span><span>Positional encoding</span></a></li><li><a href="moe.html"><span class="tick">✓</span><span>Mixture of experts</span></a></li><li><a href="dropout.html"><span class="tick">✓</span><span>Dropout family</span></a></li><li><a href="embedding_layers.html"><span class="tick">✓</span><span>Embedding layers</span></a></li><li><a href="gnn_blocks.html"><span class="tick">✓</span><span>Graph neural blocks</span></a></li><li><a href="mixer.html"><span class="tick">✓</span><span>MLP-Mixer</span></a></li><li><a href="perceiver.html"><span class="tick">✓</span><span>Perceiver</span></a></li><li><a href="convnext.html"><span class="tick">✓</span><span>ConvNeXt</span></a></li><li><a href="hypernetwork.html"><span class="tick">✓</span><span>Hypernetworks</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../11-time-series/index.html"><span class="jump">← 11 · Time series</span></a></li><li><a href="../13-training/index.html"><span class="jump">13 · Training&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#scaled-dot-product-attention">Scaled dot-product attention</a></li><li class="lvl3"><a href="#multi-head">Multi-head</a></li><li class="lvl3"><a href="#causal-masking">Causal masking</a></li><li class="lvl3"><a href="#layer-normalisation">Layer normalisation</a></li><li class="lvl3"><a href="#rmsnorm">RMSNorm</a></li><li class="lvl3"><a href="#post-ln-versus-pre-ln">Post-LN versus pre-LN</a></li><li class="lvl3"><a href="#the-backward-pass-through-the-softmax">The backward pass through the softmax</a></li><li class="lvl3"><a href="#parameter-count">Parameter count</a></li><li class="lvl3"><a href="#optimiser">Optimiser</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/12-neural-blocks/transformer.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

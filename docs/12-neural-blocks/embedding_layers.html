@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embedding layers · MLAtoms</title>
+<meta name="description" content="Token, position and type tables, plus weight tying. An embedding is a table lookup: an integer id selects one row of a matrix. It is the only place in a…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/embedding_layers.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Embedding layers">
+<meta property="og:description" content="Token, position and type tables, plus weight tying. An embedding is a table lookup: an integer id selects one row of a matrix. It is the only place in a…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/embedding_layers.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Embedding layers">
+<meta name="twitter:description" content="Token, position and type tables, plus weight tying. An embedding is a table lookup: an integer id selects one row of a matrix. It is the only place in a…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Embedding layers", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/embedding_layers.html", "description": "Token, position and type tables, plus weight tying. An embedding is a table lookup: an integer id selects one row of a matrix. It is the only place in a\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">12 · Neural blocks</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="embedding_layers.py.html">source</a></p><h1>Embedding layers — tables, compositions and the weights they share</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>An embedding is a table lookup: an integer id selects one row of a matrix. It
+is the only place in a network where a discrete symbol becomes a vector, and
+the backward pass is correspondingly simple — every occurrence of an id adds
+its gradient to that row. Everything else in this file is a variation on how
+many tables there are, how they are composed, and which matrices are allowed to
+be the same object.</p>
+<p>The variants answer four practical questions. Where does order come from? Add a
+position table, or a position plus a segment table. How do you shrink a large
+vocabulary? Factor the table into two low-rank factors. How do you avoid a
+second huge matrix at the output? Reuse the input table as the projection. How
+do you adapt a pretrained table without touching it? Freeze it and learn a
+small bottleneck correction. The demo measures the parameter bill for each
+answer and checks that the gradients land in the right rows.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">tables</th>
+<th style="text-align:left">output tied</th>
+<th style="text-align:right">trainable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>token</code></td>
+<td style="text-align:left">one token table</td>
+<td style="text-align:left">no</td>
+<td style="text-align:right"><span class="math inline">\(Vd\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>position</code></td>
+<td style="text-align:left">token plus position</td>
+<td style="text-align:left">no</td>
+<td style="text-align:right"><span class="math inline">\(Vd+Nd\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>type</code></td>
+<td style="text-align:left">token, position, segment</td>
+<td style="text-align:left">no</td>
+<td style="text-align:right"><span class="math inline">\(Vd+Nd+Sd\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>factorized</code></td>
+<td style="text-align:left">two factors</td>
+<td style="text-align:left">no</td>
+<td style="text-align:right"><span class="math inline">\(Vr+rd\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>weight_tying</code></td>
+<td style="text-align:left">one table, reused at output</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:right"><span class="math inline">\(Vd\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tied_embeddings</code></td>
+<td style="text-align:left">one table, two input streams</td>
+<td style="text-align:left">no</td>
+<td style="text-align:right"><span class="math inline">\(Vd\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adapter_embedding</code></td>
+<td style="text-align:left">frozen token plus bottleneck</td>
+<td style="text-align:left">no</td>
+<td style="text-align:right"><span class="math inline">\(dr+rd\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><span class="math inline">\(V\)</span> is the vocabulary, <span class="math inline">\(d\)</span> the width, <span class="math inline">\(N\)</span> the number of positions, <span class="math inline">\(S\)</span> the
+number of segments and <span class="math inline">\(r\)</span> the factorization or adapter rank.</p>
+<p><strong><code>token</code></strong> is the base case: one <span class="math inline">\(V\times d\)</span> table and a gather.</p>
+<p><strong><code>position</code></strong> adds a learned <span class="math inline">\(N\times d\)</span> position table, one row per index. The
+default positions are <span class="math inline">\(0,\dots,L-1\)</span>, so a batch of equal-length sequences shares
+one vector per slot.</p>
+<p><strong><code>type</code></strong> adds a third table for the segment id — BERT's sentence A or
+sentence B — on top of token and position.</p>
+<p><strong><code>factorized</code></strong> writes the token table as <span class="math inline">\(E=UV^{\top}\)</span> with
+<span class="math inline">\(U\in\mathbb R^{V\times r}\)</span> and <span class="math inline">\(V\in\mathbb R^{r\times d}\)</span>. For large <span class="math inline">\(V\)</span> and
+small <span class="math inline">\(r\)</span> this is a fraction of the full table.</p>
+<p><strong><code>weight_tying</code></strong> uses the token table as the output projection as well, so
+the logits are <span class="math inline">\(hE^{\top}\)</span> and there is no second <span class="math inline">\(V\times d\)</span> matrix.</p>
+<p><strong><code>tied_embeddings</code></strong> uses one table for two input streams, such as the source
+and target of a translation model, which must share a vocabulary.</p>
+<p><strong><code>adapter_embedding</code></strong> keeps a pretrained table frozen and learns a low-rank
+correction to each lookup. Only the two adapter matrices receive gradient.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-lookup-and-its-gradient">The lookup and its gradient <a class="header-anchor" href="#the-lookup-and-its-gradient">#</a></h3>
+<p>With a one-hot row <span class="math inline">\(o_i\)</span> for id <span class="math inline">\(i\)</span>,</p>
+<div class="math block">
+\[e=o_i^{\top}E,\qquad
+\frac{\partial L}{\partial E}
+=\sum_{(b,t)}o_{i_{bt}}\Bigl(\frac{\partial L}{\partial e_{bt}}\Bigr)^{\top}.
+\qquad (1)\]
+</div>
+<p>In code the sum over one-hots is a scatter-add: <code>np.add.at(table, ids, grad)</code>.
+Repeated ids accumulate, which the demo checks by looking up id 1 three times
+and finding a row of three counts after a backward pass of ones.</p>
+<h3 id="position-and-type">Position and type <a class="header-anchor" href="#position-and-type">#</a></h3>
+<div class="math block">
+\[e_{bt}=E[i_{bt}]+P[t]+T[s_{bt}].
+\qquad (2)\]
+</div>
+<p>The position index need not equal the token index: the demo passes
+<code>positions=[2, 3, 5]</code> and checks that the output moves by exactly
+<span class="math inline">\(P[2]-P[0]\)</span>, <span class="math inline">\(P[3]-P[1]\)</span>, <span class="math inline">\(P[5]-P[2]\)</span>. When a position vector is shared across
+the batch, its gradient is the sum over the batch; the implementation
+broadcasts the stored positions to the ids' shape and scatters into that sum
+with <code>np.add.at</code>, so no separate reduction is needed.</p>
+<p>Type is the same argument one table further. At <span class="math inline">\(V=10\)</span>, <span class="math inline">\(d=4\)</span>, <span class="math inline">\(N=6\)</span> and
+<span class="math inline">\(S=2\)</span>, the three tables cost <span class="math inline">\(40+24+8=72\)</span> parameters.</p>
+<h3 id="factorized-tables">Factorized tables <a class="header-anchor" href="#factorized-tables">#</a></h3>
+<div class="math block">
+\[E=UV^{\top},\qquad U\in\mathbb R^{V\times r},\quad
+V\in\mathbb R^{r\times d}.
+\qquad (3)\]
+</div>
+<p>The parameter count is <span class="math inline">\(Vr+rd\)</span> instead of <span class="math inline">\(Vd\)</span>, which is smaller whenever
+<span class="math inline">\(r<Vd/(V+d)\approx d\)</span>. At <span class="math inline">\(V=1000\)</span>, <span class="math inline">\(d=16\)</span>, <span class="math inline">\(r=4\)</span>: <span class="math inline">\(4064\)</span> against <span class="math inline">\(16000\)</span>, a
+quarter of the table. The lookup is <span class="math inline">\(U[i]\,V\)</span>, one row times an <span class="math inline">\(r\times d\)</span>
+matrix.</p>
+<p>The gradients follow from the product rule:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial U[i]}=\frac{\partial L}{\partial e}V^{\top},
+\qquad
+\frac{\partial L}{\partial V}=U[i]^{\top}\frac{\partial L}{\partial e}.
+\qquad (4)\]
+</div>
+<p>Both factors receive gradient on every lookup, so neither is frozen. The demo
+checks (4) against central differences to <span class="math inline">\(5.0\times10^{-11}\)</span>.</p>
+<h3 id="weight-tying">Weight tying <a class="header-anchor" href="#weight-tying">#</a></h3>
+<p>For a hidden vector <span class="math inline">\(h\)</span>,</p>
+<div class="math block">
+\[\mathrm{logits}=hE^{\top},\qquad e=E[i].
+\qquad (5)\]
+</div>
+<p>One matrix serves two very different roles: a gather at the input and a
+<span class="math inline">\(d\times V\)</span> projection at the output. The parameter count drops from <span class="math inline">\(2Vd\)</span> to
+<span class="math inline">\(Vd\)</span>; at <span class="math inline">\(V=1000\)</span>, <span class="math inline">\(d=16\)</span> that saves <span class="math inline">\(16000\)</span> parameters. The gradient is the
+sum of the two paths, so a row receives the input scatter plus the output
+projection's column.</p>
+<p>The demo edits row 2 of the table and confirms that exactly column 2 of the
+logits moves, by <span class="math inline">\(h\cdot\mathbf 1\)</span>. That is the tie made visible: there is no
+separate output matrix to edit.</p>
+<h3 id="two-tied-streams">Two tied streams <a class="header-anchor" href="#two-tied-streams">#</a></h3>
+<p>If two streams share a vocabulary, one table can serve both:</p>
+<div class="math block">
+\[e^{(0)}_{bt}=E[i_{bt}],\qquad e^{(1)}_{bt}=E[j_{bt}].
+\qquad (6)\]
+</div>
+<p>The demo verifies that the same ids give identical outputs on stream 0 and
+stream 1, that the model owns 40 parameters instead of 80, and that a backward
+pass through either stream writes the same rows of the same table.</p>
+<p>Tying two streams is not the same as tying input to output. The first shares a
+table between two reads; the second shares it between a read and a write. Both
+are implemented here as separate variants because they have different failure
+modes.</p>
+<h3 id="adapters">Adapters <a class="header-anchor" href="#adapters">#</a></h3>
+<div class="math block">
+\[e=E[i]+\mathrm{gelu}\bigl(E[i]W_{\downarrow}\bigr)W_{\uparrow},
+\qquad
+W_{\downarrow}\in\mathbb R^{d\times r},\quad
+W_{\uparrow}\in\mathbb R^{r\times d},
+\qquad (7)\]
+</div>
+<p>with <span class="math inline">\(E\)</span> frozen. The correction is low-rank, so the trainable count is
+<span class="math inline">\(2dr\)</span> — 256 against a 16000-row base at <span class="math inline">\(V=1000\)</span>, <span class="math inline">\(d=16\)</span>, <span class="math inline">\(r=8\)</span>. The backward
+pass differentiates the bottleneck and never touches <span class="math inline">\(E\)</span>:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial W_{\uparrow}}
+=H^{\top}\frac{\partial L}{\partial e},
+\qquad
+\frac{\partial L}{\partial W_{\downarrow}}
+=E^{\top}\Bigl(\Bigl(\frac{\partial L}{\partial e}\Bigr)
+W_{\uparrow}^{\top}\odot\mathrm{gelu}'(EW_{\downarrow})\Bigr),
+\qquad (8)\]
+</div>
+<p>where <span class="math inline">\(H=\mathrm{gelu}(EW_{\downarrow})\)</span>. The demo checks (8) below
+<span class="math inline">\(10^{-7}\)</span> and then trains the adapter to halve its input, taking the
+loss from 0.6057 to 0.0192 in 300 steps while the frozen table stays
+bit-identical.</p>
+<h3 id="parameter-counts">Parameter counts <a class="header-anchor" href="#parameter-counts">#</a></h3>
+<div class="math block">
+\[P_{\mathrm{token}}=Vd,\quad
+P_{\mathrm{position}}=Vd+Nd,\quad
+P_{\mathrm{type}}=Vd+Nd+Sd,
+\qquad (9)\]
+</div>
+<div class="math block">
+\[P_{\mathrm{factorized}}=Vr+rd,\quad
+P_{\mathrm{tying}}=Vd,\quad
+P_{\mathrm{adapter}}=2dr \text{ trainable}.
+\qquad (10)\]
+</div>
+<p>At the demo's realistic size, <span class="math inline">\(V=1000\)</span>, <span class="math inline">\(d=16\)</span>, <span class="math inline">\(N=32\)</span>, <span class="math inline">\(S=2\)</span>, <span class="math inline">\(r=4\)</span> and
+adapter rank 8:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:right">total</th>
+<th style="text-align:right">trainable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>token</code></td>
+<td style="text-align:right">16000</td>
+<td style="text-align:right">16000</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>position</code></td>
+<td style="text-align:right">16512</td>
+<td style="text-align:right">16512</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>type</code></td>
+<td style="text-align:right">16544</td>
+<td style="text-align:right">16544</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>factorized</code></td>
+<td style="text-align:right">4064</td>
+<td style="text-align:right">4064</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>weight_tying</code></td>
+<td style="text-align:right">16000</td>
+<td style="text-align:right">16000</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tied_embeddings</code></td>
+<td style="text-align:right">16000</td>
+<td style="text-align:right">16000</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adapter_embedding</code></td>
+<td style="text-align:right">16256</td>
+<td style="text-align:right">256</td>
+</tr>
+</tbody>
+</table>
+<p>The table is also a reminder that &quot;total&quot; and &quot;trainable&quot; are different
+questions: the adapter owns a large frozen base and a small learnable delta.</p>
+<h3 id="initialization">Initialization <a class="header-anchor" href="#initialization">#</a></h3>
+<p>The tables are drawn from a normal with standard deviation <span class="math inline">\(1/\sqrt d\)</span>, and the
+position and type tables at 0.02. The small position scale matters: positions
+start as a slight perturbation of the token embedding, so the model learns to
+use them rather than being dominated by them at step zero. A zero-initialised
+position table is also common and has the same effect at the start.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The lookup has three shapes: a plain gather, a product of two factors, and a
+frozen base plus a bottleneck. Keeping them in one function is what makes the
+variants comparable:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ids</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"factorized"</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="s2">"token.left"</span><span class="p">][</span><span class="n">ids</span><span class="p">]</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"token.right"</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="p">{</span><span class="s2">"ids"</span><span class="p">:</span> <span class="n">ids</span><span class="p">,</span> <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"factorized"</span><span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"adapter_embedding"</span><span class="p">:</span>
+            <span class="n">base</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="s2">"token.table"</span><span class="p">][</span><span class="n">ids</span><span class="p">]</span>
+            <span class="n">pre</span> <span class="o">=</span> <span class="n">base</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"adapter.down"</span><span class="p">]</span>
+            <span class="n">hidden</span> <span class="o">=</span> <span class="n">_gelu</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">base</span> <span class="o">+</span> <span class="n">hidden</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"adapter.up"</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="p">{</span><span class="s2">"ids"</span><span class="p">:</span> <span class="n">ids</span><span class="p">,</span> <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"adapter"</span><span class="p">,</span> <span class="s2">"base"</span><span class="p">:</span> <span class="n">base</span><span class="p">,</span>
+                         <span class="s2">"pre"</span><span class="p">:</span> <span class="n">pre</span><span class="p">,</span> <span class="s2">"hidden"</span><span class="p">:</span> <span class="n">hidden</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">p</span><span class="p">[</span><span class="s2">"token.table"</span><span class="p">][</span><span class="n">ids</span><span class="p">],</span> <span class="p">{</span><span class="s2">"ids"</span><span class="p">:</span> <span class="n">ids</span><span class="p">,</span> <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"table"</span><span class="p">}</span>
+</code></pre>
+<p>Ids are validated once, at the boundary. A float id is rejected rather than
+silently truncated, and a negative id is rejected rather than wrapping around
+the way a raw NumPy index would:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_check_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ids</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">ids</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ids</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="ow">not</span> <span class="ow">in</span> <span class="s2">"iu"</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"ids must be integers"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ids</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">ids</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"ids must be a non-empty array"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">ids</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">ids</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vocab</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"an id is out of vocabulary"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ids</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+</code></pre>
+<p>Positions and segments get the same treatment plus a broadcast check, because a
+position vector of length <span class="math inline">\(L\)</span> is allowed to apply to every row of a batch:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_check_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                       <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="ow">not</span> <span class="ow">in</span> <span class="s2">"iu"</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be integers"</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">broadcast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> does not broadcast to the ids"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">broadcast</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">broadcast</span> <span class="o">&gt;=</span> <span class="n">limit</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> out of range"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">values</span>
+</code></pre>
+<p>The compositions are two lines because the tables have the same width. Order
+matters for interpretation but not for the arithmetic of addition:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">positions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">output</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"position.table"</span><span class="p">][</span><span class="n">positions</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">segments</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">output</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"type.table"</span><span class="p">][</span><span class="n">segments</span><span class="p">]</span>
+</code></pre>
+<p>The table gradient is a scatter-add of the flattened upstream gradient. This is
+the line that makes repeated ids accumulate instead of overwrite:</p>
+<pre class="highlight"><code>        <span class="k">else</span><span class="p">:</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s2">"token.table"</span><span class="p">],</span> <span class="n">ids</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">flat</span><span class="p">)</span>
+</code></pre>
+<p>The factorized backward applies the two product-rule terms from (4), scattering
+into the left factor by row and accumulating the right factor over every
+lookup:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"factorized"</span><span class="p">:</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s2">"token.left"</span><span class="p">],</span> <span class="n">ids</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
+                      <span class="n">flat</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"token.right"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">g</span><span class="p">[</span><span class="s2">"token.right"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">p</span><span class="p">[</span><span class="s2">"token.left"</span><span class="p">][</span><span class="n">ids</span><span class="o">.</span><span class="n">ravel</span><span class="p">()]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">flat</span>
+</code></pre>
+<p>The adapter backward differentiates the bottleneck and deliberately has no
+branch for the base table, because that table is not in <code>self.gradients</code>:</p>
+<pre class="highlight"><code>        <span class="k">elif</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"adapter"</span><span class="p">:</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span>
+            <span class="n">pre</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"pre"</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapter_rank</span><span class="p">)</span>
+            <span class="n">hidden</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"hidden"</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapter_rank</span><span class="p">)</span>
+            <span class="n">base</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"base"</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+            <span class="n">d_pre</span> <span class="o">=</span> <span class="p">(</span><span class="n">flat</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"adapter.up"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="n">_gelu_grad</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+            <span class="n">g</span><span class="p">[</span><span class="s2">"adapter.down"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">base</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">d_pre</span>
+            <span class="n">g</span><span class="p">[</span><span class="s2">"adapter.up"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">hidden</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">flat</span>
+</code></pre>
+<p>Position gradients need the batch sum, and broadcasting the stored positions to
+the ids' shape is the cheapest way to get it:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"positions"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="s2">"positions"</span><span class="p">],</span> <span class="n">ids</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s2">"position.table"</span><span class="p">],</span> <span class="n">positions</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">flat</span><span class="p">)</span>
+</code></pre>
+<p>Weight tying is a method rather than a flag because the output projection has a
+different input shape. It refuses to run on variants that do not own the tie:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">logits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hidden</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"weight_tying"</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"only weight_tying exposes tied logits"</span><span class="p">)</span>
+        <span class="n">hidden</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">hidden</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">hidden</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"the hidden width must equal dim"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">hidden</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">"token.table"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For a batch with <span class="math inline">\(T\)</span> ids, width <span class="math inline">\(d\)</span>, vocabulary <span class="math inline">\(V\)</span>, positions <span class="math inline">\(N\)</span> and rank
+<span class="math inline">\(r\)</span>:</p>
+<ul>
+<li><strong>Lookup:</strong> <span class="math inline">\(O(Td)\)</span> time and memory for the output; the gather itself is
+<span class="math inline">\(O(T)\)</span> index arithmetic. The backward scatter is <span class="math inline">\(O(Td)\)</span> plus the number of
+distinct rows touched.</li>
+<li><strong>Position and type:</strong> one extra <span class="math inline">\(O(Td)\)</span> addition per table, and one scatter
+per table. The tables cost <span class="math inline">\(O(Nd)\)</span> and <span class="math inline">\(O(Sd)\)</span> memory.</li>
+<li><strong>Factorized:</strong> <span class="math inline">\(O(Trd)\)</span> for the lookup and <span class="math inline">\(O(r(V+d))\)</span> parameters. The saving
+is in memory, not in the per-token arithmetic, which grows with <span class="math inline">\(r\)</span>.</li>
+<li><strong>Weight tying:</strong> saves <span class="math inline">\(Vd\)</span> parameters and one <span class="math inline">\(d\times V\)</span> matrix; the output
+projection itself is still <span class="math inline">\(O(TVd)\)</span>.</li>
+<li><strong>Tied streams:</strong> saves <span class="math inline">\(Vd\)</span> parameters; the shared table's gradient is the
+sum of the streams' scatters.</li>
+<li><strong>Adapter:</strong> <span class="math inline">\(O(Tdr)\)</span> extra arithmetic and <span class="math inline">\(O(dr)\)</span> parameters; the base table
+is read-only.</li>
+<li><strong>The demo:</strong> tables of at most 1000 rows and a 300-step adapter fit. Every
+count is small and the file runs in a fraction of a second.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>An out-of-vocabulary id is a silent wrap in raw NumPy.</strong> Negative indices
+index from the end and large ones raise only when the gather runs. The guard
+checks both ends and rejects non-integer dtypes, so a float id cannot be
+truncated into a plausible row.</p>
+<p><strong>A padding id is a real row.</strong> If padding uses id 0, its gradient accumulates
+from every padded position unless the loss mask is applied. The table learns a
+padding vector and the row consumes capacity; masking the ids or the gradient
+is the caller's job.</p>
+<p><strong>Factorized rank can be too small.</strong> The parameter saving is real, but the
+table can no longer represent arbitrary rows. At rank <span class="math inline">\(r\)</span> the row space is
+<span class="math inline">\(r\)</span>-dimensional; a rank of one is a table of scalar profiles. The demo's <span class="math inline">\(r=4\)</span>
+against <span class="math inline">\(d=16\)</span> is a quarter-size table, not a free lunch.</p>
+<p><strong>Tying assumes one width.</strong> The input table and the output projection must
+share <span class="math inline">\(d\)</span>, and the output must have no separate bias unless it is also tied.
+A model that changes the hidden width after the trunk cannot use the same
+matrix without a projection.</p>
+<p><strong>Tying can make the logits scale with the embedding norm.</strong> The logit for token
+<span class="math inline">\(j\)</span> is <span class="math inline">\(h\cdot E[j]\)</span>, so frequent tokens with large-norm rows can dominate.
+Scaling the logits, normalising the rows, or adding a bias are the usual
+patches; none of them is in this minimal implementation.</p>
+<p><strong>Two tied streams need a shared vocabulary.</strong> If source and target ids have
+different meanings at the same index, one table is wrong. Tying is a statement
+about the vocabulary, not just about the parameter count.</p>
+<p><strong>The adapter's frozen table must be excluded from the optimizer.</strong> This
+implementation leaves it out of <code>self.gradients</code>, but an external optimizer
+that iterates <code>self.parameters</code> would still update it once weight decay is
+applied. Freezing is a property of the update, not only of the backward pass.</p>
+<p><strong>A tiny adapter can be a no-op at initialization.</strong> If both adapter matrices
+start near zero, the correction is negligible and the first steps are spent
+learning to leave zero. The demo's random initialization is small but not zero,
+which is why the loss moves immediately.</p>
+<p><strong>The type table starts as a small perturbation.</strong> With a large random type
+table, the segment identity would dominate token and position at step zero.
+The 0.02 initialization is a choice, not a law; zero is the other common
+choice.</p>
+<p><strong>Position broadcasting hides a shape bug.</strong> A position vector of length <span class="math inline">\(L\)</span>
+applies to every row, which is usually intended, but a per-example position
+matrix must have the same leading shape as the ids. The broadcast check
+rejects the mismatch instead of silently repeating the wrong row.</p>
+<p><strong>A tied weight decay is counted once per parameter, not once per use.</strong> The
+gradient has two paths, but the optimiser sees one array. That is the intended
+behaviour; the common bug is to register the table twice and decay it twice.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Token, position and type tables are the BERT recipe; decoder-only language
+models usually keep token and learned position and skip the segment table.
+Factorized embeddings are ALBERT's parameter reduction, and weight tying is
+standard in language models from Press and Wolf onward, as well as in GPT-2's
+input-output matrix.</p>
+<p>Tied source-target embeddings are common in multilingual translation when the
+tokenizer is shared. Adapter embeddings and bottleneck adapters more generally
+are used for domain and language adaptation, where a large pretrained table
+stays frozen and a small delta is trained per task.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Bengio, Y., Ducharme, R., Vincent, P., Jauvin, C. (2003). <em>A neural
+probabilistic language model.</em> JMLR. The original learned token table.</li>
+<li>Devlin, J., Chang, M.-W., Lee, K., Toutanova, K. (2019). <em>BERT: pre-training
+of deep bidirectional transformers.</em> NAACL. Token, position and segment
+tables, equation (2).</li>
+<li>Lan, Z., Chen, M., Goodman, S., Gimpel, K., Sharma, P., Soricut, R. (2020).
+<em>ALBERT: a lite BERT for self-supervised learning of language
+representations.</em> ICLR. Factorized embeddings, equations (3) and (4).</li>
+<li>Press, O., Wolf, L. (2017). <em>Using the output embedding to improve language
+models.</em> EACL. Weight tying, equation (5).</li>
+<li>Radford, A., Wu, J., Child, R., Luan, D., Amodei, D., Sutskever, I. (2019).
+<em>Language models are unsupervised multitask learners.</em> GPT-2, a tied
+input-output table in practice.</li>
+<li>Houlsby, N., Giurgiu, A., Jastrzebski, S., Morrone, B., de Laroussilhe, Q.,
+Gesmundo, A., Attariyan, M., Gelly, S. (2019). <em>Parameter-efficient transfer
+learning for NLP.</em> ICML. Bottleneck adapters.</li>
+<li>Pfeiffer, J., Vulić, I., Gurevych, I., Ruder, S. (2020). <em>MAD-X: an adapter-
+based framework for multi-task cross-lingual transfer.</em> ACL. Adapters on
+embeddings.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="dropout.html"><small>Previous</small><span>Dropout family</span></a><a class="next" href="gnn_blocks.html"><small>Next</small><span>Graph neural blocks</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">12 · Neural blocks</p><ul class="rail-list"><li><a href="mlp.html"><span class="tick">✓</span><span>MLP</span></a></li><li><a href="conv.html"><span class="tick">✓</span><span>Convolution</span></a></li><li><a href="pooling.html"><span class="tick">✓</span><span>Pooling</span></a></li><li><a href="residual.html"><span class="tick">✓</span><span>Residual blocks</span></a></li><li><a href="transformer.html"><span class="tick">✓</span><span>Transformer block</span></a></li><li><a href="positional.html"><span class="tick">✓</span><span>Positional encoding</span></a></li><li><a href="moe.html"><span class="tick">✓</span><span>Mixture of experts</span></a></li><li><a href="dropout.html"><span class="tick">✓</span><span>Dropout family</span></a></li><li><a href="embedding_layers.html" aria-current="page"><span class="tick">✓</span><span>Embedding layers</span></a></li><li><a href="gnn_blocks.html"><span class="tick">✓</span><span>Graph neural blocks</span></a></li><li><a href="mixer.html"><span class="tick">✓</span><span>MLP-Mixer</span></a></li><li><a href="perceiver.html"><span class="tick">✓</span><span>Perceiver</span></a></li><li><a href="convnext.html"><span class="tick">✓</span><span>ConvNeXt</span></a></li><li><a href="hypernetwork.html"><span class="tick">✓</span><span>Hypernetworks</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../11-time-series/index.html"><span class="jump">← 11 · Time series</span></a></li><li><a href="../13-training/index.html"><span class="jump">13 · Training&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-lookup-and-its-gradient">The lookup and its gradient</a></li><li class="lvl3"><a href="#position-and-type">Position and type</a></li><li class="lvl3"><a href="#factorized-tables">Factorized tables</a></li><li class="lvl3"><a href="#weight-tying">Weight tying</a></li><li class="lvl3"><a href="#two-tied-streams">Two tied streams</a></li><li class="lvl3"><a href="#adapters">Adapters</a></li><li class="lvl3"><a href="#parameter-counts">Parameter counts</a></li><li class="lvl3"><a href="#initialization">Initialization</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/12-neural-blocks/embedding_layers.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

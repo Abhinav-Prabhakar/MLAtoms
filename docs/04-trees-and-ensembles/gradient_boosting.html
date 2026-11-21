@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gradient boosting · MLAtoms</title>
+<meta name="description" content="Functional gradient descent with shrinkage and subsampling. Boosting is a sequence of weak models, each one correcting the mistakes of the ensemble so far. A…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/gradient_boosting.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Gradient boosting">
+<meta property="og:description" content="Functional gradient descent with shrinkage and subsampling. Boosting is a sequence of weak models, each one correcting the mistakes of the ensemble so far. A…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/gradient_boosting.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Gradient boosting">
+<meta name="twitter:description" content="Functional gradient descent with shrinkage and subsampling. Boosting is a sequence of weak models, each one correcting the mistakes of the ensemble so far. A…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Gradient boosting", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/gradient_boosting.html", "description": "Functional gradient descent with shrinkage and subsampling. Boosting is a sequence of weak models, each one correcting the mistakes of the ensemble so far. A\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">04 · Trees &amp; ensembles</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="gradient_boosting.py.html">source</a></p><h1>Gradient boosting</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Boosting is a sequence of weak models, each one correcting the mistakes of the
+ensemble so far. A random forest averages independent trees and reduces variance;
+boosting fits trees <em>sequentially</em> and reduces bias. The first tree is barely
+better than a stump, the second fits the residual of the first, and after a few
+hundred stages the sum is a flexible function.</p>
+<p>The modern view is functional gradient descent. The model is a function <code>F(x)</code>,
+the loss is <code>L(y, F)</code>, and the negative gradient</p>
+<div class="math block">
+\[r_i = -\left.\frac{\partial L(y_i, F)}{\partial F}\right|_{F=F_{m-1}(x_i)}\]
+</div>
+<p>is a <em>pseudo-residual</em>. A regression tree <code>h_m</code> is fitted to <code>r</code>, and the update is
+<code>F_m = F_{m−1} + η·h_m</code>. With squared loss the pseudo-residual is <code>y−F</code> and the
+tree's own mean is already the right leaf value. For every other loss, the leaf
+value must be recomputed with a one-step Newton update — that is the part most
+implementations get subtly wrong.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Loss</th>
+<th style="text-align:left">Pseudo-residual / leaf</th>
+<th style="text-align:left">Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>regression</code></td>
+<td style="text-align:left">squared</td>
+<td style="text-align:left"><code>y−F</code>, leaf mean</td>
+<td style="text-align:left">continuous targets</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>binary</code></td>
+<td style="text-align:left">logistic</td>
+<td style="text-align:left"><code>y−p</code>, Newton leaf <code>Σ(y−p)/Σp(1−p)</code></td>
+<td style="text-align:left">two classes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>multiclass</code></td>
+<td style="text-align:left">softmax cross-entropy</td>
+<td style="text-align:left"><code>Y_k−p_k</code>, <code>(K−1)/K · Σr/Σp(1−p)</code></td>
+<td style="text-align:left"><code>K</code> classes, <code>K</code> trees per stage</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>shrinkage</code></td>
+<td style="text-align:left">squared</td>
+<td style="text-align:left">same fit, smaller <code>η</code></td>
+<td style="text-align:left">the regulariser that makes boosting work</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>subsample</code></td>
+<td style="text-align:left">squared</td>
+<td style="text-align:left">same fit on a random row subset</td>
+<td style="text-align:left">stochastic boosting, faster and less correlated</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>quantile</code></td>
+<td style="text-align:left">pinball <code>ρ_α</code></td>
+<td style="text-align:left"><code>α−1[y&lt;F]</code>, leaf <code>α</code>-quantile of residual</td>
+<td style="text-align:left">prediction intervals, any quantile</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>deviance</code></td>
+<td style="text-align:left">logistic</td>
+<td style="text-align:left">identical to <code>binary</code></td>
+<td style="text-align:left">the same model viewed as a likelihood ratio</td>
+</tr>
+</tbody>
+</table>
+<p><code>shrinkage</code> and <code>subsample</code> are not different losses — they are the two knobs that
+turn a high-variance fit into a generalising one. <code>deviance</code> is the logistic model
+under its classical name; the demo asserts that it predicts identically to
+<code>binary</code>, because sharing a likelihood is the point.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Functional gradient descent.</strong> Treat <code>F</code> as a vector <code>(F(x₁),…,F(xₙ))</code>. Gradient
+descent in that space is <code>F ← F − η∇L(F)</code>, but <code>∇L</code> is only defined at the training
+points, so the step is restricted to a tree-shaped function <code>h</code>. Fitting <code>h</code> to the
+negative gradient by least squares and then choosing a per-leaf scale <code>γ</code> gives</p>
+<div class="math block">
+\[F_m(x) = F_{m-1}(x) + \eta\sum_{\ell} \gamma_{\ell}\,\mathbb{1}[x\in\ell]\]
+</div>
+<p><strong>Squared loss.</strong> <code>L = ½Σ(y−F)²</code>, so <code>−∂L/∂F = y−F</code>. For a leaf with rows <code>S</code>,</p>
+<div class="math block">
+\[\gamma = \arg\min_\gamma \sum_{i\in S}(r_i-\gamma)^2 = \bar r\]
+</div>
+<p>which is exactly what a regression tree predicts. No Newton step is needed, which
+is why the <code>regression</code> branch has no leaf post-processing.</p>
+<p><strong>Logistic loss.</strong> <code>L = Σ[log(1+e^F) − yF]</code>, <code>p = σ(F)</code>, and</p>
+<div class="math block">
+\[-\frac{\partial L}{\partial F} = y-p,
+\qquad
+\frac{\partial^2 L}{\partial F^2} = p(1-p)\]
+</div>
+<p>A one-step Newton update in leaf <code>S</code> minimises the second-order Taylor expansion:</p>
+<div class="math block">
+\[\gamma_S = \frac{\sum_{i\in S}(y_i-p_i)}{\sum_{i\in S}p_i(1-p_i)}\]
+</div>
+<p>The denominator is the curvature: leaves where the model is already confident have
+small <code>p(1−p)</code> and take a correspondingly large step. Using the tree's mean
+residual instead would give <code>γ = mean(y−p)</code>, which is the wrong scale whenever the
+leaf is heterogeneous, and the model still trains — just more slowly and with worse
+calibration.</p>
+<p><strong>Multiclass.</strong> With <code>K</code> scores and <code>p_k = softmax(F)_k</code>, the negative gradient is
+<code>y_k−p_k</code> and the Hessian is <code>p_k(1−p_k)</code>. Friedman's factor</p>
+<div class="math block">
+\[\gamma_{k,S} = \frac{K-1}{K}\,
+\frac{\sum_{i\in S}(y_{ik}-p_{ik})}{\sum_{i\in S}p_{ik}(1-p_{ik})}\]
+</div>
+<p>compensates for the fact that the <code>K</code> trees are fitted simultaneously and the
+softmax couples their updates. Omitting <code>(K−1)/K</code> still fits, but the effective
+learning rate is <code>K/(K−1)</code> times too large, which shows up as instability at
+<code>K=10</code> and is invisible at <code>K=2</code>.</p>
+<p><strong>Quantile loss.</strong> For <code>ρ_α(r) = max(αr, (α−1)r)</code>,</p>
+<div class="math block">
+\[-\frac{\partial \rho_\alpha(y-F)}{\partial F}
+= \begin{cases}\alpha & y>F\\ \alpha-1 & y<F\end{cases}\]
+</div>
+<p>The tree is fitted to this two-valued pseudo-residual (it needs only the <em>sign</em> of
+the residual), and the leaf value is the line-search optimum</p>
+<div class="math block">
+\[\gamma_S = \text{quantile}_\alpha\{y_i-F_i : i\in S\}\]
+</div>
+<p>so a leaf's shift is the residual quantile, not its mean. With <code>α=0.5</code> this is the
+median and the fit is robust; with <code>α=0.9</code> it estimates the conditional 90th
+percentile.</p>
+<p><strong>Shrinkage.</strong> A stage of size <code>η</code> changes the function by <code>η·h</code> instead of <code>h</code>.
+Small <code>η</code> means more stages but a smoother path: each tree sees a slightly
+different residual and the ensemble averages their errors. The demo's <code>η=1.0</code> and
+<code>η=0.05</code> use the same 300 trees, and the small step wins on test MSE (<code>0.070</code> vs
+<code>0.032</code>).</p>
+<p><strong>Subsampling.</strong> Stochastic gradient boosting fits each tree on a random fraction
+<code>s</code> of the rows. The gradient estimate is noisier but the trees decorrelate, which
+is the same bias-variance argument as the forest's feature subsets. The demo uses
+<code>s=0.5</code> and a test MSE of <code>0.028</code>, comparable to the full-batch fit at a fraction
+of the cost.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The initial prediction is loss-specific, and it matters:</p>
+<pre class="highlight"><code>        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">==</span> <span class="s2">"binary"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">classes_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+            <span class="n">yb</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">p0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">yb</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1e-6</span><span class="p">))</span>
+            <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">p0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">p0</span><span class="p">)))</span>
+</code></pre>
+<p>Starting the logistic model at zero log-odds means the first tree has to learn the
+base rate; starting at <code>log(p/(1−p))</code> means it only learns the signal. For
+multiclass the analogue is the class log-prior, centred so the scores sum to zero;
+for quantiles it is <code>quantile(y, α)</code>, because a constant model at the mean is the
+wrong starting point for an extreme quantile.</p>
+<p>Each stage fits a shallow regression tree to the pseudo-residual. Binary is the
+simplest non-trivial case:</p>
+<pre class="highlight"><code>            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">==</span> <span class="s2">"binary"</span><span class="p">:</span>
+                <span class="n">p</span> <span class="o">=</span> <span class="n">_sigmoid</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
+                <span class="n">yb</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+                <span class="n">tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tree</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">yb</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">p</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_newton_leaves</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">yb</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">p</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="mf">1.0</span><span class="p">)</span>
+                <span class="n">F</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">tree</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">estimators_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span>
+</code></pre>
+<p><code>yb − p</code> is the negative gradient, and <code>_newton_leaves</code> then rewrites every leaf
+value. The tree's structure is still chosen by variance reduction on the
+pseudo-residual, which is a second-order approximation to the logistic loss; the
+leaf rewrite makes the <em>scale</em> exact for the current leaf contents.</p>
+<p>The Newton rewrite is a single pass over the rows:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">,</span> <span class="n">pi</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">leaf</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">_walk</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="n">leaf</span><span class="p">)</span>
+            <span class="n">nodes</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">leaf</span>
+            <span class="n">num</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">num</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">yi</span> <span class="o">-</span> <span class="n">pi</span><span class="p">)</span>
+            <span class="n">den</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">den</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">+</span> <span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">pi</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">leaf</span> <span class="ow">in</span> <span class="n">nodes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">leaf</span><span class="p">[</span><span class="s2">"value"</span><span class="p">]</span> <span class="o">=</span> <span class="n">factor</span> <span class="o">*</span> <span class="n">num</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">den</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)</span>
+</code></pre>
+<p><code>id(leaf)</code> is safe because the leaf dicts live as long as the tree and are not
+copied; it is a compact way to group rows by leaf without storing leaf indices.
+<code>den + 1e-12</code> is not cosmetic: a leaf whose rows all have <code>p</code> exactly 0 or 1 has
+zero curvature, and the ratio would be <code>0/0</code>. The <code>factor</code> is <code>1</code> for binary and
+<code>(K−1)/K</code> for multiclass.</p>
+<p>Multiclass fits <code>K</code> trees per stage, all against the <em>same</em> <code>P</code>:</p>
+<pre class="highlight"><code>                <span class="n">P</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
+                <span class="n">trees</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+                    <span class="n">resid</span> <span class="o">=</span> <span class="n">Y</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">-</span> <span class="n">P</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span>
+                    <span class="n">tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tree</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">resid</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_newton_leaves</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">Y</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">k</span><span class="p">],</span> <span class="n">P</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">k</span><span class="p">],</span>
+                                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">classes_</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+                    <span class="n">F</span><span class="p">[:,</span> <span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">tree</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+                    <span class="n">trees</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span>
+</code></pre>
+<p><code>P</code> is computed once before the loop; recomputing it after updating <code>F[:, 0]</code> would
+make the second class's residual depend on the first class's tree, turning a
+simultaneous update into a sequential one. The <code>K</code> trees are stored as a list per
+stage, which is the shape <code>_raw</code> expects.</p>
+<p>Quantile boosting changes the pseudo-residual and the leaf value:</p>
+<pre class="highlight"><code>            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">==</span> <span class="s2">"quantile"</span><span class="p">:</span>
+                <span class="n">resid</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">F</span>
+                <span class="n">pseudo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">resid</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+                <span class="n">tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tree</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">pseudo</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_quantile_leaves</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">resid</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+                <span class="n">F</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">tree</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</code></pre>
+<p><code>pseudo</code> takes only two values, so the tree is really learning where the residual
+is positive and where it is negative. The magnitude of the step comes from the
+residual quantile in each leaf. Passing <code>pseudo</code> to <code>_quantile_leaves</code> instead of
+<code>resid</code> is the natural mistake: it would set every leaf to <code>α</code> or <code>α−1</code>, a constant
+step that never converges to the target quantile.</p>
+<p>Subsampling is one branch inside <code>_sample</code>:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subsample</span> <span class="o">&gt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subsample</span> <span class="o">*</span> <span class="n">n</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre>
+<p>Without replacement is the usual choice for boosting; the forest samples <em>with</em>
+replacement because it is bagging. <code>max(1, ...)</code> keeps a tiny fraction from
+producing an empty sample and a crashed tree. The <code>n_rows_used_</code> list records the
+draw so the demo can assert that the subsample actually happened.</p>
+<p>Prediction replays the stages:</p>
+<pre class="highlight"><code>        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_base_binary</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">==</span> <span class="s2">"binary"</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_base_value</span>
+        <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">base</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimators_</span><span class="p">:</span>
+            <span class="n">F</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">tree</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">F</span>
+</code></pre>
+<p>The base is stored at fit time rather than recomputed from <code>y</code>, because at
+prediction time there is no <code>y</code>. For binary, <code>_raw</code> returns log-odds and
+<code>predict_proba</code> applies the stable sigmoid; for multiclass it returns the score
+matrix and <code>predict_proba</code> applies softmax. <code>predict</code> thresholds at <code>0.5</code> for
+binary and takes the argmax for multiclass, which is a decision rule separate from
+the probabilities.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Quantity</th>
+<th style="text-align:left">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">One stage, regression/binary</td>
+<td style="text-align:left"><code>O(n log n · d · depth)</code> with this split search</td>
+</tr>
+<tr>
+<td style="text-align:left">One stage, multiclass</td>
+<td style="text-align:left"><code>K ×</code> the above</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>B</code> stages</td>
+<td style="text-align:left"><code>O(B n log n · d · depth)</code> (or <code>K×</code>)</td>
+</tr>
+<tr>
+<td style="text-align:left">Prediction, one row</td>
+<td style="text-align:left"><code>O(B · depth)</code> (or <code>B·K·depth</code>)</td>
+</tr>
+<tr>
+<td style="text-align:left">Memory</td>
+<td style="text-align:left"><code>O(B · nodes)</code> trees</td>
+</tr>
+</tbody>
+</table>
+<p>Boosting is sequential, so the trees cannot be fitted in parallel; the parallelism
+is inside a tree's split search. <code>subsample</code> reduces the per-stage <code>n</code> and is the
+main lever for large datasets. The demo's 300 stages of depth-3 trees on 350 rows
+run in well under a second, which is the right order: boosting is cheap per stage
+and expensive only in the number of stages.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Learning rate and stage count are one hyperparameter.</strong> A small <code>η</code> without
+enough stages underfits; a large <code>η</code> overfits in a few dozen trees. Tune them
+together on a validation curve, and use early stopping (not implemented here)
+rather than a fixed <code>n_estimators</code>.</li>
+<li><strong>Newton leaves with saturated probabilities.</strong> When <code>p</code> is exactly 0 or 1, the
+denominator <code>p(1−p)</code> vanishes and the step is huge. The <code>1e-12</code> floor keeps it
+finite, but clipping logits or adding an L2 term on the leaf value is the real
+fix.</li>
+<li><strong>Class imbalance.</strong> The logistic loss is dominated by the majority class, and
+the base rate makes the first stages predict the prior. Reweight the loss or
+subsample; <code>balanced_subsample</code> in the forest has no direct analogue here.</li>
+<li><strong>Quantile crossing.</strong> Fitting <code>α=0.1, 0.5, 0.9</code> independently can produce
+<code>q̂₀.₁ &gt; q̂₀.₅</code> at some <code>x</code>. Sort the predictions or fit a joint model if the
+ordering is a hard requirement.</li>
+<li><strong>Extrapolation.</strong> Trees are constant outside the training range, so boosting
+cannot continue a trend. Difference the series or add a linear base learner.</li>
+<li><strong>Leakage through the pseudo-residual.</strong> Every stage uses the <em>current</em> model's
+predictions on the same rows; fitting and evaluating on the same data makes the
+training loss look excellent while the model memorises. Use a validation set for
+the stage count.</li>
+<li><strong>Multiclass <code>K</code> trees per stage.</strong> Memory and time scale with <code>K</code>; for 1,000
+classes this is <code>1,000×</code> the binary cost. Use a softmax with a shared tree or a
+different decomposition.</li>
+<li><strong>Feature scale.</strong> Trees are invariant to monotone transforms, so scaling is
+unnecessary — but the <em>sparsity pattern</em> matters: a feature with thousands of
+distinct values gets more candidate thresholds and can dominate the split
+search. Bin the feature or limit <code>max_features</code>.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Search ranking and recommendation.</strong> LambdaMART is gradient boosting with a
+ranking loss; the same pseudo-residual/Newton-leaf template applies.</li>
+<li><strong>Credit risk and fraud.</strong> Binary log loss with monotone constraints and
+calibrated probabilities; boosted trees are the standard tabular model in both
+domains.</li>
+<li><strong>Insurance and demand forecasting.</strong> Quantile boosting gives prediction
+intervals and handles heteroscedasticity without assuming a distribution;
+Tweedie boosting (not in this file) is the claims counterpart.</li>
+<li><strong>Click-through rate.</strong> Logistic boosting on sparse categorical features, with
+shrinkage and subsampling to keep the model stable at billions of rows.</li>
+<li><strong>Kaggle and AutoML.</strong> XGBoost and LightGBM are this atom with better split
+search, regularisation and systems work; understanding the base loop is what
+makes their knobs interpretable.</li>
+<li><strong>As a bias-reduction layer.</strong> Boosting a shallow tree on the residuals of a
+linear model is a simple way to add nonlinearity without abandoning
+interpretability.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Friedman, <em>Greedy Function Approximation: A Gradient Boosting Machine</em>, 2001,
+Annals of Statistics — the canonical paper, including the Newton leaf values.</li>
+<li>Friedman, <em>Stochastic Gradient Boosting</em>, 2002, Computational Statistics &amp; Data
+Analysis — row subsampling.</li>
+<li>Freund &amp; Schapire, <em>A Decision-Theoretic Generalization of On-Line Learning and
+an Application to Boosting</em>, 1997 — the AdaBoost ancestor.</li>
+<li>Bühlmann &amp; Yu, <em>Boosting with the L2 Loss: Regression and Classification</em>, 2003,
+JASA — the statistical view of shrinkage.</li>
+<li>Hastie, Tibshirani &amp; Friedman, <em>The Elements of Statistical Learning</em>, 2nd ed.,
+2009, ch. 10 — the functional-gradient derivation and bias-variance analysis.</li>
+<li>Chen &amp; Guestrin, <em>XGBoost: A Scalable Tree Boosting System</em>, 2016, KDD — the
+regularised objective that the next atom implements.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="random_forest.html"><small>Previous</small><span>Random forest</span></a><a class="next" href="xgboost.html"><small>Next</small><span>XGBoost</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">04 · Trees &amp; ensembles</p><ul class="rail-list"><li><a href="cart.html"><span class="tick">✓</span><span>CART</span></a></li><li><a href="random_forest.html"><span class="tick">✓</span><span>Random forest</span></a></li><li><a href="gradient_boosting.html" aria-current="page"><span class="tick">✓</span><span>Gradient boosting</span></a></li><li><a href="xgboost.html"><span class="tick">✓</span><span>XGBoost</span></a></li><li><a href="lightgbm.html"><span class="tick">✓</span><span>LightGBM</span></a></li><li><a href="adaboost.html"><span class="tick">✓</span><span>AdaBoost</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>C4.5</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Extremely randomised trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>CatBoost</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Stacking &amp; blending</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BART</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Oblique trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Rule lists</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Tsetlin machine</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../03-kernels-and-instance/index.html"><span class="jump">← 03 · Kernels &amp; instance-based</span></a></li><li><a href="../05-probabilistic/index.html"><span class="jump">05 · Probabilistic models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/04-trees-and-ensembles/gradient_boosting.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dirichlet process · MLAtoms</title>
+<meta name="description" content="Nonparametric priors that grow the model with the data. Every mixture model this far needed k up front. The DP removes that requirement by putting a prior on…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/dirichlet_process.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Dirichlet process">
+<meta property="og:description" content="Nonparametric priors that grow the model with the data. Every mixture model this far needed k up front. The DP removes that requirement by putting a prior on…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/dirichlet_process.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dirichlet process">
+<meta name="twitter:description" content="Nonparametric priors that grow the model with the data. Every mixture model this far needed k up front. The DP removes that requirement by putting a prior on…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Dirichlet process", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/dirichlet_process.html", "description": "Nonparametric priors that grow the model with the data. Every mixture model this far needed k up front. The DP removes that requirement by putting a prior on\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="dirichlet_process.py.html">source</a></p><h1>Dirichlet processes</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Every mixture model this far needed <span class="math inline">\(k\)</span> up front. The DP removes that
+requirement by putting a prior on the distribution itself, and letting the data
+decide how many components to occupy:</p>
+<div class="math block">
+\[G \sim \mathrm{DP}(\alpha, G_0), \qquad \theta_i \mid G \sim G, \qquad x_i \mid \theta_i \sim F(\theta_i) \qquad (1)\]
+</div>
+<p><span class="math inline">\(G\)</span> is a random probability measure. Draw it once, then draw the parameters from
+it — and because a DP draw is discrete, the <span class="math inline">\(\theta_i\)</span> collide, and the
+collisions are the clusters. The number of distinct values is not a parameter
+and not fixed: it is a random variable whose distribution the concentration
+<span class="math inline">\(\alpha\)</span> controls.</p>
+<p>The same object has two faces, and the code uses both.</p>
+<pre class="highlight"><code>  stick-breaking                          Chinese restaurant
+  ───────────────                         ──────────────────
+  v_k ~ Beta(1, α)                        table 1: ● ● ●      n₁ = 3
+  w_k = v_k ∏_{j&lt;k}(1−v_j)                table 2: ●          n₂ = 1
+  G = Σ_k w_k δ_{θ_k}                     table 3: new?
+  ├──●───────●───●────●────────► w        p(join k) ∝ n_k
+    0.4  0.24  .14  .09   ...             p(new)    ∝ α
+</code></pre>
+<p>Left: break a unit stick at <span class="math inline">\(v_1\)</span>, keep the piece, break the rest at <span class="math inline">\(v_2\)</span>, and
+so on. The pieces are the mixture weights, and they are a size-biased
+permutation — the first is the largest in expectation, which is what makes a
+DP mixture look like a finite mixture with a decaying tail.</p>
+<p>Right: seat customers at tables one at a time, each preferring a crowded table
+in proportion to its current occupancy, or opening a new one with probability
+proportional to <span class="math inline">\(\alpha\)</span>. This is the view that turns into a sampler, because it
+gives the conditional distribution of one label given all the others — which is
+all a Gibbs sweep needs.</p>
+<p>The consequence that matters for modelling is that <span class="math inline">\(\alpha\)</span> controls <span class="math inline">\(k\)</span>
+<strong>logarithmically</strong>:</p>
+<div class="math block">
+\[\mathbb{E}[K_n] = \sum_{i=1}^{n}\frac{\alpha}{\alpha+i-1} \approx \alpha\log\!\left(1+\frac{n}{\alpha}\right) \qquad (2)\]
+</div>
+<p>Four times the data does not give four times the clusters; it gives a constant
+number more. That is the whole reason to use a DP instead of growing <span class="math inline">\(k\)</span> by
+cross-validation: it is a prior on model size, and it is a weak one.</p>
+<p>Three ideas in this chapter do the same job differently, and the differences are
+worth stating once:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"></th>
+<th style="text-align:left">what is random</th>
+<th style="text-align:left">how <span class="math inline">\(k\)</span> is chosen</th>
+<th style="text-align:left">cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">finite mixture + BIC</td>
+<td style="text-align:left"><span class="math inline">\(k\)</span> by search</td>
+<td style="text-align:left">penalised likelihood</td>
+<td style="text-align:left">one fit per <span class="math inline">\(k\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>DP mixture</strong></td>
+<td style="text-align:left">the measure</td>
+<td style="text-align:left">posterior over <span class="math inline">\(k\)</span></td>
+<td style="text-align:left">Gibbs, <span class="math inline">\(O(TnK)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>DP-means</strong></td>
+<td style="text-align:left">nothing</td>
+<td style="text-align:left">threshold <span class="math inline">\(\lambda\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nKd)\)</span> per sweep</td>
+</tr>
+</tbody>
+</table>
+<p>The last one is the small-variance limit of the first: as the cluster variance
+goes to zero, the DP mixture's MAP estimate becomes <span class="math inline">\(k\)</span>-means with a penalty
+<span class="math inline">\(\lambda\)</span> per cluster, and &quot;open a new cluster&quot; becomes &quot;this point is more than
+<span class="math inline">\(\sqrt{\lambda}\)</span> from every centroid&quot;. The demo's <span class="math inline">\(\lambda = 9\)</span> is a distance of
+3, and on data whose cluster centres are 5.7 to 8 apart it recovers them exactly.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Object</th>
+<th style="text-align:left">Fitted by</th>
+<th style="text-align:left">Exact statement the demo checks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>crp</code></td>
+<td style="text-align:left">the partition prior</td>
+<td style="text-align:left">seating, one draw at a time</td>
+<td style="text-align:left">EPPF sums to 1 over all 52 partitions of 5</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>stick_breaking</code></td>
+<td style="text-align:left">the weights</td>
+<td style="text-align:left">GEM, one stick at a time</td>
+<td style="text-align:left"><span class="math inline">\(\mathbb{E}[w_k]=\alpha^{k-1}/(1+\alpha)^k\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dpmm</code></td>
+<td style="text-align:left">an infinite mixture</td>
+<td style="text-align:left">collapsed Gibbs</td>
+<td style="text-align:left">predictive = NIW Student-t integral</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>truncated_dp</code></td>
+<td style="text-align:left">a <span class="math inline">\(K\)</span>-component mixture</td>
+<td style="text-align:left">collapsed Gibbs over <span class="math inline">\(K\)</span> sticks</td>
+<td style="text-align:left">truncation error = residual mass</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dp_means</code></td>
+<td style="text-align:left">hard clustering</td>
+<td style="text-align:left">assignment + split</td>
+<td style="text-align:left">same partition as Lloyd at <span class="math inline">\(k=3\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><code>crp</code> and <code>stick_breaking</code> are the prior, not a model, so <code>fit</code> refuses them and
+says which method to use instead. They are variants because they are the two
+ways a reader meets a DP, and because every assertion about them is exact:
+partitions of five items are enumerable, and <span class="math inline">\(\mathbb{E}[w_k]\)</span> is a product of
+beta means.</p>
+<p>The other three are fitters, and they differ in how much of the DP they keep:</p>
+<ul>
+<li><code>dpmm</code> keeps all of it. Collapsed Gibbs over a CRP prior, with the cluster
+parameters integrated out. The predictive is a Student-t, exactly.</li>
+<li><code>truncated_dp</code> keeps <span class="math inline">\(K\)</span> sticks. Same sampler, finite prior, and a measurable
+error: the mass left on the sticks it did not use. On the demo's data it uses
+3 of the 8 it was offered, carries 0.9921 of the mass, and leaves 0.0079.</li>
+<li><code>dp_means</code> keeps none of it. No posterior, no <span class="math inline">\(\alpha\)</span>, one threshold.</li>
+</ul>
+<p>The two Gibbs samplers share the predictive and differ in one line — the prior
+on the assignment:</p>
+<pre class="highlight"><code>dpmm           p(z_i = k) ∝ n_k           p(z_i = new) ∝ α
+truncated_dp   p(z_i = k) ∝ E[w_k | n]    no new component beyond K
+</code></pre>
+<p>That is the entire difference between an infinite mixture and its truncation,
+and it is one substitution in the code.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-what-a-dirichlet-process-is">1. What a Dirichlet process is <a class="header-anchor" href="#1-what-a-dirichlet-process-is">#</a></h3>
+<p>For every finite measurable partition <span class="math inline">\(A_1,\dots,A_k\)</span> of the space,</p>
+<div class="math block">
+\[\left(G(A_1),\dots,G(A_k)\right) \sim \mathrm{Dirichlet}\!\left(\alpha G_0(A_1),\dots,\alpha G_0(A_k)\right) \qquad (3)\]
+</div>
+<p>That is the definition, and it has two immediate consequences. First,
+<span class="math inline">\(G(A)\sim\mathrm{Beta}(\alpha G_0(A),\alpha(1-G_0(A)))\)</span>, so <span class="math inline">\(G\)</span> is a probability
+measure with a prior mean <span class="math inline">\(G_0\)</span> and a prior &quot;sample size&quot; <span class="math inline">\(\alpha\)</span>. Second, <span class="math inline">\(G\)</span>
+is almost surely discrete: draw two independent <span class="math inline">\(\theta,\theta'\)</span> from <span class="math inline">\(G\)</span> and
+they are equal with positive probability, because a discrete measure puts mass
+on atoms.</p>
+<p>Ferguson (1973) defined it this way; Blackwell and MacQueen (1973) gave the
+Pólya urn that makes it usable, and Sethuraman (1994) gave the construction that
+makes it computable.</p>
+<h3 id="2-stick-breaking">2. Stick-breaking <a class="header-anchor" href="#2-stick-breaking">#</a></h3>
+<p>Let <span class="math inline">\(v_1,v_2,\dots\)</span> be independent <span class="math inline">\(\mathrm{Beta}(1,\alpha)\)</span> and <span class="math inline">\(\theta_k\)</span>
+independent <span class="math inline">\(G_0\)</span>. Then</p>
+<div class="math block">
+\[w_k = v_k\prod_{j<k}(1-v_j), \qquad G=\sum_{k=1}^{\infty}w_k\,\delta_{\theta_k} \qquad (4)\]
+</div>
+<p>is a draw from <span class="math inline">\(\mathrm{DP}(\alpha,G_0)\)</span>. The weights sum to one because the
+residual after <span class="math inline">\(K\)</span> sticks is</p>
+<div class="math block">
+\[R_K=\prod_{k=1}^{K}(1-v_k), \qquad \mathbb{E}[R_K]=\left(\frac{\alpha}{1+\alpha}\right)^{K} \qquad (5)\]
+</div>
+<p>and <span class="math inline">\(R_K\to0\)</span> almost surely. Because the <span class="math inline">\(v_k\)</span> are independent,</p>
+<div class="math block">
+\[\mathbb{E}[w_k]=\mathbb{E}[v]\left(\mathbb{E}[1-v]\right)^{k-1}=\frac{\alpha^{k-1}}{(1+\alpha)^{k}} \qquad (6)\]
+</div>
+<p>which is a geometric decay: the mixture weights of a DP mixture are not
+exchangeable across components, they are ordered by expected size. That is why
+truncating at <span class="math inline">\(K\)</span> is not the same as a <span class="math inline">\(K\)</span>-component mixture with free weights —
+the truncation has to break the last stick somewhere.</p>
+<h3 id="3-the-partition-and-the-restaurant">3. The partition, and the restaurant <a class="header-anchor" href="#3-the-partition-and-the-restaurant">#</a></h3>
+<p>Integrating <span class="math inline">\(G\)</span> out turns the DP into a distribution over partitions. For a
+partition into clusters of sizes <span class="math inline">\(n_1,\dots,n_K\)</span> summing to <span class="math inline">\(n\)</span>, the exchangeable
+partition probability function is</p>
+<div class="math block">
+\[p(n_1,\dots,n_K)=\frac{\alpha^{K}\prod_{k=1}^{K}(n_k-1)!}{\alpha(\alpha+1)\cdots(\alpha+n-1)} \qquad (7)\]
+</div>
+<p>which is what <code>eppf</code> computes in log form with <span class="math inline">\(\Gamma\)</span> functions. It depends
+only on the sizes, not on the labels or the order — that is exchangeability, and
+it is the reason a DP is a sensible prior for clustering: the data's order
+carries no information.</p>
+<p>Summing (7) over all set partitions gives one. That is not obvious from the
+formula, which is why the demo checks it by brute force: 52 terms for <span class="math inline">\(n=5\)</span>,
+203 for <span class="math inline">\(n=6\)</span>, both exactly 1.</p>
+<p>The conditional of one label given the rest is the seating rule:</p>
+<div class="math block">
+\[p(z_i=k\mid z_{-i})=\frac{n_k^{(-i)}}{\alpha+n-1}, \qquad p(z_i=\text{new}\mid z_{-i})=\frac{\alpha}{\alpha+n-1} \qquad (8)\]
+</div>
+<p>and (2) follows by summing the probability of a new table over <span class="math inline">\(i=1,\dots,n\)</span>.</p>
+<h3 id="4-the-mixture-and-why-the-predictive-is-a-student-t">4. The mixture, and why the predictive is a Student-t <a class="header-anchor" href="#4-the-mixture-and-why-the-predictive-is-a-student-t">#</a></h3>
+<p>Attach a likelihood and the DP becomes a mixture with infinitely many components
+and a prior on their weights. For a Gaussian likelihood with a normal–inverse-<span class="math inline">\(\chi^2\)</span>
+prior on <span class="math inline">\((\mu_k,\sigma_k^2)\)</span>,</p>
+<div class="math block">
+\[\sigma^2\sim\mathrm{InvGamma}(a_0,b_0), \qquad \mu\mid\sigma^2\sim N\!\left(\mu_0,\frac{\sigma^2}{\kappa_0}\right) \qquad (9)\]
+</div>
+<p>the posterior given <span class="math inline">\(m\)</span> points is available in closed form:</p>
+<div class="math block">
+\[\kappa_m=\kappa_0+m, \quad \mu_m=\frac{\kappa_0\mu_0+m\bar x}{\kappa_m}, \quad a_m=a_0+\frac{m}{2}, \quad b_m=b_0+\frac{1}{2}\sum_i(x_i-\bar x)^2+\frac{\kappa_0 m}{2\kappa_m}(\bar x-\mu_0)^2 \qquad (10)\]
+</div>
+<p>and the posterior predictive — what a Gibbs sweep needs — is</p>
+<div class="math block">
+\[p(x_*\mid\text{cluster})=t_{2a_m}\!\left(\mu_m,\ \frac{b_m(\kappa_m+1)}{a_m\kappa_m}\right) \qquad (11)\]
+</div>
+<p>a Student-t with <span class="math inline">\(2a_m\)</span> degrees of freedom. Two things follow. The predictive has
+tails heavier than a Gaussian's, which is correct: the variance is itself
+unknown. And with <span class="math inline">\(m=0\)</span> the same formula is the prior predictive, which is why
+the code can use one function for &quot;join cluster <span class="math inline">\(k\)</span>&quot; and &quot;open a new table&quot;.</p>
+<p>The demo checks (11) against a numerical integral over the posterior of
+<span class="math inline">\(\sigma^2\)</span>: substituting <span class="math inline">\(\tau=b_m/\sigma^2\sim\mathrm{Gamma}(a_m,1)\)</span>, the
+integral is</p>
+<div class="math block">
+\[p(x_*)=\int_0^\infty N\!\left(x_*;\mu_m,\frac{b_m}{\tau}\left(1+\frac{1}{\kappa_m}\right)\right)\frac{\tau^{a_m-1}e^{-\tau}}{\Gamma(a_m)}\,d\tau \qquad (12)\]
+</div>
+<p>and 400k trapezoid points agree with the closed form to <span class="math inline">\(10^{-13}\)</span>.</p>
+<h3 id="5-collapsed-gibbs-in-one-line">5. Collapsed Gibbs, in one line <a class="header-anchor" href="#5-collapsed-gibbs-in-one-line">#</a></h3>
+<p>Because the cluster parameters are integrated out, a sweep only touches the
+labels. For point <span class="math inline">\(i\)</span>, remove it from its cluster and sample</p>
+<div class="math block">
+\[p(z_i=k)\propto\begin{cases}n_k^{(-i)}\,p(x_i\mid\text{cluster }k) & k \text{ occupied} \\ \alpha\,p(x_i\mid\text{prior}) & \text{new table}\end{cases} \qquad (13)\]
+</div>
+<p>Everything is in log space, because <span class="math inline">\(n_k\)</span> can be zero-sized and because a
+Student-t density underflows fast. The subtlety is the leave-one-out: cluster
+<span class="math inline">\(k\)</span>'s predictive must be computed <em>without</em> <span class="math inline">\(x_i\)</span>, or <span class="math inline">\(x_i\)</span> contributes to its
+own likelihood and every cluster looks better than it is. This is not a
+cosmetic detail — with the point left in, the sampler in this file still
+converged, and on the truncated variant it over-split.</p>
+<h3 id="6-truncation-and-the-size-of-the-error">6. Truncation, and the size of the error <a class="header-anchor" href="#6-truncation-and-the-size-of-the-error">#</a></h3>
+<p>Replace the infinite sum (4) with <span class="math inline">\(K\)</span> terms and normalise, or keep the last
+stick's residual as a point mass. The cost is a bound: for any measurable set
+<span class="math inline">\(A\)</span>,</p>
+<div class="math block">
+\[\left\lvert \sum_{k\le K}w_k\,\delta_{\theta_k}(A)-\sum_{k}w_k\,\delta_{\theta_k}(A)\right\rvert\le R_K \qquad (14)\]
+</div>
+<p>so the <span class="math inline">\(L_1\)</span> distance between the truncated and full weight vectors is at most
+<span class="math inline">\(\mathbb{E}[R_K]\)</span>, and for a single draw it is exactly <span class="math inline">\(R_K\)</span> — the
+total-variation distance between the two probability measures is half that. The
+demo asserts the exact version: the <span class="math inline">\(L_1\)</span> distance between its 3-component
+weight vector and the 203-component one is 0.0079, the residual, to <span class="math inline">\(10^{-12}\)</span>.</p>
+<p>For sampling, the truncated model has a closed-form conditional too. With counts
+<span class="math inline">\(n=(n_1,\dots,n_K)\)</span>,</p>
+<div class="math block">
+\[v_j\mid n\sim\mathrm{Beta}\!\left(1+n_j,\ \alpha+\sum_{l>j}n_l\right) \qquad (15)\]
+</div>
+<p>independently, so the mean weight of component <span class="math inline">\(k\)</span> is a product of beta means,
+which is <code>posterior_weights</code>. No sampling of the sticks is needed for the
+assignment step, and the leftover mass <span class="math inline">\(R_K\)</span> enters prediction as one extra
+component with the prior predictive — which is exactly what a component beyond
+the truncation would predict.</p>
+<p>The practical rule is that <span class="math inline">\(K\)</span> should be large enough that <span class="math inline">\(R_K\)</span> is small on the
+fitted solution, and no larger, because every extra stick redistributes mass.
+The demo offers 8 sticks, uses 3, and reports the 0.0079 it left behind.</p>
+<h3 id="7-the-small-variance-limit">7. The small-variance limit <a class="header-anchor" href="#7-the-small-variance-limit">#</a></h3>
+<p>Put a penalty <span class="math inline">\(\lambda\)</span> per cluster into the DP mixture's MAP objective, scale it
+as <span class="math inline">\(\lambda/2\sigma^2\)</span> so that it survives the limit, and let the cluster
+variance go to zero:</p>
+<div class="math block">
+\[\sum_i\log N\!\left(x_i;\mu_{z_i},\sigma^2\right)-\frac{\lambda}{2\sigma^2}K\;\xrightarrow[\sigma^2\to0]{}\;-\frac{1}{2\sigma^2}\left[\sum_i\left\lVert x_i-\mu_{z_i}\right\rVert^2+\lambda K\right] \qquad (16)\]
+</div>
+<p>so the surviving objective is</p>
+<div class="math block">
+\[\min_{\{z,\mu\}}\ \sum_i\left\lVert x_i-\mu_{z_i}\right\rVert^2+\lambda K \qquad (17)\]
+</div>
+<p><span class="math inline">\(k\)</span>-means with a price per cluster. The algorithm is what the objective suggests:
+assign each point to its nearest centroid, and if the squared distance exceeds
+<span class="math inline">\(\lambda\)</span>, pay <span class="math inline">\(\lambda\)</span> and open a new cluster there. Both operations decrease
+(17), so the loop terminates, and at <span class="math inline">\(\lambda\)</span> between the within-cluster and
+between-cluster squared distances it finds exactly the clusters <span class="math inline">\(k\)</span>-means with
+the right <span class="math inline">\(k\)</span> would find — without being told <span class="math inline">\(k\)</span>.</p>
+<p><span class="math inline">\(\lambda\)</span> is not <span class="math inline">\(\alpha\)</span>. It has units of squared distance, it has no posterior,
+and it is the price at which the model prefers a new cluster to a bad fit. That
+is a smaller, cruder model than the DP mixture, and the demo is explicit that on
+this data it happens to agree with the Bayesian answer.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The EPPF is (7), and the only care needed is to stay in logs: the factorials are
+<span class="math inline">\(\Gamma(n_k)\)</span> and the normaliser is <span class="math inline">\(\Gamma(\alpha+n)/\Gamma(\alpha)\)</span>.</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">eppf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">counts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Exchangeable partition probability of cluster sizes `counts`."""</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="n">counts</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">logp</span> <span class="o">=</span> <span class="p">(</span><span class="n">k</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span>
+                <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">counts</span><span class="p">))</span>
+                <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">n</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">logp</span><span class="p">)</span>
+</code></pre>
+<p>The GEM weights are (4). <code>1 − U^(1/α)</code> is a <span class="math inline">\(\mathrm{Beta}(1,\alpha)\)</span> draw by
+inverse CDF, which avoids needing a beta sampler, and the residual is returned
+rather than dropped — it is the truncation error and the demo uses it.</p>
+<pre class="highlight"><code>        <span class="c1"># V ~ Beta(1, α) by inverse CDF: 1 − V ~ Beta(α, 1)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">K</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="mf">1.0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">cumprod</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">v</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="k">return</span> <span class="n">w</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">v</span><span class="p">))</span>
+</code></pre>
+<p><code>posterior_weights</code> is (15) plus the product of means. <code>tail</code> is the suffix sum
+<span class="math inline">\(\sum_{l>k}n_l\)</span>, which is what makes the sticks dependent: the mass available to
+stick <span class="math inline">\(k\)</span> is what the earlier sticks left.</p>
+<pre class="highlight"><code>        <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">tail</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">counts</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])[::</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">:],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]])</span>
+        <span class="n">ev</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">counts</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">counts</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">tail</span><span class="p">)</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">ev</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="mf">1.0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">cumprod</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">ev</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="k">return</span> <span class="n">w</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">ev</span><span class="p">))</span>
+</code></pre>
+<p>The NIW posterior is (10). <code>n = 0</code> returning the prior is not a special case to
+be handled elsewhere: it is the new-table prediction, and the same function
+serves both.</p>
+<pre class="highlight"><code>    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">xbar</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="k">if</span> <span class="n">n</span> <span class="k">else</span> <span class="mf">0.0</span>
+    <span class="n">ss</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(((</span><span class="n">X</span> <span class="o">-</span> <span class="n">xbar</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="k">if</span> <span class="n">n</span> <span class="k">else</span> <span class="mf">0.0</span>
+    <span class="n">kappa</span> <span class="o">=</span> <span class="n">kappa0</span> <span class="o">+</span> <span class="n">n</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="p">(</span><span class="n">kappa0</span> <span class="o">*</span> <span class="n">mu0</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">xbar</span><span class="p">)</span> <span class="o">/</span> <span class="n">kappa</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">a0</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">n</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">b0</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">ss</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">kappa0</span> <span class="o">*</span> <span class="n">n</span> <span class="o">/</span> <span class="n">kappa</span> <span class="o">*</span> <span class="p">(</span><span class="n">xbar</span> <span class="o">-</span> <span class="n">mu0</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+    <span class="k">return</span> <span class="n">mu</span><span class="p">,</span> <span class="n">kappa</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span>
+</code></pre>
+<p>The predictive is (11). The scale is the part people get wrong: it is
+<span class="math inline">\(b(\kappa+1)/(a\kappa)\)</span>, not <span class="math inline">\(b/a\)</span>, because the predictive has to account for
+the uncertainty in <span class="math inline">\(\mu\)</span> as well as in <span class="math inline">\(\sigma^2\)</span>.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_predictive_logpdf</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""`p(x | cluster)` after integrating `(μ, σ²)` out of the NIW."""</span>
+    <span class="n">mu</span><span class="p">,</span> <span class="n">kappa</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">params</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">b</span> <span class="o">*</span> <span class="p">(</span><span class="n">kappa</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">kappa</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">_log_t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">a</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">scale</span><span class="p">))</span>
+</code></pre>
+<p>The collapsed Gibbs sweep is (13). The <code>z[i] = -1</code> line is the removal, and the
+<code>logp</code> list is built in log space over the occupied tables plus one new table.</p>
+<pre class="highlight"><code>                <span class="n">old</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">z</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>                                   <span class="c1"># leave the table</span>
+                <span class="n">labels</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">z</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cluster_params</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">z</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">],</span> <span class="n">labels</span><span class="p">)</span>
+                <span class="n">logp</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">labels</span><span class="p">):</span>
+                    <span class="n">c</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">labels</span> <span class="o">==</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+                    <span class="n">logp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log_predictive</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]))</span>
+                <span class="c1"># a new table: the prior predictive, weighted by alpha</span>
+                <span class="n">logp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log_predictive</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">prior</span><span class="p">))</span>
+</code></pre>
+<p>The truncated sweep differs in exactly the two lines that implement (15): the
+weights replace the counts, and the leave-one-out mask keeps <span class="math inline">\(x_i\)</span> out of its
+own cluster's posterior.</p>
+<pre class="highlight"><code>                <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+                <span class="n">counts</span><span class="p">[</span><span class="n">z</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">-=</span> <span class="mf">1.0</span>
+                <span class="n">w</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">posterior_weights</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span>
+                <span class="c1"># leave point i out of its own cluster's posterior, or the</span>
+                <span class="c1"># density at x_i is inflated by its own contribution</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+                <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cluster_params</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">z</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">)</span>
+</code></pre>
+<p>DP-means is (17) as an algorithm. The split is a <code>&gt;</code> against <span class="math inline">\(\lambda\)</span> on the
+<em>squared</em> distance, and the new centroid is the offending point itself — which
+makes the objective fall by exactly <span class="math inline">\(d^2-\lambda\)</span>.</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="n">d2</span> <span class="o">=</span> <span class="p">((</span><span class="n">centroids</span> <span class="o">-</span> <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">j</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">d2</span><span class="o">.</span><span class="n">argmin</span><span class="p">())</span>
+                <span class="k">if</span> <span class="n">d2</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam</span><span class="p">:</span>            <span class="c1"># cheaper to pay λ than to fit</span>
+                    <span class="n">centroids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">centroids</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span>
+                    <span class="n">j</span> <span class="o">=</span> <span class="n">centroids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
+                <span class="n">labels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span>
+</code></pre>
+<p>Prediction mixes the components and adds the leftover mass as one more term. For
+<code>dpmm</code> that term is <span class="math inline">\(\alpha/(\alpha+n)\)</span> with the prior predictive; for
+<code>truncated_dp</code> it is the residual. One code path, two meanings, and both are
+correct.</p>
+<pre class="highlight"><code>            <span class="n">terms</span> <span class="o">=</span> <span class="p">[</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log_predictive</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params_</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+                     <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">K_</span><span class="p">)]</span>
+            <span class="n">terms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">new</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log_predictive</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">prior</span><span class="p">))</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">terms</span><span class="p">)</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">top</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">t</span> <span class="o">-</span> <span class="n">top</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">))</span>
+</code></pre>
+<p>The demo's exact check of (11) is (12), and the Jacobian is the line that is
+easy to get wrong: with <span class="math inline">\(\tau=b/\sigma^2\)</span> the weight is
+<span class="math inline">\(\tau^{a-1}e^{-\tau}/\Gamma(a)\)</span>, with no <span class="math inline">\(b^a\)</span> in it.</p>
+<pre class="highlight"><code>    <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">1e-8</span><span class="p">,</span> <span class="mf">80.0</span><span class="p">,</span> <span class="mi">400_000</span><span class="p">)</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">kappa</span><span class="p">)</span> <span class="o">*</span> <span class="n">b</span> <span class="o">/</span> <span class="n">grid</span>
+    <span class="n">xq</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">x1</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">+</span> <span class="mf">0.5</span>
+    <span class="n">dens</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">var</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">xq</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">var</span><span class="p">)</span>
+    <span class="n">dens</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">((</span><span class="n">a</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span> <span class="o">-</span> <span class="n">grid</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">a</span><span class="p">))</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><span class="math inline">\(n\)</span> points, <span class="math inline">\(d\)</span> dimensions, <span class="math inline">\(K\)</span> occupied clusters, <span class="math inline">\(T\)</span> sweeps:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Step</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">EPPF of one partition</td>
+<td style="text-align:left"><span class="math inline">\(O(K)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one CRP draw of <span class="math inline">\(n\)</span> labels</td>
+<td style="text-align:left"><span class="math inline">\(O(nK)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one GEM draw of <span class="math inline">\(K\)</span> sticks</td>
+<td style="text-align:left"><span class="math inline">\(O(K)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(K)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one Gibbs sweep (naive, as written)</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2Kd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nd+nK)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one Gibbs sweep (cached statistics)</td>
+<td style="text-align:left"><span class="math inline">\(O(nKd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nd+nK)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one DP-means sweep</td>
+<td style="text-align:left"><span class="math inline">\(O(nKd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nK)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The code is the naive version: <code>_cluster_params</code> recomputes every cluster's
+sufficient statistics before every point's update, which is <span class="math inline">\(O(nKd)\)</span> per point
+and <span class="math inline">\(O(n^2Kd)\)</span> per sweep. That is fine at <span class="math inline">\(n=120\)</span> and wrong at <span class="math inline">\(n=10^5\)</span>; the fix is to
+keep <span class="math inline">\((\text{count},\sum x,\sum x^2)\)</span> per cluster and update them when a point
+moves, which is what every production sampler does and why the second row exists.
+With cached statistics the cost is the same as DP-means.</p>
+<p>The demo runs all five variants in about 2.2 s, of which most is the 20,000
+partition draws that exist to make the <span class="math inline">\(\mathbb{E}[K_n]\)</span> check tight; the two
+Gibbs fits take 0.3 s and 0.5 s, and the 400k-point quadrature is under a
+millisecond.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Over-splitting, and the prior on the variance.</strong> The most common surprise: a
+DP mixture puts four clusters on three. This is not a bug and not a sampler
+problem — with a vague prior on <span class="math inline">\(\sigma^2\)</span> and a weak prior on <span class="math inline">\(\mu\)</span>, splitting
+one Gaussian cluster into two buys enough marginal likelihood to pay for the
+extra component. It happened here during development: with <span class="math inline">\(\kappa_0=0.05\)</span>,
+<span class="math inline">\(a_0=2\)</span>, <span class="math inline">\(b_0=0.3\)</span> the count wandered between three and five across five seeds
+of both samplers, on clusters whose centres are six units apart with noise 0.4.
+Tightening to <span class="math inline">\(\kappa_0=0.5\)</span>, <span class="math inline">\(a_0=5\)</span>, <span class="math inline">\(b_0=1\)</span> made all five seeds agree on
+three, which is the configuration in the file. <em>Diagnostic:</em> if the count
+is unstable across seeds, the count is not identified; report the co-clustering
+matrix, not <span class="math inline">\(K\)</span>.</p>
+<p><strong>Label switching.</strong> Cluster labels are exchangeable, so two chains can agree
+perfectly on the partition and disagree on the labels. Any average of
+per-cluster parameters across chains is meaningless. <em>Diagnostic:</em> summarise
+with <span class="math inline">\(p(z_i=z_j)\)</span>, an <span class="math inline">\(n\times n\)</span> matrix that is invariant to relabelling.</p>
+<p><strong><span class="math inline">\(\alpha\)</span> is not a knob for <span class="math inline">\(k\)</span>.</strong> Equation (2) is logarithmic: to double the
+expected number of clusters you square the data. Setting <span class="math inline">\(\alpha\)</span> to hit a
+target <span class="math inline">\(K\)</span> is possible and standard (Teh et al.'s VIP does it properly), but
+treating <span class="math inline">\(\alpha\)</span> as &quot;the number of clusters&quot; produces a model that is not the
+one intended. <em>Diagnostic:</em> print <code>expected_clusters(n)</code> before fitting, and be
+surprised if the posterior is far from it.</p>
+<p><strong>Truncation that truncates too much.</strong> <span class="math inline">\(K\)</span> too small forces real clusters to
+share a stick, and the fitted residual <span class="math inline">\(R_K\)</span> cannot reveal it because the
+sampler will never leave mass unused. <em>Diagnostic:</em> fit at <span class="math inline">\(K\)</span> and <span class="math inline">\(2K\)</span> and
+compare the predictive log-likelihood; if it moves, <span class="math inline">\(K\)</span> was the constraint.</p>
+<p><strong>The residual as a component.</strong> In <code>truncated_dp</code> the leftover mass predicts
+like the prior, which is right and also why the predictive has heavier tails
+than the fitted mixture suggests. A single extrapolated point can therefore be
+predicted better by the residual than by the nearest cluster. That is a feature
+of the model, not an artefact.</p>
+<p><strong>The leave-one-out omission.</strong> Including <span class="math inline">\(x_i\)</span> in its own cluster's statistics
+inflates that cluster's density at <span class="math inline">\(x_i\)</span>, which biases the sampler toward
+keeping points where they are and, in the truncated variant, toward splitting
+clusters that should be merged. <em>Diagnostic:</em> the sampler converges to a stable
+answer with the wrong <span class="math inline">\(K\)</span>; check the mask.</p>
+<p><strong>Gibbs is a local method.</strong> Two seeds, two modes, and no guarantee that either
+is the global one. The posterior over partitions is enormous, and <span class="math inline">\(T\)</span> sweeps of
+a Gibbs chain explore a tiny neighbourhood. <em>Diagnostic:</em> run several chains
+from CRP-prior initialisations, and compare the partitions rather than the
+parameters.</p>
+<p><strong>DP-means is not Bayesian.</strong> <span class="math inline">\(\lambda\)</span> has units, no posterior, and no
+uncertainty. Two data sets scaled by 10 need different <span class="math inline">\(\lambda\)</span> for the same
+answer. And the algorithm's answer depends on the order of the points within a
+sweep, through which clusters exist when a point is visited. <em>Diagnostic:</em>
+rescale the data to unit variance and re-run; if the number of clusters changes,
+<span class="math inline">\(\lambda\)</span> was doing the work rather than the data.</p>
+<p><strong>Diagonal covariance.</strong> The code uses one NIW per coordinate, so each cluster
+is axis-aligned. Correlated clusters are split, because two axis-aligned
+components fit a tilted one better than one. The full-covariance version needs a
+normal–inverse-Wishart prior and a matrix inverse per cluster; the sampler's
+structure is identical.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Density estimation and clustering without <span class="math inline">\(k\)</span>.</strong> The core use. Whenever the
+number of groups is a finding rather than an input — customer segments,
+astronomical object classes, cell populations in flow cytometry — the DP is the
+default Bayesian answer, and its posterior over <span class="math inline">\(K\)</span> is the deliverable.</p>
+<p><strong>Topic models.</strong> Latent Dirichlet allocation fixes the number of topics; its
+DP version lets the corpus decide, and the hierarchical DP (Teh et al., 2006)
+does it per document while sharing topics across the corpus. It is the reason
+&quot;how many topics&quot; is not a hyperparameter in the modern literature.</p>
+<p><strong>Genetics and species sampling.</strong> The EPPF (7) is the Ewens sampling formula,
+which is the null model for allele frequencies and for discovery counts in
+population genetics. The same algebra appears as the prior in Dirichlet process
+mixtures for genotype clustering.</p>
+<p><strong>Entity resolution and record linkage.</strong> Each entity is a cluster of records;
+the number of entities is unknown and grows with the data. The DP's
+exchangeability assumption is exactly right for records arriving in arbitrary
+order, and the predictive (11) gives a calibrated &quot;does this record belong to an
+existing entity&quot; score.</p>
+<p><strong>Spatial and image segmentation.</strong> With a spatial base measure, DP mixtures
+segment images and cluster geo-referenced counts without a chosen number of
+regions. The truncated version is what fits on a GPU.</p>
+<p><strong>Scalable clustering.</strong> DP-means is the practical answer when <span class="math inline">\(n\)</span> is large and
+a Gibbs chain is not: <span class="math inline">\(O(nKd)\)</span> per sweep, no posterior, and the number of
+clusters emerges. It is used as a fast alternative to <span class="math inline">\(k\)</span>-means when <span class="math inline">\(k\)</span> is
+unknown and to hierarchical clustering when <span class="math inline">\(n\)</span> is too large for a dendrogram.</p>
+<p><strong>Where it is a trap.</strong> Data with heavy-tailed clusters (the Gaussian likelihood
+fights back), problems where the number of clusters is genuinely fixed by the
+design, and any application that reports <span class="math inline">\(K\)</span> without its posterior. Also:
+treating DP-means' <span class="math inline">\(\lambda\)</span> as if it had a Bayesian interpretation, which it
+does not.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Ferguson (1973). <em>A Bayesian analysis of some nonparametric problems.</em> Annals
+of Statistics 1, 209. The definition (3), and the first conjugacy results.</li>
+<li>Blackwell &amp; MacQueen (1973). <em>Ferguson distributions via Pólya urn schemes.</em>
+Annals of Statistics 1, 353. The seating rule (8) and its exchangeability.</li>
+<li>Sethuraman (1994). <em>A constructive definition of Dirichlet priors.</em> Statistica
+Sinica 4, 639. Stick-breaking (4), and the proof that it gives a DP.</li>
+<li>Antoniak (1974). <em>Mixtures of Dirichlet processes with applications to Bayesian
+nonparametric problems.</em> Annals of Statistics 2, 1152. The EPPF (7) and the
+first DP mixture.</li>
+<li>Escobar &amp; West (1995). <em>Bayesian density estimation and inference using
+mixtures.</em> JASA 90, 577. The collapsed Gibbs sampler and the NIW predictive.</li>
+<li>Neal (2000). <em>Markov chain sampling methods for Dirichlet process mixture
+models.</em> JCGS 9, 249. The definitive treatment of the sampler, including the
+cases where the base measure is not conjugate.</li>
+<li>Ishwaran &amp; James (2001). <em>Gibbs sampling methods for stick-breaking priors.</em>
+JASA 96, 161. The truncated sampler (15), and how to choose <span class="math inline">\(K\)</span>.</li>
+<li>Blei &amp; Jordan (2006). <em>Variational inference for Dirichlet process mixtures.</em>
+Bayesian Analysis 1, 121. The mean-field alternative, and the truncated
+variational bound this file's <code>truncated_dp</code> is the sampling counterpart of.</li>
+<li>Teh, Jordan, Beal &amp; Blei (2006). <em>Hierarchical Dirichlet processes.</em> JASA 101,
+1566. The HDP, and the reason DP topic models share topics across documents.</li>
+<li>Kulis &amp; Jordan (2012). <em>Revisiting k-means: new algorithms via Bayesian
+nonparametrics.</em> ICML. DP-means, the limit (16)–(17), and the guarantee that
+both steps decrease the objective.</li>
+<li>Gershman &amp; Blei (2012). <em>A tutorial on Bayesian nonparametric models.</em> Journal
+of Mathematical Psychology 56, 1. The clearest short derivation of everything
+in the first three sections.</li>
+<li>Miller &amp; Harrison (2018). <em>Mixture models with a prior on the number of
+components.</em> JASA 113, 340. Why the posterior on <span class="math inline">\(K\)</span> concentrates on the wrong
+answer when the model is misspecified, and the over-splitting in the failure
+modes above.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="gp_classification.html"><small>Previous</small><span>GP classification</span></a><a class="next" href="laplace_approximation.html"><small>Next</small><span>Laplace approximation</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html" aria-current="page"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-what-a-dirichlet-process-is">1. What a Dirichlet process is</a></li><li class="lvl3"><a href="#2-stick-breaking">2. Stick-breaking</a></li><li class="lvl3"><a href="#3-the-partition-and-the-restaurant">3. The partition, and the restaurant</a></li><li class="lvl3"><a href="#4-the-mixture-and-why-the-predictive-is-a-student-t">4. The mixture, and why the predictive is a Student-t</a></li><li class="lvl3"><a href="#5-collapsed-gibbs-in-one-line">5. Collapsed Gibbs, in one line</a></li><li class="lvl3"><a href="#6-truncation-and-the-size-of-the-error">6. Truncation, and the size of the error</a></li><li class="lvl3"><a href="#7-the-small-variance-limit">7. The small-variance limit</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/dirichlet_process.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

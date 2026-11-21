@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isomap · MLAtoms</title>
+<meta name="description" content="Geodesic distances from a neighbour graph, then classical MDS. A swiss roll is the standard picture of why Euclidean distance is the wrong question.">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/08-manifold/isomap.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Isomap">
+<meta property="og:description" content="Geodesic distances from a neighbour graph, then classical MDS. A swiss roll is the standard picture of why Euclidean distance is the wrong question.">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/08-manifold/isomap.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Isomap">
+<meta name="twitter:description" content="Geodesic distances from a neighbour graph, then classical MDS. A swiss roll is the standard picture of why Euclidean distance is the wrong question.">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Isomap", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/08-manifold/isomap.html", "description": "Geodesic distances from a neighbour graph, then classical MDS. A swiss roll is the standard picture of why Euclidean distance is the wrong question.", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">08 · Manifolds &amp; embeddings</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="isomap.py.html">source</a></p><h1>Isomap</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A swiss roll is the standard picture of why Euclidean distance is the wrong
+question.</p>
+<pre class="highlight"><code>        ┌──────────────────────────────┐
+       ╱   ·  ·        ·   ·            ╲      two points on neighbouring turns
+      │  ·      ·   ·        ·     ·     │     are close in R³  (a)
+      │ ·    ·        ·   ·       ·      │     and far along the sheet (b)
+       ╲  ·   ·    ·       ·   ·        ╱
+        └──────────────────────────────┘
+             a: ‖x_i − x_j‖₃ small
+             b: length of the path on the sheet large
+</code></pre>
+<p>Every method in this chapter is a different answer to &quot;close in what?&quot; This one
+answers: close <strong>along the data</strong>. Build a graph whose edges are the distances
+between nearby points, and replace every distance by the length of the shortest
+path through that graph.</p>
+<p>That is the whole algorithm, and it is two lines:</p>
+<ol>
+<li>connect each point to its <span class="math inline">\(k\)</span> nearest neighbours, weighting edges by Euclidean
+distance;</li>
+<li>run classical MDS on the resulting <strong>geodesic</strong> distance matrix.</li>
+</ol>
+<p>The effect is large because the graph cannot leave the surface. On the roll, the
+shortest path between two points on adjacent turns has to walk out to the end of
+the sheet and back, which is exactly what the true distance along the surface
+does. The demo measures it: 600 points on a swiss roll, which is <em>exactly</em>
+isometric to a flat rectangle, are recovered at distance correlation <span class="math inline">\(0.9996\)</span> by
+Isomap and <span class="math inline">\(0.2930\)</span> by classical MDS on the ambient distances.</p>
+<pre class="mermaid-source"><code class="language-mermaid">graph LR
+    A[&quot;X ∈ ℝⁿˣᵈ&lt;br/&gt;point cloud&quot;] --&gt; B[&quot;kNN graph&lt;br/&gt;w_ij = ‖x_i − x_j‖&quot;]
+    B --&gt; C[&quot;all-pairs shortest paths&lt;br/&gt;d_ij = geodesic&quot;]
+    C --&gt; D[&quot;classical MDS&lt;br/&gt;double-centre, eigendecompose&quot;]
+    D --&gt; E[&quot;Y ∈ ℝⁿˣᵏ&quot;]
+</code></pre>
+<p>The price is a knife edge. The graph only knows about edges between points it
+connected, so an edge that jumps between turns — a <strong>short-circuit</strong> — makes every
+geodesic that crosses it too short, and no amount of downstream linear algebra
+recovers. The demo's <span class="math inline">\(k = 14\)</span> gives <span class="math inline">\(0.9999\)</span> and <span class="math inline">\(k = 16\)</span> gives <span class="math inline">\(0.7433\)</span> on the
+same data. Isomap is the clearest case in machine learning of a method whose
+hyper-parameter is not a regularisation strength but a topological condition.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Distances used</th>
+<th style="text-align:left">What changes</th>
+<th style="text-align:left">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>isomap</code></td>
+<td style="text-align:left">all pairs, exact</td>
+<td style="text-align:left">the reference</td>
+<td style="text-align:left"><span class="math inline">\(n\)</span> shortest-path runs</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>landmark</code></td>
+<td style="text-align:left">to <span class="math inline">\(m\)</span> landmarks</td>
+<td style="text-align:left">embed landmarks, triangulate the rest</td>
+<td style="text-align:left"><span class="math inline">\(m\)</span> runs, <span class="math inline">\(m \ll n\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>conformal</code></td>
+<td style="text-align:left">rescaled geodesics</td>
+<td style="text-align:left">divide by a local scale from the sampling density</td>
+<td style="text-align:left">one extra pass, no extra runs</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sparse</code></td>
+<td style="text-align:left">all pairs, completed</td>
+<td style="text-align:left">exact rows from <span class="math inline">\(m\)</span> sources, min-plus closure</td>
+<td style="text-align:left"><span class="math inline">\(m\)</span> runs + <span class="math inline">\(mn^2\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>isomap</code></strong> is the 2000 paper: kNN graph, all-pairs shortest paths, classical
+MDS. The demo uses a vectorised Floyd–Warshall, which is <span class="math inline">\(O(n^3)\)</span> but has no
+Python loop over sources; the alternative is <span class="math inline">\(n\)</span> Dijkstra runs, which is what the
+sparse graph actually wants and what the other two variants use.</p>
+<p><strong><code>landmark</code></strong> (de Silva &amp; Tenenbaum 2003) attacks the <span class="math inline">\(O(n^3)\)</span> directly. Pick
+<span class="math inline">\(m\)</span> landmarks, compute geodesics <em>from those only</em>, embed the <span class="math inline">\(m \times m\)</span> landmark
+submatrix, and place every other point by least-squares triangulation from its
+distances to the landmarks. The demo runs 70 shortest-path searches instead of
+700, and the embedding is indistinguishable: correlation with the truth <span class="math inline">\(0.9997\)</span>
+against <span class="math inline">\(0.9997\)</span>, agreement between the two embeddings <span class="math inline">\(0.99997\)</span>. It is also the
+variant whose inference cost is bounded by <span class="math inline">\(m\)</span>: placing one new point needs its
+distances to the landmarks, not to every sample.</p>
+<p><strong><code>conformal</code></strong> (C-Isomap, same paper) is for data whose metric differs from the
+one you want by a smooth local scale factor — a <em>conformal</em> distortion, which is
+what you get when a manifold is stretched unevenly or sampled through a map that
+magnifies some regions more than others. Estimate the local scale from the mean
+kNN radius, divide each geodesic by <span class="math inline">\(\sqrt{\lambda_i\lambda_j}\)</span>, and re-embed. On
+the demo — a disk pushed onto the sphere by stereographic projection, which is
+exactly conformal — raw Isomap reaches <span class="math inline">\(0.8152\)</span> and the corrected one <span class="math inline">\(0.9289\)</span>.
+The same estimator, given a <em>density gradient</em> on flat data, takes <span class="math inline">\(0.9992\)</span> down
+to <span class="math inline">\(0.1880\)</span>. The method cannot tell the two apart, and that is the honest summary
+of it.</p>
+<p><strong><code>sparse</code></strong> computes exact geodesics from a subset of source nodes and fills the
+rest by <span class="math inline">\(D_{ij} \approx \min_l (D_{il} + D_{lj})\)</span> over the sources. Every term is
+a walk through a source, so the completion is an upper bound on the true geodesic;
+the demo's mean error falls from <span class="math inline">\(0.6124\)</span> to <span class="math inline">\(0.0123\)</span> as the source fraction goes
+from 5% to 40%. It is the right variant when you already have distances from a
+few nodes — a sensor network with a few anchors, say — and want the rest.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-graph-and-the-geodesic">1. The graph and the geodesic <a class="header-anchor" href="#1-the-graph-and-the-geodesic">#</a></h3>
+<p>Let <span class="math inline">\(G\)</span> be the graph with vertex set the samples and an edge <span class="math inline">\((i,j)\)</span> whenever <span class="math inline">\(j\)</span>
+is among the <span class="math inline">\(k\)</span> nearest neighbours of <span class="math inline">\(i\)</span> (or the reverse — the union, so that
+the graph is undirected):</p>
+<div class="math block">
+\[w_{ij} \;=\; \lVert x_i - x_j \rVert, \qquad (i,j)\in E. \qquad (1)\]
+</div>
+<p>The graph distance is the length of the shortest path,</p>
+<div class="math block">
+\[d_{ij} \;=\; \min_{\gamma:\, i\to j}\ \sum_{(a,b)\in\gamma} w_{ab}, \qquad (2)\]
+</div>
+<p>and because every graph path is a curve in the ambient space, <span class="math inline">\(d_{ij} \ge
+d_{\mathcal{M}}(i,j)\)</span>: the graph distance is always an over-estimate of the
+geodesic on the manifold, and it is a <em>lower</em> bound on the ambient distance only
+in the sense that it is the shortest such curve through the data.</p>
+<h3 id="2-why-the-graph-distance-is-the-right-one">2. Why the graph distance is the right one <a class="header-anchor" href="#2-why-the-graph-distance-is-the-right-one">#</a></h3>
+<p>If the data are dense on a manifold and the edges are short enough that none of
+them cuts across a fold, the shortest path in <span class="math inline">\(G\)</span> converges to the geodesic on
+<span class="math inline">\(\mathcal{M}\)</span> as <span class="math inline">\(n\to\infty\)</span>. The precise statement (Bernstein, de Silva,
+Langford &amp; Tenenbaum 2000) is that the graph distance converges uniformly when the
+kNN radius is bounded by the manifold's <em>reach</em> — its minimum radius of curvature
+and its minimum separation between distinct sheets — divided by a constant.</p>
+<p>That is the whole theory, and it is a statement about geometry, not about
+algorithms. It also tells you exactly how Isomap fails: when the kNN radius
+exceeds the local reach, an edge connects two sheets, and every distance that
+crosses that edge is shortened.</p>
+<h3 id="3-how-big-can--be">3. How big can <span class="math inline">\(k\)</span> be? <a class="header-anchor" href="#3-how-big-can--be">#</a></h3>
+<p>Make the failure condition quantitative. For <span class="math inline">\(n\)</span> points uniform on a surface of
+area <span class="math inline">\(A\)</span>, the expected number of points within radius <span class="math inline">\(r\)</span> is <span class="math inline">\(\pi r^2 n/A\)</span>, so
+the kNN radius is</p>
+<div class="math block">
+\[r_k \;\approx\; \sqrt{\frac{kA}{\pi n}}. \qquad (3)\]
+</div>
+<p>The roll has sheets separated by <span class="math inline">\(2\pi\)</span> in radius, so an edge can jump a turn once
+<span class="math inline">\(r_k\)</span> reaches about <span class="math inline">\(\pi\)</span> from the middle of a sheet — and solving (3) for that,</p>
+<div class="math block">
+\[k^{*} \;\approx\; \frac{\pi^3 n}{A}. \qquad (4)\]
+</div>
+<p>The demo's sheet has <span class="math inline">\(A \approx 89.4 \times 12 = 1072\)</span> and <span class="math inline">\(n = 600\)</span>, giving
+<span class="math inline">\(k^* \approx 17.3\)</span>. The measurement: <span class="math inline">\(k = 14\)</span> scores <span class="math inline">\(0.9999\)</span> and <span class="math inline">\(k = 16\)</span> scores
+<span class="math inline">\(0.7433\)</span>, one step below the estimate. Equation (4) is an approximation to a
+phase transition, not a theorem, but it gets the order of magnitude and the
+scaling right: more samples means a <em>larger</em> safe <span class="math inline">\(k\)</span>, since <span class="math inline">\(k^*\)</span> grows linearly
+with <span class="math inline">\(n\)</span>.</p>
+<h3 id="4-the-mds-step">4. The MDS step <a class="header-anchor" href="#4-the-mds-step">#</a></h3>
+<p>Given <span class="math inline">\(d\)</span>, the embedding is the classical MDS solution of <code>mds</code>:</p>
+<div class="math block">
+\[Y \;=\; \arg\min_{Y}\ \sum_{i<j}\big(\lVert y_i - y_j\rVert - d_{ij}\big)^2,
+\qquad (5)\]
+</div>
+<p>solved in closed form by double-centring the squared distances,</p>
+<div class="math block">
+\[B \;=\; -\tfrac12\, J\, d^{(2)} J, \qquad B = V\Lambda V^{\mathsf T},
+\qquad Y = V_k \Lambda_k^{1/2}, \qquad (6)\]
+</div>
+<p>with <span class="math inline">\(J = I - \tfrac1n \mathbf{1}\mathbf{1}^{\mathsf T}\)</span>. Equation (6) minimises
+<em>strain</em>, not the stress of (5); they agree when <span class="math inline">\(d\)</span> is Euclidean, which is what
+the graph approximation is trying to make it. Nothing in this step is Isomap's
+contribution — the whole method is the choice of <span class="math inline">\(d\)</span>.</p>
+<h3 id="5-landmarks-and-triangulation">5. Landmarks and triangulation <a class="header-anchor" href="#5-landmarks-and-triangulation">#</a></h3>
+<p>Write <span class="math inline">\(\ell_1,\dots,\ell_m\)</span> for the landmarks and <span class="math inline">\(D_{li}\)</span> for the geodesic
+distance from landmark <span class="math inline">\(l\)</span> to point <span class="math inline">\(i\)</span>. The landmark submatrix <span class="math inline">\(D[\ell,\ell]\)</span> is
+an <span class="math inline">\(m\times m\)</span> distance matrix, so (6) embeds the landmarks. For any other point,
+expand the squared distance to landmark <span class="math inline">\(l\)</span>,</p>
+<div class="math block">
+\[\lVert y_i - y_{\ell}\rVert^2 \;=\; D_{\ell i}^2
+\;\;\Longrightarrow\;\; \lVert y_i\rVert^2 - 2\,y_{\ell}^{\mathsf T}y_i
++ \lVert y_{\ell}\rVert^2 = D_{\ell i}^2. \qquad (7)\]
+</div>
+<p>Subtract the equation for landmark <span class="math inline">\(\ell_1\)</span> and the quadratic term cancels,
+leaving a <strong>linear</strong> system in <span class="math inline">\(y_i\)</span>:</p>
+<div class="math block">
+\[2\,(y_{\ell} - y_{\ell_1})^{\mathsf T} y_i
+\;=\; D_{\ell_1 i}^2 - D_{\ell i}^2 + \lVert y_{\ell}\rVert^2
+- \lVert y_{\ell_1}\rVert^2. \qquad (8)\]
+</div>
+<p>That is <span class="math inline">\(k\)</span> unknowns and <span class="math inline">\(m-1\)</span> equations per point, solved by least squares. When
+<span class="math inline">\(d\)</span> is exactly Euclidean and <span class="math inline">\(m \ge k+1\)</span>, (8) recovers <span class="math inline">\(y_i\)</span> exactly — which is
+why the demo's 12 landmarks already give <span class="math inline">\(0.9996\)</span>: the residual error is not the
+number of landmarks, it is the error in the geodesics themselves.</p>
+<h3 id="6-conformal-distortion">6. Conformal distortion <a class="header-anchor" href="#6-conformal-distortion">#</a></h3>
+<p>A conformal map multiplies the metric by a smooth positive function,</p>
+<div class="math block">
+\[\tilde g_{ij}(x) \;=\; \lambda^2(x)\, g_{ij}(x), \qquad (9)\]
+</div>
+<p>so distances <em>near</em> <span class="math inline">\(x\)</span> are <span class="math inline">\(\lambda(x)\)</span> times what they should be. C-Isomap's
+correction is the symmetric one,</p>
+<div class="math block">
+\[d'_{ij} \;=\; \frac{d_{ij}}{\sqrt{\lambda_i \lambda_j}}, \qquad (10)\]
+</div>
+<p>which is exact infinitesimally and a first-order approximation along a finite
+path: the true geodesic accumulates <span class="math inline">\(\lambda\)</span> continuously, while (10) only looks
+at the endpoints. The constant in <span class="math inline">\(\lambda\)</span> does not matter, because (6) is
+scale-equivariant: <span class="math inline">\(Y(c\,d) = c\,Y(d)\)</span>.</p>
+<p>The factor has to be estimated from the data, and the estimate is where the
+assumption enters. If the sample is uniform with respect to the <em>undistorted</em>
+metric, the number of points in a small region is proportional to the true area,
+so the local spacing in the distorted space is <span class="math inline">\(\lambda\)</span> times the spacing in the
+true one. Hence</p>
+<div class="math block">
+\[\hat\lambda_i \;\propto\; \frac{1}{k}\sum_{j\in N_k(i)}
+\lVert x_i - x_j\rVert, \qquad (11)\]
+</div>
+<p>the mean radius of a <span class="math inline">\(k\)</span>-neighbourhood. The demo's estimator tracks the true
+factor at correlation <span class="math inline">\(0.9433\)</span> on the sphere data — and interprets a density
+gradient on flat data as a factor that is not there, which is failure mode 3.</p>
+<h3 id="7-sparse-completion">7. Sparse completion <a class="header-anchor" href="#7-sparse-completion">#</a></h3>
+<p>Let <span class="math inline">\(S\)</span> be the set of source nodes whose distance rows were computed. Define</p>
+<div class="math block">
+\[\hat D_{ij} \;=\; \min_{l\in S}\big(D_{il} + D_{lj}\big). \qquad (12)\]
+</div>
+<p>Each term in the minimum is the length of a walk <span class="math inline">\(i\to l\to j\)</span>, so
+<span class="math inline">\(\hat D_{ij} \ge d_{ij}\)</span> by the triangle inequality, with equality when <span class="math inline">\(l=i\)</span> or
+<span class="math inline">\(l=j\)</span>; and a path through several sources never beats the best single one, again
+by the triangle inequality, so (12) is already the shortest-path metric of the
+source-hub graph. It is a metric, it agrees with <span class="math inline">\(d\)</span> on every pair that touches a
+source, and its error on the rest is the detour through the nearest useful hub.</p>
+<h3 id="8-what-is-identified">8. What is identified <a class="header-anchor" href="#8-what-is-identified">#</a></h3>
+<p>As with every distance-based embedding, only the distances are data:</p>
+<div class="math block">
+\[Y \;\mapsto\; YQ + \mathbf{1}t^{\mathsf T}, \qquad Q^{\mathsf T}Q = I,
+\qquad (13)\]
+</div>
+<p>so the demo compares distance matrices, distance correlations and
+neighbourhoods — never coordinates. This is not a technicality. A plot of an
+Isomap embedding is a picture of a metric, and which way it is rotated is not a
+property of the data.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>Isomap(n_components=2, *, variant=&quot;isomap&quot;, n_neighbors=10, n_landmarks=None, seed=0)</code> with <code>fit(X)</code>, <code>fit_transform(X)</code>, and the attributes <code>embedding_</code>
+<code>(n, n_components)</code>, <code>distances_</code> (the matrix the embedding fits), <code>stress_</code>,
+<code>landmarks_</code> and <code>scales_</code>. <code>X</code> is a <code>(samples, features)</code> point cloud: unlike
+<code>MDS</code>, Isomap needs the points, because the graph is built from them.</p>
+<h3 id="1-the-graph-symmetrised-by-union">1. The graph, symmetrised by union <a class="header-anchor" href="#1-the-graph-symmetrised-by-union">#</a></h3>
+<pre class="highlight"><code>    <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">k</span><span class="p">)</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="n">W</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">),</span> <span class="n">D</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">])</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="p">(</span><span class="n">cols</span><span class="p">,</span> <span class="n">rows</span><span class="p">),</span> <span class="n">D</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">])</span>
+</code></pre>
+<p>(1). Both directions are written because the kNN relation is not symmetric: <span class="math inline">\(j\)</span>
+can be among <span class="math inline">\(i\)</span>'s neighbours while <span class="math inline">\(i\)</span> is not among <span class="math inline">\(j\)</span>'s. Taking the union
+rather than the intersection is what keeps the graph connected on the boundary of
+a sample, where a one-sided rule leaves points with no outgoing edge at all. The
+<code>minimum.at</code> is needed rather than plain fancy assignment because the same
+<span class="math inline">\((i,j)\)</span> can be reached twice; it takes the smaller weight, which is the one the
+edge should have.</p>
+<h3 id="2-all-pairs-shortest-paths-without-a-source-loop">2. All-pairs shortest paths without a source loop <a class="header-anchor" href="#2-all-pairs-shortest-paths-without-a-source-loop">#</a></h3>
+<pre class="highlight"><code>    <span class="n">D</span> <span class="o">=</span> <span class="n">W</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">D</span><span class="p">[:,</span> <span class="n">k</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">D</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">out</span><span class="o">=</span><span class="n">D</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">D</span>
+</code></pre>
+<p>(2), by Floyd–Warshall. Each iteration asks one question: &quot;is going through <span class="math inline">\(k\)</span>
+shorter than what I have?&quot; — and doing it for every <span class="math inline">\(k\)</span> is the dynamic program.
+The whole thing is three lines because the inner loop is a rank-1 update of an
+<span class="math inline">\(n\times n\)</span> matrix, and <code>out=D</code> keeps it to one allocation per pass. <code>inf</code> is the
+right initial value rather than a large number: it makes &quot;no edge&quot; arithmetically
+inert and lets the final matrix be tested for connectivity directly.</p>
+<h3 id="3-the-sparse-alternative">3. The sparse alternative <a class="header-anchor" href="#3-the-sparse-alternative">#</a></h3>
+<pre class="highlight"><code>    <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="n">dist</span><span class="p">[</span><span class="n">source</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">heap</span> <span class="o">=</span> <span class="p">[(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">source</span><span class="p">)]</span>
+    <span class="k">while</span> <span class="n">heap</span><span class="p">:</span>
+        <span class="n">d</span><span class="p">,</span> <span class="n">i</span> <span class="o">=</span> <span class="n">heapq</span><span class="o">.</span><span class="n">heappop</span><span class="p">(</span><span class="n">heap</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">d</span> <span class="o">&gt;</span> <span class="n">dist</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+            <span class="k">continue</span>                       <span class="c1"># stale heap entry, already improved</span>
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">adj</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+            <span class="n">candidate</span> <span class="o">=</span> <span class="n">d</span> <span class="o">+</span> <span class="n">w</span>
+            <span class="k">if</span> <span class="n">candidate</span> <span class="o">&lt;</span> <span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                <span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">candidate</span>
+                <span class="n">heapq</span><span class="o">.</span><span class="n">heappush</span><span class="p">(</span><span class="n">heap</span><span class="p">,</span> <span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">j</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">dist</span>
+</code></pre>
+<p>The same distances from one source, in <span class="math inline">\(O(E\log n)\)</span> instead of <span class="math inline">\(O(n^2)\)</span> per
+source. The <code>if d &gt; dist[i]: continue</code> is not an optimisation — a lazy heap
+contains one entry per successful relaxation, so most entries are stale, and
+without the check the algorithm is still correct but re-expands nodes many times.
+This is the routine the landmark and sparse variants call, and the reason a
+neighbourhood of 70 landmarks costs 70 searches rather than a full <span class="math inline">\(O(n^3)\)</span>.</p>
+<h3 id="4-the-embedding-step">4. The embedding step <a class="header-anchor" href="#4-the-embedding-step">#</a></h3>
+<pre class="highlight"><code>    <span class="n">n</span> <span class="o">=</span> <span class="n">D</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">J</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
+    <span class="n">B</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">J</span> <span class="o">@</span> <span class="p">(</span><span class="n">D</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">@</span> <span class="n">J</span>
+    <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">evals</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="n">n_components</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">evecs</span><span class="p">[:,</span> <span class="n">order</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">evals</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">))</span>
+</code></pre>
+<p>(6), and the three places it can go silently wrong are all visible: <code>eigh</code> returns
+ascending eigenvalues, so the <code>[::-1]</code> is load-bearing; a graph geodesic matrix is
+only approximately Euclidean, so <span class="math inline">\(B\)</span> has negative eigenvalues and the clamp is a
+projection onto the nearest positive semidefinite matrix rather than an error; and
+<code>D ** 2</code> on a matrix that still contains <code>inf</code> (a disconnected graph) produces
+<code>nan</code> two lines later, which is why connectivity is checked before this is
+reached.</p>
+<h3 id="5-landmarks-distances-to-a-few-geometry-for-all">5. Landmarks: distances to a few, geometry for all <a class="header-anchor" href="#5-landmarks-distances-to-a-few-geometry-for-all">#</a></h3>
+<pre class="highlight"><code>        <span class="n">land</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_farthest_point</span><span class="p">(</span><span class="n">_pairwise</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">m</span><span class="p">)</span>
+        <span class="n">adj</span> <span class="o">=</span> <span class="n">_adjacency</span><span class="p">(</span><span class="n">W</span><span class="p">)</span>
+        <span class="n">D_land</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">_dijkstra</span><span class="p">(</span><span class="n">adj</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">land</span><span class="p">])</span>   <span class="c1"># (m, n)</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">))</span>
+        <span class="n">Y</span><span class="p">[</span><span class="n">land</span><span class="p">]</span> <span class="o">=</span> <span class="n">_classical</span><span class="p">(</span><span class="n">D_land</span><span class="p">[:,</span> <span class="n">land</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">)</span>
+        <span class="n">rest</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">setdiff1d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">land</span><span class="p">,</span> <span class="n">assume_unique</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">Y</span><span class="p">[</span><span class="n">rest</span><span class="p">]</span> <span class="o">=</span> <span class="n">_triangulate</span><span class="p">(</span><span class="n">D_land</span><span class="p">[:,</span> <span class="n">rest</span><span class="p">],</span> <span class="n">Y</span><span class="p">[</span><span class="n">land</span><span class="p">])</span>
+</code></pre>
+<p>The whole variant in six lines: choose, search, embed the square submatrix,
+triangulate. Farthest-point sampling is deterministic — there is no seed here —
+which matters because a random landmark set would make every reported number a
+random variable, and the demo's job is to report a measurement.</p>
+<h3 id="6-the-triangulation-which-is-just-linear-algebra">6. The triangulation, which is just linear algebra <a class="header-anchor" href="#6-the-triangulation-which-is-just-linear-algebra">#</a></h3>
+<pre class="highlight"><code>    <span class="n">base</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">Y</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>                              <span class="c1"># (m − 1, k)</span>
+    <span class="n">rhs</span> <span class="o">=</span> <span class="n">D</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">D</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">base</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>    <span class="c1"># (m − 1, points)</span>
+    <span class="n">coef</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">coef</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p>(7)–(8), for all points at once. The <span class="math inline">\((m-1)\times k\)</span> matrix <code>rows</code> is the same for
+every point, so one <code>lstsq</code> with a matrix of right-hand sides solves the whole
+batch. Subtracting landmark 0 rather than solving the quadratic system is what
+makes it linear; the cost is that landmark 0's position is taken as exact, which
+is fine because it came from the same MDS solve as the others.</p>
+<h3 id="7-the-conformal-scale">7. The conformal scale <a class="header-anchor" href="#7-the-conformal-scale">#</a></h3>
+<pre class="highlight"><code>        <span class="n">idx</span> <span class="o">=</span> <span class="n">_knn</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_neighbors</span><span class="p">,</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">radius</span> <span class="o">=</span> <span class="n">_pairwise</span><span class="p">(</span><span class="n">X</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">smoothed</span> <span class="o">=</span> <span class="n">radius</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scales_</span> <span class="o">=</span> <span class="n">smoothed</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">smoothed</span><span class="p">)))),</span> <span class="n">EPS</span><span class="p">)</span>
+</code></pre>
+<p>(11). The second line is the estimator and the third is a one-hop average over the
+same graph. That average is not cosmetic: a single neighbourhood's mean radius has
+a standard error of order <span class="math inline">\(1/\sqrt{k}\)</span> under Poisson sampling, and the first
+version of this file used it unsmoothed and measured <span class="math inline">\(0.8832\)</span> where the smoothed
+one measures <span class="math inline">\(0.9289\)</span> on the same data. Normalising by the geometric mean only
+fixes the arbitrary scale; it has no effect on the result, since (6) is
+scale-equivariant, and it is there so <code>scales_</code> can be read as a relative factor.</p>
+<pre class="highlight"><code>        <span class="n">scaled</span> <span class="o">=</span> <span class="n">D</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scales_</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scales_</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_</span> <span class="o">=</span> <span class="n">_classical</span><span class="p">(</span><span class="n">scaled</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">)</span>
+</code></pre>
+<p>(10). <code>distances_</code> is set to <code>scaled</code>, not to <code>D</code>: the embedding fits the rescaled
+matrix, and a <code>stress_</code> computed against the raw one would be reporting the wrong
+residual.</p>
+<h3 id="8-the-sparse-closure">8. The sparse closure <a class="header-anchor" href="#8-the-sparse-closure">#</a></h3>
+<pre class="highlight"><code>        <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">_dijkstra</span><span class="p">(</span><span class="n">adj</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sources</span><span class="p">])</span>  <span class="c1"># (m, n)</span>
+
+        <span class="n">D</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">row</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">row</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">out</span><span class="o">=</span><span class="n">D</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>(12). Starting from <code>inf</code> rather than from zeros is the bug this file shipped
+first: a min against an all-zero matrix returns zeros, the embedding is the
+embedding of the zero matrix, and the failure looks like a <code>nan</code> correlation three
+functions away. The diagonal is overwritten afterwards because <span class="math inline">\(D_{ii}\)</span> would
+otherwise be <span class="math inline">\(2\min_l D_{il}\)</span>, the distance to the nearest source doubled, which
+is a small positive number where the metric requires zero.</p>
+<h3 id="9-the-check-that-turns-a-crash-into-a-sentence">9. The check that turns a crash into a sentence <a class="header-anchor" href="#9-the-check-that-turns-a-crash-into-a-sentence">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">_n_components</span><span class="p">(</span><span class="n">W</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"the </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_neighbors</span><span class="si">}</span><span class="s2">-neighbour graph is disconnected; "</span>
+                <span class="s2">"increase n_neighbors or sample more densely"</span>
+            <span class="p">)</span>
+</code></pre>
+<p>A disconnected graph is not an edge case to be patched with <code>nan_to_num</code>. Each
+component would be embedded in its own arbitrary position, and the resulting
+picture would look like a successful embedding with a mysterious cluster
+structure. The demo hits this at <span class="math inline">\(k=6\)</span> on the roll, and the message says what to
+do about it.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><span class="math inline">\(n\)</span> samples, <span class="math inline">\(d\)</span> input dimensions, <span class="math inline">\(k\)</span> neighbours, <span class="math inline">\(m\)</span> landmarks or sources,
+<span class="math inline">\(E \approx nk\)</span> edges.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Operation</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:left">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">pairwise distances</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">Gram identity, no <span class="math inline">\((n,n,d)\)</span> array</td>
+</tr>
+<tr>
+<td style="text-align:left">kNN</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2\log n)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">full argsort; a tree would be <span class="math inline">\(O(n\log n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">Floyd–Warshall</td>
+<td style="text-align:left"><span class="math inline">\(O(n^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">vectorised, one pass per node</td>
+</tr>
+<tr>
+<td style="text-align:left">Dijkstra, all sources</td>
+<td style="text-align:left"><span class="math inline">\(O(nE\log n)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span> per source</td>
+<td style="text-align:left">the sparse graph's natural cost</td>
+</tr>
+<tr>
+<td style="text-align:left">Dijkstra, <span class="math inline">\(m\)</span> sources</td>
+<td style="text-align:left"><span class="math inline">\(O(mE\log n)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span> per source</td>
+<td style="text-align:left"><code>landmark</code>, <code>sparse</code></td>
+</tr>
+<tr>
+<td style="text-align:left">min-plus closure</td>
+<td style="text-align:left"><span class="math inline">\(O(mn^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">one rank-1 min per source</td>
+</tr>
+<tr>
+<td style="text-align:left">classical MDS</td>
+<td style="text-align:left"><span class="math inline">\(O(n^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left">one symmetric eigendecomposition</td>
+</tr>
+<tr>
+<td style="text-align:left">triangulation</td>
+<td style="text-align:left"><span class="math inline">\(O\big(mk(n-m) + mk^2\big)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(mn)\)</span></td>
+<td style="text-align:left">one batched <code>lstsq</code></td>
+</tr>
+<tr>
+<td style="text-align:left">full demo</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">14 fits, 3.0 s</td>
+</tr>
+</tbody>
+</table>
+<p>The two <span class="math inline">\(O(n^3)\)</span> rows decide the design. Floyd–Warshall and the eigendecomposition
+are the same order, so <code>isomap</code> is an <span class="math inline">\(O(n^3)\)</span> method end to end and stops being
+practical somewhere around several thousand points. <code>landmark</code> removes both: <span class="math inline">\(m\)</span>
+Dijkstra runs are <span class="math inline">\(O(mE\log n)\)</span> and the landmark eigendecomposition is <span class="math inline">\(O(m^3)\)</span>,
+leaving the triangulation, which is linear in <span class="math inline">\(n\)</span>. That is the variant to use at
+scale, and it is what every production Isomap does.</p>
+<p>Memory is <span class="math inline">\(O(n^2)\)</span> throughout, and it is the real wall. A geodesic matrix for
+<span class="math inline">\(10^5\)</span> points is 80 GB; the graph itself is <span class="math inline">\(O(nk)\)</span> and sparse, so the honest
+large-scale version never materialises the matrix and does the MDS step by
+stochastic descent on sampled pairs.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>1. A short-circuit, which is a topological failure and not a tuning problem.</strong>
+The measurement is not subtle: <span class="math inline">\(k=14\)</span> gives <span class="math inline">\(0.9999\)</span>, <span class="math inline">\(k=16\)</span> gives <span class="math inline">\(0.7433\)</span>,
+<span class="math inline">\(k=32\)</span> gives <span class="math inline">\(0.1760\)</span>, and the maximum graph distance falls from <span class="math inline">\(91.5\)</span> to <span class="math inline">\(37.8\)</span>
+as edges open between turns. Nothing downstream can detect this — the matrix is a
+valid distance matrix and the embedding is a valid embedding of the wrong metric.
+Use (4) to place <span class="math inline">\(k\)</span> below the predicted transition, and plot the geodesic
+distances against the ambient ones as a check: a straight line that falls below
+<span class="math inline">\(y = x\)</span> is a shortcut.</p>
+<p><strong>2. A disconnected graph.</strong> At <span class="math inline">\(k=6\)</span> on the same roll the graph is in pieces and
+the code raises. The tempting fix — filling the missing distances with a large
+number — embeds each component independently and produces a picture with a
+made-up layout between them. Increase <span class="math inline">\(k\)</span>, or increase the sample, or accept that
+the data are not one manifold.</p>
+<p><strong>3. Conformal correction on data that is not conformally distorted.</strong> The demo
+takes the flat plane, where the metric is Euclidean and nothing needs correcting,
+samples it with density <span class="math inline">\(\propto 1/r\)</span>, and the estimator reads the gradient as a
+scale factor: correlation falls from <span class="math inline">\(0.9992\)</span> to <span class="math inline">\(0.1880\)</span>. &quot;The metric is
+stretched here&quot; and &quot;there are more points here&quot; are the same observation, and
+the method has no way to prefer one. C-Isomap is safe when the sampling is
+uniform by design and the distortion is real.</p>
+<p><strong>4. The estimate is noisy at small <span class="math inline">\(k\)</span>.</strong> A single neighbourhood radius has
+standard error <span class="math inline">\(\sim 1/\sqrt{k}\)</span> under Poisson sampling; at <span class="math inline">\(k=10\)</span> that is a 30%
+error per point, which is why (11) is smoothed over one hop. Below <span class="math inline">\(k \approx 5\)</span>
+the correction is dominated by that noise, and the demo's own numbers improved
+from <span class="math inline">\(0.8832\)</span> to <span class="math inline">\(0.9289\)</span> when the smoothing was added — a reminder that an
+estimator with the right expectation can still be worse than doing nothing.</p>
+<p><strong>5. Landmark errors are geodesic errors, not triangulation errors.</strong> With 12
+landmarks the demo still scores <span class="math inline">\(0.9996\)</span>: (8) is exact given exact distances, and
+<span class="math inline">\(k+1\)</span> of them suffice. So the landmark count is a <em>cost</em> knob, not an accuracy
+knob — spending more landmarks buys you a better-conditioned triangulation and
+nothing else. What does hurt is choosing landmarks badly, which is why they are
+spread by farthest-point sampling rather than drawn at random.</p>
+<p><strong>6. Sparse completion is biased upward, and unevenly.</strong> The mean gap is positive
+by construction — every completion is a detour — but the <em>maximum</em> gap is what
+matters: <span class="math inline">\(20.2\)</span> at 5% of sources against a mean of <span class="math inline">\(0.61\)</span>. A handful of pairs are
+badly over-estimated, and in an embedding those are the pairs that decide the
+large-scale layout. More sources is the only fix; the closure cannot invent
+information.</p>
+<p><strong>7. Noise creates edges that are not geodesics.</strong> A point jittered off the
+surface is connected to its jittered neighbours, and the path through the noise
+is shorter than the path along the manifold. Isomap assumes noise-free samples on
+a smooth manifold; on real data the usual repair is to denoise first or to use a
+robust graph (mutual kNN, or a threshold on edge length relative to the local
+scale).</p>
+<p><strong>8. There is no out-of-sample transform.</strong> <code>fit</code> embeds the training points and
+nothing else. A new point needs its distances to the graph, which means inserting
+it, recomputing shortest paths, and re-solving — not a projection. The landmark
+variant is the exception in principle — distances to the landmarks plus (8) place
+a new point directly — though this implementation does not expose a <code>transform</code>,
+because a new point still has to be attached to the graph before its distances to
+the landmarks exist.</p>
+<p><strong>9. The intrinsic dimension is an assumption, not an output.</strong> <code>n_components</code> is
+chosen by you; Isomap does not estimate it, and asking for one dimension fewer
+than the manifold has produces a plot with no warning and a stress that looks
+acceptable. Compare the stress against <code>n_components + 1</code> the way the <code>mds</code> demo
+does.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Manifold learning and visualisation.</strong> The original use: recovering the
+intrinsic coordinates of a data set that lies on a curved surface — robot joint
+angles from images of an arm, pose from pixel vectors, a low-dimensional
+parameterisation of a family of shapes.</li>
+<li><strong>Embedding a graph's metric.</strong> Any graph with edge lengths has an Isomap
+embedding, and it is one of the standard layouts for a network whose edges are
+real distances (road networks, mesh parameterisation) rather than affinities.
+This is the same computation as Kamada–Kawai, which is SMACOF on graph
+geodesics.</li>
+<li><strong>Sensor and network localisation.</strong> Landmark Isomap is exactly the structure
+of the problem: distances from a few anchors, positions for everything else,
+triangulated linearly. The distances can be hops or time-of-flight.</li>
+<li><strong>Feature construction before a supervised model.</strong> The embedding coordinates
+are a compact, geometry-aware representation, and <code>landmark</code> makes the transform
+available for new points.</li>
+<li><strong>Sanity check on other embeddings.</strong> Because Isomap fits only the geodesic
+distances, its stress is a direct measure of how far a manifold is from flat. A
+high stress on data you believe is low-dimensional is information.</li>
+<li><strong>Conformally distorted data.</strong> C-Isomap was built for exactly one situation:
+you know the sampling is uniform in the metric you want and the measured space
+is a conformal image of it. Under that assumption it is the only method in this
+chapter that corrects the distortion explicitly.</li>
+</ul>
+<p>Where it is a trap: choosing <span class="math inline">\(k\)</span> by the look of the plot; applying the conformal
+variant to data whose density varies for any other reason; using Isomap on data
+with more than one connected component; trusting an embedding whose graph
+diameter collapsed; and expecting Isomap to denoise, which it does not.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li><strong>Tenenbaum, de Silva &amp; Langford (2000),</strong> <em>A global geometric framework for
+nonlinear dimensionality reduction</em> — Isomap, the swiss-roll experiment, and
+the argument that geodesic distance is the right invariant.</li>
+<li><strong>de Silva &amp; Tenenbaum (2003),</strong> <em>Global versus local methods in nonlinear
+dimensionality reduction</em> — landmark Isomap and C-Isomap, the two variants that
+make the method practical and that supply equations (8) and (10).</li>
+<li><strong>Bernstein, de Silva, Langford &amp; Tenenbaum (2000),</strong> <em>Graph approximations to
+geodesics on embedded manifolds</em> — the convergence theorem behind §2, and the
+reach condition that (4) makes concrete.</li>
+<li><strong>Balasubramanian &amp; Schwartz (2002),</strong> <em>The Isomap algorithm and topological
+stability</em> — the short-circuit failure, with examples of graphs that are dense
+and still wrong.</li>
+<li><strong>Donoho &amp; Grimes (2003),</strong> <em>Hessian eigenmaps: locally linear embedding
+techniques for high-dimensional data</em> — the analysis of when the graph Laplacian
+methods recover a manifold, and the geometric conditions Isomap shares.</li>
+<li><strong>Dijkstra (1959),</strong> <em>A note on two problems in connexion with graphs</em> — the
+shortest-path routine the landmark and sparse variants run.</li>
+<li><strong>Floyd (1962),</strong> <em>Algorithm 97: shortest path</em> — the all-pairs dynamic program
+of §4, in the form the vectorised code uses.</li>
+<li><strong>Zwick (2001),</strong> <em>Exact and approximate distances in graphs — a survey</em> — the
+min-plus closure and its error bounds, which is the theory behind the <code>sparse</code>
+variant.</li>
+<li><strong>Cayton (2005),</strong> <em>Algorithms for manifold learning</em> — the survey that puts
+Isomap, LLE and Laplacian eigenmaps in one framework and states their sampling
+assumptions side by side.</li>
+<li><strong>Lee &amp; Verleysen (2007),</strong> <em>Nonlinear Dimensionality Reduction</em> — the
+book-length treatment, including the practical advice on choosing <span class="math inline">\(k\)</span> and on
+when a geodesic distance is not meaningful.</li>
+<li><strong>Goldberg, Zhu, Singh, Xu &amp; Nowak (2008),</strong> <em>Multi-manifold semi-supervised
+learning</em> — what goes wrong when the data are several manifolds rather than one,
+which is the disconnected-graph failure in its natural habitat.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="umap.html"><small>Previous</small><span>UMAP</span></a><a class="next" href="random_projection.html"><small>Next</small><span>Random projection</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">08 · Manifolds &amp; embeddings</p><ul class="rail-list"><li><a href="tsne.html"><span class="tick">✓</span><span>t-SNE</span></a></li><li><a href="umap.html"><span class="tick">✓</span><span>UMAP</span></a></li><li><a href="isomap.html" aria-current="page"><span class="tick">✓</span><span>Isomap</span></a></li><li><a href="random_projection.html"><span class="tick">✓</span><span>Random projection</span></a></li><li><a href="pacmap.html"><span class="tick">✓</span><span>PaCMAP</span></a></li><li><a href="lle.html"><span class="tick">✓</span><span>Locally linear embedding</span></a></li><li><a href="laplacian_eigenmaps.html"><span class="tick">✓</span><span>Laplacian eigenmaps</span></a></li><li><a href="mds.html"><span class="tick">✓</span><span>Classical MDS</span></a></li><li><a href="autoencoder_dr.html"><span class="tick">✓</span><span>Autoencoder embedding</span></a></li><li><a href="trimap.html"><span class="tick">✓</span><span>TriMap</span></a></li><li><a href="diffusion_maps.html"><span class="tick">✓</span><span>Diffusion maps</span></a></li><li><a href="phate.html"><span class="tick">✓</span><span>PHATE</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../07-clustering/index.html"><span class="jump">← 07 · Clustering</span></a></li><li><a href="../09-density-and-anomaly/index.html"><span class="jump">09 · Density &amp; anomaly&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-graph-and-the-geodesic">1. The graph and the geodesic</a></li><li class="lvl3"><a href="#2-why-the-graph-distance-is-the-right-one">2. Why the graph distance is the right one</a></li><li class="lvl3"><a href="#3-how-big-can--be">3. How big can k be?</a></li><li class="lvl3"><a href="#4-the-mds-step">4. The MDS step</a></li><li class="lvl3"><a href="#5-landmarks-and-triangulation">5. Landmarks and triangulation</a></li><li class="lvl3"><a href="#6-conformal-distortion">6. Conformal distortion</a></li><li class="lvl3"><a href="#7-sparse-completion">7. Sparse completion</a></li><li class="lvl3"><a href="#8-what-is-identified">8. What is identified</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-the-graph-symmetrised-by-union">1. The graph, symmetrised by union</a></li><li class="lvl3"><a href="#2-all-pairs-shortest-paths-without-a-source-loop">2. All-pairs shortest paths without a source loop</a></li><li class="lvl3"><a href="#3-the-sparse-alternative">3. The sparse alternative</a></li><li class="lvl3"><a href="#4-the-embedding-step">4. The embedding step</a></li><li class="lvl3"><a href="#5-landmarks-distances-to-a-few-geometry-for-all">5. Landmarks: distances to a few, geometry for all</a></li><li class="lvl3"><a href="#6-the-triangulation-which-is-just-linear-algebra">6. The triangulation, which is just linear algebra</a></li><li class="lvl3"><a href="#7-the-conformal-scale">7. The conformal scale</a></li><li class="lvl3"><a href="#8-the-sparse-closure">8. The sparse closure</a></li><li class="lvl3"><a href="#9-the-check-that-turns-a-crash-into-a-sentence">9. The check that turns a crash into a sentence</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/08-manifold/isomap.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

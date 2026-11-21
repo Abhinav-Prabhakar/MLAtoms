@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autoencoder embedding · MLAtoms</title>
+<meta name="description" content="Bottleneck autoencoders as learned nonlinear projections. Every other atom in this chapter decides in advance what a good embedding preserves — local…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/08-manifold/autoencoder_dr.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Autoencoder embedding">
+<meta property="og:description" content="Bottleneck autoencoders as learned nonlinear projections. Every other atom in this chapter decides in advance what a good embedding preserves — local…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/08-manifold/autoencoder_dr.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Autoencoder embedding">
+<meta name="twitter:description" content="Bottleneck autoencoders as learned nonlinear projections. Every other atom in this chapter decides in advance what a good embedding preserves — local…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Autoencoder embedding", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/08-manifold/autoencoder_dr.html", "description": "Bottleneck autoencoders as learned nonlinear projections. Every other atom in this chapter decides in advance what a good embedding preserves \u2014 local\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">08 · Manifolds &amp; embeddings</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="autoencoder_dr.py.html">source</a></p><h1>Autoencoder embedding</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Every other atom in this chapter decides in advance what a good embedding
+preserves — local weights, graph smoothness, geodesic distance, neighbour
+probabilities. An autoencoder decides nothing. It puts a narrow layer in the
+middle of a network and asks the network to reproduce its own input through it:</p>
+<pre class="highlight"><code> D            h              d              h              D
+ x ─────────► tanh ────────► z ──────────► tanh ────────► x̂
+              W₁, b₁        W₂, b₂         W₃, b₃         W₄, b₄
+              └────────── encoder ───────┘└───── decoder ─────┘
+                                          │
+                          ℒ = ½‖x − x̂‖²   (+ λ‖∂z/∂x‖², + β·KL)
+</code></pre>
+<p>If <span class="math inline">\(d < D\)</span> the network cannot copy, so it has to choose what to keep. The
+cheapest thing to keep is a set of coordinates from which the input can be
+rebuilt: on a plane in five dimensions, two numbers suffice, and the loss is
+minimised by any two coordinates that span the plane. On a sheet folded in three
+dimensions, no <em>linear</em> pair of numbers suffices — a projection has to choose
+which fold to collapse — but a curved map can unroll the sheet first. That is the
+entire content of the method: the map is learned, and the only pressure on it is
+reconstruction.</p>
+<p>The catch is that reconstruction does not define a geometry. If <span class="math inline">\(z\)</span> is a valid
+code, so is <span class="math inline">\(Az\)</span> for any invertible <span class="math inline">\(A\)</span>, provided the decoder is adjusted
+accordingly: the loss is invariant to the whole general linear group. Distances
+in the code space therefore mean nothing in particular, and two runs on the same
+data can produce codes that differ by an arbitrary shear. The demo measures this
+directly — six seeds on the same S-curve reach reconstruction errors from
+<span class="math inline">\(0.00132\)</span> to <span class="math inline">\(0.02278\)</span> and distance correlations from <span class="math inline">\(0.768\)</span> to <span class="math inline">\(0.901\)</span>, and
+the run with the lowest error is not the run with the best geometry.</p>
+<p>What the method does have that the graph methods lack is <em>amortisation</em>: the
+encoder is a function, so a new point can be placed in <span class="math inline">\(O(Dh)\)</span> arithmetic without
+re-solving anything. That is why it is the default choice when <span class="math inline">\(n\)</span> is large, when
+points arrive after training, or when the embedding is a feature extractor for
+something else. It is also why it is a poor choice when you need a metric.</p>
+<pre class="mermaid-source"><code class="language-mermaid">graph LR
+    A[&quot;X ∈ ℝⁿˣᴰ&quot;] --&gt; B[&quot;standardise&lt;br/&gt;x ← (x − μ)/s&quot;]
+    B --&gt; C[&quot;encoder&lt;br/&gt;tanh(xW₁+b₁)W₂+b₂&quot;]
+    C --&gt; D[&quot;code Z ∈ ℝⁿˣᵈ&quot;]
+    D --&gt; E[&quot;decoder&lt;br/&gt;tanh(zW₃+b₃)W₄+b₄&quot;]
+    E --&gt; F[&quot;ℒ&quot;]
+    F -.-&gt;|&quot;backprop&quot;| C
+    D -.-&gt; G[&quot;measure it&lt;br/&gt;afterwards&quot;]
+</code></pre>
+<p>The demo's first check is that the four variants are implemented correctly, and
+it is the only assertion in the file that does not depend on data: a 6-5-2
+network on 11 points, every parameter compared with central differences, worst
+relative error <span class="math inline">\(3.1 \times 10^{-7}\)</span> over 4 variants × 8 tensors × 3 entries. The
+rest of this document quotes measurements from the same run.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<p>All four fit the same architecture; they differ in one term of the loss.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">extra term</th>
+<th style="text-align:left">what it constrains</th>
+<th style="text-align:left">measured cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ae</code></td>
+<td style="text-align:left">none</td>
+<td style="text-align:left">nothing beyond reconstruction</td>
+<td style="text-align:left">code is arbitrary up to GL(d)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>denoising_ae</code></td>
+<td style="text-align:left">input jitter, target unchanged</td>
+<td style="text-align:left">the map should ignore small perturbations</td>
+<td style="text-align:left">local overlap up, global distances down</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>vae_embed</code></td>
+<td style="text-align:left"><span class="math inline">\(\beta\,\mathrm{KL}(q(z\mid x)\,\Vert\,p(z))\)</span></td>
+<td style="text-align:left">the code cloud should look like the prior</td>
+<td style="text-align:left">reconstruction</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>contractive</code></td>
+<td style="text-align:left"><span class="math inline">\(\lambda \lVert \partial z/\partial x \rVert_F^2\)</span></td>
+<td style="text-align:left">the code should change slowly with the input</td>
+<td style="text-align:left">local fidelity, and the code's own scale</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>ae</code></strong> is (3) and nothing else. On the plane it recovers <span class="math inline">\(99.98\%\)</span> of the
+variance and correlates <span class="math inline">\(0.99244\)</span> with the generating coordinates; PCA on the
+same data correlates <span class="math inline">\(1.00000\)</span>. The network does not converge to PCA exactly —
+<code>tanh</code> is not linear, so the optimum is a curved chart of the plane, not a
+projection — but on a linear manifold the two agree to two decimal places, which
+is the sanity check that the optimiser is doing its job.</p>
+<p><strong><code>denoising_ae</code></strong> corrupts the input and keeps the target. In the demo the
+S-curve gets Gaussian noise of <span class="math inline">\(0.10\)</span> per coordinate; training on the noisy copy
+without jitter keeps <span class="math inline">\(0.634\)</span> of each point's eight nearest neighbours and
+correlates <span class="math inline">\(0.817\)</span> with the true parameters, and adding the jitter moves those to
+<span class="math inline">\(0.649\)</span> and <span class="math inline">\(0.788\)</span>. At twenty neighbours it is <span class="math inline">\(0.739 \to 0.748\)</span>. The jitter is
+a regulariser that smooths the map, which buys local neighbourhoods and pays for
+them in global stretch: <span class="math inline">\(-0.028\)</span> on distance correlation for <span class="math inline">\(+0.015\)</span> on overlap.
+It does not reach the clean-data ceiling of <span class="math inline">\(0.759\)</span> / <span class="math inline">\(0.878\)</span>.</p>
+<p><strong><code>vae_embed</code></strong> splits the latent layer into <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\log\sigma^2\)</span>, samples
+<span class="math inline">\(z = \mu + \sigma \odot \varepsilon\)</span>, and pays a KL per point. The relevant
+measurement is not the per-sample KL but the <em>aggregate</em> one: fit a Gaussian to
+the whole code cloud and ask how far it is from <span class="math inline">\(\mathcal{N}(0, I)\)</span>. On the
+plane the plain code is <span class="math inline">\(0.737\)</span> nats away with standard deviation <span class="math inline">\(0.304\)</span> per
+axis — the flattened shape of a uniform square. A sweep gives <span class="math inline">\(\beta = 0.05\)</span>:
+<span class="math inline">\(0.0005\)</span> nats at <span class="math inline">\(99.775\%\)</span> of the variance explained; <span class="math inline">\(\beta = 0.2\)</span>: <span class="math inline">\(0.0035\)</span> at
+<span class="math inline">\(98.989\%\)</span>; <span class="math inline">\(\beta = 1\)</span>: <span class="math inline">\(0.0774\)</span> at <span class="math inline">\(87.779\%\)</span>. So <span class="math inline">\(\beta = 0.05\)</span> buys a code
+cloud <span class="math inline">\(1606\times\)</span> closer to the prior for <span class="math inline">\(0.2\%\)</span> of the variance, and <span class="math inline">\(\beta =
+1\)</span> pays another <span class="math inline">\(12\%\)</span> for a further factor of 150. Two caveats measured in the
+same run: the per-sample KL at <span class="math inline">\(\beta = 0.05\)</span> is <span class="math inline">\(3.78\)</span> — the term constrains
+each point's posterior, not the shape of the cloud — and the per-axis kurtosis at
+<span class="math inline">\(\beta = 1\)</span> is <span class="math inline">\(1.96\)</span> against <span class="math inline">\(2.20\)</span> for the plain code and <span class="math inline">\(3.00\)</span> for a
+Gaussian. Matching mean and variance is not matching the distribution.</p>
+<p><strong><code>contractive</code></strong> adds the squared Frobenius norm of the encoder Jacobian. At
+<span class="math inline">\(\lambda = 0.05\)</span> the mean <span class="math inline">\(\lVert J \rVert_F^2\)</span> falls from <span class="math inline">\(6.127\)</span> to <span class="math inline">\(0.222\)</span>, a
+factor of <span class="math inline">\(27.6\)</span>; but the code's scale falls from <span class="math inline">\(1.93\)</span> to <span class="math inline">\(0.41\)</span> at the same
+time, and the penalty scales as the square of that, so <span class="math inline">\(22.3\)</span> of the <span class="math inline">\(28\)</span> is
+amplitude the decoder could undo. The genuine flattening is <span class="math inline">\(1.23\times\)</span>. The
+embedding still correlates <span class="math inline">\(0.909\)</span> with the sheet — better than <span class="math inline">\(0.878\)</span> — and
+keeps <span class="math inline">\(0.710\)</span> of each point's eight neighbours against <span class="math inline">\(0.759\)</span>. The penalty is
+not scale-invariant, and on a two-dimensional latent the optimiser takes the
+scale route before it takes the flatness route.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-objective-and-what-it-can-and-cannot-identify">1. The objective, and what it can and cannot identify <a class="header-anchor" href="#1-the-objective-and-what-it-can-and-cannot-identify">#</a></h3>
+<p>Write the encoder and decoder as</p>
+<div class="math block">
+\[z = \tanh(x W_1 + b_1) W_2 + b_2, \qquad
+\hat{x} = \tanh(z W_3 + b_3) W_4 + b_4 \qquad (1)\]
+</div>
+<div class="math block">
+\[\mathcal{L}(W, b) = \frac{1}{2n} \sum_{i=1}^{n} \lVert x_i - \hat{x}_i \rVert^2 \qquad (2)\]
+</div>
+<p>with <span class="math inline">\(W_1 \in \mathbb{R}^{D \times h}\)</span>, <span class="math inline">\(W_2 \in \mathbb{R}^{h \times d}\)</span>,
+<span class="math inline">\(W_3 \in \mathbb{R}^{d \times h}\)</span>, <span class="math inline">\(W_4 \in \mathbb{R}^{h \times D}\)</span>. The
+bottleneck is the rank of the middle: <span class="math inline">\(d\)</span> numbers must carry everything the
+decoder sees.</p>
+<p>Two facts pin down what (2) can mean. First, if both sides were linear, the
+problem would have a closed form: the optimum is the projection onto the leading
+<span class="math inline">\(d\)</span> principal subspace, by Eckart–Young. The <code>tanh</code> is the whole difference. It
+lets the encoder bend the coordinate system, which is what an S-curve needs, and
+it also means the objective is non-convex with many local minima — so the answer
+is whatever the optimiser finds, not a well-defined object.</p>
+<p>Second, the loss is invariant under any invertible change of the code. For any
+<span class="math inline">\(A \in \mathrm{GL}(d)\)</span>, replacing</p>
+<div class="math block">
+\[z \mapsto A z, \qquad W_3 \mapsto W_3 A^{-1}, \qquad b_3 \mapsto b_3
+\qquad (3)\]
+</div>
+<p>leaves <span class="math inline">\(\hat{x}\)</span> unchanged, because the tanh acts entrywise after <span class="math inline">\(z W_3\)</span> and
+<span class="math inline">\((Az)(W_3 A^{-1}) = z W_3\)</span>. The same argument covers a rescaling of the latent
+and a compensating rescaling of the decoder. So (2) identifies an equivalence
+class of codes, not a code: any statement about distances, angles or axes in <span class="math inline">\(Z\)</span>
+must be preceded by an alignment step. The demo sidesteps this by using
+distance-matrix correlation and neighbour overlap, which are invariant to
+rotation and isotropic scale — but not to a general shear, which is why the
+failure section treats it as a diagnostic rather than a proof.</p>
+<h3 id="2-backpropagation-through-the-two-layers">2. Backpropagation through the two layers <a class="header-anchor" href="#2-backpropagation-through-the-two-layers">#</a></h3>
+<p>Let <span class="math inline">\(R = \hat{x} - x\)</span> and <span class="math inline">\(u = 1 - H^2\)</span>, the derivative of <code>tanh</code> at the hidden
+activation. With the <span class="math inline">\(1/n\)</span> already inside <span class="math inline">\(R\)</span> (the loss is a mean):</p>
+<div class="math block">
+\[\frac{\partial \mathcal{L}}{\partial W_4} = G^\top \frac{R}{n}, \qquad
+\frac{\partial \mathcal{L}}{\partial b_4} = \frac{1}{n}\sum_i R_i
+\qquad (4)\]
+</div>
+<div class="math block">
+\[d_G = \frac{R}{n} W_4^\top, \qquad
+d_{\text{pre}} = d_G \odot (1 - G^2), \qquad
+d_Z = d_{\text{pre}} W_3^\top \qquad (5)\]
+</div>
+<div class="math block">
+\[\frac{\partial \mathcal{L}}{\partial W_3} = Z^\top d_{\text{pre}}, \qquad
+d_H = d_Z W_2^\top, \qquad
+d_A = d_H \odot u \qquad (6)\]
+</div>
+<div class="math block">
+\[\frac{\partial \mathcal{L}}{\partial W_1} = X_{\text{in}}^\top d_A, \qquad
+\frac{\partial \mathcal{L}}{\partial b_1} = \sum_i (d_A)_i \qquad (7)\]
+</div>
+<p>The two lines that a naive implementation gets wrong are the placement of <span class="math inline">\(1/n\)</span>
+and the use of <span class="math inline">\(X_{\text{in}}\)</span> rather than <span class="math inline">\(X\)</span> in (7). The first is a scalar and
+does not change the direction, but it changes the meaning of the learning rate
+and breaks every finite-difference check that assumes a mean. The second matters
+only for <code>denoising_ae</code>, where the encoder saw the corrupted input and the
+decoder is being asked about the clean one.</p>
+<h3 id="3-the-variational-branch">3. The variational branch <a class="header-anchor" href="#3-the-variational-branch">#</a></h3>
+<p>For <code>vae_embed</code> the latent layer produces <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\log\sigma^2\)</span> and the code is</p>
+<div class="math block">
+\[z = \mu + \sigma \odot \varepsilon, \qquad
+\sigma = \exp\!\left(\tfrac{1}{2}\log\sigma^2\right), \qquad
+\varepsilon \sim \mathcal{N}(0, I) \qquad (8)\]
+</div>
+<div class="math block">
+\[\mathrm{KL}\big(q(z\mid x) \,\Vert\, \mathcal{N}(0, I)\big)
+= \tfrac{1}{2}\sum_{j=1}^{d}\left(\sigma_j^2 + \mu_j^2 - 1 - \log\sigma_j^2\right)
+\qquad (9)\]
+</div>
+<p>Equation (9) is the closed form for two Gaussians with diagonal covariance, and
+it is the reason the variant is cheap: no sampling is needed to evaluate the
+regulariser. The gradients follow from the reparameterisation in (8),</p>
+<div class="math block">
+\[\frac{\partial \mathrm{KL}}{\partial \mu} = \mu, \qquad
+\frac{\partial \mathrm{KL}}{\partial \log\sigma^2}
+= \tfrac{1}{2}\left(\sigma^2 - 1\right), \qquad
+\frac{\partial z}{\partial \log\sigma^2} = \tfrac{1}{2}\sigma \odot \varepsilon
+\qquad (10)\]
+</div>
+<p>so that</p>
+<div class="math block">
+\[d_\mu = d_Z + \frac{\beta}{n}\mu, \qquad
+d_{\log\sigma^2} = \tfrac{1}{2} d_Z \odot \sigma \odot \varepsilon
++ \frac{\beta}{2n}\left(\sigma^2 - 1\right) \qquad (11)\]
+</div>
+<p>and <span class="math inline">\(d_E\)</span> is the horizontal concatenation <span class="math inline">\([d_\mu, d_{\log\sigma^2}]\)</span>. The
+<span class="math inline">\(\tfrac{1}{2}\sigma \odot \varepsilon\)</span> factor in (11) is the one line that is
+easy to write as <span class="math inline">\(\sigma \odot \varepsilon\)</span>; it is off by a factor of two and the
+gradient check catches it.</p>
+<h3 id="4-the-contractive-term-in-closed-form">4. The contractive term, in closed form <a class="header-anchor" href="#4-the-contractive-term-in-closed-form">#</a></h3>
+<p>The encoder Jacobian of one point is</p>
+<div class="math block">
+\[J_i = \frac{\partial z_i}{\partial x_i}
+= W_2^\top \mathrm{diag}(u_i) W_1^\top \in \mathbb{R}^{d \times D} \qquad (12)\]
+</div>
+<p>and its squared Frobenius norm collapses to a quadratic form in <span class="math inline">\(u_i\)</span>:</p>
+<div class="math block">
+\[\lVert J_i \rVert_F^2
+= \mathrm{tr}\!\left(W_2^\top \mathrm{diag}(u_i) W_1^\top
+  W_1 \mathrm{diag}(u_i) W_2\right)
+= u_i^\top (A \odot B)\, u_i \qquad (13)\]
+</div>
+<div class="math block">
+\[A = W_1^\top W_1 \in \mathbb{R}^{h \times h}, \qquad
+B = W_2 W_2^\top \in \mathbb{R}^{h \times h} \qquad (14)\]
+</div>
+<p>using <span class="math inline">\(\mathrm{tr}(UV) = \mathrm{tr}(VU)\)</span> and
+<span class="math inline">\(\mathrm{tr}(\mathrm{diag}(u) M \mathrm{diag}(u) N) = u^\top (M \odot N^\top) u\)</span>.
+That identity is what makes <code>contractive</code> cost <span class="math inline">\(O(h^2)\)</span> per epoch rather than
+<span class="math inline">\(O(nDh)\)</span> per point: no Jacobian is ever formed.</p>
+<p>The penalty <span class="math inline">\(P = \lambda n^{-1}\sum_i u_i^\top C u_i\)</span> with <span class="math inline">\(C = A \odot B\)</span> has
+two gradient paths. Through <span class="math inline">\(A\)</span> and <span class="math inline">\(B\)</span>, with <span class="math inline">\(U = n^{-1}\sum_i u_i u_i^\top\)</span>,</p>
+<div class="math block">
+\[\frac{\partial P}{\partial A} = \lambda\,(U \odot B), \qquad
+\frac{\partial P}{\partial B} = \lambda\,(U \odot A) \qquad (15)\]
+</div>
+<p>and since <span class="math inline">\(A = W_1^\top W_1\)</span>, <span class="math inline">\(B = W_2 W_2^\top\)</span>,</p>
+<div class="math block">
+\[\frac{\partial P}{\partial W_1} = 2 W_1 \frac{\partial P}{\partial A}, \qquad
+\frac{\partial P}{\partial W_2} = 2 \frac{\partial P}{\partial B} W_2
+\qquad (16)\]
+</div>
+<p>Through <span class="math inline">\(u_i = 1 - h_i^2\)</span>,</p>
+<div class="math block">
+\[\frac{\partial P}{\partial h_i}
+= -\frac{4\lambda}{n}\, h_i \odot (C u_i) \qquad (17)\]
+</div>
+<p>which enters <span class="math inline">\(d_H\)</span> <em>before</em> the multiplication by <span class="math inline">\(u\)</span> in (6), not after. Drop
+that path and the loss still decreases during training, so the run looks fine;
+the gradient check in the demo is what notices.</p>
+<h3 id="5-why-denoising-and-contractive-are-cousins">5. Why denoising and contractive are cousins <a class="header-anchor" href="#5-why-denoising-and-contractive-are-cousins">#</a></h3>
+<p>Expand the decoder around the clean input. With corruption <span class="math inline">\(\varepsilon \sim
+\mathcal{N}(0, \sigma^2 I)\)</span> and <span class="math inline">\(J = \partial \hat{x}/\partial x\)</span> the Jacobian of
+the whole reconstruction map,</p>
+<div class="math block">
+\[\hat{x}(x + \varepsilon) \approx \hat{x}(x) + J \varepsilon
+\quad\Longrightarrow\quad
+\mathbb{E}\lVert x - \hat{x}(x+\varepsilon) \rVert^2
+\approx \lVert x - \hat{x}(x) \rVert^2 + \sigma^2 \lVert J \rVert_F^2
+\qquad (18)\]
+</div>
+<p>so a denoising autoencoder with Gaussian noise adds a contractive penalty of
+weight <span class="math inline">\(\sigma^2\)</span> — on the composite map, where (6) penalises the encoder alone.
+That explains the measured pattern: both variants smooth the map, both pay for it
+in global distances, and the denoising version's weight is set by the noise level
+rather than by a hyperparameter. The equivalence is first-order only — at large
+<span class="math inline">\(\sigma\)</span> the quadratic term in the expansion matters, and the two objectives
+diverge.</p>
+<h3 id="6-optimisation">6. Optimisation <a class="header-anchor" href="#6-optimisation">#</a></h3>
+<p><code>fit</code> minimises (2) with Adam, full batch, no shuffling:</p>
+<div class="math block">
+\[m \leftarrow 0.9m + 0.1g, \qquad
+v \leftarrow 0.999v + 0.001g^2, \qquad
+\theta \leftarrow \theta - \eta\,\frac{m/(1-0.9^t)}{\sqrt{v/(1-0.999^t)} + 10^{-8}}
+\qquad (19)\]
+</div>
+<p>Full batch is a deliberate choice: with a fixed seed and a fixed order, two runs
+are bit-identical, and the gradient check is meaningful. It costs the stochastic
+regularisation that minibatch noise provides, which is part of why the seed
+spread in the failure section is as wide as it is.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>Autoencoder.fit</code> is the entry point: it standardises, builds a <code>_Net</code>, and runs
+the loop. The four variants differ by three scalars, not by four code paths.</p>
+<pre class="highlight"><code>        <span class="n">noise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"denoising_ae"</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="n">cw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">contractive_weight</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"contractive"</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="n">kw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kl_weight</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"vae_embed"</span> <span class="k">else</span> <span class="mf">0.0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">losses_</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">epochs</span><span class="p">):</span>
+            <span class="n">cache</span> <span class="o">=</span> <span class="n">net</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">Xs</span><span class="p">,</span> <span class="n">rng</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
+            <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">net</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">cache</span><span class="p">,</span> <span class="n">Xs</span><span class="p">,</span> <span class="n">kw</span><span class="p">,</span> <span class="n">cw</span><span class="p">)</span>
+            <span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">p</span><span class="p">,</span> <span class="n">grads</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">losses_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+</code></pre>
+<p>One loop, one backward pass, and the term that is switched off is multiplied by
+zero inside it rather than branched around. The non-obvious line is
+<code>losses_.append(loss)</code>: the recorded value is the loss <em>before</em> the update, so
+<code>losses_[-1]</code> is not the loss of the returned network. The final numbers are
+recomputed below the loop for exactly that reason.</p>
+<p>Standardisation is in the fit:</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">mean_</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale_</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">X</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)))</span> <span class="ow">or</span> <span class="mf">1.0</span>
+        <span class="n">Xs</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_</span>
+</code></pre>
+<p>The <code>or 1.0</code> guards a constant column, where the scale is zero and every
+subsequent division would produce <code>nan</code>. Root-mean-square rather than per-feature
+standard deviation is a choice: it leaves the relative scales of the features
+alone, which matters when the features are coordinates of one space. Per-feature
+scaling would let a low-variance direction dominate the reconstruction loss.</p>
+<p>The forward pass is where the input is corrupted and the sample is drawn:</p>
+<pre class="highlight"><code>        <span class="n">Xin</span> <span class="o">=</span> <span class="n">X</span> <span class="o">+</span> <span class="n">noise</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">if</span> <span class="n">noise</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="k">else</span> <span class="n">X</span>
+        <span class="n">H</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">Xin</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"b1"</span><span class="p">])</span>
+        <span class="n">E</span> <span class="o">=</span> <span class="n">H</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"b2"</span><span class="p">]</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">logvar</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variational</span><span class="p">:</span>
+            <span class="n">mu</span><span class="p">,</span> <span class="n">logvar</span> <span class="o">=</span> <span class="n">E</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="p">],</span> <span class="n">E</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="p">:]</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">logvar</span><span class="p">)</span>
+            <span class="n">eps</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">if</span> <span class="n">eps</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">eps</span>
+            <span class="n">Z</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">sigma</span> <span class="o">*</span> <span class="n">eps</span>
+</code></pre>
+<p><code>eps</code> is an argument with a default of <code>None</code>. Passing a fixed array is what lets
+the demo hold the sample still while perturbing the weights; passing zeros is
+what makes the reported embedding the mean code rather than the code of the last
+random draw. The alternative — reseeding the generator inside <code>forward</code> — would
+make every call depend on global state and would make the gradient check
+impossible.</p>
+<p>The decoder half of the backward pass is four lines, and the <span class="math inline">\(1/n\)</span> appears once:</p>
+<pre class="highlight"><code>        <span class="n">d_Xhat</span> <span class="o">=</span> <span class="n">R</span> <span class="o">/</span> <span class="n">n</span>
+        <span class="n">g</span><span class="p">[</span><span class="s2">"W4"</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="s2">"G"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">d_Xhat</span>
+        <span class="n">g</span><span class="p">[</span><span class="s2">"b4"</span><span class="p">]</span> <span class="o">=</span> <span class="n">d_Xhat</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">d_G</span> <span class="o">=</span> <span class="n">d_Xhat</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W4"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p><code>R</code> is already the residual, so <code>d_Xhat</code> is the gradient of a <em>mean</em> squared
+error. The bias gradient is a sum over rows because the bias is shared by all of
+them; everything else in the file follows the same convention.</p>
+<p>The variational branch carries the reparameterisation:</p>
+<pre class="highlight"><code>            <span class="n">d_mu</span> <span class="o">=</span> <span class="n">d_Z</span> <span class="o">+</span> <span class="n">kl_weight</span> <span class="o">*</span> <span class="n">mu</span> <span class="o">/</span> <span class="n">n</span>
+            <span class="n">d_logvar</span> <span class="o">=</span> <span class="n">d_Z</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">sigma</span> <span class="o">*</span> <span class="n">eps</span> <span class="o">+</span> <span class="n">kl_weight</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+            <span class="n">d_E</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">d_mu</span><span class="p">,</span> <span class="n">d_logvar</span><span class="p">])</span>
+</code></pre>
+<p>The <code>0.5 * sigma * eps</code> is (11), and the <code>hstack</code> is what turns the two heads
+back into one tensor for the shared <code>W2</code>. Note that <code>d_Z</code> here is the gradient
+with respect to the <em>sampled</em> code, so it reaches <code>mu</code> unchanged and <code>logvar</code>
+through the sample.</p>
+<p>The contractive block is the only place where the file departs from the
+textbook chain rule:</p>
+<pre class="highlight"><code>            <span class="n">A</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span>
+            <span class="n">B</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">A</span> <span class="o">*</span> <span class="n">B</span>
+            <span class="n">Cu</span> <span class="o">=</span> <span class="n">u</span> <span class="o">@</span> <span class="n">C</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">loss</span> <span class="o">+=</span> <span class="n">contractive_weight</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"ij,ij-&gt;i"</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">Cu</span><span class="p">)))</span>
+            <span class="n">U</span> <span class="o">=</span> <span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">u</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+            <span class="n">S_A</span> <span class="o">=</span> <span class="n">contractive_weight</span> <span class="o">*</span> <span class="p">(</span><span class="n">U</span> <span class="o">*</span> <span class="n">B</span><span class="p">)</span>
+            <span class="n">S_B</span> <span class="o">=</span> <span class="n">contractive_weight</span> <span class="o">*</span> <span class="p">(</span><span class="n">U</span> <span class="o">*</span> <span class="n">A</span><span class="p">)</span>
+            <span class="n">d_H</span> <span class="o">=</span> <span class="n">d_H</span> <span class="o">-</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="n">contractive_weight</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span> <span class="o">*</span> <span class="n">c</span><span class="p">[</span><span class="s2">"H"</span><span class="p">]</span> <span class="o">*</span> <span class="n">Cu</span>
+            <span class="n">g</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="s2">"Xin"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">d_H</span> <span class="o">*</span> <span class="n">u</span><span class="p">)</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span> <span class="o">@</span> <span class="n">S_A</span>
+            <span class="n">g</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">S_B</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span>
+</code></pre>
+<p><code>A</code> is <span class="math inline">\(W_1^\top W_1\)</span>, not <span class="math inline">\(W_1 W_1^\top\)</span>: <span class="math inline">\(W_1\)</span> is <span class="math inline">\(D \times h\)</span>, so the
+transposed product is the <span class="math inline">\(h \times h\)</span> matrix that (13) needs, and the other
+order is <span class="math inline">\(D \times D\)</span> and silently wrong in a way that only the gradient check
+catches. <code>Cu = u @ C.T</code> computes <span class="math inline">\(C u_i\)</span> for every row at once, and
+<code>np.einsum(&quot;ij,ij-&gt;i&quot;, u, Cu)</code> reduces it to <span class="math inline">\(u_i^\top C u_i\)</span>. The last two
+lines add the two paths of (16) to the ordinary backpropagated gradient, and
+<code>d_H</code> has already received (17) before it is multiplied by <code>u</code>.</p>
+<p>The decoder and encoder are exposed for points that were not in the training set:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Z</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Map codes back to input units. `Z` is `(m, n_components)`."""</span>
+        <span class="n">Z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_net</span><span class="o">.</span><span class="n">p</span>
+        <span class="n">G</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">Z</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W3"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"b3"</span><span class="p">])</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">G</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W4"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"b4"</span><span class="p">])</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_</span>
+</code></pre>
+<p>Undoing the standardisation is part of the contract: a decoded point is in the
+units of the input, not in standardised units. <code>encode</code> does the inverse and
+returns the mean head, which for <code>vae_embed</code> is the posterior mean rather than a
+sample — the only sensible deterministic answer.</p>
+<p>Finally, the demo checks (13) against finite differences rather than against
+itself:</p>
+<pre class="highlight"><code>    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Xs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+        <span class="n">step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">Xs</span><span class="p">)</span>
+        <span class="n">step</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">eps</span>
+        <span class="n">up</span> <span class="o">=</span> <span class="n">net</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">Xs</span> <span class="o">+</span> <span class="n">step</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">eps</span><span class="o">=</span><span class="n">zeros</span><span class="p">)[</span><span class="s2">"Z"</span><span class="p">]</span>
+        <span class="n">down</span> <span class="o">=</span> <span class="n">net</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">Xs</span> <span class="o">-</span> <span class="n">step</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">eps</span><span class="o">=</span><span class="n">zeros</span><span class="p">)[</span><span class="s2">"Z"</span><span class="p">]</span>
+        <span class="n">total</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(((</span><span class="n">up</span> <span class="o">-</span> <span class="n">down</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">eps</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+</code></pre>
+<p>If this used the closed form in (13) it would only prove that the code agrees
+with itself. Central differences of the actual forward pass are an independent
+measurement, and the demo's contractive paragraph is the comparison of that
+number across two fits.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(T\)</span> be epochs, <span class="math inline">\(n\)</span> samples, <span class="math inline">\(D\)</span> features, <span class="math inline">\(h\)</span> hidden units, <span class="math inline">\(d\)</span> the
+bottleneck. One forward pass is</p>
+<div class="math block">
+\[nDh + nhd \ \text{multiply-adds}, \qquad
+\text{backward} \approx 2\times \text{forward} \qquad (20)\]
+</div>
+<p>so training is <span class="math inline">\(O(Tnh(D+d))\)</span> time. Memory is the parameters alone,
+<span class="math inline">\(O(Dh + hd)\)</span> — four matrices, no <span class="math inline">\(n \times n\)</span> object, no decomposition. For the
+demo's plane, <span class="math inline">\(n = 300\)</span>, <span class="math inline">\(D = 5\)</span>, <span class="math inline">\(h = 32\)</span>, <span class="math inline">\(d = 2\)</span>: <span class="math inline">\(3 \cdot 300 \cdot (160 + 64)
+\approx 2 \times 10^5\)</span> multiply-adds per epoch and <span class="math inline">\(1.2 \times 10^8\)</span> for a
+600-epoch fit. The demo performs twenty-one fits, the widest of them on five
+features, so the whole run is about <span class="math inline">\(2 \times 10^9\)</span> multiply-adds.</p>
+<p>The contrast with the rest of the chapter is the point. LLE, Isomap, Laplacian
+eigenmaps and MDS each build an <span class="math inline">\(n \times n\)</span> object and do an eigendecomposition:
+<span class="math inline">\(O(n^2)\)</span> memory and <span class="math inline">\(O(n^3)\)</span> time, once. The autoencoder is linear in <span class="math inline">\(n\)</span> per
+epoch and needs <span class="math inline">\(T\)</span> of them, so it is cheaper for large <span class="math inline">\(n\)</span> — but it has no
+guarantee, no closed form, and four hyperparameters (<span class="math inline">\(h\)</span>, <span class="math inline">\(d\)</span>, <span class="math inline">\(T\)</span>, <span class="math inline">\(\eta\)</span>) that
+the graph methods do not have. <code>contractive</code> adds <span class="math inline">\(O(h^2)\)</span> per epoch for <span class="math inline">\(A\)</span>,
+<span class="math inline">\(B\)</span> and <span class="math inline">\(C\)</span>; that is negligible until <span class="math inline">\(h\)</span> reaches the thousands.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>1. The loss is not the geometry.</strong> Six seeds on the same sheet reach
+reconstruction errors from <span class="math inline">\(0.00132\)</span> to <span class="math inline">\(0.02278\)</span> and distance correlations from
+<span class="math inline">\(0.768\)</span> to <span class="math inline">\(0.901\)</span>. The lowest error belongs to seed 0 (<span class="math inline">\(0.00132\)</span>, <span class="math inline">\(0.878\)</span>); the
+best geometry belongs to seed 5 (<span class="math inline">\(0.00317\)</span>, <span class="math inline">\(0.901\)</span>). Nothing in the loss says
+which run found the sheet, so early stopping on it stops at the wrong point.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">seed</th>
+<th style="text-align:right">reconstruction error</th>
+<th style="text-align:right">distance correlation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0.00132</td>
+<td style="text-align:right">0.878</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0.00771</td>
+<td style="text-align:right">0.873</td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td style="text-align:right">0.00303</td>
+<td style="text-align:right">0.768</td>
+</tr>
+<tr>
+<td style="text-align:right">3</td>
+<td style="text-align:right">0.00140</td>
+<td style="text-align:right">0.854</td>
+</tr>
+<tr>
+<td style="text-align:right">4</td>
+<td style="text-align:right">0.02278</td>
+<td style="text-align:right">0.816</td>
+</tr>
+<tr>
+<td style="text-align:right">5</td>
+<td style="text-align:right">0.00317</td>
+<td style="text-align:right">0.901</td>
+</tr>
+</tbody>
+</table>
+<p><em>Diagnostic:</em> measure the embedding, not the loss — neighbour overlap or distance
+correlation against a trusted reference, and the spread across seeds. If the two
+disagree, the loss is not measuring what you care about.</p>
+<p><strong>2. The loss does not name the dimension, and nothing raises.</strong> With <span class="math inline">\(d \ge D\)</span>
+the loss can be driven to zero by the identity and the &quot;embedding&quot; is the input.
+With <span class="math inline">\(d\)</span> below the intrinsic dimension the folds collide, and the loss still
+falls. On the two-plane, one latent axis explains <span class="math inline">\(89.7\%\)</span> of the variance — not
+the <span class="math inline">\(50\%\)</span> a linear projection would give, because a curved coordinate can snake
+across the square — two explain <span class="math inline">\(99.98\%\)</span> and three <span class="math inline">\(99.99\%\)</span>, so the third buys
+<span class="math inline">\(0.01\)</span> of a percentage point. <em>Diagnostic:</em> sweep <span class="math inline">\(d\)</span> and look for the knee,
+then compare the reconstruction error to the noise floor of the data. A loss at
+the floor with a wide bottleneck is an identity, not a reduction; a knee that
+does not exist is a sign the bottleneck is not the constraint.</p>
+<p><strong>3. The code is defined up to a linear map.</strong> Equation (3) is not a technicality:
+two runs can differ by a shear, a rotation, a reflection or an axis swap, and all
+of them have the same loss. The demo avoids the issue by scoring with invariants
+(distance correlation, neighbour overlap), which is also the right habit for
+comparing embeddings from <em>different</em> atoms. The contractive variant adds a
+second version of the same problem — its penalty shrinks the code, and <span class="math inline">\(22\)</span> of
+the measured <span class="math inline">\(28\times\)</span> Jacobian drop is that shrink, not flattening.</p>
+<p><strong>4. Optimisation, not statistics, decides.</strong> Adam at a fixed learning rate,
+full batch, one initialisation: a bad seed is a local minimum, and the six-seed
+spread above is the size of the effect. There is no held-out criterion that
+picks the seed for you. <em>Diagnostic:</em> more seeds and keep the median, not the
+best-looking one; the demo prints the range rather than a single number.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>It is the right tool when the encoder must be a function.</strong> Recommender
+systems scoring new users, anomaly detectors scoring new records, and feature
+extractors feeding a downstream model all need to place a point without
+re-solving an <span class="math inline">\(n \times n\)</span> eigenproblem. The autoencoder's <code>encode</code> is <span class="math inline">\(O(Dh)\)</span>,
+and it is the only atom in this chapter with that property besides random
+projection (which is linear).</p>
+<p><strong>Reconstruction error is a usable anomaly score.</strong> Fit on normal data, score new
+rows by <span class="math inline">\(\lVert x - \hat{x} \rVert^2\)</span>; the <code>denoising_ae</code> variant is the usual
+choice because it does not learn the identity on the training set. This is the
+one place where the arbitrariness of the code does not matter: the score is in
+input space, where the units are known.</p>
+<p><strong>The variants have different jobs.</strong> <code>vae_embed</code> when you need to sample or
+interpolate — the KL is what makes the space between codes decodable, at the
+price measured above. <code>contractive</code> when the input is noisy or adversarially
+perturbed and you want the code to move slowly. <code>denoising_ae</code> when the noise
+model is known and you want a regulariser with one interpretable knob.</p>
+<p><strong>It is a trap when you need a metric.</strong> If the deliverable is &quot;distance between
+two points in the embedding&quot;, use Isomap or diffusion maps, where the distances
+approximate something. If the deliverable is a visualisation for a paper, the
+rotation and scale of the code will be criticised, and UMAP or t-SNE come with
+conventions the autoencoder does not. And with <span class="math inline">\(n\)</span> in the hundreds, the graph
+methods are faster, deterministic and easier to explain.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Kramer, M. A. (1991). Nonlinear principal component analysis using
+autoassociative neural networks. <em>Neural Networks</em> 4(2), 233–243. The original
+bottleneck argument.</li>
+<li>Hinton, G. E. &amp; Salakhutdinov, R. R. (2006). Reducing the dimensionality of
+data with neural networks. <em>Science</em> 313(5786), 504–507. Deep autoencoders and
+layerwise pretraining.</li>
+<li>Vincent, P., Larochelle, H., Bengio, Y. &amp; Manzagol, P.-A. (2008). Extracting
+and composing robust features with denoising autoencoders. <em>ICML</em>.</li>
+<li>Vincent, P., Larochelle, H., Lajoie, I., Bengio, Y. &amp; Manzagol, P.-A. (2010).
+Stacked denoising autoencoders: learning useful representations in a deep
+network with a local denoising criterion. <em>JMLR</em> 11, 3371–3408. Contains the
+score-matching reading of the denoising objective.</li>
+<li>Rifai, S., Vincent, P., Muller, X., Glorot, X. &amp; Bengio, Y. (2011).
+Contractive auto-encoders: explicit invariance during feature extraction.
+<em>ICML</em>. The penalty in (13)–(17).</li>
+<li>Kingma, D. P. &amp; Welling, M. (2014). Auto-encoding variational Bayes. <em>ICLR</em>.
+The reparameterisation and the KL in (8)–(11).</li>
+<li>Bengio, Y., Courville, A. &amp; Vincent, P. (2013). Representation learning: a
+review and new perspectives. <em>IEEE TPAMI</em> 35(8), 1798–1828. The survey that
+separates the objectives from the architectures.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="mds.html"><small>Previous</small><span>Classical MDS</span></a><a class="next" href="trimap.html"><small>Next</small><span>TriMap</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">08 · Manifolds &amp; embeddings</p><ul class="rail-list"><li><a href="tsne.html"><span class="tick">✓</span><span>t-SNE</span></a></li><li><a href="umap.html"><span class="tick">✓</span><span>UMAP</span></a></li><li><a href="isomap.html"><span class="tick">✓</span><span>Isomap</span></a></li><li><a href="random_projection.html"><span class="tick">✓</span><span>Random projection</span></a></li><li><a href="pacmap.html"><span class="tick">✓</span><span>PaCMAP</span></a></li><li><a href="lle.html"><span class="tick">✓</span><span>Locally linear embedding</span></a></li><li><a href="laplacian_eigenmaps.html"><span class="tick">✓</span><span>Laplacian eigenmaps</span></a></li><li><a href="mds.html"><span class="tick">✓</span><span>Classical MDS</span></a></li><li><a href="autoencoder_dr.html" aria-current="page"><span class="tick">✓</span><span>Autoencoder embedding</span></a></li><li><a href="trimap.html"><span class="tick">✓</span><span>TriMap</span></a></li><li><a href="diffusion_maps.html"><span class="tick">✓</span><span>Diffusion maps</span></a></li><li><a href="phate.html"><span class="tick">✓</span><span>PHATE</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../07-clustering/index.html"><span class="jump">← 07 · Clustering</span></a></li><li><a href="../09-density-and-anomaly/index.html"><span class="jump">09 · Density &amp; anomaly&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-objective-and-what-it-can-and-cannot-identify">1. The objective, and what it can and cannot identify</a></li><li class="lvl3"><a href="#2-backpropagation-through-the-two-layers">2. Backpropagation through the two layers</a></li><li class="lvl3"><a href="#3-the-variational-branch">3. The variational branch</a></li><li class="lvl3"><a href="#4-the-contractive-term-in-closed-form">4. The contractive term, in closed form</a></li><li class="lvl3"><a href="#5-why-denoising-and-contractive-are-cousins">5. Why denoising and contractive are cousins</a></li><li class="lvl3"><a href="#6-optimisation">6. Optimisation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/08-manifold/autoencoder_dr.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

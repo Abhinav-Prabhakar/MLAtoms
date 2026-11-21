@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kernel density estimation — kde.py · MLAtoms</title>
+<meta name="description" content="Source of kde.py: Kernels, bandwidth rules and tree acceleration.">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/kde.py.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Kernel density estimation — kde.py">
+<meta property="og:description" content="Source of kde.py: Kernels, bandwidth rules and tree acceleration.">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/kde.py.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Kernel density estimation — kde.py">
+<meta name="twitter:description" content="Source of kde.py: Kernels, bandwidth rules and tree acceleration.">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "SoftwareSourceCode", "name": "Kernel density estimation \u2014 kde.py", "programmingLanguage": "Python", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/kde.py.html", "description": "Source of kde.py: Kernels, bandwidth rules and tree acceleration.", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout layout--wide"><div><div class="prose code-page"><p class="page-meta"><a href="./index.html">09 · Density &amp; anomaly</a><span class="page-meta__sep">/</span><a href="kde.html">Kernel density estimation</a><span class="page-meta__sep">/</span><span>source</span></p><h1>kde.py</h1><p class="code-page__bar"><span>596 lines</span><span>·</span><span>8 variants</span><a class="btn" href="kde.py">Raw file</a><a class="btn" href="kde.html">Companion</a></p><pre class="highlight"><code><span class="sd">"""Kernel density estimation — a bump on every point, and the bandwidth that decides everything.</span>
+
+<span class="sd">Chapter:   09-density-and-anomaly</span>
+<span class="sd">Companion: kde.md</span>
+<span class="sd">Tier 1 · 8 variants: gaussian, epanechnikov, tophat, silverman, scott,</span>
+<span class="sd">cv_bandwidth, tree_kde, product_kernel</span>
+
+<span class="sd">    p̂(x) = 1/(n h^d) Σ_i K((x − x_i)/h)                                  (1)</span>
+<span class="sd">    K(u) = (2π)^{−d/2} exp(−‖u‖²/2)                                       (2)</span>
+<span class="sd">    K(u) = (d+2)/(2V_d) (1 − ‖u‖²)_+                                      (3)</span>
+<span class="sd">    K(u) = 1/V_d  for ‖u‖ ≤ 1                                             (4)</span>
+<span class="sd">    h_S = 0.9 min(σ̂, IQR/1.34) n^{−1/(d+4)}                               (5)</span>
+<span class="sd">    h_scott = σ̂ n^{−1/(d+4)}                                             (6)</span>
+<span class="sd">    h_cv = argmax_h Σ_i log( 1/(n−1) Σ_{j≠i} K_h(x_i − x_j) )             (7)</span>
+
+<span class="sd">Nothing in this chapter is estimated more directly than a density: histograms</span>
+<span class="sd">bin, copulas reorder, and every anomaly detector from LOF to the autoencoder is</span>
+<span class="sd">a density estimate with a threshold bolted on. KDE is the version that puts the</span>
+<span class="sd">same small bump on every point and adds them up, which is a convolution of the</span>
+<span class="sd">empirical measure with a kernel — differentiable, asymptotically unbiased, and</span>
+<span class="sd">completely at the mercy of one number.</span>
+
+<span class="sd">That number is the bandwidth. Too small and the estimate is a picket fence of</span>
+<span class="sd">spikes through the sample, variance exploding and the tails empty; too large and</span>
+<span class="sd">it is one Gaussian blob, bias exploding and every structure erased. The</span>
+<span class="sd">asymptotic decomposition is exact and worth carrying in your head:</span>
+
+<span class="sd">    E[p̂(x)] − p(x) = (h²/2) σ_K² ∇²p(x) + O(h⁴)                          (8)</span>
+<span class="sd">    Var[p̂(x)]      = R(K) p(x) / (n h^d) + O(n^{−1})                     (9)</span>
+
+<span class="sd">so bias grows with h² and variance falls like 1/(n h^d), and the product is</span>
+<span class="sd">minimised at h ∝ n^{−1/(d+4)}. Two consequences the code cannot avoid: the</span>
+<span class="sd">constant is unknown because it contains ∇²p, and the exponent degrades with</span>
+<span class="sd">dimension — the same estimator needs n = 10⁶ points to see a 10-D density at</span>
+<span class="sd">1-D resolution, which is the reason high-dimensional anomaly detection uses</span>
+<span class="sd">scorers (isolation forest, LOF) that never form a density at all.</span>
+
+<span class="sd">Three kernels are here because they mark the three positions in the</span>
+<span class="sd">bias–variance trade: Gaussian is smooth and unbounded, Epanechnikov is the</span>
+<span class="sd">minimum-variance positive kernel of order two with compact support, top-hat is</span>
+<span class="sd">the naive one and the least efficient of the three (asymptotic efficiency 0.951</span>
+<span class="sd">for the Gaussian and 0.930 for the top-hat, against Epanechnikov's 1.000, in</span>
+<span class="sd">one dimension). The estimator's shape depends far more on h</span>
+<span class="sd">than on which of the three you pick, which is why choice of kernel is the</span>
+<span class="sd">cheapest decision in the file and bandwidth selection is the expensive one.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">VARIANTS</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"gaussian"</span><span class="p">,</span>
+    <span class="s2">"epanechnikov"</span><span class="p">,</span>
+    <span class="s2">"tophat"</span><span class="p">,</span>
+    <span class="s2">"silverman"</span><span class="p">,</span>
+    <span class="s2">"scott"</span><span class="p">,</span>
+    <span class="s2">"cv_bandwidth"</span><span class="p">,</span>
+    <span class="s2">"tree_kde"</span><span class="p">,</span>
+    <span class="s2">"product_kernel"</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1">#: Which kernel each variant uses. The bandwidth rule is a separate question.</span>
+<span class="n">_KERNEL_OF</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"gaussian"</span><span class="p">:</span> <span class="s2">"gaussian"</span><span class="p">,</span>
+    <span class="s2">"epanechnikov"</span><span class="p">:</span> <span class="s2">"epanechnikov"</span><span class="p">,</span>
+    <span class="s2">"tophat"</span><span class="p">:</span> <span class="s2">"tophat"</span><span class="p">,</span>
+    <span class="s2">"silverman"</span><span class="p">:</span> <span class="s2">"gaussian"</span><span class="p">,</span>
+    <span class="s2">"scott"</span><span class="p">:</span> <span class="s2">"gaussian"</span><span class="p">,</span>
+    <span class="s2">"cv_bandwidth"</span><span class="p">:</span> <span class="s2">"gaussian"</span><span class="p">,</span>
+    <span class="s2">"tree_kde"</span><span class="p">:</span> <span class="s2">"gaussian"</span><span class="p">,</span>
+    <span class="s2">"product_kernel"</span><span class="p">:</span> <span class="s2">"gaussian"</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="c1"># Kernels</span>
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">ball_volume</span><span class="p">(</span><span class="n">n_features</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Volume of the unit ball in `n_features` dimensions: π^{d/2}/Γ(d/2+1)."""</span>
+    <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">**</span> <span class="p">(</span><span class="n">n_features</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">n_features</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">kernel_value</span><span class="p">(</span><span class="n">u2</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">n_features</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Kernel at squared radius `u2`, with unit bandwidth.</span>
+
+<span class="sd">    `u2` may be any shape; the return has the same shape. The compact kernels</span>
+<span class="sd">    are written with `np.where` rather than a branch so that the caller can pass</span>
+<span class="sd">    a whole distance matrix at once.</span>
+<span class="sd">    """</span>
+    <span class="n">u2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">u2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"gaussian"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">u2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">n_features</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+    <span class="n">volume</span> <span class="o">=</span> <span class="n">ball_volume</span><span class="p">(</span><span class="n">n_features</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"tophat"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">u2</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">volume</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"epanechnikov"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">u2</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="n">n_features</span> <span class="o">+</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">volume</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">u2</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown kernel </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_sq_distances</span><span class="p">(</span><span class="n">A</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">B</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Squared distances in bandwidth units. `A` (m,d), `B` (n,d) → (m,n).</span>
+
+<span class="sd">    Dividing the *difference* by the bandwidth before squaring is what makes</span>
+<span class="sd">    (1) a per-dimension statement: with a vector `h` the squared radius is</span>
+<span class="sd">    Σ_j ((a_j − b_j)/h_j)², which is a Mahalanobis distance with a diagonal</span>
+<span class="sd">    metric — the product kernel below, with no extra code.</span>
+<span class="sd">    """</span>
+    <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">A</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">B</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span> <span class="o">/</span> <span class="n">bandwidth</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"ijk,ijk-&gt;ij"</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">offset</span><span class="p">)</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="c1"># Bandwidth rules</span>
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">scott_factor</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Per-dimension Scott bandwidth: `σ_j n^{-1/(d+4)}`."""</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">return</span> <span class="n">X</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">d</span> <span class="o">+</span> <span class="mf">4.0</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">silverman_factor</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Per-dimension Silverman bandwidth: `0.9 min(σ_j, IQR_j/1.349) n^{-1/(d+4)}`.</span>
+
+<span class="sd">    The interquartile range is in the minimum because a single far outlier</span>
+<span class="sd">    inflates `σ` by its distance and would widen the kernel over the whole</span>
+<span class="sd">    sample; the IQR moves with the middle half and not with the outlier.</span>
+<span class="sd">    """</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">q75</span><span class="p">,</span> <span class="n">q25</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="p">[</span><span class="mf">75.0</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">robust</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="n">q75</span> <span class="o">-</span> <span class="n">q25</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1.349</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">robust</span> <span class="o">*</span> <span class="n">n</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">d</span> <span class="o">+</span> <span class="mf">4.0</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_golden_max</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">lo</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">hi</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">n_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Maximise a unimodal `f` on `[lo, hi]`; returns the argmax in log space."""</span>
+    <span class="n">inv_phi</span> <span class="o">=</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">5.0</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">lo</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">hi</span><span class="p">)</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">b</span> <span class="o">-</span> <span class="n">inv_phi</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">a</span><span class="p">)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">inv_phi</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">a</span><span class="p">)</span>
+    <span class="n">fc</span><span class="p">,</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">c</span><span class="p">),</span> <span class="n">f</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">n_iter</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">fc</span> <span class="o">&gt;</span> <span class="n">fd</span><span class="p">:</span>
+            <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">d</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">fc</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">b</span> <span class="o">-</span> <span class="n">inv_phi</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">a</span><span class="p">)</span>
+            <span class="n">fc</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">fc</span> <span class="o">=</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">fd</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">inv_phi</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">a</span><span class="p">)</span>
+            <span class="n">fd</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">((</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="c1"># The estimator</span>
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">KernelDensity</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Kernel density estimate, fitted by keeping the sample.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    variant : str</span>
+<span class="sd">        One of `VARIANTS`. It selects the kernel, the bandwidth rule and the</span>
+<span class="sd">        evaluator, in that order:</span>
+<span class="sd">        `gaussian`/`epanechnikov`/`tophat` fix the kernel and default to Scott's</span>
+<span class="sd">        bandwidth, `silverman`/`scott` fix the rule, `cv_bandwidth` maximises</span>
+<span class="sd">        the leave-one-out likelihood, `tree_kde` evaluates through a ball tree</span>
+<span class="sd">        and `product_kernel` uses one bandwidth per dimension.</span>
+<span class="sd">    bandwidth : float or array of shape (n_features,), optional</span>
+<span class="sd">        A fixed bandwidth, overriding whatever the variant would choose.</span>
+<span class="sd">    leaf_size : int</span>
+<span class="sd">        Points per leaf of the ball tree used by `tree_kde`.</span>
+<span class="sd">    tol : float</span>
+<span class="sd">        Relative pruning tolerance for `tree_kde`; ignored elsewhere.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    bandwidth_ : ndarray of shape (n_features,)</span>
+<span class="sd">    kernel_ : str</span>
+<span class="sd">    data_ : ndarray of shape (n_samples, n_features)</span>
+<span class="sd">    evaluations_ : int</span>
+<span class="sd">        Kernel evaluations performed by the last `tree_kde` call.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gaussian"</span><span class="p">,</span> <span class="n">bandwidth</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">leaf_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">variant</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VARIANTS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown variant </span><span class="si">{</span><span class="n">variant</span><span class="si">!r}</span><span class="s2">; choose from </span><span class="si">{</span><span class="n">VARIANTS</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">leaf_size</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"leaf_size must be positive"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">tol</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"tol must be positive"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">bandwidth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">bandwidth</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"bandwidth must be positive"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">=</span> <span class="n">variant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span> <span class="o">=</span> <span class="n">bandwidth</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">leaf_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">leaf_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tol</span><span class="p">)</span>
+
+    <span class="c1"># -- fitting ---------------------------------------------------------- #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">KernelDensity</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"X must be two-dimensional"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"need at least two points to estimate a density"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"a constant column has zero bandwidth; drop it or "</span>
+                             <span class="s2">"add jitter"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span> <span class="o">=</span> <span class="n">_KERNEL_OF</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">variant</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_</span> <span class="o">=</span> <span class="n">X</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_choose_bandwidth</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">evaluations_</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"tree_kde"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1e-12</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"tree_kde needs a scalar bandwidth; the node "</span>
+                                 <span class="s2">"bound is only valid for an isotropic kernel"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tree_</span> <span class="o">=</span> <span class="n">_grow</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span> <span class="bp">self</span><span class="o">.</span><span class="n">leaf_size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_choose_bandwidth</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">given</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">given</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">given</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">given</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="n">d</span><span class="p">,):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"bandwidth must be a scalar or shape (</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">,)"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">given</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"silverman"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">silverman_factor</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="n">scott_factor</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"cv_bandwidth"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cross_validate</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">base</span><span class="p">))))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"tree_kde"</span><span class="p">:</span>
+            <span class="c1"># One bandwidth for every dimension is what the node bound in</span>
+            <span class="c1"># `_tree_sum` assumes; the median is the least surprising summary.</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">base</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">base</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_loo_loglik</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">h</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Equation (7) at one scalar bandwidth: the leave-one-out mean log density."""</span>
+        <span class="n">sq</span> <span class="o">=</span> <span class="n">_sq_distances</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">h</span><span class="p">))</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel_value</span><span class="p">(</span><span class="n">sq</span><span class="p">,</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s2">"gaussian"</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span> <span class="o">**</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">held_out</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">kernel</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">held_out</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="mf">1e-300</span><span class="p">))))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_cross_validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">h0</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Maximise (7) over a single scalar `h`, by golden section on log h."""</span>
+        <span class="c1"># A factor of four either side of the rule of thumb. The curve is</span>
+        <span class="c1"># unimodal in log h on that range, which is what golden section needs.</span>
+        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_golden_max</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">log_h</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loo_loglik</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_h</span><span class="p">)),</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">h0</span> <span class="o">/</span> <span class="mf">4.0</span><span class="p">),</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">h0</span> <span class="o">*</span> <span class="mf">4.0</span><span class="p">)))</span>
+
+    <span class="c1"># -- evaluation ------------------------------------------------------- #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">score_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Log density at each row of `X`, shape (m,)."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"bandwidth_"</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"fit before scoring"</span><span class="p">)</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"X must have shape (m, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"tree_kde"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">evaluations_</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">sums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_tree_sum</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">X</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sq</span> <span class="o">=</span> <span class="n">_sq_distances</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">)</span>
+            <span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel_value</span><span class="p">(</span><span class="n">sq</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">)</span>
+            <span class="n">sums</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">density</span> <span class="o">=</span> <span class="n">sums</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">density</span><span class="p">,</span> <span class="mf">1e-300</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Mean log density per point: the number cross-validation maximises."""</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">)))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_tree_sum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Sum of kernel values at `row`, pruning nodes that cannot matter."""</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tree_</span><span class="p">]</span>
+        <span class="k">while</span> <span class="n">stack</span><span class="p">:</span>
+            <span class="n">node</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="n">gap</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">row</span> <span class="o">-</span> <span class="n">node</span><span class="o">.</span><span class="n">centre</span><span class="p">))</span> <span class="o">-</span> <span class="n">node</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span>
+            <span class="c1"># Every kernel above is a decreasing function of radius, so the</span>
+            <span class="c1"># nearest point in the node is the best case for the node's whole</span>
+            <span class="c1"># contribution -- and if even that is negligible, so is the node.</span>
+            <span class="n">bound</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">count</span> <span class="o">*</span> <span class="n">kernel_value</span><span class="p">(</span><span class="n">gap</span> <span class="o">*</span> <span class="n">gap</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span> <span class="o">**</span> <span class="n">d</span>
+            <span class="c1"># Exact when the bound underflows, relative once the running sum is</span>
+            <span class="c1"># non-zero. Both are needed: in the far field every node evaluates to</span>
+            <span class="c1"># zero and a relative test alone would never fire.</span>
+            <span class="k">if</span> <span class="n">bound</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="p">(</span><span class="n">total</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">bound</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span> <span class="o">*</span> <span class="n">total</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">indices</span><span class="p">:</span>
+                    <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">row</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_</span><span class="p">[</span><span class="n">index</span><span class="p">])</span> <span class="o">/</span> <span class="n">h</span>
+                    <span class="n">total</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">kernel_value</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">offset</span> <span class="o">@</span> <span class="n">offset</span><span class="p">),</span> <span class="n">d</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">evaluations_</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">left</span><span class="p">)</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">right</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">total</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_Node</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One ball in the tree: a centre, a radius, and either points or children."""</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"indices"</span><span class="p">,</span> <span class="s2">"centre"</span><span class="p">,</span> <span class="s2">"radius"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">,</span> <span class="s2">"left"</span><span class="p">,</span> <span class="s2">"right"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_grow</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">indices</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">leaf_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_Node</span><span class="p">:</span>
+    <span class="n">node</span> <span class="o">=</span> <span class="n">_Node</span><span class="p">()</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">indices</span><span class="p">]</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">centre</span> <span class="o">=</span> <span class="n">points</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">radius</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">points</span> <span class="o">-</span> <span class="n">node</span><span class="o">.</span><span class="n">centre</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="n">indices</span>
+    <span class="n">spread</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">axis</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">spread</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">leaf_size</span> <span class="ow">or</span> <span class="n">spread</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">node</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="n">axis</span><span class="p">],</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"stable"</span><span class="p">)]</span>
+    <span class="n">middle</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">order</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># interior nodes are summarised by centre and radius</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">_grow</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">order</span><span class="p">[:</span><span class="n">middle</span><span class="p">],</span> <span class="n">leaf_size</span><span class="p">)</span>
+    <span class="n">node</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">_grow</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">order</span><span class="p">[</span><span class="n">middle</span><span class="p">:],</span> <span class="n">leaf_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">node</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="c1"># Demo helpers</span>
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_mixture_pdf</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The truth the demo scores against: 0.35 N(-1.2, 0.5) + 0.65 N(1.0, 0.7)."""</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bump</span><span class="p">(</span><span class="n">mean</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">sd</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">((</span><span class="n">x</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">/</span> <span class="n">sd</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">sd</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span>
+    <span class="k">return</span> <span class="mf">0.35</span> <span class="o">*</span> <span class="n">bump</span><span class="p">(</span><span class="o">-</span><span class="mf">1.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.65</span> <span class="o">*</span> <span class="n">bump</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ise</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">,</span> <span class="n">grid</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Integrated squared error against the mixture, by the midpoint rule."""</span>
+    <span class="n">estimate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">grid</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]))</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">grid</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">grid</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">estimate</span> <span class="o">-</span> <span class="n">_mixture_pdf</span><span class="p">(</span><span class="n">grid</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">step</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_radial_integral</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">n_features</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""∫ K(‖u‖) du by radial quadrature: ∫_0^R K(r²) S_{d-1} r^{d-1} dr."""</span>
+    <span class="n">surface</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">**</span> <span class="p">(</span><span class="n">n_features</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">n_features</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="mi">200_001</span><span class="p">)</span>
+    <span class="n">weight</span> <span class="o">=</span> <span class="n">surface</span> <span class="o">*</span> <span class="n">radius</span> <span class="o">**</span> <span class="p">(</span><span class="n">n_features</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">kernel_value</span><span class="p">(</span><span class="n">radius</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">n_features</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">trapezoid</span><span class="p">(</span><span class="n">values</span> <span class="o">*</span> <span class="n">weight</span><span class="p">,</span> <span class="n">radius</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_normalisation</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Every kernel integrates to one, in every dimension that matters."""</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"gaussian"</span><span class="p">,</span> <span class="s2">"epanechnikov"</span><span class="p">,</span> <span class="s2">"tophat"</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+            <span class="n">limit</span> <span class="o">=</span> <span class="mf">10.0</span> <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"gaussian"</span> <span class="k">else</span> <span class="mf">1.0</span>
+            <span class="n">errors</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">d</span><span class="p">]</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">_radial_integral</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">errors</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">d</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">1e-8</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">errors</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">d</span><span class="p">])</span>
+    <span class="n">worst</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">errors</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">scaled</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">X</span><span class="p">)</span>
+    <span class="c1"># Changing units changes the density by the Jacobian and nothing else.</span>
+    <span class="n">gap</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">scaled</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">X</span><span class="p">)</span>
+                       <span class="o">-</span> <span class="n">base</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span><span class="p">))</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="k">assert</span> <span class="n">gap</span> <span class="o">&lt;</span> <span class="mf">1e-12</span>
+
+    <span class="n">product</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"product_kernel"</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">same</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"gaussian"</span><span class="p">,</span> <span class="n">bandwidth</span><span class="o">=</span><span class="n">product</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">flat</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">product</span><span class="o">.</span><span class="n">bandwidth_</span> <span class="o">-</span> <span class="n">product</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="n">agreement</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">product</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">-</span> <span class="n">same</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">))</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="k">assert</span> <span class="n">agreement</span> <span class="o">&lt;</span> <span class="mf">1e-12</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"normalisation: each kernel integrates to one to </span><span class="si">{</span><span class="n">worst</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2"> by radial "</span>
+          <span class="sa">f</span><span class="s2">"quadrature in d = 1, 2 and 3 -- which is the check that the constants "</span>
+          <span class="sa">f</span><span class="s2">"in (2)-(4) are right and not merely dropped, since 1/V_d and "</span>
+          <span class="sa">f</span><span class="s2">"(d+2)/(2V_d) only balance the sphere's surface area with V_d inside. "</span>
+          <span class="sa">f</span><span class="s2">"Rescaling the bandwidth by 2 and the data by 2 leaves the log density "</span>
+          <span class="sa">f</span><span class="s2">"shifted by exactly -d log 2, to </span><span class="si">{</span><span class="n">gap</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">. The product kernel with all "</span>
+          <span class="sa">f</span><span class="s2">"bandwidths equal to the product kernel's own (spread </span><span class="si">{</span><span class="n">flat</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">) is the Gaussian kernel "</span>
+          <span class="sa">f</span><span class="s2">"bit-for-bit, to </span><span class="si">{</span><span class="n">agreement</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">: 'product' is a per-dimension "</span>
+          <span class="sa">f</span><span class="s2">"bandwidth, not a different estimator."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_bandwidths</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The three rules on one skewed sample, and the likelihood each buys."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span> <span class="o">*</span> <span class="mf">1.5</span>
+    <span class="n">sd</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">q75</span><span class="p">,</span> <span class="n">q25</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="p">[</span><span class="mf">75.0</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">])</span>
+    <span class="n">iqr</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">q75</span> <span class="o">-</span> <span class="n">q25</span><span class="p">)</span>
+
+    <span class="n">models</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+              <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"scott"</span><span class="p">,</span> <span class="s2">"silverman"</span><span class="p">,</span> <span class="s2">"cv_bandwidth"</span><span class="p">)}</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">m</span><span class="o">.</span><span class="n">_loo_loglik</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span>
+             <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">models</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="n">best</span> <span class="o">=</span> <span class="nb">max</span><span class="p">((</span><span class="s2">"scott"</span><span class="p">,</span> <span class="s2">"silverman"</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">table</span><span class="p">[</span><span class="n">v</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="n">table</span><span class="p">[</span><span class="s2">"cv_bandwidth"</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">table</span><span class="p">[</span><span class="n">best</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1e-9</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">table</span><span class="p">[</span><span class="s2">"scott"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">sd</span> <span class="o">*</span> <span class="mi">200</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">5.0</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">1e-12</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"bandwidths: 200 lognormal points, a sample whose sd is inflated by "</span>
+          <span class="sa">f</span><span class="s2">"its tail. sd </span><span class="si">{</span><span class="n">sd</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, IQR </span><span class="si">{</span><span class="n">iqr</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, IQR/1.349 </span><span class="si">{</span><span class="n">iqr</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1.349</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, so "</span>
+          <span class="sa">f</span><span class="s2">"Silverman shrinks the scale to the robust one before applying "</span>
+          <span class="sa">f</span><span class="s2">"0.9 n^(-1/5). Scott </span><span class="si">{</span><span class="n">table</span><span class="p">[</span><span class="s1">'scott'</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, Silverman "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">table</span><span class="p">[</span><span class="s1">'silverman'</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, cross-validated "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">table</span><span class="p">[</span><span class="s1">'cv_bandwidth'</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">. Leave-one-out log-likelihood: "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">table</span><span class="p">[</span><span class="s1">'scott'</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">table</span><span class="p">[</span><span class="s1">'silverman'</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">table</span><span class="p">[</span><span class="s1">'cv_bandwidth'</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">. The two formulas disagree by a "</span>
+          <span class="sa">f</span><span class="s2">"factor of </span><span class="si">{</span><span class="n">table</span><span class="p">[</span><span class="s1">'scott'</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">table</span><span class="p">[</span><span class="s1">'silverman'</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> on the same "</span>
+          <span class="sa">f</span><span class="s2">"sample -- the robust scale is less than half the sd -- and CV takes "</span>
+          <span class="sa">f</span><span class="s2">"the larger of the three, so on this sample the outliers that "</span>
+          <span class="sa">f</span><span class="s2">"Silverman discounts are real signal and widening is the right answer. "</span>
+          <span class="sa">f</span><span class="s2">"It is also the most expensive rule: sixty likelihoods of a 200x200 "</span>
+          <span class="sa">f</span><span class="s2">"kernel, against one pass for a formula."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_error</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Density error against a density that is known, and what CV does to it."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">picks</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.35</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">picks</span><span class="p">,</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="o">-</span><span class="mf">1.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mi">901</span><span class="p">)</span>
+
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"gaussian"</span><span class="p">,</span> <span class="s2">"epanechnikov"</span><span class="p">,</span> <span class="s2">"tophat"</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="n">variant</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">variant</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">_ise</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">grid</span><span class="p">)))</span>
+    <span class="n">cv</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"cv_bandwidth"</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"gaussian @ cv"</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">cv</span><span class="o">.</span><span class="n">bandwidth_</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">_ise</span><span class="p">(</span><span class="n">cv</span><span class="p">,</span> <span class="n">grid</span><span class="p">)))</span>
+
+    <span class="n">mass</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">grid</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])))</span>
+                        <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">grid</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">grid</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">"gaussian"</span><span class="p">,</span> <span class="n">KernelDensity</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span>
+                            <span class="p">(</span><span class="s2">"tophat"</span><span class="p">,</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"tophat"</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)))}</span>
+    <span class="n">uniform</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="mi">500</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">boundary</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">uniform</span><span class="p">)</span>
+    <span class="n">at_edge</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">boundary</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">at_middle</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">boundary</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.5</span><span class="p">]]))[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">assert</span> <span class="n">at_edge</span> <span class="o">&lt;</span> <span class="mf">0.75</span> <span class="o">*</span> <span class="n">at_middle</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">v</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">2e-3</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">mass</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="c1"># The likelihood is not the squared error: on this sample CV undersmooths.</span>
+    <span class="k">assert</span> <span class="n">rows</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">spacings</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="n">X</span><span class="o">.</span><span class="n">T</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">median_gap</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">spacings</span><span class="p">))</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"error: 200 points from a bimodal mixture, scored against the mixture "</span>
+          <span class="s2">"itself on 901 grid points. Integrated squared error at the Scott "</span>
+          <span class="s2">"bandwidth:"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">ise</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">name</span><span class="si">:</span><span class="s2">15s</span><span class="si">}</span><span class="s2"> h=</span><span class="si">{</span><span class="n">h</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">  ISE </span><span class="si">{</span><span class="n">ise</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  the estimate integrates to </span><span class="si">{</span><span class="n">mass</span><span class="p">[</span><span class="s1">'gaussian'</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> (Gaussian) and "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">mass</span><span class="p">[</span><span class="s1">'tophat'</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> (top-hat) on the grid, so this compares "</span>
+          <span class="sa">f</span><span class="s2">"densities and not densities against mass. Swapping the kernel at "</span>
+          <span class="sa">f</span><span class="s2">"fixed h moves the error by less than a factor of two "</span>
+          <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">rows</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">rows</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">); moving h "</span>
+          <span class="sa">f</span><span class="s2">"moves it by more. Cross-validation chooses h=</span><span class="si">{</span><span class="n">rows</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, "</span>
+          <span class="sa">f</span><span class="s2">"less than a third of the rule's, and its ISE is "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">rows</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> times the rule's. That is not a bug in "</span>
+          <span class="sa">f</span><span class="s2">"the search: the leave-one-out likelihood really is maximised there, "</span>
+          <span class="sa">f</span><span class="s2">"and the assertion above pins it down. It is the known pathology of "</span>
+          <span class="sa">f</span><span class="s2">"likelihood cross-validation for KDE. Each term is -log h plus the log "</span>
+          <span class="sa">f</span><span class="s2">"of a kernel value, so shrinking h buys log(1/h) until the nearest "</span>
+          <span class="sa">f</span><span class="s2">"neighbour falls outside the kernel -- on this sample the median "</span>
+          <span class="sa">f</span><span class="s2">"nearest-neighbour spacing is </span><span class="si">{</span><span class="n">median_gap</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, three orders below the "</span>
+          <span class="sa">f</span><span class="s2">"chosen h, so the exponential term is what finally stops it. The "</span>
+          <span class="sa">f</span><span class="s2">"objective being maximised is not the objective you care about: "</span>
+          <span class="sa">f</span><span class="s2">"least-squares cross-validation, which compares densities rather than "</span>
+          <span class="sa">f</span><span class="s2">"evaluating them at the sample, is the one that tracks ISE.</span><span class="se">\n</span><span class="s2">"</span>
+          <span class="sa">f</span><span class="s2">"  the same estimator at a boundary: 500 uniform points on [0, 1], "</span>
+          <span class="sa">f</span><span class="s2">"h = 0.1. The estimate is </span><span class="si">{</span><span class="n">at_edge</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> at x=0 and </span><span class="si">{</span><span class="n">at_middle</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> at "</span>
+          <span class="sa">f</span><span class="s2">"x=0.5, against a truth of 1.000. Half of every boundary kernel hangs "</span>
+          <span class="sa">f</span><span class="s2">"outside the support and there is no data there to make it up, so the "</span>
+          <span class="sa">f</span><span class="s2">"density is halved exactly where a detector most wants it. Reflecting "</span>
+          <span class="sa">f</span><span class="s2">"the data or fitting a log-spline avoids it; widening the bandwidth "</span>
+          <span class="sa">f</span><span class="s2">"does not."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_tree</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The tree is an accumulator with a proof, not an approximation."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">2</span><span class="p">)),</span>
+                   <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">3.0</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">2</span><span class="p">)),</span>
+                   <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">],</span> <span class="mf">0.6</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">2</span><span class="p">))])</span>
+    <span class="c1"># The bandwidth is fixed rather than ruled: Scott's rule reads the spread of</span>
+    <span class="c1"># all three blobs (sd about 1.5) and returns 0.53, which is wider than a</span>
+    <span class="c1"># blob, and at that width the other two blobs are inside the kernel.</span>
+    <span class="n">tree</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"tree_kde"</span><span class="p">,</span> <span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span> <span class="n">leaf_size</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">brute</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.15</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"in a blob"</span><span class="p">:</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="mf">0.4</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">75</span><span class="p">,</span> <span class="mi">2</span><span class="p">)),</span>
+        <span class="s2">"between blobs"</span><span class="p">:</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">([</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">],</span> <span class="mf">0.3</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">75</span><span class="p">,</span> <span class="mi">2</span><span class="p">)),</span>
+        <span class="s2">"far away"</span><span class="p">:</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">([</span><span class="mf">20.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">],</span> <span class="mf">2.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">75</span><span class="p">,</span> <span class="mi">2</span><span class="p">)),</span>
+    <span class="p">}</span>
+    <span class="n">report</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">queries</span> <span class="ow">in</span> <span class="n">groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">fast</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span>
+        <span class="n">work</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">evaluations_</span>
+        <span class="n">slow</span> <span class="o">=</span> <span class="n">brute</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span>
+        <span class="n">report</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">work</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">work</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span>
+                        <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">fast</span> <span class="o">-</span> <span class="n">slow</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">fast</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+    <span class="n">worst</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="k">assert</span> <span class="n">worst</span> <span class="o">&lt;</span> <span class="mf">1e-9</span><span class="p">,</span> <span class="n">worst</span>
+    <span class="k">assert</span> <span class="n">report</span><span class="p">[</span><span class="s2">"in a blob"</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">report</span><span class="p">[</span><span class="s2">"between blobs"</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">report</span><span class="p">[</span><span class="s2">"far away"</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"tree: 600 points in three blobs, 75 queries per group, leaf size 8, "</span>
+          <span class="sa">f</span><span class="s2">"bandwidth 0.15, pruning tolerance </span><span class="si">{</span><span class="n">tree</span><span class="o">.</span><span class="n">tol</span><span class="si">:</span><span class="s2">.0e</span><span class="si">}</span><span class="s2">. The tree agrees "</span>
+          <span class="sa">f</span><span class="s2">"with the brute-force sum to </span><span class="si">{</span><span class="n">worst</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2"> in log density, and evaluates"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="n">work</span><span class="p">,</span> <span class="n">saved</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">name</span><span class="si">:</span><span class="s2">14s</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">work</span><span class="si">:</span><span class="s2">5d</span><span class="si">}</span><span class="s2"> kernels of 45000  (</span><span class="si">{</span><span class="n">saved</span><span class="si">:</span><span class="s2">4.0%</span><span class="si">}</span><span class="s2"> saved)"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  The saving is geometric and it is the whole point: a node is "</span>
+          <span class="sa">f</span><span class="s2">"skipped when even its nearest point is negligible against the running "</span>
+          <span class="sa">f</span><span class="s2">"sum. In a blob that saves a third, because the other two blobs are "</span>
+          <span class="sa">f</span><span class="s2">"far enough to skip; between them it saves two thirds; from twenty "</span>
+          <span class="sa">f</span><span class="s2">"units away every bound underflows to exactly zero and the tree touches "</span>
+          <span class="sa">f</span><span class="s2">"nothing at all, returning the floor of </span><span class="si">{</span><span class="n">report</span><span class="p">[</span><span class="s1">'far away'</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> "</span>
+          <span class="sa">f</span><span class="s2">"which is the true double-precision answer. That last case is why the "</span>
+          <span class="sa">f</span><span class="s2">"pruning test cannot be purely relative: a relative test never fires "</span>
+          <span class="sa">f</span><span class="s2">"while the running sum is still zero, which is exactly the far field. "</span>
+          <span class="sa">f</span><span class="s2">"Note what the tree does not buy: inside a dense blob it is the plain "</span>
+          <span class="sa">f</span><span class="s2">"loop plus a traversal, so the speed-up is real only when a query is "</span>
+          <span class="sa">f</span><span class="s2">"dominated by a handful of nodes -- large n, well separated scales."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_broken</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The inputs the estimator refuses, and one it should."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">flat_column</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">X</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">30</span><span class="p">)])</span>
+    <span class="n">cases</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">"an unknown variant"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"parzen"</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"a negative bandwidth"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">bandwidth</span><span class="o">=-</span><span class="mf">1.0</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"a bandwidth of the wrong length"</span><span class="p">,</span>
+         <span class="k">lambda</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">bandwidth</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"one point"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="mi">1</span><span class="p">])),</span>
+        <span class="p">(</span><span class="s2">"a constant column"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">flat_column</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"scoring before fitting"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">()</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"the wrong number of columns"</span><span class="p">,</span>
+         <span class="k">lambda</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">])),</span>
+        <span class="p">(</span><span class="s2">"an anisotropic bandwidth with the tree"</span><span class="p">,</span>
+         <span class="k">lambda</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"tree_kde"</span><span class="p">,</span>
+                               <span class="n">bandwidth</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">])</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"a zero tolerance"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">tol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)),</span>
+    <span class="p">]</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">call</span> <span class="ow">in</span> <span class="n">cases</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">call</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> did not raise"</span><span class="p">)</span>
+
+    <span class="c1"># Data the estimator accepts and should not: two identical columns.</span>
+    <span class="n">duplicated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]])</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">duplicated</span><span class="p">)</span>
+    <span class="n">squeezed</span> <span class="o">=</span> <span class="n">KernelDensity</span><span class="p">(</span><span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">inflated</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">duplicated</span><span class="p">[:</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+                     <span class="o">-</span> <span class="n">squeezed</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"broken: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cases</span><span class="p">)</span><span class="si">}</span><span class="s2"> bad inputs raise -- "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">name</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">cases</span><span class="p">)</span><span class="si">}</span><span class="s2">. The last one is not an "</span>
+          <span class="sa">f</span><span class="s2">"error, it is a mistake: duplicating a column turns the estimate into "</span>
+          <span class="sa">f</span><span class="s2">"the density of the diagonal x_1 = x_2, which is not the density of "</span>
+          <span class="sa">f</span><span class="s2">"x_1, and the same point scores </span><span class="si">{</span><span class="n">inflated</span><span class="si">:</span><span class="s2">+.3f</span><span class="si">}</span><span class="s2"> nats differently with "</span>
+          <span class="sa">f</span><span class="s2">"nothing added. KDE has no defence against collinearity; a whitening "</span>
+          <span class="sa">f</span><span class="s2">"step (or a diagonal-bandwidth product kernel fitted on the whitened "</span>
+          <span class="sa">f</span><span class="s2">"data) is the fix, and dropping the duplicate column is the cheap one."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">_demo_normalisation</span><span class="p">()</span>
+    <span class="n">_demo_bandwidths</span><span class="p">()</span>
+    <span class="n">_demo_error</span><span class="p">()</span>
+    <span class="n">_demo_tree</span><span class="p">()</span>
+    <span class="n">_demo_broken</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"kde demo passed"</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">09 · Density &amp; anomaly</p><ul class="rail-list"><li><a href="kde.html" aria-current="page"><span class="tick">✓</span><span>Kernel density estimation</span></a></li><li><a href="isolation_forest.html"><span class="tick">✓</span><span>Isolation forest</span></a></li><li><a href="lof.html"><span class="tick">✓</span><span>Local outlier factor</span></a></li><li><a href="histogram_density.html"><span class="tick">✓</span><span>Histogram density</span></a></li><li><a href="mahalanobis.html"><span class="tick">✓</span><span>Mahalanobis / MCD</span></a></li><li><a href="hbos.html"><span class="tick">✓</span><span>HBOS</span></a></li><li><a href="autoencoder_anomaly.html"><span class="tick">✓</span><span>Autoencoder anomaly</span></a></li><li><a href="change_point.html"><span class="tick">✓</span><span>Change-point detection</span></a></li><li><a href="elliptic_envelope.html"><span class="tick">✓</span><span>Elliptic envelope</span></a></li><li><a href="copod.html"><span class="tick">✓</span><span>COPOD</span></a></li><li><a href="extreme_value.html"><span class="tick">✓</span><span>Extreme value theory</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../08-manifold/index.html"><span class="jump">← 08 · Manifolds &amp; embeddings</span></a></li><li><a href="../10-sequences/index.html"><span class="jump">10 · Sequences&nbsp;→</span></a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/09-density-and-anomaly/kde.py">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

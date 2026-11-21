@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hierarchical clustering · MLAtoms</title>
+<meta name="description" content="Linkage criteria, dendrograms and cutting strategies. Divisive methods start with everything and split. Agglomerative methods do the opposite: every point is…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/agglomerative.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Hierarchical clustering">
+<meta property="og:description" content="Linkage criteria, dendrograms and cutting strategies. Divisive methods start with everything and split. Agglomerative methods do the opposite: every point is…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/agglomerative.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hierarchical clustering">
+<meta name="twitter:description" content="Linkage criteria, dendrograms and cutting strategies. Divisive methods start with everything and split. Agglomerative methods do the opposite: every point is…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Hierarchical clustering", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/agglomerative.html", "description": "Linkage criteria, dendrograms and cutting strategies. Divisive methods start with everything and split. Agglomerative methods do the opposite: every point is\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">07 · Clustering</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="agglomerative.py.html">source</a></p><h1>Agglomerative clustering</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Divisive methods start with everything and split. Agglomerative methods do the opposite:
+every point is its own cluster, and the two closest clusters are merged, over and over,
+until one remains. The sequence of merges <em>is</em> the answer — a tree (a dendrogram) whose
+leaves are points and whose internal nodes are merges, each labelled with the distance at
+which it happened. Cutting the tree at any height gives a flat clustering, so one run
+answers every <code>K</code>.</p>
+<p>Everything interesting is in the phrase &quot;closest&quot;. Two clusters have many point pairs
+between them, and the linkage rule decides which of those distances counts:</p>
+<ul>
+<li><strong>single</strong> uses the closest pair, so a thin chain of points is enough to join two dense
+blobs. That is chaining: sometimes a feature (a filament, a coastline), sometimes a bug.</li>
+<li><strong>complete</strong> uses the farthest pair, so an elongated cluster is expensive to join and
+the result is compact and roughly equal-sized.</li>
+<li><strong>average</strong> uses the mean over all cross pairs, which is the compromise and the
+phylogenetic standard (UPGMA).</li>
+<li><strong>ward</strong> merges the pair whose union increases the total within-cluster sum of squares
+the least — the &quot;keep the variance low&quot; rule.</li>
+</ul>
+<p>On the demo's two blobs joined by twelve collinear bridge points, single linkage joins
+them at height <code>0.44</code> and complete linkage only at <code>7.45</code>: same data, same greedy loop,
+two completely different clusters. That gap is the whole reason the linkage rule exists.</p>
+<p>The other two variants answer different questions. <code>connectivity_constrained</code> restricts
+merges to edges of a k-NN graph, so clusters must be <em>connected regions</em> rather than
+merely close ones. <code>cut_height</code> replaces &quot;how many clusters?&quot; with &quot;how far apart?&quot;, and
+lets small leftover groups become noise.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Merge distance</th>
+<th style="text-align:left">Monotone</th>
+<th style="text-align:left">Character</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>single</code></td>
+<td style="text-align:left"><code>min</code> over cross pairs</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">chains, arbitrary shapes, <code>K</code> from gaps</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>complete</code></td>
+<td style="text-align:left"><code>max</code> over cross pairs</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">compact, equal-sized, sensitive to outliers</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>average</code></td>
+<td style="text-align:left">mean over cross pairs</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">size-weighted compromise, UPGMA</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ward</code></td>
+<td style="text-align:left">least increase in within-cluster SSE</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">balanced, variance-minimising</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>centroid</code></td>
+<td style="text-align:left">distance between centroids</td>
+<td style="text-align:left"><strong>no</strong></td>
+<td style="text-align:left">size-weighted centre distance</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>median</code></td>
+<td style="text-align:left">distance between centroids, unweighted</td>
+<td style="text-align:left"><strong>no</strong></td>
+<td style="text-align:left">WPGMC, no size bias</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>connectivity_constrained</code></td>
+<td style="text-align:left">ward, only along a mutual k-NN graph</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">connected regions, manifold-shaped</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cut_height</code></td>
+<td style="text-align:left">single, stopped at <code>height</code></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">discovers <code>K</code>, marks noise</td>
+</tr>
+</tbody>
+</table>
+<p>All six linkages are the same loop with different Lance–Williams coefficients, so the
+file has one merge implementation and a six-branch distance update. The three
+&quot;geometric&quot; ones (<code>ward</code>, <code>centroid</code>, <code>median</code>) run on squared distances and report a
+square root as the merge height; the three &quot;set&quot; ones (<code>single</code>, <code>complete</code>, <code>average</code>)
+run on plain distances.</p>
+<p>The differences that matter in practice:</p>
+<ul>
+<li><strong><code>single</code> and <code>complete</code> are the two extremes</strong>, and both are exact: they are the
+minimum spanning tree (single) and the maximum spanning tree (complete) read as a
+hierarchy. Everything between them is a compromise, which is what <code>average</code> is.</li>
+<li><strong><code>ward</code> is the one to reach for on compact blobs</strong>, and the demo shows why: on unequal
+blobs it produces the lowest within-cluster spread (<code>1.36</code> against <code>1.96</code> for
+<code>centroid</code>). It is also the one that can fail badly on unequal cluster sizes, because
+its cost <code>n_A n_B/(n_A+n_B)</code> grows with balance: the same demo's <code>ward</code> accuracy is
+<code>0.722</code> while <code>centroid</code> gets <code>0.922</code>. Ward <em>prefers</em> balanced clusters, so it will
+split a large true cluster to join a small one.</li>
+<li><strong><code>centroid</code> and <code>median</code> are the ones that can invert.</strong> A merge that moves a centroid
+toward an unrelated cluster can make the next merge cheaper than the previous one, so
+merge heights are not monotone. On the chain data that happens <code>7</code> times for <code>centroid</code>
+and <code>3</code> times for <code>median</code>, and zero times for the other four. An inverted hierarchy
+cannot be drawn as a tree with increasing heights, and cutting it at a height is
+meaningless — the code still reports <code>n_inversions_</code> so you notice.</li>
+<li><strong><code>connectivity_constrained</code></strong> keeps <code>ward</code>'s merge rule but only allows merges along a
+mutual k-NN graph. On two moons, plain <code>ward</code> cuts the crescents arbitrarily
+(<code>0.770</code>) because &quot;close&quot; is not the same as &quot;connected&quot;; the constrained version
+scores <code>1.000</code> and never has to merge across the gap between the manifolds.</li>
+<li><strong><code>cut_height</code></strong> ignores <code>K</code> entirely: merges stop when the next one is above <code>height</code>.
+On three blobs with uniform background, a cut at <code>0.5</code> returns exactly the three blobs
+plus <code>8</code> noise points (<code>min_cluster_size=20</code> deletes the singletons); a cut at <code>5.0</code>
+returns one cluster. It is DBSCAN's idea built out of a dendrogram.</li>
+</ul>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>The greedy loop.</strong> Start with <code>n</code> singletons and a symmetric distance matrix. Merge the
+pair with the smallest distance, replace the two rows by one, repeat <code>n−1</code> times. The
+number of merges is fixed, so the only freedom is <em>which</em> two clusters are closest — which
+is the linkage rule.</p>
+<p><strong>Lance–Williams.</strong> Recomputing <code>d(A∪B, C)</code> from scratch costs <code>O(|A||B|)</code> per pair. The
+Lance–Williams recursion does it from the three existing entries in <code>O(1)</code>:</p>
+<div class="math block">
+\[d(A\cup B, C) = \alpha_A\, d(A,C) + \alpha_B\, d(B,C) + \beta\, d(A,B)
++ \gamma\,\bigl|d(A,C) - d(B,C)\bigr|\]
+</div>
+<p>The identities <code>max(x,y) = ½(x+y) + ½|x−y|</code> and <code>min(x,y) = ½(x+y) − ½|x−y|</code> give</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Linkage</th>
+<th style="text-align:left"><code>α_A</code></th>
+<th style="text-align:left"><code>α_B</code></th>
+<th style="text-align:left"><code>β</code></th>
+<th style="text-align:left"><code>γ</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">single</td>
+<td style="text-align:left"><code>½</code></td>
+<td style="text-align:left"><code>½</code></td>
+<td style="text-align:left"><code>0</code></td>
+<td style="text-align:left"><code>−½</code></td>
+</tr>
+<tr>
+<td style="text-align:left">complete</td>
+<td style="text-align:left"><code>½</code></td>
+<td style="text-align:left"><code>½</code></td>
+<td style="text-align:left"><code>0</code></td>
+<td style="text-align:left"><code>+½</code></td>
+</tr>
+<tr>
+<td style="text-align:left">average</td>
+<td style="text-align:left"><code>n_A/(n_A+n_B)</code></td>
+<td style="text-align:left"><code>n_B/(n_A+n_B)</code></td>
+<td style="text-align:left"><code>0</code></td>
+<td style="text-align:left"><code>0</code></td>
+</tr>
+<tr>
+<td style="text-align:left">ward</td>
+<td style="text-align:left"><code>(n_A+n_C)/T</code></td>
+<td style="text-align:left"><code>(n_B+n_C)/T</code></td>
+<td style="text-align:left"><code>−n_C/T</code></td>
+<td style="text-align:left"><code>0</code></td>
+</tr>
+<tr>
+<td style="text-align:left">centroid</td>
+<td style="text-align:left"><code>n_A/(n_A+n_B)</code></td>
+<td style="text-align:left"><code>n_B/(n_A+n_B)</code></td>
+<td style="text-align:left"><code>−n_A n_B/(n_A+n_B)²</code></td>
+<td style="text-align:left"><code>0</code></td>
+</tr>
+<tr>
+<td style="text-align:left">median</td>
+<td style="text-align:left"><code>½</code></td>
+<td style="text-align:left"><code>½</code></td>
+<td style="text-align:left"><code>−¼</code></td>
+<td style="text-align:left"><code>0</code></td>
+</tr>
+</tbody>
+</table>
+<p>with <code>T = n_A + n_B + n_C</code>. Single and complete are the <code>min</code>/<code>max</code> identities applied
+to <code>d(A,C)</code> and <code>d(B,C)</code> — the <code>β·d(A,B)</code> term is zero because the new cluster's own
+diameter does not affect its distance to a third cluster.</p>
+<p><strong>Average (UPGMA).</strong> The mean over all cross pairs:</p>
+<div class="math block">
+\[d(A\cup B,C) = \frac{\sum_{a\in A\cup B}\sum_{c\in C} d(a,c)}{|A\cup B|\,|C|}
+= \frac{n_A\,d(A,C) + n_B\,d(B,C)}{n_A+n_B}\]
+</div>
+<p>The coefficients are proportions, so a large cluster's average dominates the merged
+distance. That is the UPGMA &quot;size weighting&quot;: a big cluster is hard to pull apart because
+its internal averaging is inertially stable.</p>
+<p><strong>Centroid (UPGMC).</strong> Work with squared Euclidean distances, so the singleton distances
+are <code>‖x_i − x_j‖²</code> and a cluster is represented by its mean <code>μ</code>. Expanding the variance
+decomposition around <code>μ_{A∪B} = (n_A μ_A + n_B μ_B)/(n_A+n_B)</code>:</p>
+<div class="math block">
+\[\|\mu_{A\cup B} - \mu_C\|^2 =
+\frac{n_A\|\mu_A-\mu_C\|^2 + n_B\|\mu_B-\mu_C\|^2}{n_A+n_B}
+- \frac{n_A n_B}{(n_A+n_B)^2}\|\mu_A-\mu_B\|^2\]
+</div>
+<p>which is the <code>centroid</code> row above. The negative <code>β</code> is the &quot;centroid moved toward <code>C</code>&quot;
+correction, and it is exactly the term that allows inversions.</p>
+<p><strong>Median (WPGMC).</strong> Replace the weighted mean by the unweighted midpoint
+<code>(μ_A + μ_B)/2</code>. The same expansion with <code>½</code> weights gives <code>α = ½</code>, <code>β = −¼</code>, and the
+merged cluster's size no longer enters the update. That removes the size weighting but
+not the non-monotonicity: the midpoint can still jump toward <code>C</code>. The difference on
+unequal data is visible in the demo — <code>median</code> differs from <code>centroid</code> while both stay
+non-monotone.</p>
+<p><strong>Ward.</strong> Ward's objective is the total within-cluster sum of squares,
+<code>SSE = Σ_c Σ_{x∈c} ‖x − μ_c‖²</code>, and each greedy step merges the pair that increases it
+the least. For a union,</p>
+<div class="math block">
+\[\Delta(A,B) = \mathrm{SSE}(A\cup B) - \mathrm{SSE}(A) - \mathrm{SSE}(B)
+= \frac{n_A n_B}{n_A+n_B}\,\|\mu_A-\mu_B\|^2\]
+</div>
+<p>Because <code>Δ ≥ 0</code>, Ward is automatically monotone. The stored distance is
+<code>2Δ = 2 n_A n_B/(n_A+n_B)·‖μ_A − μ_B‖²</code>, and it satisfies the Lance–Williams recursion
+with the coefficients in the table (this is the standard derivation; substituting the
+centroid identity above and multiplying by <code>2(n_A+n_B)n_C/(n_A+n_B+n_C)</code> produces it
+term by term). The merge height reported is <code>√(2Δ)</code>, matching the convention of
+<code>scipy.cluster.hierarchy</code>.</p>
+<p>The cost <code>n_A n_B/(n_A+n_B)</code> is maximised at <code>n_A = n_B</code> for fixed total, which is the
+formal statement of Ward's balance bias: for a fixed centroid separation, merging two
+medium clusters costs more than absorbing a small cluster into a large one, so Ward
+prefers to keep sizes similar — even when the truth is lopsided.</p>
+<p><strong>Why <code>single</code> and <code>complete</code> are MSTs.</strong> At threshold <code>d</code>, single-linkage clusters are
+the connected components of the graph with edges of weight <code>≤ d</code>. Kruskal's algorithm
+builds exactly those components while adding edges in increasing order, so single linkage
+is Kruskal on the complete graph — equivalently, the minimum spanning tree read as a
+dendrogram. Complete linkage is the same argument with the maximum spanning tree. That is
+why <code>SLINK</code> and <code>CLINK</code> can do in <code>O(n²)</code> time what the naive loop does in <code>O(n³)</code>: they
+never look at all pairs again.</p>
+<p><strong>Connectivity constraint.</strong> Let <code>G</code> be a graph on the points (here: the mutual k-NN
+graph). A constrained agglomerative clustering only merges <code>A</code> and <code>B</code> when some edge of
+<code>G</code> crosses between them, and after merging, the new cluster inherits the union of its
+parents' edges. Clusters are then connected subgraphs of <code>G</code> by construction, which is
+the discrete analogue of &quot;a cluster is a connected region of the data manifold&quot;. The rule
+is soft: when no allowed pair remains the code falls back to the unrestricted minimum, so
+a disconnected <code>G</code> still produces a complete hierarchy instead of deadlocking.</p>
+<p><strong>Cutting.</strong> For a monotone hierarchy the merges happen at non-decreasing heights, so
+&quot;stop after <code>n − k</code> merges&quot; and &quot;cut at the <code>k</code>-th smallest height&quot; are the same thing,
+and every cut yields a well-defined partition. <code>cut_height</code> uses the height form: it
+stops as soon as the next merge exceeds <code>height</code>, then drops clusters smaller than
+<code>min_cluster_size</code> to noise. A dendrogram for the demo's chained data looks like</p>
+<pre class="highlight"><code>height
+ 7.45 |                              ┌──────── both blobs ────────┐   complete
+ 0.44 |  ┌──── blob A ────┐── chain ──┌──── blob B ────┐              single
+ 0.00 |  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·
+</code></pre>
+<p>The same picture under single linkage collapses to one long chain: the first merge above
+the chain's spacing already contains every point.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>All six linkages are one function of <code>(name, d_i, d_j, d_ij, n_i, n_j, n_k)</code>, vectorised
+over every live cluster <code>k</code>:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"single"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">di</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">dj</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">di</span> <span class="o">-</span> <span class="n">dj</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"complete"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">di</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">dj</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">di</span> <span class="o">-</span> <span class="n">dj</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"average"</span><span class="p">:</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">ni</span> <span class="o">+</span> <span class="n">nj</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">ni</span> <span class="o">*</span> <span class="n">di</span> <span class="o">+</span> <span class="n">nj</span> <span class="o">*</span> <span class="n">dj</span><span class="p">)</span> <span class="o">/</span> <span class="n">w</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"ward"</span><span class="p">:</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">ni</span> <span class="o">+</span> <span class="n">nj</span> <span class="o">+</span> <span class="n">nk</span>
+            <span class="k">return</span> <span class="p">((</span><span class="n">ni</span> <span class="o">+</span> <span class="n">nk</span><span class="p">)</span> <span class="o">*</span> <span class="n">di</span> <span class="o">+</span> <span class="p">(</span><span class="n">nj</span> <span class="o">+</span> <span class="n">nk</span><span class="p">)</span> <span class="o">*</span> <span class="n">dj</span> <span class="o">-</span> <span class="n">nk</span> <span class="o">*</span> <span class="n">dij</span><span class="p">)</span> <span class="o">/</span> <span class="n">w</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"centroid"</span><span class="p">:</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">ni</span> <span class="o">+</span> <span class="n">nj</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">ni</span> <span class="o">*</span> <span class="n">di</span> <span class="o">+</span> <span class="n">nj</span> <span class="o">*</span> <span class="n">dj</span><span class="p">)</span> <span class="o">/</span> <span class="n">w</span> <span class="o">-</span> <span class="p">(</span><span class="n">ni</span> <span class="o">*</span> <span class="n">nj</span> <span class="o">/</span> <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">w</span><span class="p">))</span> <span class="o">*</span> <span class="n">dij</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"median"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">di</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">dj</span> <span class="o">-</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">dij</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</code></pre>
+<p><code>di</code> and <code>dj</code> are entire rows (<code>d(A,C)</code> and <code>d(B,C)</code> for every live <code>C</code>), so one call
+rewrites the whole merged row — no Python loop over clusters. <code>dij</code> is a scalar, the
+distance being consumed by this merge. <code>nk</code> is an array, so <code>ni + nk</code> broadcasts; that is
+what makes <code>ward</code> and <code>centroid</code> size-weighted while <code>median</code> is not. The two <code>abs</code> forms
+are the <code>min</code>/<code>max</code> identities; writing <code>np.minimum(di, dj)</code> would be equivalent and
+marginally slower.</p>
+<p>Whether the working numbers are distances or squared distances is decided once, at the
+top of <code>fit</code>:</p>
+<pre class="highlight"><code>        <span class="n">working</span> <span class="o">=</span> <span class="n">d</span> <span class="o">*</span> <span class="n">d</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">linkage</span> <span class="ow">in</span> <span class="n">SQUARED</span> <span class="k">else</span> <span class="n">d</span>
+
+        <span class="n">cap</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">cap</span><span class="p">,</span> <span class="n">cap</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="n">dist</span><span class="p">[:</span><span class="n">n</span><span class="p">,</span> <span class="p">:</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">working</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+</code></pre>
+<p><code>SQUARED</code> is <code>{ward, centroid, median}</code> — the three whose algebra is derived on squared
+distances. Squaring single/complete would be harmless (min and max commute with <code>x²</code>) but
+squaring <strong>average</strong> would not: the mean of squares is not the square of the mean, and
+the linkage would silently become something else. <code>cap = 2n − 1</code> is the number of nodes
+in the full dendrogram, so cluster <code>n + m</code> is the result of merge <code>m</code> and no index
+arithmetic is needed. Pre-filling with <code>inf</code> and setting the diagonal to <code>inf</code> means an
+<code>argmin</code> over the matrix can never pick a dead row or a self-distance.</p>
+<p>The merge loop is the naive <code>O(n³)</code> version, which is the clearest form:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">live</span> <span class="o">=</span> <span class="n">alive</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">alive</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">cand</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">live</span><span class="p">,</span> <span class="n">dist</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"connectivity_constrained"</span><span class="p">:</span>
+                <span class="n">cand</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">allow</span><span class="p">,</span> <span class="n">cand</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">cand</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">cand</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">live</span><span class="p">,</span> <span class="n">dist</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>   <span class="c1"># drop the constraint, keep going</span>
+            <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">cand</span><span class="p">)),</span> <span class="n">cap</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="n">j</span><span class="p">:</span>
+                <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">=</span> <span class="n">j</span><span class="p">,</span> <span class="n">i</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cand</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">])</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_height</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+</code></pre>
+<p><code>live</code> masks the matrix down to pairs of live clusters and <code>np.argmin</code> on the flattened
+array gives the pair; <code>divmod</code> recovers <code>(i, j)</code> from the flat index because the matrix is
+<code>cap × cap</code>. The <code>if i &gt; j</code> swap makes the pair canonical, which keeps <code>children_</code> and
+the label propagation deterministic. The <code>not np.isfinite(...).any()</code> check is the
+constraint's escape hatch: a disconnected k-NN graph would otherwise leave the loop with
+nothing to merge and no way to finish the hierarchy, so the restriction is dropped rather
+than raising.</p>
+<p>The update of the new row is one Lance–Williams call plus a symmetric write:</p>
+<pre class="highlight"><code>            <span class="n">ks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">alive</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">ks</span> <span class="o">=</span> <span class="n">ks</span><span class="p">[(</span><span class="n">ks</span> <span class="o">!=</span> <span class="n">i</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">ks</span> <span class="o">!=</span> <span class="n">j</span><span class="p">)]</span>
+            <span class="n">new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lance_williams</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">linkage</span><span class="p">,</span> <span class="n">dist</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">ks</span><span class="p">],</span> <span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">ks</span><span class="p">],</span> <span class="n">value</span><span class="p">,</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">size</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">size</span><span class="p">[</span><span class="n">j</span><span class="p">]),</span> <span class="n">size</span><span class="p">[</span><span class="n">ks</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">))</span>
+            <span class="n">dist</span><span class="p">[</span><span class="n">nxt</span><span class="p">,</span> <span class="n">ks</span><span class="p">]</span> <span class="o">=</span> <span class="n">new</span>
+            <span class="n">dist</span><span class="p">[</span><span class="n">ks</span><span class="p">,</span> <span class="n">nxt</span><span class="p">]</span> <span class="o">=</span> <span class="n">new</span>
+</code></pre>
+<p><code>ks</code> is selected <em>before</em> <code>i</code> and <code>j</code> are marked dead, so the filter has to exclude them
+by hand. Writing both <code>dist[nxt, ks]</code> and <code>dist[ks, nxt]</code> keeps the matrix symmetric, which
+matters because the next iteration's <code>argmin</code> scans both triangles. <code>value</code> (not
+<code>dist[i, j]</code>) is passed as <code>dij</code> because under <code>cut_height</code> the loop may break before the
+merge, and the height conversion happened already; passing the raw entry would be the
+same number here but would break if a threshold ever modified it.</p>
+<p>The constraint graph is a mutual k-NN graph, and the constraint is propagated by union:</p>
+<pre class="highlight"><code>        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="p">:</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">adj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">adj</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">adj</span> <span class="o">&amp;=</span> <span class="n">adj</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">adj</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+</code></pre>
+<p><code>argpartition</code> picks the <code>k</code> nearest without sorting, and <code>k+1</code> columns include the point
+itself, which <code>fill_diagonal</code> then removes. The single character that matters is <code>&amp;=</code>
+rather than <code>|=</code>: a <em>mutual</em> edge needs both endpoints to name each other, so a point
+sitting near a different manifold cannot drag its cluster across on its own. The union
+graph is the looser alternative and gives visibly worse results on the moons.</p>
+<p>After a merge, the new cluster's allowed set is the union of its parents' sets:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"connectivity_constrained"</span><span class="p">:</span>
+                <span class="n">link</span> <span class="o">=</span> <span class="n">allow</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">ks</span><span class="p">]</span> <span class="o">|</span> <span class="n">allow</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">ks</span><span class="p">]</span>
+                <span class="n">allow</span><span class="p">[</span><span class="n">nxt</span><span class="p">,</span> <span class="n">ks</span><span class="p">]</span> <span class="o">=</span> <span class="n">link</span>
+                <span class="n">allow</span><span class="p">[</span><span class="n">ks</span><span class="p">,</span> <span class="n">nxt</span><span class="p">]</span> <span class="o">=</span> <span class="n">link</span>
+</code></pre>
+<p><code>|</code> here, not <code>&amp;</code>: once <code>A</code> and <code>B</code> are one cluster, an edge from <code>A</code> to <code>C</code> is an edge
+from <code>A∪B</code> to <code>C</code>. Using <code>&amp;</code> would require <em>both</em> parents to touch <code>C</code>, which shrinks the
+graph with every merge until nothing can merge at all.</p>
+<p>The flat labels come from replaying merges into a union-find:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">merges</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;=</span> <span class="n">keep</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">ra</span><span class="p">,</span> <span class="n">rb</span> <span class="o">=</span> <span class="n">find</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">find</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+            <span class="n">parent</span><span class="p">[</span><span class="n">ra</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span> <span class="o">+</span> <span class="n">idx</span>
+            <span class="n">parent</span><span class="p">[</span><span class="n">rb</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span> <span class="o">+</span> <span class="n">idx</span>
+
+        <span class="n">roots</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">find</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
+</code></pre>
+<p>Stopping at <code>keep</code> merges is the cut: <code>n − k</code> for a fixed <code>k</code>, or every performed merge
+for <code>cut_height</code>. <code>parent[ra] = n + idx</code> records that merge <code>idx</code> created node <code>n + idx</code>,
+so <code>find</code> on any leaf walks up to the last merge that contained it. Path halving in <code>find</code>
+keeps the walk short — the tree can be a caterpillar with <code>n</code> levels, and without
+compression the label step would be quadratic. After the roots are known, sizes come from
+<code>np.bincount</code> and clusters smaller than <code>min_cluster_size</code> become <code>-1</code>.</p>
+<p>The height reported for the squared linkages is undone at the last moment:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_height</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">linkage</span> <span class="ow">in</span> <span class="n">SQUARED</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+</code></pre>
+<p><code>max(value, 0.0)</code> is not paranoia: <code>centroid</code> and <code>median</code> have negative <code>β</code>, so a
+merged distance can come out slightly below zero from rounding, and <code>np.sqrt</code> of a
+negative number is <code>nan</code>. Returning the square root keeps <code>distances_</code> in the same units
+as the input, which is what makes the demo's <code>0.44</code> versus <code>7.45</code> comparison meaningful.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Step</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Initial distance matrix</td>
+<td style="text-align:left"><code>O(n² d)</code></td>
+<td style="text-align:left"><code>O(n²)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">One merge: <code>argmin</code> over the matrix</td>
+<td style="text-align:left"><code>O(n²)</code></td>
+<td style="text-align:left">—</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>n−1</code> merges</td>
+<td style="text-align:left"><code>O(n³)</code></td>
+<td style="text-align:left"><code>O(n²)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Lance–Williams update</td>
+<td style="text-align:left"><code>O(n)</code> per merge</td>
+<td style="text-align:left">—</td>
+</tr>
+<tr>
+<td style="text-align:left">Labels</td>
+<td style="text-align:left"><code>O(n α(n))</code></td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>n_clusters</code> variants, all linkages</td>
+<td style="text-align:left">same loop, different constants</td>
+<td style="text-align:left">same</td>
+</tr>
+<tr>
+<td style="text-align:left">Constraint graph</td>
+<td style="text-align:left"><code>O(n²)</code> + <code>O(n k)</code></td>
+<td style="text-align:left"><code>O(n²)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>O(n³)</code> is the cost of rescanning the whole matrix for each merge, and it is why real
+libraries do not do this. Nearest-neighbour-chain (<code>nn_chain</code>) reduces it to <code>O(n²)</code> in
+time and memory; a priority queue of candidate pairs gives <code>O(n² log n)</code>; <code>SLINK</code> and
+<code>CLINK</code> achieve <code>O(n²)</code> time with <code>O(n)</code> memory for the two extreme linkages. All of them
+change the bookkeeping, not the result. The memory is the other wall: the distance matrix
+is <code>8n²</code> bytes, so <code>n = 50k</code> needs 20 GB. For larger data the usual answers are sparse
+constraints (only merge along a k-NN graph, <code>O(nk)</code> edges) or a subsample.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Chaining under <code>single</code>.</strong> One bridge of points merges two dense blobs at a tiny
+height — the demo's <code>0.44</code> versus <code>7.45</code>. Real causes: a stray line of points, a
+duplicated axis, or a genuinely filamentary cluster. Use <code>average</code>/<code>complete</code>, or a
+connectivity constraint, and inspect the merge heights rather than only the labels.</li>
+<li><strong>Ward's balance bias.</strong> Ward prefers equal-sized clusters, so on a 300/20 split it
+scores <code>0.722</code> while <code>centroid</code> scores <code>0.922</code>. If cluster sizes are very unequal and
+the small ones matter, Ward is the wrong default.</li>
+<li><strong>Inversions in <code>centroid</code>/<code>median</code>.</strong> Merge heights can decrease, so the &quot;tree&quot; has
+crossing branches and a height cut is ambiguous. The demo counts <code>7</code> and <code>3</code>
+inversions against <code>0</code> for the monotone rules. If you need a threshold, do not use
+these two linkages.</li>
+<li><strong>Greedy irreversibility.</strong> A merge is never undone, so an early mistake propagates
+upward. The classic case is <code>complete</code> linkage merging two outlier points into a
+spurious cluster that then attracts everything else. There is no restart and no
+objective that later repairs it.</li>
+<li><strong><code>K</code> is a choice, not a result.</strong> <code>n_clusters</code> decides where to cut, and different
+cuts of the same tree are all &quot;valid&quot;. Use the merge-height gap (largest jump in
+<code>distances_</code>), a silhouette scan, or domain knowledge — the tree only tells you the
+candidate cuts.</li>
+<li><strong>No noise model.</strong> Every point ends in a cluster, including outliers, which is why
+<code>complete</code> linkage's accuracy collapses on data with background points. Only
+<code>cut_height</code> with <code>min_cluster_size</code> can say &quot;this is noise&quot;; single/complete/average
+cannot.</li>
+<li><strong>Feature scale.</strong> All linkages use Euclidean distance, so a feature measured in
+thousands dominates one measured in fractions. Standardise, or use a domain metric —
+the algorithm itself has no notion of units.</li>
+<li><strong><code>average</code>'s size weighting.</strong> The <code>n_A/(n_A+n_B)</code> coefficients mean a large cluster
+barely moves when it absorbs a point, so UPGMA tends to produce one big cluster plus
+satellites rather than balanced ones.</li>
+<li><strong>Disconnected constraint graph.</strong> The mutual k-NN graph is not always connected, and
+the fallback silently drops the constraint and merges across the gap. Check that the
+graph has one component (or accept that the hierarchy is partly unconstrained); the
+<code>n_neighbors</code> value controls how likely this is.</li>
+<li><strong>Quadratic memory.</strong> <code>O(n²)</code> floats is the practical ceiling, well before the
+<code>O(n³)</code> time becomes painful. Use k-NN constraints, sparse linkage algorithms, or
+cluster a subsample and assign the rest to the nearest centroid.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Phylogenetics and taxonomy.</strong> UPGMA (<code>average</code>) on genetic distances is the classical
+tree-building method, and <code>single</code>/<code>complete</code> correspond to the minimax and maximum
+distance criteria. The dendrogram <em>is</em> the deliverable.</li>
+<li><strong>Document and topic hierarchies.</strong> Agglomerative clustering over TF-IDF or embedding
+vectors gives a browsable tree, which is more useful than a flat partition when the
+consumer is a human looking for the right level of granularity.</li>
+<li><strong>Genomics and single-cell data.</strong> Hierarchical clustering of expression profiles with
+Ward linkage and a correlation-derived distance is standard; the dendrogram's ordering
+is used to permute the heatmap.</li>
+<li><strong>Image segmentation.</strong> Region merging on a graph of superpixels, with a connectivity
+constraint so segments stay spatially contiguous.</li>
+<li><strong>Anomaly-adjacent workflows.</strong> Cutting low and marking small clusters as noise
+(<code>cut_height</code>) gives a cheap alternative to DBSCAN when a hierarchy is wanted anyway.</li>
+<li><strong>Customer and product taxonomies.</strong> Ward on standardised behavioural features, cut at
+several heights to get segments, sub-segments and micro-segments from one fit.</li>
+<li><strong>As a sanity check for <code>K</code>.</strong> Running <code>single</code> and <code>complete</code> on the same data and
+comparing the top merge heights says a lot about whether the clusters are genuinely
+separated or just an artefact of one linkage's bias.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Ward, <em>Hierarchical Grouping to Optimize an Objective Function</em>, 1963, JASA — the
+variance-minimising criterion and its merge cost.</li>
+<li>Lance &amp; Williams, <em>A General Theory of Classificatory Sorting Strategies</em>, 1967, The
+Computer Journal — the recursive update formula shared by every linkage.</li>
+<li>Sneath &amp; Sokal, <em>Numerical Taxonomy</em>, 1973 — UPGMA, UPGMC and WPGMC, and the
+non-monotonicity of the centroid methods.</li>
+<li>Sibson, <em>SLINK: An Optimally Efficient Algorithm for the Single-Link Cluster Method</em>,
+1973, The Computer Journal — <code>O(n²)</code> single linkage via the MST.</li>
+<li>Defays, <em>An Efficient Algorithm for a Complete Link Method</em>, 1977, The Computer Journal
+— <code>CLINK</code>, the complete-linkage counterpart.</li>
+<li>Gower &amp; Ross, <em>Minimum Spanning Trees and Single Linkage Cluster Analysis</em>, 1969, JRSS-C
+— the MST equivalence this file's derivation relies on.</li>
+<li>Müllner, <em>Modern Hierarchical, Agglomerative Clustering Algorithms</em>, 2011, arXiv —
+nearest-neighbour-chain, <code>SLINK</code>/<code>CLINK</code>, and why the naive loop is <code>O(n³)</code>.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="spectral_clustering.html"><small>Previous</small><span>Spectral clustering</span></a><a class="next" href="../08-manifold/index.html"><small>Next</small><span>08 · Manifolds &amp; embeddings</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">07 · Clustering</p><ul class="rail-list"><li><a href="kmeans.html"><span class="tick">✓</span><span>k-means</span></a></li><li><a href="gmm.html"><span class="tick">✓</span><span>Gaussian mixture</span></a></li><li><a href="dbscan.html"><span class="tick">✓</span><span>DBSCAN</span></a></li><li><a href="hdbscan.html"><span class="tick">✓</span><span>HDBSCAN</span></a></li><li><a href="spectral_clustering.html"><span class="tick">✓</span><span>Spectral clustering</span></a></li><li><a href="agglomerative.html" aria-current="page"><span class="tick">✓</span><span>Hierarchical clustering</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>k-medoids</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>OPTICS</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Mean shift</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Fuzzy c-means</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Cluster validity</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BIRCH</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Affinity propagation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Density peaks</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Self-organising maps</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Subspace clustering</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../06-latent-factorization/index.html"><span class="jump">← 06 · Latent structure &amp; factorisation</span></a></li><li><a href="../08-manifold/index.html"><span class="jump">08 · Manifolds &amp; embeddings&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/07-clustering/agglomerative.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probabilistic PCA · MLAtoms</title>
+<meta name="description" content="PCA as a latent-variable model, with missing data and noise. PCA answers one question — which k-plane is closest to the data — and refuses to answer any…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/probabilistic_pca.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Probabilistic PCA">
+<meta property="og:description" content="PCA as a latent-variable model, with missing data and noise. PCA answers one question — which k-plane is closest to the data — and refuses to answer any…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/probabilistic_pca.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Probabilistic PCA">
+<meta name="twitter:description" content="PCA as a latent-variable model, with missing data and noise. PCA answers one question — which k-plane is closest to the data — and refuses to answer any…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Probabilistic PCA", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/probabilistic_pca.html", "description": "PCA as a latent-variable model, with missing data and noise. PCA answers one question \u2014 which k-plane is closest to the data \u2014 and refuses to answer any\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">06 · Latent structure &amp; factorisation</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="probabilistic_pca.py.html">source</a></p><h1>Probabilistic PCA</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>PCA answers one question — which <span class="math inline">\(k\)</span>-plane is closest to the data — and refuses
+to answer any other. There is no likelihood, so two different <span class="math inline">\(k\)</span> cannot be
+compared; there is no noise parameter, so the distance from the plane has no
+units; and a row with one missing coordinate cannot be projected at all.</p>
+<p>Probabilistic PCA keeps the plane and adds a story that generated the data:</p>
+<div class="math block">
+\[x = W z + \mu + \varepsilon, \qquad z \sim \mathcal{N}(0, I_k), \qquad \varepsilon \sim \mathcal{N}(0, \sigma^2 I_d), \qquad (1)\]
+</div>
+<p>which marginalises to a single Gaussian with a low-rank-plus-diagonal covariance:</p>
+<div class="math block">
+\[x \sim \mathcal{N}(\mu, C), \qquad C = W W^\top + \sigma^2 I_d. \qquad (2)\]
+</div>
+<p><code>z</code> is the position on the plane, <code>W z</code> puts it in the observed space, and
+<code>ε</code> is the part of the row the plane does not explain.</p>
+<pre class="highlight"><code>                        σ  ┌─ the fog: isotropic, thickness σ
+                     ╭──╮   │
+        · · ·   ·  · │··│ · │ ·        ·  scattered around a 2-plane
+      ·    ·   ·   · ╰──╯   │
+        ·   ·    ·  ·   ·   │  ·  ·
+     ────────────────────────────────  the retained subspace (k = 2)
+</code></pre>
+<p>The quiet fact that makes this worth doing: <strong>the maximum-likelihood <code>W</code> spans
+exactly the PCA subspace.</strong> Tipping and Bishop showed that</p>
+<div class="math block">
+\[W_{\mathrm{ML}} = V_k \left(\Lambda_k - \sigma^2 I\right)^{1/2} R \qquad (3)\]
+</div>
+<p>for any orthogonal <span class="math inline">\(R\)</span>, where <span class="math inline">\(V_k \Lambda_k V_k^\top\)</span> is the top-<span class="math inline">\(k\)</span> part of the
+sample covariance. So PPCA does not find better directions than PCA. It finds the
+<em>same</em> directions and additionally reports how far off them the data sits.</p>
+<p>That extra number buys three things.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"></th>
+<th style="text-align:left">PCA</th>
+<th style="text-align:left">PPCA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">rank selection</td>
+<td style="text-align:left">a scree plot, read by eye</td>
+<td style="text-align:left">a held-out likelihood</td>
+</tr>
+<tr>
+<td style="text-align:left">distance to the plane</td>
+<td style="text-align:left">unnormalised</td>
+<td style="text-align:left"><span class="math inline">\(\sigma^2\)</span>, in the data's units</td>
+</tr>
+<tr>
+<td style="text-align:left">a partly observed row</td>
+<td style="text-align:left">cannot project it</td>
+<td style="text-align:left"><span class="math inline">\(E[x_{\text{miss}} \mid x_{\text{obs}}]\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">new data</td>
+<td style="text-align:left">no generative story</td>
+<td style="text-align:left">sample from the fitted model</td>
+</tr>
+</tbody>
+</table>
+<p>The picture that makes (2) concrete is the eigenvalue spectrum. PPCA's covariance
+has the top <span class="math inline">\(k\)</span> sample eigenvalues and then <span class="math inline">\(d - k\)</span> copies of <span class="math inline">\(\sigma^2\)</span>:</p>
+<pre class="highlight"><code>    eigenvalue
+      │  ●                                      sample covariance
+      │   ●
+      │    ●  ●                                 ●
+      │         ●  ●  ●  ●  ●  ●  ●             ●  ●  ●  ●  ●  ●
+      │  ─────────────────────────── σ²  ───────────────────────
+      └────────────────────────────────────────────────────▶ index
+         ╰── retained ──╯   ╰────── flattened tail ──────╯
+</code></pre>
+<p>So <span class="math inline">\(\sigma^2\)</span> is the <strong>mean of the discarded eigenvalues</strong>, and PPCA is the
+statement &quot;everything beyond <span class="math inline">\(k\)</span> looks like isotropic noise&quot;. When that statement
+is false — the tail decays smoothly instead of flattening — the fit is still the
+best rank-<span class="math inline">\(k\)</span> Gaussian, but <span class="math inline">\(\sigma^2\)</span> is an average of things that are not equal,
+and the residual structure is real.</p>
+<p>One consequence deserves its own sentence, because it is what makes the
+posterior useful: the model's Gaussian fog means the reconstruction
+<span class="math inline">\(\mu + W E[z \mid x]\)</span> is a <strong>denoiser</strong>, not a projection. Along the retained
+directions the noise is almost entirely subtracted; along the discarded ones it
+is kept. The demo measures the result: mean squared reconstruction error is
+<span class="math inline">\((d - k)\sigma^2\)</span>, not <span class="math inline">\(d\sigma^2\)</span>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Fit</th>
+<th style="text-align:left">Algorithm</th>
+<th style="text-align:left">What it adds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ppca_em</code></td>
+<td style="text-align:left">observed likelihood</td>
+<td style="text-align:left">EM</td>
+<td style="text-align:left">the default, and the one that generalises</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ppca_closed</code></td>
+<td style="text-align:left">same optimum</td>
+<td style="text-align:left">eigendecomposition</td>
+<td style="text-align:left">exact, one SVD, no iterations</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>missing_data</code></td>
+<td style="text-align:left">observed-block likelihood</td>
+<td style="text-align:left">EM with per-row conditioning</td>
+<td style="text-align:left">NaN-tolerant fitting</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mixture_ppca</code></td>
+<td style="text-align:left">mixture likelihood</td>
+<td style="text-align:left">EM on responsibilities</td>
+<td style="text-align:left">several subspaces at once</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>ppca_em</code></strong> is the workhorse. The E-step computes the posterior of <code>z</code> given
+the row, the M-step solves for <code>W</code> and <span class="math inline">\(\sigma^2\)</span> in closed form given the
+posterior second moments. Both steps are exact, so the likelihood is monotone by
+construction, and the demo checks that over the whole curve. It converges in a
+few dozen iterations from the closed-form initialisation and is the variant that
+extends to missing data and to mixtures.</p>
+<p><strong><code>ppca_closed</code></strong> is (3) directly: one eigendecomposition of the sample
+covariance, <span class="math inline">\(\sigma^2\)</span> = mean of the discarded eigenvalues, and a square root.
+It is exact, deterministic, and needs no tolerances — which is why it is the
+oracle in the demo: EM's answer has to match it in <span class="math inline">\(C\)</span> (not in <span class="math inline">\(W\)</span>, which is only
+identified up to a rotation) or one of the two is wrong.</p>
+<p><strong><code>missing_data</code></strong> conditions on the observed coordinates of each row instead of
+the full row. Every row gets its own <span class="math inline">\(k \times k\)</span> system, the M-step for <code>W</code>
+becomes one least-squares problem <em>per feature</em> over the rows where that feature
+is present, and <span class="math inline">\(\sigma^2\)</span> normalises by observed cells rather than all cells.
+With nothing missing it reduces exactly to <code>ppca_em</code> — the demo asserts that — so
+the extra machinery costs nothing when it is not needed.</p>
+<p><strong><code>mixture_ppca</code></strong> replaces &quot;the data is near one <span class="math inline">\(k\)</span>-plane&quot; with &quot;the data is a
+mixture of <span class="math inline">\(m\)</span> of them&quot;, each with its own centre, loading and noise:</p>
+<div class="math block">
+\[p(x) = \sum_{c=1}^{m} \pi_c \, \mathcal{N}(x;\, \mu_c,\, W_c W_c^\top + \sigma_c^2 I). \qquad (4)\]
+</div>
+<p>Responsibilities are computed with the same density as the single model, so the
+E-step is one <code>_logpdf</code> call per component, and the M-step is the closed form on
+a weighted scatter matrix plus one EM refinement of <code>W</code>. It is the natural
+generalisation of PCA to a union of subspaces, and it is the entry point to
+mixtures of factor analysers.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-density-without-a--inverse">The density without a <span class="math inline">\(d \times d\)</span> inverse <a class="header-anchor" href="#the-density-without-a--inverse">#</a></h3>
+<p>For <span class="math inline">\(n\)</span> rows and <span class="math inline">\(d\)</span> features, forming <span class="math inline">\(C\)</span> costs <span class="math inline">\(O(d^2)\)</span> memory and inverting it
+<span class="math inline">\(O(d^3)\)</span>. With <span class="math inline">\(k \ll d\)</span> both are avoidable by the matrix determinant lemma and
+Woodbury:</p>
+<div class="math block">
+\[\log \lvert C \rvert = (d - k) \log \sigma^2 + \log \lvert W^\top W + \sigma^2 I_k \rvert, \qquad (5)\]
+</div>
+<div class="math block">
+\[x^\top C^{-1} x = \frac{1}{\sigma^2}\left( \lVert x \rVert^2 - (W^\top x)^\top (W^\top W + \sigma^2 I_k)^{-1} (W^\top x) \right). \qquad (6)\]
+</div>
+<p>Both right-hand sides involve only <span class="math inline">\(k \times k\)</span> objects. This is not a
+micro-optimisation: it is what lets PPCA be applied at <span class="math inline">\(d = 10^4\)</span> where <span class="math inline">\(C\)</span> alone
+would be 800 MB, and it is the same identity that gives the posterior below.</p>
+<h3 id="e-step-the-posterior-of-the-latent">E-step: the posterior of the latent <a class="header-anchor" href="#e-step-the-posterior-of-the-latent">#</a></h3>
+<p>With <span class="math inline">\(M = W^\top W + \sigma^2 I_k\)</span>,</p>
+<div class="math block">
+\[z \mid x \;\sim\; \mathcal{N}\!\left(M^{-1} W^\top (x - \mu),\; \sigma^2 M^{-1}\right). \qquad (7)\]
+</div>
+<p>Every row of a complete matrix shares the same posterior covariance — it is
+independent of <span class="math inline">\(x\)</span> — which is why EM here is so cheap: the covariance is computed
+once per iteration, and only the means are per-row.</p>
+<h3 id="m-step-the-second-moment-not-the-covariance">M-step: the second moment, not the covariance <a class="header-anchor" href="#m-step-the-second-moment-not-the-covariance">#</a></h3>
+<p>Maximising the expected complete-data log-likelihood over <span class="math inline">\(W\)</span> with the posterior
+held fixed gives a weighted least-squares problem whose normal equations are</p>
+<div class="math block">
+\[W = \left( \sum_i (x_i - \mu)\, E[z_i]^\top \right)\left( \sum_i E[z_i z_i^\top] \right)^{-1}, \qquad (8)\]
+</div>
+<p>and the second factor is the second moment, not the covariance:</p>
+<div class="math block">
+\[E[z_i z_i^\top] = E[z_i]E[z_i]^\top + \mathrm{Cov}(z_i). \qquad (9)\]
+</div>
+<p>Dropping the <span class="math inline">\(\mathrm{Cov}\)</span> term is the classic mistake: it makes the fit
+systematically over-confident in directions the data constrains weakly, because
+it treats a posterior mean as if it were an observed value. The demo's fit would
+still look plausible; it just would not agree with the closed form.</p>
+<p>For the noise,</p>
+<div class="math block">
+\[\sigma^2 = \frac{1}{nd}\left( \lVert X_c - E[Z] W^\top \rVert_F^2 + n\,\mathrm{tr}\!\left( \sigma^2 M^{-1} W^\top W \right) \right). \qquad (10)\]
+</div>
+<p>The second term is the expected residual of the <em>latent</em>, and for a mixture that
+term shows up weighted by the responsibilities.</p>
+<blockquote>
+<p><strong>The factor that must appear once.</strong> <span class="math inline">\(\mathrm{Cov}(z) = \sigma^2 M^{-1}\)</span> already
+carries a <span class="math inline">\(\sigma^2\)</span>. Multiplying the trace term by <span class="math inline">\(\sigma^2\)</span> a second time —
+which is easy to do while transcribing (10) — makes every M-step shrink
+<span class="math inline">\(\sigma^2\)</span> a bit too fast. EM still converges — to <span class="math inline">\(\sigma^2 = 0.123\)</span> against
+the closed form's <span class="math inline">\(0.158\)</span>, 62 nats worse in likelihood — and every loss curve
+is still monotone, so nothing looks wrong until a quantity that does not depend
+on the path checks it. That was a real bug in this file, and the closed form is
+what caught it.</p>
+</blockquote>
+<h3 id="the-closed-form">The closed form <a class="header-anchor" href="#the-closed-form">#</a></h3>
+<p>Stationarity of the log likelihood with respect to <span class="math inline">\(W\)</span> means <span class="math inline">\(W\)</span>'s columns have
+to be eigenvectors of the sample covariance in the retained subspace and the
+residual has to be isotropic. Writing <span class="math inline">\(S = V \Lambda V^\top\)</span> with <span class="math inline">\(\lambda_1 \ge
+\cdots \ge \lambda_d\)</span>:</p>
+<div class="math block">
+\[W = V_k \left(\Lambda_k - \sigma^2 I\right)^{1/2} R, \qquad \sigma^2 = \frac{1}{d - k}\sum_{j > k} \lambda_j, \qquad (11)\]
+</div>
+<p>and the resulting covariance is the sample spectrum with its tail replaced by its
+mean:</p>
+<div class="math block">
+\[C = V_k \Lambda_k V_k^\top + \sigma^2 \left(I - V_k V_k^\top\right). \qquad (12)\]
+</div>
+<p>Two limits are worth remembering. As <span class="math inline">\(\sigma^2 \to 0\)</span>, (11) becomes
+<span class="math inline">\(W = V_k \Lambda_k^{1/2}\)</span>, the PCA projection, and the posterior mean becomes the
+orthogonal projection — PPCA contains PCA. And when <span class="math inline">\(k = d\)</span> there is no tail, so
+the formula divides by zero and <span class="math inline">\(\sigma^2\)</span> hits the boundary at 0; that is why
+the code guards with <code>max(..., 1e-12)</code> rather than trusting the expression.</p>
+<h3 id="why-the-in-sample-likelihood-cannot-choose-">Why the in-sample likelihood cannot choose <span class="math inline">\(k\)</span> <a class="header-anchor" href="#why-the-in-sample-likelihood-cannot-choose-">#</a></h3>
+<p>Substituting (11) and (12) into the log likelihood gives the profile</p>
+<div class="math block">
+\[\ell_k = -\frac{n}{2}\left[ d\log 2\pi + \sum_{j \le k} \log \lambda_j + (d - k)\log \hat\sigma_k^2 + d \right], \qquad \hat\sigma_k^2 = \frac{1}{d-k}\sum_{j>k}\lambda_j, \qquad (13)\]
+</div>
+<p>which is non-decreasing in <span class="math inline">\(k\)</span> for the trivial reason that a bigger model contains
+the smaller one. Setting <span class="math inline">\(k = d\)</span> gives <span class="math inline">\(\ell = \infty\)</span> at <span class="math inline">\(\hat\sigma^2 = 0\)</span>.
+So rank selection needs either held-out data or an explicit test; the classical
+route is Anderson's likelihood-ratio test for the sphericity of the tail, whose
+null distribution is a mixture of <span class="math inline">\(\chi^2\)</span> because <span class="math inline">\(\sigma^2 \ge 0\)</span> sits on a
+boundary.</p>
+<p>The demo uses held-out log likelihood and shows both sides of it. On 2000
+training rows against 2000 held out, the curve peaks at the true <span class="math inline">\(k = 2\)</span>
+(<span class="math inline">\(-14.316\)</span>, <span class="math inline">\(-8.627\)</span>, <span class="math inline">\(-8.631\)</span>, <span class="math inline">\(-8.632\)</span> for <span class="math inline">\(k = 1 \ldots 4\)</span>). On 400 training
+rows it peaks at <span class="math inline">\(k = 3\)</span> by <span class="math inline">\(10^{-3}\)</span> — with that little data the sample tail is
+not yet spherical enough for the correct model to win.</p>
+<h3 id="missing-data-changes-the-m-step-not-just-the-e-step">Missing data changes the M-step, not just the E-step <a class="header-anchor" href="#missing-data-changes-the-m-step-not-just-the-e-step">#</a></h3>
+<p>For a row with observed set <span class="math inline">\(O_i\)</span>, the model says</p>
+<div class="math block">
+\[x_{O_i} \sim \mathcal{N}\!\left(\mu_{O_i},\; W_{O_i} W_{O_i}^\top + \sigma^2 I_{|O_i|}\right), \qquad (14)\]
+</div>
+<p>with <span class="math inline">\(W_{O_i}\)</span> the rows of <span class="math inline">\(W\)</span> in <span class="math inline">\(O_i\)</span>. The E-step is (7) with <span class="math inline">\(W\)</span> replaced by
+<span class="math inline">\(W_{O_i}\)</span> and <span class="math inline">\(M_i = W_{O_i}^\top W_{O_i} + \sigma^2 I_k\)</span>, which is one <span class="math inline">\(k
+\times k\)</span> system per row. The M-step for <code>W</code> is where the structure changes:
+each <strong>row</strong> <span class="math inline">\(j\)</span> of <span class="math inline">\(W\)</span> has its own normal equations, over the rows where feature
+<span class="math inline">\(j\)</span> is present,</p>
+<div class="math block">
+\[W_j = \left[ \sum_{i \in O_j} (x_{ij} - \mu_j) E[z_i]^\top \right] \left[ \sum_{i \in O_j} E[z_i z_i^\top] \right]^{-1}, \qquad (15)\]
+</div>
+<p>because the inner product that produced the shared system no longer exists. And
+<span class="math inline">\(\sigma^2\)</span> normalises by the number of <strong>observed</strong> cells: a missing cell
+contributes <span class="math inline">\(E[\epsilon^2] = \sigma^2\)</span> to the objective, a term that does not
+depend on <span class="math inline">\(W\)</span> and so does not move the optimum.</p>
+<p>Filling the NaNs with column means and running ordinary PPCA is not the same
+estimator, and the difference is not small. Mean imputation shrinks each column's
+variance by the missing fraction and biases every correlation towards zero; on
+this demo's data it recovers the hidden entries with RMSE 1.962 against 0.522 for
+the conditional mean, and the model that comes out of it is not the one that
+generated the data.</p>
+<h3 id="a-mixture-weighted-versions-of-the-same-three-equations">A mixture: weighted versions of the same three equations <a class="header-anchor" href="#a-mixture-weighted-versions-of-the-same-three-equations">#</a></h3>
+<p>With responsibilities <span class="math inline">\(r_{ic} \propto \pi_c\,\mathcal{N}(x_i; \mu_c, C_c)\)</span>,</p>
+<div class="math block">
+\[W_c = \left[ \sum_i r_{ic} (x_i - \mu_c) E[z_i^{(c)}]^\top \right]\left[ \sum_i r_{ic} E[z_i^{(c)} z_i^{(c)\top}] \right]^{-1}, \qquad (16)\]
+</div>
+<p>and likewise <span class="math inline">\(\mu_c\)</span> is the responsibility-weighted mean, <span class="math inline">\(\pi_c\)</span> the mean
+responsibility, and <span class="math inline">\(\sigma_c^2\)</span> gets (10) with every sum weighted by <span class="math inline">\(r_{ic}\)</span>.
+The only genuinely new ingredient is the initialisation, and it is where mixtures
+actually fail: two centres drawn uniformly at random can land in the same
+cluster, both components then fit the same half of the data, and EM has no
+symmetry-breaking mechanism to escape — it converges to &quot;everything is 50/50&quot;
+and stops. The demo's earlier uniform initialisation did exactly that, at 53%
+purity, on data that a quadratic discriminant separates perfectly.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>PPCA(n_components, variant=..., n_mixtures=..., max_iter=..., tol=..., seed=...)</code>
+with <code>fit</code>, <code>transform</code> (<span class="math inline">\(E[z \mid x]\)</span>), <code>reconstruct</code> (<span class="math inline">\(E[x \mid x_{\text{obs}}]\)</span>),
+<code>fit_transform</code>, <code>score_samples</code>, <code>sample</code>, and <code>predict_proba</code> for the mixture.
+<code>W_</code> is <span class="math inline">\((d, k)\)</span> — latent to observed — and <code>components_</code> is its transpose, the
+same orientation as <code>pca.PCA.components_</code>, so the two atoms can be read side by
+side. <code>covariance_</code> is <span class="math inline">\(C\)</span>; for the mixture the per-component tuples are
+<code>means_</code>, <code>Ws_</code>, <code>sigma2s_</code> and <code>weights_</code>, and the single-model attributes stay
+unset.</p>
+<h3 id="1-the-density-without-ever-touching-a--matrix">1. The density, without ever touching a <span class="math inline">\(d \times d\)</span> matrix <a class="header-anchor" href="#1-the-density-without-ever-touching-a--matrix">#</a></h3>
+<pre class="highlight"><code>    <span class="n">M</span> <span class="o">=</span> <span class="n">W</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">W</span> <span class="o">+</span> <span class="n">sigma2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">logdet_M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">slogdet</span><span class="p">(</span><span class="n">M</span><span class="p">)</span>
+    <span class="n">logdet</span> <span class="o">=</span> <span class="p">(</span><span class="n">d</span> <span class="o">-</span> <span class="n">k</span><span class="p">)</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sigma2</span><span class="p">)</span> <span class="o">+</span> <span class="n">logdet_M</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="n">Xc</span> <span class="o">@</span> <span class="n">W</span>                                   <span class="c1"># (n, k)</span>
+    <span class="n">quad</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Xc</span> <span class="o">*</span> <span class="n">Xc</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">P</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">M</span><span class="p">))</span> <span class="o">*</span> <span class="n">P</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="n">sigma2</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">d</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">+</span> <span class="n">logdet</span> <span class="o">+</span> <span class="n">quad</span><span class="p">)</span>
+</code></pre>
+<p>That is (5) and (6) with <code>P = Xc @ W</code> standing in for <span class="math inline">\(W^\top x\)</span> for every row at
+once. <code>slogdet</code> rather than <code>log(det(...))</code> because <span class="math inline">\(\lvert C \rvert\)</span> for <span class="math inline">\(d = 50\)</span>
+and <span class="math inline">\(\sigma^2 = 0.01\)</span> is <span class="math inline">\(10^{-100}\)</span>: the determinant underflows to exactly zero
+in floating point and the likelihood becomes <code>-inf</code> for reasons that have nothing
+to do with the fit.</p>
+<p>Note what is <em>not</em> here: no <span class="math inline">\(d \times d\)</span> matrix, no Cholesky factor, no inverse of
+<span class="math inline">\(C\)</span>. The whole model is expressed through <span class="math inline">\(k \times k\)</span> objects, and that is the
+form in which PPCA scales.</p>
+<h3 id="2-the-em-loop">2. The EM loop <a class="header-anchor" href="#2-the-em-loop">#</a></h3>
+<pre class="highlight"><code>            <span class="n">M</span> <span class="o">=</span> <span class="n">W</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">W</span> <span class="o">+</span> <span class="n">sigma2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+            <span class="n">Minv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">M</span><span class="p">)</span>
+            <span class="n">Ez</span> <span class="o">=</span> <span class="n">Xc</span> <span class="o">@</span> <span class="n">W</span> <span class="o">@</span> <span class="n">Minv</span>                          <span class="c1"># (n, k)</span>
+            <span class="n">Covz</span> <span class="o">=</span> <span class="n">sigma2</span> <span class="o">*</span> <span class="n">Minv</span>                        <span class="c1"># same for every row</span>
+            <span class="n">Ezz</span> <span class="o">=</span> <span class="n">Ez</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Ez</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">Covz</span>                  <span class="c1"># Σ_i E[z_i z_iᵀ]</span>
+            <span class="n">W_new</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">Ezz</span><span class="p">,</span> <span class="n">Ez</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Xc</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>   <span class="c1"># (d, k)</span>
+            <span class="n">resid</span> <span class="o">=</span> <span class="n">Xc</span> <span class="o">-</span> <span class="n">Ez</span> <span class="o">@</span> <span class="n">W_new</span><span class="o">.</span><span class="n">T</span>
+            <span class="c1"># Covz is already σ²M⁻¹, so the posterior spread enters once</span>
+            <span class="n">ssr</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resid</span> <span class="o">*</span> <span class="n">resid</span><span class="p">))</span>
+                   <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="n">Covz</span> <span class="o">@</span> <span class="p">(</span><span class="n">W_new</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">W_new</span><span class="p">))))</span>
+            <span class="n">sigma2_new</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">ssr</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">d</span><span class="p">),</span> <span class="mf">1e-12</span><span class="p">)</span>
+</code></pre>
+<p>Line by line this is (7), (9), (8) and (10). Three details carry the derivation.
+<code>Ezz = Ez.T @ Ez + n * Covz</code> is the sum of second moments — the <code>n *</code> is there
+because the covariance is shared across rows but the sum is not. <code>np.linalg.solve</code>
+with <code>Ez.T @ Xc</code> transposed afterwards solves for <span class="math inline">\(W^\top\)</span> rather than <span class="math inline">\(W\)</span>, which
+avoids forming an inverse and keeps the <span class="math inline">\((k,k)\)</span> system on the left. And the
+comment on <code>ssr</code> is load-bearing: <code>Covz</code> already equals <span class="math inline">\(\sigma^2 M^{-1}\)</span>, so the
+trace enters once. Writing <code>n * sigma2 * trace(...)</code> — the natural reading of
+&quot;posterior spread times <span class="math inline">\(\sigma^2\)</span>&quot; — silently changes the fixed point, and the
+only symptom is that EM and the closed form disagree at the third digit.</p>
+<h3 id="3-the-closed-form-which-is-also-the-oracle">3. The closed form, which is also the oracle <a class="header-anchor" href="#3-the-closed-form-which-is-also-the-oracle">#</a></h3>
+<pre class="highlight"><code>        <span class="n">lam</span><span class="p">,</span> <span class="n">V</span> <span class="o">=</span> <span class="n">_top_eigs</span><span class="p">(</span><span class="n">Xc</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Xc</span> <span class="o">/</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+        <span class="n">sigma2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">lam</span><span class="p">[</span><span class="n">k</span><span class="p">:]</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="k">if</span> <span class="n">d</span> <span class="o">&gt;</span> <span class="n">k</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">W_</span> <span class="o">=</span> <span class="n">V</span><span class="p">[:,</span> <span class="p">:</span><span class="n">k</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">lam</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span> <span class="o">-</span> <span class="n">sigma2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma2_</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">sigma2</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+</code></pre>
+<p><code>Xc.T @ Xc / n</code> is the <strong>biased</strong> covariance. Using <span class="math inline">\(n - 1\)</span> is the standard
+sample-covariance convention and it is wrong here: the likelihood is a function of
+the second moment about the fitted mean, so dividing by <span class="math inline">\(n - 1\)</span> makes the closed
+form disagree with EM. On the demo's 600 rows that is a factor of 0.998 in
+<span class="math inline">\(\sigma^2\)</span> — small, systematic, and exactly the kind of discrepancy that makes
+someone go looking for a bug in EM.</p>
+<p><code>np.maximum(lam[:k] - sigma2, 0.0)</code> guards the case where a retained eigenvalue is
+smaller than the noise level; that happens when <span class="math inline">\(k\)</span> is too large for the data, and
+the unclipped value would put a <code>nan</code> in <code>W</code> via the square root.</p>
+<h3 id="4-conditioning-on-the-observed-block-batched">4. Conditioning on the observed block, batched <a class="header-anchor" href="#4-conditioning-on-the-observed-block-batched">#</a></h3>
+<pre class="highlight"><code>        <span class="n">M</span> <span class="o">=</span> <span class="n">sigma2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"dj,id,dk-&gt;ijk"</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">W</span><span class="p">)</span>
+        <span class="n">Minv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">M</span><span class="p">)</span>                        <span class="c1"># (n, k, k)</span>
+        <span class="n">P</span> <span class="o">=</span> <span class="n">Xf</span> <span class="o">@</span> <span class="n">W</span>                                     <span class="c1"># Wᵀ x_i, on observed coords</span>
+        <span class="n">Ez</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"ijk,ik-&gt;ij"</span><span class="p">,</span> <span class="n">Minv</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
+        <span class="n">Cov</span> <span class="o">=</span> <span class="n">sigma2</span> <span class="o">*</span> <span class="n">Minv</span>
+</code></pre>
+<p>With a per-row observed mask <code>m</code>, the system is <span class="math inline">\(M_i = W^\top \mathrm{diag}(m_i)
+W + \sigma^2 I\)</span>, and <code>einsum(&quot;dj,id,dk-&gt;ijk&quot;, W, m, W)</code> reads exactly that: sum
+over features <span class="math inline">\(d\)</span>, keep row <span class="math inline">\(i\)</span>, land on the <span class="math inline">\(j,k\)</span> block. <code>np.linalg.inv</code> on an
+<span class="math inline">\((n,k,k)\)</span> stack is a batched inverse, so the whole E-step is three array
+operations rather than <span class="math inline">\(n\)</span> Python iterations.</p>
+<p><code>Xf</code> is the centred data with the missing entries set to zero, which is what makes
+<code>P = Xf @ W</code> equal <span class="math inline">\(W_{O_i}^\top (x_{O_i} - \mu_{O_i})\)</span> without any slicing: the
+missing coordinates contribute exactly <span class="math inline">\(0 \cdot W_j = 0\)</span>. The same <code>M</code> then gives
+the observed log density</p>
+<pre class="highlight"><code>        <span class="n">logdet</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sigma2</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">nobs</span> <span class="o">-</span> <span class="n">k</span><span class="p">)</span> <span class="o">+</span> <span class="n">logdet_M</span>
+        <span class="n">quad</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Xf</span> <span class="o">*</span> <span class="n">Xf</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"ij,ik,ijk-&gt;i"</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">Minv</span><span class="p">))</span> <span class="o">/</span> <span class="n">sigma2</span>
+        <span class="n">logp</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">nobs</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">+</span> <span class="n">logdet</span> <span class="o">+</span> <span class="n">quad</span><span class="p">)</span>
+</code></pre>
+<p>which is (5) and (6) with <span class="math inline">\(d\)</span> replaced by the per-row observed count <code>nobs</code>. That
+one substitution is the whole of &quot;condition on the observed block&quot;: a row with 3
+of 8 coordinates observed is a 3-dimensional Gaussian with the corresponding
+<span class="math inline">\(3 \times 3\)</span> marginal, and its density must not be diluted by the 5 coordinates
+nobody measured.</p>
+<p>The batching is not cosmetic. The straightforward per-row loop took 10.9 s for
+this demo's missing-data fit, 371 iterations of <span class="math inline">\(n = 600\)</span> small inverses; the
+batched version takes 0.67 s for the same answer — 16 times faster, and the
+reason the whole demo runs in under a second.</p>
+<h3 id="5-the-missing-data-m-step-has-one-system-per-feature">5. The missing-data M-step has one system per feature <a class="header-anchor" href="#5-the-missing-data-m-step-has-one-system-per-feature">#</a></h3>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+                <span class="n">rows</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">rows</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                    <span class="k">continue</span>                     <span class="c1"># never observed: W_j stays put</span>
+                <span class="n">Aj</span> <span class="o">=</span> <span class="n">second</span><span class="p">[</span><span class="n">rows</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">bj</span> <span class="o">=</span> <span class="p">((</span><span class="n">X</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">mean</span><span class="p">[</span><span class="n">j</span><span class="p">])[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">Ez</span><span class="p">[</span><span class="n">rows</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">W_new</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">Aj</span><span class="p">,</span> <span class="n">bj</span><span class="p">)</span>
+                <span class="n">resid</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">mean</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">Ez</span><span class="p">[</span><span class="n">rows</span><span class="p">]</span> <span class="o">@</span> <span class="n">W_new</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                <span class="n">ssr</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">resid</span> <span class="o">@</span> <span class="n">resid</span><span class="p">)</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">W_new</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">@</span> <span class="n">Cov</span><span class="p">[</span><span class="n">rows</span><span class="p">]</span> <span class="o">@</span> <span class="n">W_new</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
+</code></pre>
+<p>This is (15). <code>second</code> is the per-row <span class="math inline">\(E[z_i z_i^\top]\)</span> from (9), and <code>rows</code> is
+the set of rows where feature <span class="math inline">\(j\)</span> exists — the thing that cannot be shared, since
+two features generally have different missing patterns. <code>Aj</code> is the sum of second
+moments over <em>those</em> rows only; using all rows instead is the single easiest way
+to get a confidently wrong <code>W</code> row for a feature with many gaps.</p>
+<p>The last line accumulates both halves of the residual, exactly as in (10): the
+squared error on observed cells and the posterior spread <span class="math inline">\(W_j \mathrm{Cov}(z_i)
+W_j^\top\)</span>. <code>if not rows.any(): continue</code> leaves an entirely unobserved feature's
+loading at its initialisation rather than dividing by zero — honest, since there
+is no information about it in the data.</p>
+<p>Measured on 14% hidden entries: the fit recovers <span class="math inline">\(\sigma^2 = 0.1587\)</span> against
+0.1583 for the complete matrix, and the true loading subspace to 0.026 rad, in 371
+iterations.</p>
+<h3 id="6-the-two-conditionals-and-the-difference-between-them">6. The two conditionals, and the difference between them <a class="header-anchor" href="#6-the-two-conditionals-and-the-difference-between-them">#</a></h3>
+<pre class="highlight"><code>        <span class="n">Ez</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_posterior</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma2_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_</span> <span class="o">+</span> <span class="n">Ez</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p><code>transform</code> returns <code>Ez</code> — the position on the plane, shape <span class="math inline">\((m, k)\)</span>.
+<code>reconstruct</code> returns <code>mean_ + Ez @ W_.T</code> — the position <em>and</em> the plane, shape
+<span class="math inline">\((m, d)\)</span>, with the missing coordinates filled in by their conditional mean.</p>
+<p>That second line is the denoiser from the introduction. Because
+<span class="math inline">\(P = W(W^\top W + \sigma^2 I)^{-1}W^\top\)</span> has eigenvalues <span class="math inline">\(\lambda_j/(\lambda_j +
+\sigma^2)\)</span> near 1 on the retained directions and 0 elsewhere, the residual
+operator <span class="math inline">\(I - P\)</span> kills the noise inside the subspace and passes the rest through
+unchanged. The demo verifies both halves: the mean squared error is exactly
+<span class="math inline">\(\mathrm{tr}((I-P)^2 S)\)</span> — a plumbing identity that pins the arithmetic — and it
+equals <span class="math inline">\((d - k)\sigma^2 = 0.950\)</span> to within a percent, which is the statistical
+statement.</p>
+<h3 id="7-a-mixture-needs-a-symmetry-breaking-start">7. A mixture needs a symmetry-breaking start <a class="header-anchor" href="#7-a-mixture-needs-a-symmetry-breaking-start">#</a></h3>
+<pre class="highlight"><code>        <span class="n">centres</span> <span class="o">=</span> <span class="p">[</span><span class="n">X</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="n">n</span><span class="p">)]]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">gap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">([((</span><span class="n">X</span> <span class="o">-</span> <span class="n">c</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">centres</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">centres</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">gap</span> <span class="o">/</span> <span class="n">gap</span><span class="o">.</span><span class="n">sum</span><span class="p">())])</span>
+</code></pre>
+<p>k-means++ seeding, followed by ten Lloyd iterations before the first EM step.
+Each new centre is drawn with probability proportional to its squared distance
+from the nearest existing centre, so the second one lands far away by
+construction. Two uniform draws — the obvious initialisation — put both centres
+in the same cluster about half the time when the clusters are unbalanced, and
+when that happens the responsibilities come out near <span class="math inline">\(1/m\)</span> for every row and
+nothing downstream can recover.</p>
+<pre class="highlight"><code>                <span class="n">A</span> <span class="o">=</span> <span class="p">(</span><span class="n">Ez</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="n">resp</span><span class="p">[:,</span> <span class="n">c</span><span class="p">])</span> <span class="o">@</span> <span class="n">Ez</span> <span class="o">+</span> <span class="n">Nc</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">*</span> <span class="n">Cov</span>
+                <span class="n">Wc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="p">((</span><span class="n">xc</span> <span class="o">*</span> <span class="n">resp</span><span class="p">[:,</span> <span class="n">c</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">])</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Ez</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">resid</span> <span class="o">=</span> <span class="n">xc</span> <span class="o">-</span> <span class="n">Ez</span> <span class="o">@</span> <span class="n">Wc</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">ssr</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resp</span><span class="p">[:,</span> <span class="n">c</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resid</span> <span class="o">*</span> <span class="n">resid</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+                       <span class="o">+</span> <span class="n">Nc</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="n">Cov</span> <span class="o">@</span> <span class="p">(</span><span class="n">Wc</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Wc</span><span class="p">))))</span>
+</code></pre>
+<p>(16) with the responsibility as a weight. <code>(Ez.T * resp[:, c]) @ Ez</code> is
+<span class="math inline">\(E[Z]^\top \mathrm{diag}(r_c) E[Z]\)</span>, and <code>Nc[c] * Cov</code> is <code>Cov</code> scaled by the
+component's effective sample size — the mixture's stand-in for the <code>n * Covz</code> in
+the single-model M-step. The <code>ssr</code> line is (10) with the per-row squared error
+weighted by <code>resp[:, c]</code>, which is what makes <span class="math inline">\(\sigma_c^2\)</span> the noise <em>within</em> a
+component rather than across the mixture.</p>
+<h3 id="8-sampling-and-the-check-it-enables">8. Sampling, and the check it enables <a class="header-anchor" href="#8-sampling-and-the-check-it-enables">#</a></h3>
+<pre class="highlight"><code>        <span class="n">Z</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mean_</span> <span class="o">+</span> <span class="n">Z</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_</span><span class="o">.</span><span class="n">T</span>
+                <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma2_</span><span class="p">)</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span>
+</code></pre>
+<p>(1) literally: draw the latent, push it through the plane, add the fog. Having
+this is what makes the model falsifiable in a way PCA is not — the demo draws
+20000 rows and compares their sample covariance against <span class="math inline">\(C\)</span>. That comparison has
+to be made on the right scale: a covariance entry has Monte Carlo error
+<span class="math inline">\(\sqrt{(C_{ij}^2 + C_{ii}C_{jj})/n}\)</span>, which is 0.02 on the demo's 25.0 entry and
+0.001 on its 0.16 ones. A single absolute tolerance either passes everything or
+fails on the largest entry for no reason; normalising by
+<span class="math inline">\(\sqrt{C_{ii}C_{jj}}\)</span> puts every entry on the same footing, and 20000 draws land
+within 1.9%.</p>
+<h3 id="9-the-refusals-that-keep-the-api-honest">9. The refusals that keep the API honest <a class="header-anchor" href="#9-the-refusals-that-keep-the-api-honest">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">has_nan</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"missing_data"</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">variant</span><span class="si">}</span><span class="s2"> needs a complete matrix; variant='missing_data' is the "</span>
+                <span class="sa">f</span><span class="s2">"one that conditions on the observed block, and it treats NaN as missing"</span><span class="p">)</span>
+</code></pre>
+<p>A NaN reaching the closed form produces a <code>nan</code> covariance and a <code>nan</code> likelihood
+that compares <code>False</code> against everything, so the model silently &quot;converges&quot; on the
+first iteration and reports <code>loglik_ = nan</code>. Failing at <code>fit</code> with the name of the
+variant that handles it is the difference between a five-minute fix and an
+afternoon.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"mixture_ppca"</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">"a mixture has one covariance per component"</span><span class="p">)</span>
+</code></pre>
+<p>A mixture has no single <span class="math inline">\(\mu\)</span>, <span class="math inline">\(W\)</span> or <span class="math inline">\(\sigma^2\)</span>, so <code>covariance_</code>, <code>components_</code>,
+<code>reconstruct</code> and <code>sample</code> raise for it rather than returning the largest
+component's parameters — which would be a plausible-looking number answering a
+question nobody asked. The per-component lists are there for anyone who wants
+them.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><span class="math inline">\(n\)</span> rows, <span class="math inline">\(d\)</span> features, <span class="math inline">\(k\)</span> components, <span class="math inline">\(T\)</span> iterations, <span class="math inline">\(m\)</span> mixture components.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Per-iteration dominant term</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ppca_em</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T(ndk + dk^2 + k^3))\)</span></td>
+<td style="text-align:left"><code>Xc @ W @ Minv</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd + dk)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ppca_closed</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd\min(n,d) + dk^2)\)</span></td>
+<td style="text-align:left">one eigendecomposition</td>
+<td style="text-align:left"><span class="math inline">\(O(nd + d^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>missing_data</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T(ndk + nk^3 + dk^3))\)</span></td>
+<td style="text-align:left">the batched <span class="math inline">\((n,k,k)\)</span> inverse</td>
+<td style="text-align:left"><span class="math inline">\(O(nd + nk^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mixture_ppca</code></td>
+<td style="text-align:left"><span class="math inline">\(O(Tm(ndk + dk^2 + k^3))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(m\)</span> densities per E-step</td>
+<td style="text-align:left"><span class="math inline">\(O(nd + mdk)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_logpdf</code></td>
+<td style="text-align:left"><span class="math inline">\(O(ndk + k^3)\)</span></td>
+<td style="text-align:left"><code>Xc @ W</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nk + k^2)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Three notes. The closed form's one eigendecomposition beats <span class="math inline">\(T\)</span> EM iterations on
+a complete matrix, which is why <code>ppca_closed</code> exists and why it is the fastest
+route to the same optimum; EM's advantage is that it survives missing data and
+mixtures, where no eigendecomposition is available. <code>missing_data</code> is more
+expensive than its <span class="math inline">\(O(ndk)\)</span> suggests because the <span class="math inline">\((n,k,k)\)</span> posterior covariance
+tensor is materialised — at <span class="math inline">\(k = 20\)</span> and <span class="math inline">\(n = 10^5\)</span> that is 320 MB, so it is the
+one variant where <span class="math inline">\(k\)</span> has to stay small or the loop has to be chunked. And the
+cost of <code>mixture_ppca</code> is linear in <span class="math inline">\(m\)</span> with no sharing, because each component
+has its own centre and its own eigenbasis.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>1. <code>W</code> is not identified; <code>C</code> is.</strong> For any orthogonal <span class="math inline">\(R\)</span>, <span class="math inline">\((WR)(WR)^\top =
+WW^\top\)</span>, so the loadings are only defined up to a rotation — infinite solutions
+with identical likelihood. The demo asserts the invariance to <span class="math inline">\(10^{-10}\)</span> and
+checks the <em>subspace</em> against PCA's (<span class="math inline">\(2.1 \times 10^{-8}\)</span> rad). Two consequences:
+never compare <code>W</code> entries across fits, seeds or packages, because they will
+differ; and if you need comparable loadings, align them (Procrustes) or
+canonicalise them (varimax or similar, which is <code>factor_analysis</code>'s job).</p>
+<p><strong>2. The in-sample likelihood cannot choose <span class="math inline">\(k\)</span>.</strong> It is non-decreasing by
+construction, and <span class="math inline">\(k = d\)</span> sends it to infinity. The demo's numbers show the other
+trap: held-out selection works but needs data. On 400 training rows the peak was
+at <span class="math inline">\(k = 3\)</span> by <span class="math inline">\(10^{-3}\)</span> on data whose true rank is 2; on 2000 rows the correct
+model wins by <span class="math inline">\(0.007\)</span>. Reporting &quot;the model chose <span class="math inline">\(k\)</span>&quot; from a small sample is
+reporting noise.</p>
+<p><strong>3. <span class="math inline">\(\sigma^2\)</span> collapses at the boundary.</strong> When <span class="math inline">\(k \ge d\)</span> or <span class="math inline">\(n \le d\)</span> the fit
+wants <span class="math inline">\(\sigma^2 = 0\)</span>, and then <span class="math inline">\(\log \sigma^2 \to -\infty\)</span>, <code>logdet</code> is <code>-inf</code>,
+and every comparison against another model is meaningless. The guard in the code
+(<code>max(..., 1e-12)</code>) keeps the arithmetic finite but does not make the model valid.
+Check <code>k &lt; min(n, d)</code> and treat a <span class="math inline">\(\sigma^2\)</span> at the floor as &quot;this model is too
+big for this data&quot;, not as a very good fit.</p>
+<p><strong>4. Mean imputation is a different estimator.</strong> Filling NaNs with column means
+shrinks variance by the missing fraction, biases every correlation towards zero,
+and destroys exactly the low-rank structure PPCA is looking for. The demo's
+numbers: RMSE 1.962 for imputation against 0.522 for the conditional mean. The
+same applies to &quot;fit on complete rows only&quot;, which throws away all the partially
+observed ones and biases the sample towards its easy part.</p>
+<p><strong>5. Missing-not-at-random is not covered.</strong> The E-step conditions on the
+observed values, which is valid when the missingness is independent of the
+unobserved value (MCAR, or MAR given the model). If a sensor drops out <em>because</em>
+the reading was extreme, the conditional mean is biased and no amount of EM
+fixes it — that is a model of the missingness process, which PPCA does not have.
+All-missing rows fall back to the prior (<span class="math inline">\(E[z] = 0\)</span>), which is the right answer
+and also a silent one; count them before trusting the fit.</p>
+<p><strong>6. Mixtures have local optima, label switching and <span class="math inline">\(m\)</span> more parameters.</strong> The
+demo's uniform initialisation stalled at 53% purity on data that is 100%
+separable, and the fixed version reaches 100%. Component labels are arbitrary —
+the demo matches them before scoring, because &quot;component 0&quot; means nothing across
+runs. And <span class="math inline">\(\sigma_c^2 \to 0\)</span> on a component with few points is the classic
+singularity: the likelihood diverges while the model becomes useless. A minimum
+noise floor per component is not a hack; it is the constraint that makes the
+likelihood bounded.</p>
+<p><strong>7. The biased covariance is the right one.</strong> <span class="math inline">\(n - 1\)</span> is the convention for
+estimating a covariance and the wrong divisor for this likelihood: it is exactly
+a factor of <span class="math inline">\(n/(n-1)\)</span> in <span class="math inline">\(\sigma^2\)</span>, 0.17% at <span class="math inline">\(n = 600\)</span>, and it shows up as a
+small standing disagreement between EM and the closed form that is easy to
+misdiagnose as a bug in either.</p>
+<p><strong>8. Isotropic noise is a strong assumption.</strong> PPCA says the noise is the same in
+every direction. Factor analysis says it is <span class="math inline">\(\Psi = \mathrm{diag}(\psi_1, \ldots,
+\psi_d)\)</span>, which is one parameter per feature; if the features have different
+units or different measurement quality, PPCA's single <span class="math inline">\(\sigma^2\)</span> is an average
+that fits neither, and the loadings absorb the mismatch. The symptom is a
+residual covariance that is visibly non-spherical at <span class="math inline">\(k = d - 1\)</span>. PPCA is factor
+analysis with <span class="math inline">\(\Psi = \sigma^2 I\)</span> — one noise parameter instead of <span class="math inline">\(d\)</span> — so
+choosing it is a statement about the noise, not a simplification.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Missing data imputation.</strong> The conditional mean <span class="math inline">\(E[x_{\text{miss}} \mid
+x_{\text{obs}}]\)</span> is the reason <code>missing_data</code> exists; it is the low-rank
+imputer behind a lot of &quot;fill the gaps in the sensor matrix&quot; tooling, and it
+degrades gracefully as the missing fraction grows.</li>
+<li><strong>Collaborative filtering.</strong> The user-item rating matrix is sparse and roughly
+low rank; PPCA is the probabilistic version of the truncated-SVD baseline, and
+its <span class="math inline">\(\sigma^2\)</span> is the &quot;how noisy are ratings&quot; parameter that the plain SVD
+baseline has to set by hand.</li>
+<li><strong>Denoising and compression.</strong> Reconstruction is a denoiser whose error is
+exactly <span class="math inline">\((d - k)\sigma^2\)</span> — image patches, spectra, sensor arrays. The rank <span class="math inline">\(k\)</span>
+is a tunable knob with a likelihood attached, instead of a guess.</li>
+<li><strong>Anomaly detection.</strong> <code>score_samples</code> is a density, so a row far from the
+subspace <em>and</em> far along it both score low; the Mahalanobis-style decomposition
+into &quot;distance off the plane&quot; and &quot;distance along it&quot; is standard in process
+monitoring.</li>
+<li><strong>Model comparison as a building block.</strong> Because the model has a likelihood,
+it composes: mixtures of PPCAs, PPCA with a prior on <span class="math inline">\(W\)</span>, PPCA inside a larger
+graphical model all need the marginal density that PCA cannot provide.</li>
+<li><strong>Nonlinear limits.</strong> Replace <span class="math inline">\(W z\)</span> with <span class="math inline">\(f(z)\)</span> for a GP and the same marginal
+likelihood gives the Gaussian process latent variable model; PPCA is its
+linear special case, which is why the GP-LVM literature starts here.</li>
+<li><strong>Subspace identification.</strong> In control, the state-space model <span class="math inline">\(x_{t+1} = A
+x_t + w_t\)</span>, <span class="math inline">\(y_t = C x_t + v_t\)</span> has a stationary covariance of exactly the form
+(2) plus a second factor; PPCA and its two-block cousin CCA are the static
+versions of the subspace methods used to identify such systems.</li>
+</ul>
+<p>Where PPCA is a trap: reading <span class="math inline">\(\sigma^2\)</span> as measurement noise when it is really
+<em>everything the plane does not explain</em>, including the tail of a spectrum that was
+never noise. And treating the loadings as interpretable factors — they are
+identified only up to rotation, and the rotation that makes them interpretable is
+a separate problem (<code>factor_analysis</code>'s varimax, or a sparse prior).</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li><strong>Tipping &amp; Bishop (1999),</strong> <em>Probabilistic principal component analysis</em> —
+the model, the EM algorithm, and the theorem that the MLE spans the PCA
+subspace with <span class="math inline">\(\sigma^2\)</span> the mean of the discarded eigenvalues.</li>
+<li><strong>Roweis (1998),</strong> <em>EM algorithms for PCA and SPCA</em> — the same EM derived from
+the projection side, with the posterior and the second-moment M-step.</li>
+<li><strong>Tipping &amp; Bishop (1999),</strong> <em>Mixtures of probabilistic principal component
+analysers</em> — the mixture in (4) and its EM, including the local-optima problem.</li>
+<li><strong>Ghahramani &amp; Beal (2000),</strong> <em>Variational inference for Bayesian mixtures of
+factor analysers</em> — what to do when <span class="math inline">\(m\)</span> and <span class="math inline">\(k\)</span> both have to be chosen, and the
+variational bound that makes the mixture identifiable in practice.</li>
+<li><strong>Ilin &amp; Raiko (2010),</strong> <em>Practical approaches to principal component analysis
+in the presence of missing values</em> — the per-feature M-step (15), the
+normalisation by observed cells, and the stabilisations that make missing-data
+EM converge in practice.</li>
+<li><strong>Anderson (1963),</strong> <em>Asymptotic theory for principal component analysis</em> — the
+likelihood-ratio test for the rank of a covariance matrix, i.e. the classical
+answer to &quot;how many components&quot;.</li>
+<li><strong>Bishop (2006),</strong> <em>Pattern Recognition and Machine Learning</em>, §12.2 — the
+textbook derivation, including the Woodbury identities used for the density.</li>
+<li><strong>Lawrence (2005),</strong> <em>Probabilistic non-linear principal component analysis
+with Gaussian process latent variable models</em> — the nonlinear generalisation
+that keeps PPCA's marginal likelihood and replaces <span class="math inline">\(W z\)</span> with a GP.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="nmf.html"><small>Previous</small><span>Non-negative matrix factorisation</span></a><a class="next" href="factor_analysis.html"><small>Next</small><span>Factor analysis</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">06 · Latent structure &amp; factorisation</p><ul class="rail-list"><li><a href="pca.html"><span class="tick">✓</span><span>PCA</span></a></li><li><a href="nmf.html"><span class="tick">✓</span><span>Non-negative matrix factorisation</span></a></li><li><a href="probabilistic_pca.html" aria-current="page"><span class="tick">✓</span><span>Probabilistic PCA</span></a></li><li><a href="factor_analysis.html"><span class="tick">✓</span><span>Factor analysis</span></a></li><li><a href="ica.html"><span class="tick">✓</span><span>Independent component analysis</span></a></li><li><a href="lsa.html"><span class="tick">✓</span><span>Latent semantic analysis</span></a></li><li><a href="lda_topic.html"><span class="tick">✓</span><span>Latent Dirichlet allocation</span></a></li><li><a href="cca.html"><span class="tick">✓</span><span>Canonical correlation</span></a></li><li><a href="sparse_coding.html"><span class="tick">✓</span><span>Sparse coding</span></a></li><li><a href="dictionary_learning.html"><span class="tick">✓</span><span>Dictionary learning</span></a></li><li><a href="tensor_decomposition.html"><span class="tick">✓</span><span>Tensor decomposition</span></a></li><li><a href="plsa.html"><span class="tick">✓</span><span>Probabilistic LSA</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../05-probabilistic/index.html"><span class="jump">← 05 · Probabilistic models</span></a></li><li><a href="../07-clustering/index.html"><span class="jump">07 · Clustering&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-density-without-a--inverse">The density without a d \times d inverse</a></li><li class="lvl3"><a href="#e-step-the-posterior-of-the-latent">E-step: the posterior of the latent</a></li><li class="lvl3"><a href="#m-step-the-second-moment-not-the-covariance">M-step: the second moment, not the covariance</a></li><li class="lvl3"><a href="#the-closed-form">The closed form</a></li><li class="lvl3"><a href="#why-the-in-sample-likelihood-cannot-choose-">Why the in-sample likelihood cannot choose k</a></li><li class="lvl3"><a href="#missing-data-changes-the-m-step-not-just-the-e-step">Missing data changes the M-step, not just the E-step</a></li><li class="lvl3"><a href="#a-mixture-weighted-versions-of-the-same-three-equations">A mixture: weighted versions of the same three equations</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-the-density-without-ever-touching-a--matrix">1. The density, without ever touching a d \times d matrix</a></li><li class="lvl3"><a href="#2-the-em-loop">2. The EM loop</a></li><li class="lvl3"><a href="#3-the-closed-form-which-is-also-the-oracle">3. The closed form, which is also the oracle</a></li><li class="lvl3"><a href="#4-conditioning-on-the-observed-block-batched">4. Conditioning on the observed block, batched</a></li><li class="lvl3"><a href="#5-the-missing-data-m-step-has-one-system-per-feature">5. The missing-data M-step has one system per feature</a></li><li class="lvl3"><a href="#6-the-two-conditionals-and-the-difference-between-them">6. The two conditionals, and the difference between them</a></li><li class="lvl3"><a href="#7-a-mixture-needs-a-symmetry-breaking-start">7. A mixture needs a symmetry-breaking start</a></li><li class="lvl3"><a href="#8-sampling-and-the-check-it-enables">8. Sampling, and the check it enables</a></li><li class="lvl3"><a href="#9-the-refusals-that-keep-the-api-honest">9. The refusals that keep the API honest</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/06-latent-factorization/probabilistic_pca.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

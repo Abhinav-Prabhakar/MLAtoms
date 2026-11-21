@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>N-gram language models · MLAtoms</title>
+<meta name="description" content="Counting, smoothing and the curse of dimensionality. An n-gram language model predicts a token from the previous n-1 tokens and nothing else. The model is a…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/ngram_lm.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="N-gram language models">
+<meta property="og:description" content="Counting, smoothing and the curse of dimensionality. An n-gram language model predicts a token from the previous n-1 tokens and nothing else. The model is a…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/ngram_lm.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="N-gram language models">
+<meta name="twitter:description" content="Counting, smoothing and the curse of dimensionality. An n-gram language model predicts a token from the previous n-1 tokens and nothing else. The model is a…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "N-gram language models", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/ngram_lm.html", "description": "Counting, smoothing and the curse of dimensionality. An n-gram language model predicts a token from the previous n-1 tokens and nothing else. The model is a\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">10 · Sequences</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="ngram_lm.py.html">source</a></p><h1>N-gram language models — counting, smoothing and backoff</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>An n-gram language model predicts a token from the previous <span class="math inline">\(n-1\)</span> tokens and
+nothing else. The model is a table: for every context, a count for every token
+that followed it. Training is counting; scoring is a lookup; the interesting
+part is what to do when the lookup misses.</p>
+<pre class="highlight"><code>        a    b    c   &lt;/s&gt;
+ &lt;s&gt;    2    0    0    0
+  a     0    2    0    0
+  b     0    0    1    1
+  c     0    0    0    1
+</code></pre>
+<p>The table above is a bigram model of the corpus <code>a b c</code> and <code>a b c</code>, padded with
+the start token <code>&lt;s&gt;</code>. Every row sums to the number of times its context
+appeared, so the maximum-likelihood estimate is a division. The zeros are the
+problem: a held-out sentence that contains <code>a c</code> gets probability zero, the log
+probability is <span class="math inline">\(-\infty\)</span>, and the perplexity of the whole test set is infinite.
+Every smoothing method in this atom is an answer to those zeros.</p>
+<p>Add-one smoothing puts a phantom count in every cell, which makes the table
+dense and the model worse on the cells that were already accurate. Add-<span class="math inline">\(k\)</span>
+generalises the phantom count, and <span class="math inline">\(k<1\)</span> is usually better than <span class="math inline">\(k=1\)</span>.
+Interpolation mixes the orders: the trigram estimate gets weight <span class="math inline">\(\lambda\)</span>, the
+bigram estimate <span class="math inline">\(1-\lambda\)</span>, and so on down to the unigram. Backoff keeps the
+trigram when it has evidence and drops a token of context when it does not, but
+the multiplier that makes the dropped estimate comparable breaks normalisation,
+so backoff is a score rather than a probability.</p>
+<p>Kneser-Ney is the one that earns its complexity. It discounts every seen count
+by a fixed amount <span class="math inline">\(D\)</span> and gives the discounted mass to the shorter context — the
+same idea as interpolation — but it changes what the shorter context counts. A
+trigram count is the number of times a phrase occurred. A bigram count is the
+number of <em>different trigram contexts</em> the bigram occurred in. The demo's toy
+corpus makes the difference visible: <code>x</code> and <code>a</code> both appear three times after
+some token, but <code>x</code> follows three different words and <code>a</code> follows two, so the
+unigram Kneser-Ney model gives <code>x</code> probability <span class="math inline">\(0.241\)</span> and <code>a</code> <span class="math inline">\(0.158\)</span>. A word
+that is always preceded by the same word is not a versatile word, however often
+it occurs.</p>
+<p>The demos are exact where exactness is available. The maximum-likelihood
+probabilities are checked against counts computed by hand (<span class="math inline">\(p(b\mid a)=2/3\)</span> on
+the toy corpus). Add-<span class="math inline">\(k\)</span> is checked against <span class="math inline">\((c+k)/(c+kV)\)</span>. Every normalised
+variant sums to one over the vocabulary for seen and unseen contexts alike.
+Stupid backoff is checked to be exactly <span class="math inline">\(0.4\)</span> times the shorter-context score,
+and its rows are checked to sum above one. On a held-out split of a tiny
+grammar, the trigram maximum-likelihood model is infinite, add-one is <span class="math inline">\(5.92\)</span>,
+interpolation is <span class="math inline">\(3.22\)</span> and Kneser-Ney is <span class="math inline">\(3.02\)</span>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">estimate</th>
+<th style="text-align:left">normalised</th>
+<th style="text-align:left">main weakness</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>unigram</code></td>
+<td style="text-align:left"><span class="math inline">\(c(w)/N\)</span></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">ignores order</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bigram</code></td>
+<td style="text-align:left"><span class="math inline">\(c(hw)/c(h)\)</span></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">sparse</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>trigram</code></td>
+<td style="text-align:left"><span class="math inline">\(c(hw)/c(h)\)</span></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">sparser</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>laplace</code></td>
+<td style="text-align:left"><span class="math inline">\((c+1)/(c+V)\)</span></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">over-smooths</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>add_k</code></td>
+<td style="text-align:left"><span class="math inline">\((c+k)/(c+kV)\)</span></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left"><span class="math inline">\(k\)</span> must be tuned</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kneser_ney</code></td>
+<td style="text-align:left">discounted, continuation counts</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">needs a good <span class="math inline">\(D\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>stupid_backoff</code></td>
+<td style="text-align:left"><span class="math inline">\(0.4\)</span> times shorter context</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">not a distribution</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>interpolated</code></td>
+<td style="text-align:left"><span class="math inline">\(\lambda\)</span> longest <span class="math inline">\(+\)</span> rest shorter</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">fixed <span class="math inline">\(\lambda\)</span></td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid-source"><code class="language-mermaid">graph TD
+  A[n-gram model] --&gt; B[orders]
+  A --&gt; C[smoothing]
+  B --&gt; B1[unigram]
+  B --&gt; B2[bigram]
+  B --&gt; B3[trigram]
+  C --&gt; C1[laplace]
+  C --&gt; C2[add_k]
+  C --&gt; C3[kneser_ney]
+  C --&gt; C4[stupid_backoff]
+  C --&gt; C5[interpolated]
+</code></pre>
+<p><strong><code>unigram</code></strong> ignores order and predicts from the marginal frequencies. It is
+the baseline that shows how much the context is worth, and it is the fallback at
+the bottom of every backoff chain.</p>
+<p><strong><code>bigram</code></strong> conditions on one token. It is the workhorse of the pre-neural era:
+small enough for a phone, strong enough for a keyboard.</p>
+<p><strong><code>trigram</code></strong> conditions on two tokens and is the largest order most classical
+systems used. The atom's trigram maximum-likelihood variant is the one that
+returns an infinite perplexity on held-out data, on purpose.</p>
+<p><strong><code>laplace</code></strong> adds one to every count and divides by the context total plus the
+vocabulary size. It is add-<span class="math inline">\(k\)</span> with <span class="math inline">\(k=1\)</span>, and it is included because it is the
+textbook first smoothing method and a useful cautionary tale.</p>
+<p><strong><code>add_k</code></strong> adds <span class="math inline">\(k\)</span> instead of one. With <span class="math inline">\(k<1\)</span> it is much better than add-one;
+the atom exposes <span class="math inline">\(k\)</span> so the demo can show the difference.</p>
+<p><strong><code>kneser_ney</code></strong> is interpolated absolute discounting with continuation counts at
+every order below the longest. It is the best of the normalised variants here and
+the standard strong baseline for n-gram models.</p>
+<p><strong><code>stupid_backoff</code></strong> uses the longest context with a nonzero count and multiplies
+by <span class="math inline">\(0.4\)</span> for each token of context it drops. It is not a probability
+distribution, and the demo measures that.</p>
+<p><strong><code>interpolated</code></strong> mixes every order with a fixed weight <span class="math inline">\(\lambda\)</span> on the
+longest context. It is Jelinek-Mercer smoothing, and it is what most people mean
+by &quot;interpolated n-gram&quot;.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-markov-assumption">The Markov assumption <a class="header-anchor" href="#the-markov-assumption">#</a></h3>
+<p>A sentence is a sequence <span class="math inline">\(w_1,\ldots,w_T\)</span> with a distinguished end token <span class="math inline">\(w_T=
+\mathrm{eos}\)</span>. Padding the start with <span class="math inline">\(n-1\)</span> copies of <span class="math inline">\(\mathrm{bos}\)</span> lets every
+prediction use a full context, and the model assumes</p>
+<div class="math block">
+\[p(w_{1:T})=\prod_{t=1}^{T}p\big(w_t\mid w_{t-n+1:t-1}\big),
+\qquad w_t=\mathrm{bos}\ \text{for}\ t\le0.
+\qquad (1)\]
+</div>
+<p>The approximation is that the next token depends on the last <span class="math inline">\(n-1\)</span> tokens and
+nothing earlier. It is wrong about long-range agreement and coreference, and it
+is remarkably hard to beat on local statistics.</p>
+<h3 id="maximum-likelihood">Maximum likelihood <a class="header-anchor" href="#maximum-likelihood">#</a></h3>
+<p>For a context <span class="math inline">\(h\)</span> of length <span class="math inline">\(n-1\)</span> and a token <span class="math inline">\(w\)</span>, the estimate is the relative
+frequency</p>
+<div class="math block">
+\[p_{\mathrm{ML}}(w\mid h)=\frac{c(hw)}{c(h)},\qquad
+c(h)=\sum_{w'}c(hw').
+\qquad (2)\]
+</div>
+<p>If <span class="math inline">\(c(hw)=0\)</span> the estimate is zero, and a single zero makes the log probability of
+a test sentence <span class="math inline">\(-\infty\)</span>. That is the sparsity problem, and it gets worse with
+<span class="math inline">\(n\)</span>: the number of possible contexts grows as <span class="math inline">\(V^{n-1}\)</span> while the corpus grows
+linearly.</p>
+<p>The implementation backs off to a shorter context only when <span class="math inline">\(c(h)=0\)</span> itself. An
+unseen <em>continuation</em> of a seen context stays at zero, which is what the
+<code>smoothing</code> variants exist to fix.</p>
+<h3 id="add-k-smoothing">Add-k smoothing <a class="header-anchor" href="#add-k-smoothing">#</a></h3>
+<p>The simplest fix puts a phantom count in every cell:</p>
+<div class="math block">
+\[p_k(w\mid h)=\frac{c(hw)+k}{c(h)+kV},\qquad k>0,
+\qquad (3)\]
+</div>
+<p>where <span class="math inline">\(V\)</span> is the number of predictable tokens. The numerator adds <span class="math inline">\(k\)</span> to every
+one of the <span class="math inline">\(V\)</span> cells, so the row still sums to one. Add-one is <span class="math inline">\(k=1\)</span>. The
+estimate is biased toward the uniform distribution, and the bias is severe for
+rare contexts: a context seen once gets <span class="math inline">\(1/(1+V)\)</span> for a token it actually
+predicted.</p>
+<h3 id="interpolation">Interpolation <a class="header-anchor" href="#interpolation">#</a></h3>
+<p>Instead of choosing one order, mix them:</p>
+<div class="math block">
+\[p_{\mathrm{int}}(w\mid h)=\lambda\,p_{\mathrm{ML}}(w\mid h)
++(1-\lambda)\,p_{\mathrm{int}}(w\mid h'),
+\qquad h'=h_{2:},
+\qquad (4)\]
+</div>
+<p>with the unigram model as the base case. If every level is normalised then the
+mixture is normalised, because a convex combination of distributions is a
+distribution. The fixed <span class="math inline">\(\lambda\)</span> is the weakness: a context seen ten thousand
+times deserves more weight on its own estimate than one seen twice, and a
+constant cannot express that. The implementation uses <span class="math inline">\(\lambda=0\)</span> weight when the
+context is unseen, which keeps the recursion normalised.</p>
+<h3 id="backoff">Backoff <a class="header-anchor" href="#backoff">#</a></h3>
+<p>Backoff uses the longest context with evidence and scales as it drops:</p>
+<div class="math block">
+\[p_{\mathrm{bo}}(w\mid h)=
+\begin{cases}
+c(hw)/c(h) & c(hw)>0,\\
+0.4\,p_{\mathrm{bo}}(w\mid h') & \text{otherwise},
+\end{cases}
+\qquad (5)\]
+</div>
+<p>with the unigram relative frequency as the base. The factor <span class="math inline">\(0.4\)</span> is empirical
+and has no probabilistic justification. Because each drop multiplies by <span class="math inline">\(0.4\)</span>
+without redistributing the remaining mass, the scores do not sum to one over <span class="math inline">\(w\)</span>;
+they can sum above or below. That is fine for ranking and for a downstream
+decoder that only needs relative scores, and it is not fine if the number is
+called a probability.</p>
+<h3 id="kneser-ney">Kneser-Ney <a class="header-anchor" href="#kneser-ney">#</a></h3>
+<p>Kneser-Ney starts from absolute discounting. Every nonzero count is reduced by a
+fixed <span class="math inline">\(D\in(0,1)\)</span>, and the total discount is handed to the shorter context:</p>
+<div class="math block">
+\[p_{\mathrm{KN}}(w\mid h)=
+\frac{\max\big(c(hw)-D,\,0\big)}{c(h)}
++\underbrace{\frac{D\,N_{1+}(h\,\cdot)}{c(h)}}_{\gamma(h)}
+\,p_{\mathrm{KN}}(w\mid h'),
+\qquad (6)\]
+</div>
+<p>where <span class="math inline">\(N_{1+}(h\,\cdot)\)</span> is the number of distinct tokens that follow <span class="math inline">\(h\)</span>. The
+first term keeps the observed counts, the second is the mass that was taken away,
+and <span class="math inline">\(\gamma(h)\)</span> is exactly the fraction of the context's count that was
+discounted.</p>
+<p>The continuation-count idea applies the same recursion at lower orders, but with
+a different count. For an <span class="math inline">\(m\)</span>-gram <span class="math inline">\(g\)</span> with <span class="math inline">\(m<n\)</span>,</p>
+<div class="math block">
+\[c_{\mathrm{cont}}(g)=\big|\{u:\ c(ug)>0\}\big|,
+\qquad (7)\]
+</div>
+<p>the number of distinct tokens that can precede <span class="math inline">\(g\)</span>. A bigram that occurs in many
+different trigram contexts is a versatile bigram; one that only ever occurs after
+a single word is not, and the continuation count says so. The recursion uses
+<span class="math inline">\(c_{\mathrm{cont}}\)</span> in place of <span class="math inline">\(c\)</span> at every order below the longest, and the
+unigram base case is</p>
+<div class="math block">
+\[p_{\mathrm{KN}}(w)=\frac{\max\big(c_{\mathrm{cont}}(w)-D,0\big)}
+{\sum_{w'}c_{\mathrm{cont}}(w')}
++\frac{D\,N_{1+}(\cdot)}{\sum_{w'}c_{\mathrm{cont}}(w')}\cdot\frac{1}{V}.
+\qquad (8)\]
+</div>
+<p>The demo's toy corpus is the smallest case that shows the difference. With
+<code>b a x</code>, <code>b a a</code>, <code>c b x</code> and <code>d c x</code>, both <code>x</code> and <code>a</code> are followed by something
+three times, but <code>x</code> follows three distinct words and <code>a</code> follows two. The
+continuation counts are <span class="math inline">\(3\)</span> and <span class="math inline">\(2\)</span>, and the unigram probabilities come out
+<span class="math inline">\(0.241\)</span> and <span class="math inline">\(0.158\)</span>.</p>
+<h3 id="perplexity">Perplexity <a class="header-anchor" href="#perplexity">#</a></h3>
+<p>Perplexity is the geometric mean inverse probability per token:</p>
+<div class="math block">
+\[\mathrm{PP}(D)=\exp\!\left(-\frac{1}{N}\sum_{i=1}^{N}\log p(w_i\mid h_i)\right),
+\qquad (9)\]
+</div>
+<p>where <span class="math inline">\(N\)</span> counts the end token of every sentence. It is the exponential of the
+average negative log likelihood, so lower is better and a uniform model over <span class="math inline">\(V\)</span>
+tokens scores exactly <span class="math inline">\(V\)</span>. The end token must be included: a model that is not
+charged for ending a sentence will happily prefer never to end one.</p>
+<h3 id="generation">Generation <a class="header-anchor" href="#generation">#</a></h3>
+<p>Sampling walks the chain. Start from <span class="math inline">\(n-1\)</span> start tokens, draw the next token from
+the row, append it, drop the oldest token from the context, and stop at the end
+token or at the length limit:</p>
+<div class="math block">
+\[w_t\sim p(\cdot\mid w_{t-n+1:t-1}).
+\qquad (10)\]
+</div>
+<p>An n-gram model can loop forever because the state is finite; the length limit is
+what makes generation terminate. The demo also removes the unknown token from the
+draw, since emitting <code>&lt;unk&gt;</code> is never useful text.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="counting">Counting <a class="header-anchor" href="#counting">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">sentence</span> <span class="ow">in</span> <span class="n">sentences</span><span class="p">:</span>
+            <span class="n">padded</span> <span class="o">=</span> <span class="p">[</span><span class="n">BOS</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">sentence</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="n">EOS</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_</span><span class="p">[</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">padded</span><span class="p">)</span> <span class="o">-</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                    <span class="n">gram</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">padded</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">start</span> <span class="o">+</span> <span class="n">n</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">gram</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">BOS</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="n">table</span><span class="p">[</span><span class="n">gram</span><span class="p">]</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">gram</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+</code></pre>
+<p>Every order is counted in one pass over the padded sentence. The <code>gram[-1] == BOS</code>
+skip is the subtle line: a start token is never predicted, so n-grams that end in
+one must not inflate the counts. Without it the unigram distribution puts mass on
+<code>&lt;s&gt;</code> and no longer sums to one over the tokens a sentence can contain.</p>
+<p>The context totals are accumulated separately:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">gram</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_</span><span class="p">[</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">context</span> <span class="o">=</span> <span class="n">gram</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">previous</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">totals_</span><span class="p">[</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">totals_</span><span class="p">[</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][</span><span class="n">context</span><span class="p">]</span> <span class="o">=</span> <span class="n">previous</span> <span class="o">+</span> <span class="n">count</span>
+</code></pre>
+<p><code>totals_[n - 1][h]</code> is <span class="math inline">\(c(h)\)</span>, the denominator of (2). It is a separate table
+because the same context is looked up once per candidate token, and summing the
+counts each time would make scoring quadratic in the vocabulary.</p>
+<h3 id="maximum-likelihood-1">Maximum likelihood <a class="header-anchor" href="#maximum-likelihood-1">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_mle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">history</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">word</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Maximum likelihood, backing off only when the context is unseen."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">history</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">((</span><span class="n">word</span><span class="p">,))</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_total</span><span class="p">(</span><span class="n">history</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">total</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mle</span><span class="p">(</span><span class="n">history</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">word</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">(</span><span class="n">history</span> <span class="o">+</span> <span class="p">(</span><span class="n">word</span><span class="p">,))</span> <span class="o">/</span> <span class="n">total</span>
+</code></pre>
+<p>The base case divides by the number of predicted tokens, not by the number of
+tokens including the start padding. The recursion on <code>total == 0</code> is a pragmatic
+choice: a context the corpus never contained has no maximum-likelihood estimate
+at all, and returning the shorter-context estimate is less surprising than
+returning zero. An unseen continuation of a <em>seen</em> context is not rescued, which
+is what makes the trigram variant fail on held-out data.</p>
+<h3 id="add-k">Add-k <a class="header-anchor" href="#add-k">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_laplace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">history</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">word</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">vocabulary</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vocabulary_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">(</span><span class="n">history</span> <span class="o">+</span> <span class="p">(</span><span class="n">word</span><span class="p">,))</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span>
+                <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_total</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">+</span> <span class="n">vocabulary</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_add_k</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">history</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">word</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">vocabulary</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vocabulary_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">(</span><span class="n">history</span> <span class="o">+</span> <span class="p">(</span><span class="n">word</span><span class="p">,))</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">)</span>
+                <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_total</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">*</span> <span class="n">vocabulary</span><span class="p">))</span>
+</code></pre>
+<p>Both are (3) with different numerators, and both use <code>_total</code>, which returns the
+global token count for the empty context. That is what makes the unigram version
+sum to one: the denominator is <span class="math inline">\(\sum_w c(w)=N\)</span>, the numerator sums to <span class="math inline">\(N\)</span> as
+well. The vocabulary includes <code>&lt;unk&gt;</code> even when it never occurs, so the phantom
+counts cover the possibility of an unknown token.</p>
+<h3 id="interpolation-1">Interpolation <a class="header-anchor" href="#interpolation-1">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_interpolated</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">history</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">word</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">history</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mle</span><span class="p">((),</span> <span class="n">word</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_total</span><span class="p">(</span><span class="n">history</span><span class="p">)</span>
+        <span class="n">lower</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interpolated</span><span class="p">(</span><span class="n">history</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">word</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">total</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">lower</span>
+        <span class="n">longest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">(</span><span class="n">history</span> <span class="o">+</span> <span class="p">(</span><span class="n">word</span><span class="p">,))</span> <span class="o">/</span> <span class="n">total</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam</span> <span class="o">*</span> <span class="n">longest</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam</span><span class="p">)</span> <span class="o">*</span> <span class="n">lower</span>
+</code></pre>
+<p>The recursion computes the shorter-context estimate first and then blends. The
+<code>if not total: return lower</code> line is the normalisation fix: applying the mixture
+with a zero longest-context term would multiply the lower estimate by
+<span class="math inline">\(1-\lambda\)</span> and lose mass. Returning the lower estimate directly is the
+convention that keeps every row summing to one.</p>
+<h3 id="backoff-1">Backoff <a class="header-anchor" href="#backoff-1">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_stupid_backoff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">history</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">word</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_total</span><span class="p">(</span><span class="n">history</span><span class="p">)</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">(</span><span class="n">history</span> <span class="o">+</span> <span class="p">(</span><span class="n">word</span><span class="p">,))</span>
+        <span class="k">if</span> <span class="n">total</span> <span class="ow">and</span> <span class="n">count</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">count</span> <span class="o">/</span> <span class="n">total</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">history</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">((</span><span class="n">word</span><span class="p">,))</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="k">return</span> <span class="mf">0.4</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stupid_backoff</span><span class="p">(</span><span class="n">history</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">word</span><span class="p">)</span>
+</code></pre>
+<p>The first branch is the only one that uses the context. The second is the
+unigram base, and the third drops one token and multiplies. There is no
+renormalisation anywhere, which is why the demo can assert that a row of this
+model sums above one. The constant belongs in the code rather than in the
+constructor because it is part of the definition of the method, not a tuning
+knob.</p>
+<h3 id="continuation-counts">Continuation counts <a class="header-anchor" href="#continuation-counts">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">):</span>
+            <span class="n">table</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">gram</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_</span><span class="p">[</span><span class="n">m</span><span class="p">]:</span>
+                <span class="n">shorter</span> <span class="o">=</span> <span class="n">gram</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+                <span class="n">table</span><span class="p">[</span><span class="n">shorter</span><span class="p">]</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">shorter</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">continuation_</span><span class="p">[</span><span class="n">m</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">table</span>
+</code></pre>
+<p>For each <span class="math inline">\((m+1)\)</span>-gram in the raw counts, the suffix of length <span class="math inline">\(m\)</span> gets one
+continuation. Because a dictionary is keyed by the suffix, repeated occurrences
+of the same context collapse and the value becomes the number of distinct
+predecessors in (7). This is the entire Kneser-Ney idea in five lines, and it is
+why the same raw bigram count can mean different things at different orders.</p>
+<p>The totals and distinct counts are then built for every level, including the
+longest, so the recursion can treat the top order and the continuation orders
+uniformly:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">order</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">counts_</span><span class="p">[</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">order</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">order</span>
+                     <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">continuation_</span><span class="p">[</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="n">totals</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">distinct</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">gram</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">context</span> <span class="o">=</span> <span class="n">gram</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">totals</span><span class="p">[</span><span class="n">context</span><span class="p">]</span> <span class="o">=</span> <span class="n">totals</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">value</span>
+                <span class="n">distinct</span><span class="p">[</span><span class="n">context</span><span class="p">]</span> <span class="o">=</span> <span class="n">distinct</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+</code></pre>
+<h3 id="the-kneser-ney-recursion">The Kneser-Ney recursion <a class="header-anchor" href="#the-kneser-ney-recursion">#</a></h3>
+<pre class="highlight"><code>        <span class="n">table</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">counts_</span><span class="p">[</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">order</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">order</span>
+                 <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">continuation_</span><span class="p">[</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">continuation_totals_</span><span class="p">[</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">history</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">history</span> <span class="o">+</span> <span class="p">(</span><span class="n">word</span><span class="p">,),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">distinct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distinct_</span><span class="p">[</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">history</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">order</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">total</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vocabulary_</span><span class="p">)</span>
+            <span class="n">weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">discount</span> <span class="o">*</span> <span class="n">distinct</span> <span class="o">/</span> <span class="n">total</span>
+            <span class="n">held</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vocabulary_</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">count</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">discount</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">total</span> <span class="o">+</span> <span class="n">held</span>
+</code></pre>
+<p><code>table</code> is the raw counts at the top order and the continuation counts below it.
+<code>total</code> is the denominator, <code>count</code> the numerator, and <code>distinct</code> is
+<span class="math inline">\(N_{1+}(h\,\cdot)\)</span>, the number of continuations. The base case spreads the
+discounted mass uniformly, which is the only choice available once there is no
+shorter context left. The recursion for higher orders is the same expression with
+<code>weight * self._kneser_ney_level(...)</code>, and because each level is normalised the
+result is normalised.</p>
+<h3 id="scoring-a-sentence">Scoring a sentence <a class="header-anchor" href="#scoring-a-sentence">#</a></h3>
+<pre class="highlight"><code>        <span class="n">history</span> <span class="o">=</span> <span class="p">[</span><span class="n">BOS</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">:</span>
+            <span class="n">probability</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">probability</span><span class="p">(</span><span class="n">history</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">probability</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">probability</span><span class="p">))</span>
+            <span class="n">history</span> <span class="o">=</span> <span class="p">(</span><span class="n">history</span> <span class="o">+</span> <span class="p">[</span><span class="n">word</span> <span class="k">if</span> <span class="n">word</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_</span> <span class="k">else</span> <span class="n">UNK</span><span class="p">])[</span>
+                <span class="o">-</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="p">[]</span>
+</code></pre>
+<p>The history starts as the start padding, and each step appends the token — the
+unknown token if it was not in training — and truncates to the context length.
+The <code>probability &lt;= 0</code> guard returns <span class="math inline">\(-\infty\)</span> explicitly instead of taking the
+log of zero, which would raise a warning and produce the same number more
+noisily. A token that is out of vocabulary is scored as <code>&lt;unk&gt;</code>, so a model that
+has seen <code>&lt;unk&gt;</code> in training can assign it mass and a model that has not gets
+zero from the maximum-likelihood variants.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(N\)</span> be the number of training tokens, <span class="math inline">\(n\)</span> the order, <span class="math inline">\(V\)</span> the vocabulary and
+<span class="math inline">\(G\)</span> the number of stored n-grams.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">training</td>
+<td style="text-align:left"><span class="math inline">\(O(Nn)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(G)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one probability, MLE</td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span> lookups</td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one probability, interpolation</td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span> lookups</td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one probability, backoff</td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span> lookups</td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one probability, Kneser-Ney</td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span> lookups</td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">score a sentence</td>
+<td style="text-align:left"><span class="math inline">\(O(Tn)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">perplexity of <span class="math inline">\(M\)</span> tokens</td>
+<td style="text-align:left"><span class="math inline">\(O(Mn)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(G)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Training is one pass per order over the corpus, so it is linear in the corpus and
+in the order. Scoring is a dictionary lookup per token per level, which is
+<span class="math inline">\(O(n)\)</span> and independent of <span class="math inline">\(V\)</span> — that is the reason n-gram models survived so long
+in latency-critical systems.</p>
+<p>The memory is the number of distinct n-grams, which for a corpus of <span class="math inline">\(N\)</span> tokens
+is at most <span class="math inline">\(N\)</span> per order and usually much less because of repeats. The
+continuation tables add another copy of the lower orders, so Kneser-Ney costs
+roughly twice the storage of the raw counts.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Zero counts and infinite perplexity.</strong> The maximum-likelihood trigram model
+scores <span class="math inline">\(-\infty\)</span> on the first unseen trigram, and the reported perplexity is
+infinite. A number that large is not a bug in the evaluation: it is the model
+telling you it assigned no probability to the test set. Check for it before
+comparing models.</p>
+<p><strong>The end token left out of the denominator.</strong> If perplexity counts the end token
+but the model is never scored on it, every model looks better by a constant
+factor and the comparison between orders shifts. The atom scores <code>&lt;/s&gt;</code> and
+counts it, which is the convention that makes <span class="math inline">\(V\)</span> the perplexity of a uniform
+model.</p>
+<p><strong>Backoff treated as a probability.</strong> Stupid backoff's rows do not sum to one,
+and on the demo corpus one row sums to <span class="math inline">\(1.3\)</span>. A downstream calculation that treats
+the score as a probability — a mixture weight, a confidence, a likelihood ratio —
+is wrong, even though ranking with it works. The variant is included because
+the distinction matters in practice.</p>
+<p><strong>Perplexity compared across tokenisations.</strong> A model over characters, over
+words and over subwords has a different vocabulary and different numbers of
+tokens per sentence, so their perplexities are not comparable. The same model
+evaluated with a different end-of-sentence convention is not comparable either.</p>
+<p><strong>Out-of-vocabulary tokens.</strong> Mapping an unseen word to <code>&lt;unk&gt;</code> is only useful if
+<code>&lt;unk&gt;</code> was counted in training. Otherwise every smoothing method except add-<span class="math inline">\(k\)</span>
+gives it zero, and the effective vocabulary is smaller than the test vocabulary.
+The standard fix is to reserve a rare-word bucket during training, not to hope.</p>
+<p><strong>A high order on a small corpus.</strong> A five-gram model of a hundred sentences has
+almost no n-gram seen twice, so the effective model is the backoff and the extra
+orders only cost memory. The held-out perplexity is the test, not the training
+perplexity, which always improves with the order.</p>
+<p><strong>Discounting too hard.</strong> Kneser-Ney with <span class="math inline">\(D\)</span> near one reserves almost all the
+mass for the shorter contexts and behaves like a unigram model; with <span class="math inline">\(D\)</span> near
+zero it behaves like maximum likelihood and keeps the zeros. The demo uses
+<span class="math inline">\(0.75\)</span>, which is the usual default, and the right value depends on the corpus.</p>
+<p><strong>Generation that loops.</strong> With a deterministic decoder an n-gram model can
+cycle forever between two states, and even with sampling a short cycle is likely.
+The length limit is not a detail; the model has no notion of having said enough
+unless the end token has enough mass.</p>
+<p><strong>Smoothing that hides a broken tokeniser.</strong> Add-<span class="math inline">\(k\)</span> gives every token a nonzero
+probability, so a tokeniser that splits words differently in training and test
+produces a finite but meaningless perplexity. Smoothing makes the number
+survivable, not correct.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Speech recognition.</strong> N-gram language models were the decoder's language prior
+for two decades, and they are still used as a shallow-fusion prior or a
+second-pass rescorer because they are cheap and easy to update with a new domain.
+KenLM and SRILM are the classic implementations.</p>
+<p><strong>Machine translation.</strong> Statistical MT decoded with a phrase table and an
+n-gram language model, and the BLEU gains from moving from a trigram to a
+five-gram were real. Neural MT replaced the whole pipeline, and n-gram models
+survive as a baseline and as a domain-adaptation trick.</p>
+<p><strong>Keyboard prediction and autocomplete.</strong> A bigram or trigram model over a user's
+typing history fits in a phone's memory and predicts the next word with
+single-digit millisecond latency. The smoothing choice matters more than the
+order when the history is short.</p>
+<p><strong>Spelling correction.</strong> A character n-gram model scores how word-like a
+candidate is, and a noisy-channel model combines it with the edit distance. The
+same machinery ranks confusions and suggests corrections.</p>
+<p><strong>Compression.</strong> Prediction by partial matching is an n-gram model with escape
+probabilities, and it is competitive with modern compressors on text. The
+counts, the escapes and the arithmetic coder are the whole algorithm.</p>
+<p><strong>Text classification and authorship.</strong> Character n-gram profiles are a strong
+baseline for language identification and authorship attribution, and they are
+still used when the training set is tiny.</p>
+<p><strong>Evaluation of tokenisers and corpora.</strong> Perplexity under a fixed n-gram model
+is a cheap way to compare tokenisations and to detect a corpus that has shifted
+domain, precisely because the model is simple enough to be understood.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Shannon, C. E. (1948). A mathematical theory of communication. <em>Bell System
+Technical Journal</em> 27, 379–423. Entropy, redundancy and the first n-gram
+approximations of English.</li>
+<li>Jelinek, F. &amp; Mercer, R. L. (1980). Interpolated estimation of Markov source
+parameters from sparse data. <em>Workshop on Pattern Recognition in Practice</em>.
+The interpolation in (4).</li>
+<li>Katz, S. M. (1987). Estimation of probabilities from sparse data for the
+language model component of a speech recognizer. <em>IEEE Transactions on
+Acoustics, Speech, and Signal Processing</em> 35(3), 400–401. Backoff with a
+normalising factor.</li>
+<li>Kneser, R. &amp; Ney, H. (1995). Improved backing-off for m-gram language modeling.
+<em>ICASSP</em>, 181–184. Continuation counts and the discounting in (6).</li>
+<li>Chen, S. F. &amp; Goodman, J. (1999). An empirical study of smoothing techniques
+for language modeling. <em>Computer Speech &amp; Language</em> 13(4), 359–394. The
+systematic comparison that made Kneser-Ney the default.</li>
+<li>Brants, T., Popat, A. C., Xu, P., Och, F. J. &amp; Dean, J. (2007). Large language
+models in machine translation. <em>EMNLP-CoNLL</em>, 858–867. Stupid backoff and the
+0.4 factor.</li>
+<li>Stolcke, A. (2002). SRILM — an extensible language modeling toolkit. <em>ICSLP</em>.
+The toolkit that standardised the variants and the file formats.</li>
+<li>Heafield, K. (2011). KenLM: faster and smaller language model queries. <em>WMT</em>.
+The data structures that make n-gram queries fast at web scale.</li>
+<li>Rosenfeld, R. (2000). Two decades of statistical language modeling: where do
+we go from here? <em>Proceedings of the IEEE</em> 88(8), 1270–1298. A survey of the
+field at its peak.</li>
+<li>Teh, Y. W. (2006). A hierarchical Bayesian language model based on Pitman-Yor
+processes. <em>ACL</em>. The Bayesian generalisation that Kneser-Ney approximates.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="beam_search.html"><small>Previous</small><span>Beam search</span></a><a class="next" href="ssm.html"><small>Next</small><span>State-space models</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">10 · Sequences</p><ul class="rail-list"><li><a href="markov_chain.html"><span class="tick">✓</span><span>Markov chains</span></a></li><li><a href="hmm.html"><span class="tick">✓</span><span>Hidden Markov models</span></a></li><li><a href="dtw.html"><span class="tick">✓</span><span>Dynamic time warping</span></a></li><li><a href="rnn.html"><span class="tick">✓</span><span>Recurrent networks</span></a></li><li><a href="lstm_gru.html"><span class="tick">✓</span><span>LSTM &amp; GRU</span></a></li><li><a href="attention.html"><span class="tick">✓</span><span>Attention</span></a></li><li><a href="crf.html"><span class="tick">✓</span><span>Conditional random fields</span></a></li><li><a href="ctc.html"><span class="tick">✓</span><span>Connectionist temporal classification</span></a></li><li><a href="tcn.html"><span class="tick">✓</span><span>Temporal convnets</span></a></li><li><a href="beam_search.html"><span class="tick">✓</span><span>Beam search</span></a></li><li><a href="ngram_lm.html" aria-current="page"><span class="tick">✓</span><span>N-gram language models</span></a></li><li><a href="ssm.html"><span class="tick">✓</span><span>State-space models</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../09-density-and-anomaly/index.html"><span class="jump">← 09 · Density &amp; anomaly</span></a></li><li><a href="../11-time-series/index.html"><span class="jump">11 · Time series&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-markov-assumption">The Markov assumption</a></li><li class="lvl3"><a href="#maximum-likelihood">Maximum likelihood</a></li><li class="lvl3"><a href="#add-k-smoothing">Add-k smoothing</a></li><li class="lvl3"><a href="#interpolation">Interpolation</a></li><li class="lvl3"><a href="#backoff">Backoff</a></li><li class="lvl3"><a href="#kneser-ney">Kneser-Ney</a></li><li class="lvl3"><a href="#perplexity">Perplexity</a></li><li class="lvl3"><a href="#generation">Generation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#counting">Counting</a></li><li class="lvl3"><a href="#maximum-likelihood-1">Maximum likelihood</a></li><li class="lvl3"><a href="#add-k">Add-k</a></li><li class="lvl3"><a href="#interpolation-1">Interpolation</a></li><li class="lvl3"><a href="#backoff-1">Backoff</a></li><li class="lvl3"><a href="#continuation-counts">Continuation counts</a></li><li class="lvl3"><a href="#the-kneser-ney-recursion">The Kneser-Ney recursion</a></li><li class="lvl3"><a href="#scoring-a-sentence">Scoring a sentence</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/10-sequences/ngram_lm.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

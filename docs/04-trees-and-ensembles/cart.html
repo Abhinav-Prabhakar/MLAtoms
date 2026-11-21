@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CART · MLAtoms</title>
+<meta name="description" content="Split search, impurity criteria and cost-complexity pruning. A decision tree asks one question at a time: is feature j above or below t? Each answer sends…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/cart.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="CART">
+<meta property="og:description" content="Split search, impurity criteria and cost-complexity pruning. A decision tree asks one question at a time: is feature j above or below t? Each answer sends…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/cart.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CART">
+<meta name="twitter:description" content="Split search, impurity criteria and cost-complexity pruning. A decision tree asks one question at a time: is feature j above or below t? Each answer sends…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "CART", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/cart.html", "description": "Split search, impurity criteria and cost-complexity pruning. A decision tree asks one question at a time: is feature j above or below t? Each answer sends\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">04 · Trees &amp; ensembles</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="cart.py.html">source</a></p><h1>CART</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A decision tree asks one question at a time: <em>is feature <code>j</code> above or below <code>t</code>?</em>
+Each answer sends the sample left or right, and the process repeats until a leaf.
+The leaf's value is the mean (regression) or the class distribution
+(classification) of the training points that landed there.</p>
+<p>Growing the tree is greedy. At each node, every feature is scanned for the
+threshold whose split most reduces impurity, the best split is taken, and the two
+children recurse. There is no global optimisation and no backtracking, yet the
+result is a piecewise-constant function that can approximate any smooth surface to
+arbitrary accuracy given enough depth.</p>
+<p>The seven variants are not seven models. They are four impurity choices and three
+practical fixes: pruning (stop overfitting after the fact), surrogate splits
+(behave sensibly when the split feature is missing at prediction time), and
+missing-value routing (learn where missing values should go during training).</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Task</th>
+<th style="text-align:left">Impurity</th>
+<th style="text-align:left">What it adds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>gini</code></td>
+<td style="text-align:left">classification</td>
+<td style="text-align:left"><code>1 − Σp²</code></td>
+<td style="text-align:left">the fast default; measures label disagreement</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>entropy</code></td>
+<td style="text-align:left">classification</td>
+<td style="text-align:left"><code>−Σp log₂p</code></td>
+<td style="text-align:left">information gain; more sensitive to rare classes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>variance</code></td>
+<td style="text-align:left">regression</td>
+<td style="text-align:left"><code>Var(y)</code></td>
+<td style="text-align:left">the standard regression tree</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>friedman_mse</code></td>
+<td style="text-align:left">regression</td>
+<td style="text-align:left"><code>n_l n_r/n · (μ_l−μ_r)²</code></td>
+<td style="text-align:left">Friedman's split score; same ranking, cheaper</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cost_complexity_pruning</code></td>
+<td style="text-align:left">classification</td>
+<td style="text-align:left">gini</td>
+<td style="text-align:left">grow deep, then prune with <code>α</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>surrogate_splits</code></td>
+<td style="text-align:left">classification</td>
+<td style="text-align:left">gini</td>
+<td style="text-align:left">backup splits for missing features</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>missing_values</code></td>
+<td style="text-align:left">classification</td>
+<td style="text-align:left">gini</td>
+<td style="text-align:left">learn which side missing values go to</td>
+</tr>
+</tbody>
+</table>
+<p><code>gini</code> and <code>entropy</code> usually produce the same tree; they differ when a node has
+several small classes, where entropy's <code>log</code> penalises rare-class impurity more
+than gini's quadratic. <code>variance</code> and <code>friedman_mse</code> rank every <em>binary</em> split
+identically — the demo asserts that their predictions are equal — because variance
+reduction is a positive multiple of the Friedman score. The difference is
+numerical convenience and tie-breaking, not statistics.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Impurity and gain.</strong> For a node with <code>n</code> samples and class proportions <code>p_k</code>,</p>
+<div class="math block">
+\[\text{Gini} = 1-\sum_k p_k^2,
+\qquad
+\text{Entropy} = -\sum_k p_k\log_2 p_k,
+\qquad
+\text{Var} = \frac1n\sum_i (y_i-\bar y)^2\]
+</div>
+<p>The gain of a split into children <code>L, R</code> is</p>
+<div class="math block">
+\[\Delta = I(\text{parent}) - \frac{n_L}{n}I(L) - \frac{n_R}{n}I(R)\]
+</div>
+<p>For regression, substituting <code>Var</code> and simplifying gives</p>
+<div class="math block">
+\[\Delta = \frac{n_L n_R}{n^2}(\mu_L-\mu_R)^2\]
+</div>
+<p>so the Friedman score <code>n_L n_R/n · (μ_L−μ_R)²</code> is <code>n²Δ</code> — the same ordering, and
+only one mean per child instead of a full pass over the labels. That is why
+<code>friedman_mse</code> exists in every serious implementation.</p>
+<p><strong>Greedy optimality is local.</strong> For a fixed set of candidate thresholds, scanning
+all of them finds the best <em>single</em> split. It does not find the best <em>tree</em>: a
+feature that looks useless now may enable a great split two levels down (XOR is
+the canonical example, and the demo's 7-leaf tree is what greedy growth needs to
+represent it). This is the bias that makes trees high-variance and motivates
+ensembles.</p>
+<p><strong>Cost-complexity pruning.</strong> Define the risk of a subtree <code>T</code> as</p>
+<div class="math block">
+\[R_\alpha(T) = R(T) + \alpha|T|,
+\qquad
+R(T) = \sum_{\text{leaves}} \frac{n_\ell}{n}\,I(\ell)\]
+</div>
+<p>For each internal node <code>t</code>, the weakest link is</p>
+<div class="math block">
+\[g_t = \frac{R(t)-R(T_t)}{|T_t|-1}\]
+</div>
+<p>where <code>R(t)</code> is the risk if <code>t</code> were a leaf and <code>T_t</code> is its subtree. Repeatedly
+collapse the node with the smallest <code>g_t</code> while <code>g_t ≤ α</code>. The sequence of
+collapses is the cost-complexity path; every <code>α</code> selects a subtree on it. This is
+the pruning algorithm of Breiman et al., and it is exact for the given tree — it
+does not search all trees.</p>
+<p><strong>Surrogate splits.</strong> When the primary feature <code>x_j</code> is missing at prediction
+time, a surrogate is another feature <code>x_k</code> whose split best reproduces the primary
+direction on the training data. For each candidate split of <code>x_k</code>, agreement is</p>
+<div class="math block">
+\[a = \frac{1}{n}\sum_i \mathbb{1}\big[(x_{ik}\le t_k) = (x_{ij}\le t_j)\big]\]
+</div>
+<p>and the surrogate is used with a flip if <code>a &lt; 1/2</code>. The best surrogate per feature
+is kept, sorted by <code>max(a, 1−a)</code>, and the first surrogate whose feature is observed
+decides the direction. If none is observed, the learned majority direction is
+used. This is the CART answer to missing data and it is why the demo's accuracy
+stays at <code>0.998</code> when the informative feature is entirely absent at test time.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The tree is a nested dict: a leaf stores <code>value</code>, <code>proba</code> and its own impurity; an
+internal node stores the split and two children. <code>_grow</code> is the recursion, and the
+only decision it makes is whether to stop:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">y</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_samples_split</span>
+            <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_depth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">depth</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_depth</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">node</span><span class="p">[</span><span class="s2">"leaf_impurity"</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mf">1e-12</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="n">node</span>
+        <span class="n">split</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_best_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">split</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">split</span><span class="p">[</span><span class="s2">"gain"</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mf">1e-12</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">node</span>
+</code></pre>
+<p><code>leaf_impurity &lt;= 1e-12</code> is the purity stop, and the gain test is the second one:
+a split that does not improve impurity is not taken even if it is geometrically
+valid. Without the gain test, a feature with thousands of unique values would keep
+splitting noise forever.</p>
+<p>Split search sorts the feature once and evaluates every cut point with prefix
+sums:</p>
+<pre class="highlight"><code>        <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"mergesort"</span><span class="p">)</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">y_obs</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="n">y_obs</span><span class="p">[</span><span class="n">order</span><span class="p">]</span>
+        <span class="n">cut</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">&gt;</span> <span class="n">v</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">thr</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">cut</span><span class="p">]</span> <span class="o">+</span> <span class="n">v</span><span class="p">[</span><span class="n">cut</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+</code></pre>
+<p><code>cut</code> holds the positions where the sorted value changes, so only those positions
+are legal splits. Splitting between equal values is never useful, and trying every
+index instead of every <em>distinct</em> value is both slower and a source of
+zero-gain nodes. <code>mergesort</code> is stable, which makes tie-breaking reproducible.</p>
+<p>Classification evaluates all cuts at once with a cumulative class count:</p>
+<pre class="highlight"><code>            <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_obs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_classes</span><span class="p">))</span>
+            <span class="n">counts</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_obs</span><span class="p">),</span> <span class="n">y_obs</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">cum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">lc</span> <span class="o">=</span> <span class="n">cum</span><span class="p">[</span><span class="n">cut</span><span class="p">]</span>
+            <span class="n">rc</span> <span class="o">=</span> <span class="n">cum</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">lc</span>
+            <span class="n">mc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">y_miss</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_classes</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">imp_l0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_imp_from_counts</span><span class="p">(</span><span class="n">lc</span><span class="p">,</span> <span class="n">n_l</span><span class="p">)</span>
+            <span class="n">imp_r0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_imp_from_counts</span><span class="p">(</span><span class="n">rc</span><span class="p">,</span> <span class="n">n_r</span><span class="p">)</span>
+</code></pre>
+<p><code>cum[cut]</code> is the left class histogram for every candidate; <code>cum[-1] - lc</code> is the
+right one. <code>np.bincount</code> only needs the class labels of the missing rows. The three
+gains then differ only in <em>where the missing rows are counted</em>:</p>
+<pre class="highlight"><code>            <span class="n">gain0</span> <span class="o">=</span> <span class="n">parent</span> <span class="o">-</span> <span class="p">(</span><span class="n">n_l</span> <span class="o">*</span> <span class="n">imp_l0</span> <span class="o">+</span> <span class="n">n_r</span> <span class="o">*</span> <span class="n">imp_r0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_l</span> <span class="o">+</span> <span class="n">n_r</span><span class="p">)</span>
+            <span class="n">gain1</span> <span class="o">=</span> <span class="n">parent</span> <span class="o">-</span> <span class="p">((</span><span class="n">n_l</span> <span class="o">+</span> <span class="n">n_m</span><span class="p">)</span> <span class="o">*</span> <span class="n">imp_l1</span> <span class="o">+</span> <span class="n">n_r</span> <span class="o">*</span> <span class="n">imp_r0</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+            <span class="n">gain2</span> <span class="o">=</span> <span class="n">parent</span> <span class="o">-</span> <span class="p">(</span><span class="n">n_l</span> <span class="o">*</span> <span class="n">imp_l0</span> <span class="o">+</span> <span class="p">(</span><span class="n">n_r</span> <span class="o">+</span> <span class="n">n_m</span><span class="p">)</span> <span class="o">*</span> <span class="n">imp_r1</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+</code></pre>
+<p><code>gain0</code> is the split on observed rows, <code>gain1</code> sends missing values left, <code>gain2</code>
+sends them right. Evaluating both is the difference between &quot;missing is an error&quot;
+and &quot;missing is information&quot;: the learned direction is whichever reduces impurity
+more, and it is stored as <code>missing_left</code>. The demo's 25%-missing training run
+reaches <code>0.892</code> accuracy largely because of these two lines.</p>
+<p>Regression reuses the same prefix-sum trick with <code>y</code> and <code>y²</code>:</p>
+<pre class="highlight"><code>            <span class="n">sy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">y_obs</span><span class="p">)</span>
+            <span class="n">sy2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">y_obs</span> <span class="o">*</span> <span class="n">y_obs</span><span class="p">)</span>
+            <span class="n">sl</span><span class="p">,</span> <span class="n">sl2</span> <span class="o">=</span> <span class="n">sy</span><span class="p">[</span><span class="n">cut</span><span class="p">],</span> <span class="n">sy2</span><span class="p">[</span><span class="n">cut</span><span class="p">]</span>
+            <span class="n">sr</span><span class="p">,</span> <span class="n">sr2</span> <span class="o">=</span> <span class="n">sy</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">sl</span><span class="p">,</span> <span class="n">sy2</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">sl2</span>
+</code></pre>
+<p>Child variance is <code>sy2/n − (sy/n)²</code>; no second pass over the data is needed. The
+<code>np.maximum(..., 0)</code> on the variance guards the <code>1e-17</code> negative that
+<code>E[y²] − E[y]²</code> produces for a nearly constant child, and a negative variance
+would make the gain <em>increase</em> as the split gets worse.</p>
+<p>Surrogates are learned only when the variant asks for them:</p>
+<pre class="highlight"><code>            <span class="n">side</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">size</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">&lt;=</span> <span class="n">cut</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>      <span class="c1"># (cuts, n)</span>
+            <span class="n">agree</span> <span class="o">=</span> <span class="p">(</span><span class="n">side</span> <span class="o">==</span> <span class="n">pl</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">eff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">agree</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">agree</span><span class="p">)</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">eff</span><span class="p">))</span>
+</code></pre>
+<p><code>side</code> is a <code>cuts × n</code> boolean matrix, so agreement for every threshold is one
+vectorised comparison. <code>eff = max(a, 1−a)</code> is essential: a surrogate that is
+perfectly <em>anti</em>-correlated is as useful as one perfectly correlated, provided the
+stored <code>flip</code> inverts the direction. Without it, the best anti-correlated surrogate
+is discarded and the tree falls back to the majority branch.</p>
+<p>Pruning is the weakest-link loop:</p>
+<pre class="highlight"><code>                <span class="k">if</span> <span class="n">leaves</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">g</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="s2">"n"</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_total</span> <span class="o">*</span> <span class="n">n</span><span class="p">[</span><span class="s2">"leaf_impurity"</span><span class="p">]</span>
+                         <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_risk</span><span class="p">(</span><span class="n">n</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">leaves</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p><code>n[&quot;n&quot;]/n_total * leaf_impurity</code> is <code>R(t)</code>, the risk if this node became a leaf;
+<code>self._risk(n)</code> is <code>R(T_t)</code>, the sum over its current leaves. The denominator
+<code>leaves − 1</code> is the number of parameters removed by collapsing, which is exactly
+<code>|T_t| − 1</code>. The loop only collapses nodes with <code>g ≤ α</code>, so smaller <code>α</code> keeps more
+leaves; the demo's <code>50 → 6</code> leaves at <code>α=0.02</code> also moves test error from <code>0.053</code>
+to <code>0.004</code> on noisy labels.</p>
+<p>Prediction is a while-loop, and the missing-value branch is the whole reason the
+node stores more than a threshold:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                <span class="n">left</span> <span class="o">=</span> <span class="n">node</span><span class="p">[</span><span class="s2">"missing_left"</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">node</span><span class="p">[</span><span class="s2">"surrogates"</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">s</span><span class="p">[</span><span class="s2">"feature"</span><span class="p">]]):</span>
+                        <span class="n">side_left</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">s</span><span class="p">[</span><span class="s2">"feature"</span><span class="p">]]</span> <span class="o">&lt;=</span> <span class="n">s</span><span class="p">[</span><span class="s2">"threshold"</span><span class="p">]</span>
+                        <span class="n">left</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">side_left</span><span class="p">)</span> <span class="o">!=</span> <span class="n">s</span><span class="p">[</span><span class="s2">"flip"</span><span class="p">]</span>
+                        <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">left</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">node</span><span class="p">[</span><span class="s2">"threshold"</span><span class="p">]</span>
+</code></pre>
+<p>The surrogate only runs when the primary feature is missing <em>and</em> the surrogate's
+feature is observed. <code>!= flip</code> is XOR: if the surrogate is anti-correlated, a
+left-side surrogate answer means the primary would have gone right. Falling
+through to <code>missing_left</code> is the unconditional default, and it is also what the
+<code>n_surrogates=0</code> ablation uses.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Operation</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">One split search at a node</td>
+<td style="text-align:left"><code>O(d n log n)</code> (sort) + <code>O(d n)</code> (prefix sums)</td>
+<td style="text-align:left"><code>O(n)</code> per feature</td>
+</tr>
+<tr>
+<td style="text-align:left">Growing a balanced tree of depth <code>h</code></td>
+<td style="text-align:left"><code>O(d n h log n)</code></td>
+<td style="text-align:left"><code>O(nodes)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Prediction, one sample</td>
+<td style="text-align:left"><code>O(h)</code></td>
+<td style="text-align:left"><code>O(1)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Cost-complexity pruning</td>
+<td style="text-align:left"><code>O(nodes²)</code> in this implementation</td>
+<td style="text-align:left"><code>O(nodes)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>n log n</code> per node is the sort; with presorted features it drops to <code>O(n)</code>.
+Pruning is quadratic because each collapse recomputes risks from the root; a
+production implementation maintains the <code>g</code> values in a heap and is <code>O(nodes log nodes)</code>. The tree itself is the memory: one dict per node, with the class
+histogram at every node in this version.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>High variance.</strong> A small change in the data can change the root split and the
+entire tree below it. A single tree is rarely the final model; bagging
+(<code>random_forest.py</code>) and boosting (<code>gradient_boosting.py</code>) exist for this.</li>
+<li><strong>Axis-aligned splits.</strong> A diagonal boundary must be approximated by a staircase
+of axis-aligned cuts, costing depth. Rotating the features (PCA) or using an
+oblique tree is the fix.</li>
+<li><strong>Greedy myopia.</strong> XOR needs four quadrants but the first split looks useless;
+the tree still finds it here, but deeper interactions can be missed. Ensembles
+and deeper trees compensate at the cost of variance.</li>
+<li><strong>Class imbalance.</strong> Gini and entropy both prefer splits that separate the
+majority class, and a leaf can predict the majority everywhere. Pass class
+weights (not implemented here) or resample; accuracy is not the right metric.</li>
+<li><strong>Unordered categorical features.</strong> Treating an integer category as a number
+imposes a false order. Encode with one-hot or use a categorical split that
+groups levels (LightGBM's <code>categorical</code> variant).</li>
+<li><strong>Missing values at prediction time with no surrogate.</strong> The tree falls back to
+<code>missing_left</code>, which is a constant learned from training. If missingness is
+informative at test time in a different way, the prediction is biased. Fit with
+surrogates if the feature can be absent.</li>
+<li><strong>Pruning with the wrong risk.</strong> <code>ccp_alpha</code> is on the scale of node impurity
+times <code>n_node/n_total</code>. A value tuned for a 50/50 classification problem is not
+meaningful for a regression tree with <code>Var(y) ≈ 10⁴</code>; rescale or tune on a
+validation set.</li>
+<li><strong>Deep trees on tiny leaves.</strong> <code>min_samples_leaf=1</code> lets a leaf hold one point,
+so the tree memorises noise. The default here is 1 to keep the mechanics
+visible; production trees use 1–20 with a validation-tuned depth.</li>
+<li><strong>No monotonicity.</strong> Trees can produce a lower prediction for a larger feature
+value in a neighbouring leaf. If the domain requires monotone responses
+(pricing, risk), constrain the splits or use a monotone booster (LightGBM).</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Tabular baselines.</strong> A depth-4 CART is still the first model to beat on most
+tabular datasets, and its splits are readable by domain experts.</li>
+<li><strong>Credit and insurance underwriting.</strong> Axis-aligned rules on income, age and
+utilisation map directly to policy; <code>cost_complexity_pruning</code> keeps the rule
+list short enough to audit.</li>
+<li><strong>Clinical decision rules.</strong> A shallow tree is a triage score: &quot;if age &gt; 65 and
+systolic &gt; 140, admit&quot;. Interpretability is the product, not an afterthought.</li>
+<li><strong>Feature interactions.</strong> The depth at which a feature first appears is a crude
+measure of interaction order; <code>random_forest</code>'s permutation importance builds on
+this.</li>
+<li><strong>Missing-data pipelines.</strong> Surrogate splits are the classical answer for
+questionnaires and sensors where a field can be absent at scoring time, and they
+remain the reference against which imputation is compared.</li>
+<li><strong>As the base learner for ensembles.</strong> Every atom in this chapter — random
+forest, boosting, XGBoost, LightGBM, AdaBoost — is this split search wrapped in
+a different outer loop.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Breiman, Friedman, Olshen &amp; Stone, <em>Classification and Regression Trees</em>, 1984 —
+the original CART, including surrogate splits and cost-complexity pruning.</li>
+<li>Friedman, <em>A Comparison of Alternative Tests of Significance for the Problem of
+m Rankings</em>, 1937 / <em>Multivariate Adaptive Regression Splines</em>, 1991 — the
+Friedman MSE score used for regression splits.</li>
+<li>Quinlan, <em>Induction of Decision Trees</em>, 1986 — ID3 and information gain, the
+entropy counterpart.</li>
+<li>Hastie, Tibshirani &amp; Friedman, <em>The Elements of Statistical Learning</em>, 2nd ed.,
+2009, ch. 9 — the bias-variance and pruning analysis.</li>
+<li>Loh, <em>Classification and Regression Trees</em>, 2011, WIREs Data Mining — a survey of
+the split-selection literature.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="index.html"><small>Previous</small><span>04 · Trees &amp; ensembles</span></a><a class="next" href="random_forest.html"><small>Next</small><span>Random forest</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">04 · Trees &amp; ensembles</p><ul class="rail-list"><li><a href="cart.html" aria-current="page"><span class="tick">✓</span><span>CART</span></a></li><li><a href="random_forest.html"><span class="tick">✓</span><span>Random forest</span></a></li><li><a href="gradient_boosting.html"><span class="tick">✓</span><span>Gradient boosting</span></a></li><li><a href="xgboost.html"><span class="tick">✓</span><span>XGBoost</span></a></li><li><a href="lightgbm.html"><span class="tick">✓</span><span>LightGBM</span></a></li><li><a href="adaboost.html"><span class="tick">✓</span><span>AdaBoost</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>C4.5</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Extremely randomised trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>CatBoost</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Stacking &amp; blending</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BART</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Oblique trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Rule lists</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Tsetlin machine</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../03-kernels-and-instance/index.html"><span class="jump">← 03 · Kernels &amp; instance-based</span></a></li><li><a href="../05-probabilistic/index.html"><span class="jump">05 · Probabilistic models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/04-trees-and-ensembles/cart.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

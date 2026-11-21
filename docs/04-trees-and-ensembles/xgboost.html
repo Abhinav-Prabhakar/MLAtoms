@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XGBoost · MLAtoms</title>
+<meta name="description" content="Second-order gain, regularised leaves and sparsity-aware splits. Gradient boosting fits each tree to the negative gradient. XGBoost adds the second…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/xgboost.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="XGBoost">
+<meta property="og:description" content="Second-order gain, regularised leaves and sparsity-aware splits. Gradient boosting fits each tree to the negative gradient. XGBoost adds the second…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/xgboost.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="XGBoost">
+<meta name="twitter:description" content="Second-order gain, regularised leaves and sparsity-aware splits. Gradient boosting fits each tree to the negative gradient. XGBoost adds the second…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "XGBoost", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/xgboost.html", "description": "Second-order gain, regularised leaves and sparsity-aware splits. Gradient boosting fits each tree to the negative gradient. XGBoost adds the second\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">04 · Trees &amp; ensembles</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>9 variants</span><span class="page-meta__sep">/</span><a href="xgboost.py.html">source</a></p><h1>XGBoost</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Gradient boosting fits each tree to the negative gradient. XGBoost adds the second
+derivative: every split is scored by how much it reduces a <em>second-order Taylor
+expansion</em> of the loss, and every leaf is set to the Newton step rather than the
+mean residual. That one change makes the same algorithm work for squared error,
+logistic loss and ranking without writing a new splitting rule for each.</p>
+<p>The other half of XGBoost is that the objective is written down explicitly:</p>
+<div class="math block">
+\[\mathcal{L} = \sum_i l(y_i,\hat y_i) + \sum_k\left(\gamma T_k
++ \tfrac12\lambda\|w_k\|^2 + \alpha\|w_k\|_1\right)\]
+</div>
+<p><code>T_k</code> is the number of leaves, <code>w_k</code> their values. <code>gamma</code> is a price per split,
+<code>lambda</code> shrinks every leaf, <code>alpha</code> makes leaves exactly zero. The split search
+optimises this regularised objective directly, which is why XGBoost is less prone
+to the unchecked growth of a vanilla GBM.</p>
+<p>The variants are the ways to enumerate candidate splits (exact, approximate,
+histogram), the DART dropout, linear leaves, and the four regularisation knobs.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">What changes</th>
+<th style="text-align:left">Why it exists</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>exact</code></td>
+<td style="text-align:left">every distinct feature value is a candidate</td>
+<td style="text-align:left">the reference split search</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approx</code></td>
+<td style="text-align:left">per-node quantile candidates</td>
+<td style="text-align:left">sublinear in <code>n</code> for large data</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>hist</code></td>
+<td style="text-align:left">global histogram bins</td>
+<td style="text-align:left">the production default; cache-friendly</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dart</code></td>
+<td style="text-align:left">randomly drop previous trees while fitting</td>
+<td style="text-align:left">prevents later trees from over-relying on early ones</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>linear_booster</code></td>
+<td style="text-align:left">leaves hold ridge models, not constants</td>
+<td style="text-align:left">captures local linear trends</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>reg_alpha</code></td>
+<td style="text-align:left"><code>L1</code> leaf penalty (default <code>α=1</code>)</td>
+<td style="text-align:left">sparse leaves, automatic pruning</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>reg_lambda</code></td>
+<td style="text-align:left">stronger <code>L2</code> leaf penalty (default <code>λ=10</code>)</td>
+<td style="text-align:left">smoother, smaller leaves</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>colsample</code></td>
+<td style="text-align:left">each tree sees 70% of the columns</td>
+<td style="text-align:left">decorrelation, faster fitting</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sparsity_aware</code></td>
+<td style="text-align:left">missing values routed by gain</td>
+<td style="text-align:left">no imputation, missingness is information</td>
+</tr>
+</tbody>
+</table>
+<p><code>exact</code>, <code>approx</code> and <code>hist</code> are the same objective with different candidate sets.
+<code>reg_alpha</code> and <code>reg_lambda</code> are the same objective with different penalties. The
+demo shows each default doing what it says: <code>L1</code> produces 160 zero leaves where the
+unpenalised fit has none, and <code>λ=100</code> cuts the mean absolute leaf value from
+<code>0.254</code> to <code>0.098</code>.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Second-order expansion.</strong> Around the current prediction <code>F_{m-1}(x_i)</code>, with
+<code>g_i = ∂l/∂F</code> and <code>h_i = ∂²l/∂F²</code>,</p>
+<div class="math block">
+\[\mathcal{L}^{(m)} \approx \sum_i
+\left[g_i f_m(x_i) + \tfrac12 h_i f_m(x_i)^2\right]
++ \gamma T + \tfrac12\lambda\sum_j w_j^2 + \alpha\sum_j|w_j|\]
+</div>
+<p>For a leaf containing rows <code>S</code>, the optimal value is</p>
+<div class="math block">
+\[w_S = -\frac{\mathrm{soft}(G_S,\alpha)}{H_S+\lambda},
+\qquad
+G_S=\sum_{i\in S}g_i,\quad H_S=\sum_{i\in S}h_i\]
+</div>
+<p>where <code>soft(G,α) = sign(G)·max(|G|−α, 0)</code>. The <code>L1</code> case is the proximal operator:
+<code>α</code> eats the gradient before the <code>L2</code> shrink. With <code>α=0</code> this is the familiar
+<code>−G/(H+λ)</code>.</p>
+<p><strong>Split gain.</strong> Substituting <code>w_S</code> back and subtracting the parent's score gives</p>
+<div class="math block">
+\[\text{gain} = \frac12\left[
+\frac{\mathrm{soft}(G_L)^2}{H_L+\lambda}
++ \frac{\mathrm{soft}(G_R)^2}{H_R+\lambda}
+- \frac{\mathrm{soft}(G)^2}{H+\lambda}
+\right] - \gamma\]
+</div>
+<p>The <code>½</code> is the Taylor factor, <code>γ</code> is charged once per split. A split is taken only
+if <code>gain &gt; 0</code>, so <code>gamma</code> is a hard minimum-improvement threshold.</p>
+<p><strong>Gradients and Hessians.</strong> For squared loss, <code>g = F−y</code>, <code>h = 1</code>. For logistic loss,
+<code>p = σ(F)</code>, <code>g = p−y</code>, <code>h = p(1−p)</code>. The Hessian is what makes XGBoost's leaves
+different from a GBM's: a leaf with confident, well-classified rows has small <code>h</code>,
+so the same <code>G</code> produces a large step; a leaf with uncertain rows is damped.</p>
+<p><strong>Candidate enumeration.</strong> Exact search sorts each feature and evaluates every
+distinct value. That is <code>O(n log n)</code> per feature per node — fine for <code>n</code> in the
+millions, too slow for billions. Approximate search proposes <code>O(max_bins)</code> quantile
+candidates per node; histogram search uses <em>global</em> bin edges computed once, so
+each node only accumulates <code>G</code> and <code>H</code> into bins, which is <code>O(n)</code> per feature and
+cache-friendly. The demo's 16-bin histogram reaches <code>R²=0.950</code> against exact
+<code>0.963</code> — the usual small loss for a large speed-up.</p>
+<p><strong>DART.</strong> Dropout meets boosting: at stage <code>m</code>, each previous tree is temporarily
+removed with probability <code>p</code>, the gradients are computed from the surviving
+ensemble (scaled by <code>1/(1−p)</code> to preserve the expected sum), and the new tree is
+fitted to those gradients. At prediction time all trees are used, exactly like
+inverted dropout. The effect is to stop late trees from fitting only the residual
+of the early ones and to spread contribution across the ensemble.</p>
+<p><strong>Linear leaves.</strong> Instead of a constant <code>w_S</code>, fit</p>
+<div class="math block">
+\[\min_{w,b}\sum_{i\in S} h_i\left(-g_i/h_i - (x_i^\top w+b)\right)^2
++ \lambda\|w\|^2\]
+</div>
+<p>which is a weighted ridge regression with target <code>−g/h</code>. For squared loss this is
+ordinary ridge on the residual; for logistic it is the Newton step in function
+space. The split search is unchanged — it still uses <code>g,h</code> — so the tree decides
+<em>where</em> a linear model is worth fitting, and the leaf decides <em>what</em> it is.</p>
+<p><strong>Sparsity-aware splits.</strong> For each candidate, evaluate the gain three ways: missing
+values left, missing values right, and (when there are none) the ordinary split.
+Store the winning direction at the node. At prediction, a missing value follows the
+stored direction. This is why XGBoost needs no imputation: the tree learns where
+missingness belongs, and the demo still reaches <code>R²=0.841</code> with 20% of the
+informative feature removed.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The regularised leaf is three lines, and the <code>L1</code> case is the only non-obvious one:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_soft</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Proximal operator of alpha|w|: sign(g) max(|g|-alpha, 0)."""</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_leaf_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">G</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">H</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">_soft</span><span class="p">(</span><span class="n">G</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reg_alpha</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">H</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">reg_lambda</span><span class="p">)</span>
+</code></pre>
+<p><code>soft</code> is vectorised so the same function scores thousands of candidate splits;
+<code>_leaf_value</code> is called with scalars. With <code>alpha=0</code> this is <code>−G/(H+λ)</code>; with
+<code>alpha&gt;0</code> a leaf whose gradient is smaller than <code>alpha</code> gets exactly zero, which is
+the sparsity the demo counts.</p>
+<p>The split gain is the objective difference, not an impurity heuristic:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_split_gain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">GL</span><span class="p">,</span> <span class="n">HL</span><span class="p">,</span> <span class="n">GR</span><span class="p">,</span> <span class="n">HR</span><span class="p">,</span> <span class="n">GP</span><span class="p">,</span> <span class="n">HP</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_score</span><span class="p">(</span><span class="n">GL</span><span class="p">,</span> <span class="n">HL</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_score</span><span class="p">(</span><span class="n">GR</span><span class="p">,</span> <span class="n">HR</span><span class="p">)</span>
+                      <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_score</span><span class="p">(</span><span class="n">GP</span><span class="p">,</span> <span class="n">HP</span><span class="p">))</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span>
+</code></pre>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">G</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">H</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Negative of the minimised leaf objective, up to the factor 1/2."""</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">_soft</span><span class="p">(</span><span class="n">G</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reg_alpha</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span> <span class="o">*</span> <span class="n">s</span> <span class="o">/</span> <span class="p">(</span><span class="n">H</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">reg_lambda</span><span class="p">)</span>
+</code></pre>
+<p><code>_score</code> is <code>soft(G)²/(H+λ)</code>, which is <code>−2 ×</code> the minimised leaf objective. The
+factor cancels in the gain, so it is left out. <code>gamma</code> is subtracted <em>after</em> the
+<code>½</code>, which means it is in the same units as the Taylor-expanded loss — a common
+source of &quot;why does <code>gamma=1</code> kill every split?&quot; confusion when the loss is mean
+squared error and the gradients are tiny.</p>
+<p><code>_split_feature</code> is where the three enumerations and the missing-value logic meet:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"exact"</span><span class="p">:</span>
+            <span class="n">cand</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">v</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="n">cand</span> <span class="o">=</span> <span class="n">cand</span><span class="p">[</span><span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">&gt;</span> <span class="n">v</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cand</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_candidates</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span>
+</code></pre>
+<p>The <code>v[1:] &gt; v[:-1]</code> mask drops zero-width candidates between duplicate values.
+Keeping them is harmless numerically (gain 0) but doubles the work on discrete
+features and can produce a split that sends nothing to one side. Histogram and
+approximate candidates come from <code>_candidates</code>, which returns global bin edges or
+per-node quantiles respectively.</p>
+<p>The cumulative sums then give every candidate's left child at once:</p>
+<pre class="highlight"><code>        <span class="n">cumG</span><span class="p">,</span> <span class="n">cumH</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">G</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">H</span><span class="p">)</span>
+        <span class="c1"># left side contains all values &lt;= cand (searchsorted, side="right")</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">cand</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+</code></pre>
+<p><code>searchsorted(..., side=&quot;right&quot;) - 1</code> is the index of the last value <code>&lt;= cand</code>.
+Using <code>side=&quot;left&quot;</code> would put values exactly equal to the threshold on the right,
+which contradicts the <code>x &lt;= t</code> convention used at prediction. The subtraction of 1
+is the off-by-one that makes the left size <code>pos+1</code>, not <code>pos</code>.</p>
+<p>Missing values are evaluated as a third child:</p>
+<pre class="highlight"><code>        <span class="n">gain0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_gain</span><span class="p">(</span><span class="n">GL</span><span class="p">,</span> <span class="n">HL</span><span class="p">,</span> <span class="n">GR</span><span class="p">,</span> <span class="n">HR</span><span class="p">,</span> <span class="n">GP_obs</span><span class="p">,</span> <span class="n">HP_obs</span><span class="p">)</span>
+        <span class="n">gain1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_gain</span><span class="p">(</span><span class="n">GL</span> <span class="o">+</span> <span class="n">Gm</span><span class="p">,</span> <span class="n">HL</span> <span class="o">+</span> <span class="n">Hm</span><span class="p">,</span> <span class="n">GR</span><span class="p">,</span> <span class="n">HR</span><span class="p">,</span> <span class="n">GP</span><span class="p">,</span> <span class="n">HP</span><span class="p">)</span>
+        <span class="n">gain2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_gain</span><span class="p">(</span><span class="n">GL</span><span class="p">,</span> <span class="n">HL</span><span class="p">,</span> <span class="n">GR</span> <span class="o">+</span> <span class="n">Gm</span><span class="p">,</span> <span class="n">HR</span> <span class="o">+</span> <span class="n">Hm</span><span class="p">,</span> <span class="n">GP</span><span class="p">,</span> <span class="n">HP</span><span class="p">)</span>
+</code></pre>
+<p><code>gain0</code> uses the observed parent (<code>GP_obs</code>) and is valid only when there are no
+missing rows. <code>gain1</code> adds the missing gradients to the left, <code>gain2</code> to the right,
+and both compare against the <em>full</em> parent <code>GP</code>. That distinction matters: scoring
+a missing-left split against the observed parent understates the parent objective
+and can make a bad split look good. <code>ok0</code> is explicitly disabled when <code>n_m &gt; 0</code> for
+the same reason.</p>
+<p>Growth is short because the split carries its own default direction:</p>
+<pre class="highlight"><code>        <span class="n">col</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">split</span><span class="p">[</span><span class="s2">"feature"</span><span class="p">]]</span>
+        <span class="n">left</span> <span class="o">=</span> <span class="p">(</span><span class="n">col</span> <span class="o">&lt;=</span> <span class="n">split</span><span class="p">[</span><span class="s2">"threshold"</span><span class="p">])</span> <span class="o">|</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">split</span><span class="p">[</span><span class="s2">"missing_left"</span><span class="p">])</span>
+        <span class="n">li</span><span class="p">,</span> <span class="n">ri</span> <span class="o">=</span> <span class="n">idx</span><span class="p">[</span><span class="n">left</span><span class="p">],</span> <span class="n">idx</span><span class="p">[</span><span class="o">~</span><span class="n">left</span><span class="p">]</span>
+</code></pre>
+<p><code>split[&quot;missing_left&quot;]</code> was chosen by gain in <code>_split_feature</code>, so the routing is
+already decided; <code>_grow</code> only applies it. <code>idx</code> rather than a boolean mask over all
+rows keeps each recursive call proportional to the node, not the dataset.</p>
+<p>Gradients are the only task-specific part of fitting:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">F</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">==</span> <span class="s2">"binary"</span><span class="p">:</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">_sigmoid</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">p</span> <span class="o">-</span> <span class="n">y</span><span class="p">,</span> <span class="n">p</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">F</span> <span class="o">-</span> <span class="n">y</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
+</code></pre>
+<p>The squared-loss Hessian is exactly 1, so <code>H</code> is just the leaf count and <code>λ</code> is a
+per-sample ridge. The logistic Hessian is <code>p(1−p)</code>, which is why a confident leaf
+takes a bigger Newton step than an uncertain one even when their gradients match.</p>
+<p>DART is the only branch that rewrites the current prediction instead of updating
+it in place:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">drop_rate</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimators_</span><span class="p">:</span>
+                <span class="n">keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimators_</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">drop_rate</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n_dropped_</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">((</span><span class="o">~</span><span class="n">keep</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+                <span class="n">scale</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">drop_rate</span><span class="p">)</span>
+                <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">base</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">tree</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimators_</span><span class="p">,</span> <span class="n">keep</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">k</span><span class="p">:</span>
+                        <span class="n">F</span> <span class="o">+=</span> <span class="n">scale</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tree_predict</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+</code></pre>
+<p><code>scale</code> is inverted dropout: the surviving trees are amplified so the expected sum
+equals the full ensemble's. At prediction <code>_full_raw</code> adds every tree <em>without</em>
+the scale, which is the same convention as a dropout layer at test time. Computing
+<code>F</code> from scratch each stage is <code>O(B² n)</code>; a production DART implementation
+subtracts the dropped trees' contributions instead.</p>
+<p>Linear leaves are a weighted ridge solve:</p>
+<pre class="highlight"><code>        <span class="n">Xl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">idx</span><span class="o">.</span><span class="n">size</span><span class="p">)])</span>
+        <span class="n">hh</span> <span class="o">=</span> <span class="n">h</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="o">-</span><span class="n">g</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">hh</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="p">(</span><span class="n">Xl</span> <span class="o">*</span> <span class="n">hh</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Xl</span>
+        <span class="n">pen</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">Xl</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">reg_lambda</span><span class="p">)</span>
+        <span class="n">pen</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">A</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">pen</span><span class="p">)</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">Xl</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">hh</span> <span class="o">*</span> <span class="n">target</span><span class="p">)</span>
+</code></pre>
+<p><code>target = −g/h</code> is the Newton pseudo-response; weighting by <code>h</code> turns the Taylor
+expansion into a weighted least-squares problem. <code>pen[-1] = 0</code> leaves the intercept
+unpenalised — penalising it would shrink every leaf toward zero and bias the model,
+exactly as in ridge. <code>np.maximum(hh, 1e-12)</code> guards a saturated logistic leaf.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Quantity</th>
+<th style="text-align:left">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Exact split, one feature</td>
+<td style="text-align:left"><code>O(n log n)</code> per node</td>
+</tr>
+<tr>
+<td style="text-align:left">Histogram split, one feature</td>
+<td style="text-align:left"><code>O(n)</code> per node after a one-time <code>O(nd)</code> binning</td>
+</tr>
+<tr>
+<td style="text-align:left">Approximate</td>
+<td style="text-align:left"><code>O(n log n)</code> for the quantiles, then <code>O(n)</code> per feature</td>
+</tr>
+<tr>
+<td style="text-align:left">One tree</td>
+<td style="text-align:left"><code>O(d n log n · depth)</code> exact, <code>O(d n · depth)</code> hist</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>B</code> trees</td>
+<td style="text-align:left"><code>B ×</code> the above</td>
+</tr>
+<tr>
+<td style="text-align:left">Prediction, one row</td>
+<td style="text-align:left"><code>O(B · depth)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Memory is <code>O(B · nodes + n · bins)</code> for the histogram version. The exact search is
+the reference; histogram is what makes <code>n</code> in the hundreds of millions feasible.
+The demo's exact, hist and approx models all train 120 depth-3 trees on 350 rows in
+well under a second, which is why the differences show up as accuracy, not runtime.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong><code>gamma</code> on the wrong scale.</strong> <code>gamma</code> is compared to a Taylor-expanded gain;
+with mean squared error and small residuals the gains are tiny, so <code>gamma=1</code>
+prunes everything. Tune <code>gamma</code> on a validation set, or normalise the loss.</li>
+<li><strong><code>L1</code> with unstandardised features.</strong> <code>alpha</code> is in gradient units, so a feature
+with a large scale produces large <code>G</code> and is penalised less. Standardise, or
+tune <code>alpha</code> per feature block.</li>
+<li><strong>DART inference mismatch.</strong> Training uses <code>1/(1−p)</code> scaling; if prediction also
+scales, every tree is too large by that factor. Use the scaling in exactly one
+place.</li>
+<li><strong>Histogram bins too coarse.</strong> <code>max_bins=16</code> merges distinct regimes and can
+underfit a sharp threshold; 64–256 is the usual range. The demo's 16 bins lose
+about <code>0.013</code> in <code>R²</code> against exact, which is a fair price.</li>
+<li><strong>Approximate quantiles are not weighted.</strong> This implementation uses plain
+<code>np.quantile</code>; the paper's sketch weights by Hessian, so a candidate can be
+placed where few <em>important</em> rows live. On imbalanced Hessians the plain version
+is noticeably worse.</li>
+<li><strong>Missing values and linear leaves.</strong> A linear leaf predicts <code>x·w+b</code>; a missing
+<code>x_j</code> becomes <code>nan</code>. This implementation fills <code>nan</code> with zero at prediction,
+which is a convention, not a model. Use tree leaves or impute for the linear
+booster.</li>
+<li><strong>No early stopping.</strong> <code>n_estimators</code> is fixed; a large value overfits the
+validation set even with <code>lambda</code>. Watch the validation curve or add a holdout
+loop.</li>
+<li><strong>Binary labels must be 0/1.</strong> The logistic gradients assume it; labels <code>±1</code> or
+strings silently fit the wrong model. Encode explicitly.</li>
+<li><strong><code>reg_lambda</code> default.</strong> XGBoost's real default is 1; the <code>reg_lambda</code> variant
+here bumps it to 10 to make the effect visible. Do not read the demo's shrinkage
+as &quot;XGBoost always uses 10&quot;.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Tabular competitions and industry baselines.</strong> XGBoost remains the model to
+beat on medium-sized structured data, especially with missing values and mixed
+feature types.</li>
+<li><strong>Credit scoring and fraud.</strong> The regularised objective plus monotone constraints
+(not implemented here) gives an auditable model; <code>gamma</code> and <code>lambda</code> control
+complexity directly.</li>
+<li><strong>Ranking and recommendation.</strong> LambdaMART is this objective with a pairwise
+ranking loss; the second-order gain is what makes the pair weights tractable.</li>
+<li><strong>Insurance and demand.</strong> Tweedie and quantile variants of the same objective
+model claims and intervals; the histogram splitter is the production path.</li>
+<li><strong>Feature-store pipelines.</strong> Sparsity-aware splits mean no imputation step at
+serving time, which removes a train/serve skew that plagues linear pipelines.</li>
+<li><strong>As a teaching reference.</strong> Every knob in the real library maps to one line
+here: <code>eta</code>, <code>max_depth</code>, <code>min_child_weight</code>, <code>lambda</code>, <code>alpha</code>, <code>gamma</code>,
+<code>subsample</code>, <code>colsample_bytree</code>.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Chen &amp; Guestrin, <em>XGBoost: A Scalable Tree Boosting System</em>, 2016, KDD — the
+regularised objective, the gain formula and the sparsity-aware split.</li>
+<li>Friedman, <em>Greedy Function Approximation: A Gradient Boosting Machine</em>, 2001 —
+the first-order ancestor.</li>
+<li>Rashmi &amp; Gilad-Bachrach, <em>DART: Dropouts meet Multiple Additive Regression
+Trees</em>, 2015, AISTATS — the dropout variant.</li>
+<li>Chen, He, Benesty et al., <em>XGBoost documentation</em>, 2016– — the exact/approx/hist
+split descriptions.</li>
+<li>Hastie, Tibshirani &amp; Friedman, <em>The Elements of Statistical Learning</em>, 2nd ed.,
+2009, ch. 10 — the statistical view of boosted trees.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="gradient_boosting.html"><small>Previous</small><span>Gradient boosting</span></a><a class="next" href="lightgbm.html"><small>Next</small><span>LightGBM</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">04 · Trees &amp; ensembles</p><ul class="rail-list"><li><a href="cart.html"><span class="tick">✓</span><span>CART</span></a></li><li><a href="random_forest.html"><span class="tick">✓</span><span>Random forest</span></a></li><li><a href="gradient_boosting.html"><span class="tick">✓</span><span>Gradient boosting</span></a></li><li><a href="xgboost.html" aria-current="page"><span class="tick">✓</span><span>XGBoost</span></a></li><li><a href="lightgbm.html"><span class="tick">✓</span><span>LightGBM</span></a></li><li><a href="adaboost.html"><span class="tick">✓</span><span>AdaBoost</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>C4.5</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Extremely randomised trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>CatBoost</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Stacking &amp; blending</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BART</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Oblique trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Rule lists</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Tsetlin machine</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../03-kernels-and-instance/index.html"><span class="jump">← 03 · Kernels &amp; instance-based</span></a></li><li><a href="../05-probabilistic/index.html"><span class="jump">05 · Probabilistic models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/04-trees-and-ensembles/xgboost.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

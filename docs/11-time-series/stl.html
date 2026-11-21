@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STL decomposition · MLAtoms</title>
+<meta name="description" content="LOESS seasonal-trend decomposition and robust variants. STL is the answer to a practical question: given a series that clearly has a trend and a repeating…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/stl.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="STL decomposition">
+<meta property="og:description" content="LOESS seasonal-trend decomposition and robust variants. STL is the answer to a practical question: given a series that clearly has a trend and a repeating…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/stl.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="STL decomposition">
+<meta name="twitter:description" content="LOESS seasonal-trend decomposition and robust variants. STL is the answer to a practical question: given a series that clearly has a trend and a repeating…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "STL decomposition", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/stl.html", "description": "LOESS seasonal-trend decomposition and robust variants. STL is the answer to a practical question: given a series that clearly has a trend and a repeating\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">11 · Time series</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="stl.py.html">source</a></p><h1>STL — seasonal-trend decomposition by smoothing, not by a model</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>STL is the answer to a practical question: given a series that clearly has a
+trend and a repeating shape, how do you split it into those two parts without
+assuming a parametric model for either? Cleveland's method is iterative
+backfitting. Guess the trend, subtract it, smooth each seasonal subseries,
+remove the low-frequency part of that seasonal estimate, subtract the result,
+and smooth the remainder to update the trend. Repeat.</p>
+<p>Two details make it work. The first is <strong>cycle-subseries smoothing</strong>: with
+period <span class="math inline">\(m\)</span>, split the data into <span class="math inline">\(m\)</span> sequences (all Januaries, all Februaries,
+...). Each sequence is short and smooth, so a local regression with a modest
+window captures how that month's effect evolves over the years. The second is
+the <strong>low-pass filter</strong>: the raw seasonal estimate also contains slow drift,
+which must be removed before the seasonal component is subtracted from the
+series. STL does that with three moving averages followed by a local regression,
+and the result is the part of the seasonal estimate that is genuinely periodic.</p>
+<p>The variants are the practical extensions of that skeleton:</p>
+<ul>
+<li><strong><code>robust</code></strong> adds an outer loop that downweights outliers, so a handful of
+spikes cannot bend the trend or inflate a month's seasonal effect.</li>
+<li><strong><code>mstl</code></strong> repeats the decomposition for several periods, subtracting the
+other seasonal components before estimating each one.</li>
+<li><strong><code>seasonal_windows</code></strong> chooses a separate seasonal smoothing window for each
+subseries by leave-one-out cross-validation, instead of forcing all months to
+share one window.</li>
+</ul>
+<p>The demo checks the split against the simulation truth, not just the additive
+identity: the identity holds by construction, while the correlation and RMSE
+figures are what would look wrong if the smoothing were broken.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">change</th>
+<th style="text-align:left">demo result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>stl</code></td>
+<td style="text-align:left">base iterative decomposition</td>
+<td style="text-align:left">profile <span class="math inline">\(r=0.9993\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>robust</code></td>
+<td style="text-align:left">bisquare outer weights</td>
+<td style="text-align:left">outlier weight 0.0000</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mstl</code></td>
+<td style="text-align:left">several periods</td>
+<td style="text-align:left">weekly <span class="math inline">\(r=0.9999\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>seasonal_windows</code></td>
+<td style="text-align:left">per-subseries span by CV</td>
+<td style="text-align:left">RMSE 0.4738 vs 0.5024</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>stl</code></strong> is the default. On 240 points with a linear trend, two harmonics and
+noise with variance <span class="math inline">\(0.1225\)</span>, it recovers the seasonal profile with correlation
+<span class="math inline">\(0.9993\)</span> and the trend with RMSE <span class="math inline">\(0.1189\)</span>. The remainder variance is <span class="math inline">\(0.0665\)</span>,
+below the noise variance because the smoothers absorb some of the noise — a
+reminder that a low remainder variance is not by itself evidence of a good
+decomposition.</p>
+<p><strong><code>robust</code></strong> fits the same series after twenty observations are shifted by
+<span class="math inline">\(+15\)</span>. The final weights at those observations are exactly zero, the trend RMSE
+falls from <span class="math inline">\(1.5137\)</span> to <span class="math inline">\(0.1719\)</span>, and the seasonal RMSE falls as well. The
+remainder sum of squares is <em>larger</em> (<span class="math inline">\(4670.79\)</span> against <span class="math inline">\(2491.88\)</span>), because the
+outliers stay in the remainder; robustness protects the components, it does not
+remove the data.</p>
+<p><strong><code>mstl</code></strong> handles a weekly and a monthly cycle on 420 daily points. The two
+extracted components correlate <span class="math inline">\(0.9999\)</span> and <span class="math inline">\(0.9995\)</span> with the truth, and the
+remainder variance is <span class="math inline">\(0.0213\)</span> against a noise variance of <span class="math inline">\(0.0625\)</span>. It works by
+estimating each period on the series with the other seasonal components
+subtracted, then repeating the pass once.</p>
+<p><strong><code>seasonal_windows</code></strong> is for the case where one part of the year is much noisier
+than another. The demo makes month 3 four times as noisy as the others; the
+variant chooses windows <span class="math inline">\((11,11,11,11,5,11,9,11,9,5,11,11)\)</span> and lowers the
+seasonal RMSE from <span class="math inline">\(0.5024\)</span> to <span class="math inline">\(0.4738\)</span>. Its in-sample RSS is slightly higher
+(<span class="math inline">\(138.84\)</span> against <span class="math inline">\(132.39\)</span>) because a smoother seasonal fit is not the same as a
+lower residual; the cross-validated window is choosing bias over variance.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-decomposition">The decomposition <a class="header-anchor" href="#the-decomposition">#</a></h3>
+<p>All variants target the additive identity</p>
+<div class="math block">
+\[y_t=T_t+S_t+R_t,
+\qquad (1)\]
+</div>
+<p>where <span class="math inline">\(T\)</span> is the trend, <span class="math inline">\(S\)</span> is seasonal with period <span class="math inline">\(m\)</span>, and <span class="math inline">\(R\)</span> is what is
+left. The identity is definitional: once <span class="math inline">\(T\)</span> and <span class="math inline">\(S\)</span> are chosen, <span class="math inline">\(R\)</span> is
+determined. The modelling content is entirely in the two smoothers.</p>
+<h3 id="local-regression">Local regression <a class="header-anchor" href="#local-regression">#</a></h3>
+<p>Both smoothers are LOESS. For a target <span class="math inline">\(z\)</span>, fit a local polynomial of degree
+<span class="math inline">\(d\)</span> by weighted least squares:</p>
+<div class="math block">
+\[\min_{\beta_0,\beta_1}\sum_{i=1}^{n}w_i(z)
+\bigl(y_i-\beta_0-\beta_1(x_i-z)\bigr)^2,
+\qquad (2)\]
+</div>
+<p>and evaluate at <span class="math inline">\(z\)</span> as <span class="math inline">\(\hat\beta_0\)</span>. The weights are tricube in the distance to
+the <span class="math inline">\(k\)</span>-th nearest point:</p>
+<div class="math block">
+\[w_i(z)=\left(1-\left(\frac{\lvert x_i-z\rvert}{h(z)}\right)^3\right)^3
+\mathbf 1[\lvert x_i-z\rvert<h(z)],
+\qquad (3)\]
+</div>
+<p>where <span class="math inline">\(h(z)\)</span> is the distance to the farthest of the <span class="math inline">\(k\)</span> selected neighbours and
+<span class="math inline">\(k\)</span> is the span. Only <span class="math inline">\(k\)</span> points receive nonzero weight, so the cost per target
+is <span class="math inline">\(O(k)\)</span> plus the small least-squares solve. Degree <span class="math inline">\(1\)</span> follows local slopes;
+degree <span class="math inline">\(0\)</span> is a weighted mean. The code uses degree <span class="math inline">\(1\)</span> for the trend and for
+the seasonal subseries, and degree <span class="math inline">\(0\)</span> when a subseries is treated as periodic
+or has fewer points than the requested span.</p>
+<h3 id="cycle-subseries-smoothing">Cycle-subseries smoothing <a class="header-anchor" href="#cycle-subseries-smoothing">#</a></h3>
+<p>For each phase <span class="math inline">\(j=0,\dots,m-1\)</span>, let
+<span class="math inline">\(\mathcal I_j=\{t:t\equiv j\pmod m\}\)</span> and let <span class="math inline">\(y^{(j)}\)</span> be that subsequence.
+Smooth it with span <span class="math inline">\(s\)</span>:</p>
+<div class="math block">
+\[C_t=\mathrm{Loess}\bigl(\{y_i\}_{i\in\mathcal I_j}\bigr)(t),
+\qquad t\in\mathcal I_j,
+\qquad (4)\]
+</div>
+<p>and extrapolate the local fit one period before and one period after the
+observed range. The extended estimate <span class="math inline">\(\tilde C\)</span> has length <span class="math inline">\(n+2m\)</span>; this is why
+the code builds <code>positions = np.arange(-period + 1, n + period)</code>. The
+extrapolation matters at the boundaries, where the seasonal component would
+otherwise be undefined for the first and last partial cycle.</p>
+<h3 id="low-pass-filtering">Low-pass filtering <a class="header-anchor" href="#low-pass-filtering">#</a></h3>
+<p>The extended seasonal estimate still contains slow variation. Remove it with</p>
+<div class="math block">
+\[L=\mathrm{Loess}_{l}\Bigl(\mathrm{MA}_{3}
+\bigl(\mathrm{MA}_{m}(\mathrm{MA}_{m}(\tilde C))\bigr)\Bigr),
+\qquad (5)\]
+</div>
+<p>where <span class="math inline">\(\mathrm{MA}_{k}\)</span> is a centred moving average of length <span class="math inline">\(k\)</span> and
+<span class="math inline">\(\mathrm{Loess}_{l}\)</span> is a local linear smoother with span <span class="math inline">\(l\)</span>. The two length-<span class="math inline">\(m\)</span>
+averages annihilate the period-<span class="math inline">\(m\)</span> component; the length-<span class="math inline">\(3\)</span> average removes
+the remaining high-frequency ripple; the final LOESS smooths what is left. The
+seasonal component is then</p>
+<div class="math block">
+\[S_t=\tilde C_t-L_t
+\qquad (6)\]
+</div>
+<p>on the observed range. Subtracting <span class="math inline">\(L\)</span> is what prevents the seasonal component
+from absorbing the trend, and it is the step most naive implementations omit.</p>
+<h3 id="trend-update">Trend update <a class="header-anchor" href="#trend-update">#</a></h3>
+<p>Deseasonalise and smooth:</p>
+<div class="math block">
+\[T_t=\mathrm{Loess}_{t}(y-S)(t).
+\qquad (7)\]
+</div>
+<p>The pair (6)–(7) is one inner iteration. STL runs it <code>inner</code> times (two by
+default), which is enough because the two smoothers are contractions on the
+components they do not own.</p>
+<h3 id="robust-weights">Robust weights <a class="header-anchor" href="#robust-weights">#</a></h3>
+<p>After an inner pass, compute the remainder <span class="math inline">\(R=y-S-T\)</span> and the bisquare weights</p>
+<div class="math block">
+\[w_t=\left(1-\left(\frac{\lvert R_t\rvert}{6\,\mathrm{median}\lvert R\rvert}
+\right)^2\right)^2
+\mathbf 1\bigl[\lvert R_t\rvert<6\,\mathrm{median}\lvert R\rvert\bigr].
+\qquad (8)\]
+</div>
+<p>These weights multiply the LOESS weights in (2) on the next outer pass. An
+observation beyond six median absolute deviations gets weight zero and cannot
+influence the seasonal or trend estimate. The median scale is recomputed each
+outer iteration, so the procedure adapts to the remaining noise level.</p>
+<h3 id="multiple-periods">Multiple periods <a class="header-anchor" href="#multiple-periods">#</a></h3>
+<p>For periods <span class="math inline">\(m_1,\dots,m_P\)</span>, MSTL estimates one component at a time on the
+series with the others removed:</p>
+<div class="math block">
+\[S^{(k)}=\mathrm{STL}_{m_k}\Bigl(y-\sum_{j\ne k}S^{(j)}\Bigr),
+\qquad
+S=\sum_{k=1}^{P}S^{(k)} .
+\qquad (9)\]
+</div>
+<p>The code makes two passes over the periods, shortest to longest. The first pass
+gives each component a rough estimate; the second re-estimates it with the other
+components already subtracted. The trend is then smoothed on <span class="math inline">\(y-S\)</span>.</p>
+<h3 id="choosing-seasonal-windows">Choosing seasonal windows <a class="header-anchor" href="#choosing-seasonal-windows">#</a></h3>
+<p>For <code>seasonal_windows</code>, each subseries gets its own span. For a candidate span
+<span class="math inline">\(s\)</span>, the leave-one-out error is</p>
+<div class="math block">
+\[\mathrm{CV}(s)=\sum_{i\in\mathcal I_j}
+\bigl(y_i-\hat y_i^{(-i)}(s)\bigr)^2,
+\qquad (10)\]
+</div>
+<p>where <span class="math inline">\(\hat y_i^{(-i)}\)</span> is the local fit at <span class="math inline">\(i\)</span> with point <span class="math inline">\(i\)</span> removed. The
+variant evaluates five odd spans around the requested one, picks the minimiser
+for each phase, and uses that vector in the main decomposition. The candidate
+with span at least the subseries length is the periodic option, fitted as a
+weighted mean.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The moving average is deliberately simple: reflect at the edges, then convolve.
+Reflection keeps the output the same length as the input and avoids the
+shrinking-window bias that a truncated average would introduce:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_moving_average</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">length</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">length</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">values</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">pad</span> <span class="o">=</span> <span class="n">length</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">pad</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"reflect"</span><span class="p">)</span>
+    <span class="n">kernel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">length</span><span class="p">)</span> <span class="o">/</span> <span class="n">length</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">padded</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"valid"</span><span class="p">)</span>
+</code></pre>
+<p>The low-pass filter calls this three times. The first two calls use the seasonal
+period, which is what kills the seasonal signal; the third uses length three,
+which is what removes the ripple left by the first two.</p>
+<p>The LOESS core selects the nearest <code>span</code> points by absolute distance and forms
+tricube weights. The design is centred at the target, so the intercept is the
+prediction and the slope is only a nuisance parameter:</p>
+<pre class="highlight"><code>        <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">target</span><span class="p">)</span>
+        <span class="n">take</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="n">span</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)[:</span><span class="n">span</span><span class="p">]</span>
+        <span class="n">local</span> <span class="o">=</span> <span class="n">distance</span><span class="p">[</span><span class="n">take</span><span class="p">]</span>
+        <span class="n">radius</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">local</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">radius</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">row</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">take</span><span class="p">]))</span>
+            <span class="k">continue</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">local</span> <span class="o">/</span> <span class="n">radius</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">shape</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span> <span class="o">**</span> <span class="mi">3</span>
+        <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">w</span> <span class="o">*</span> <span class="n">weights</span><span class="p">[</span><span class="n">take</span><span class="p">]</span>
+</code></pre>
+<p><code>np.argpartition</code> is <span class="math inline">\(O(n)\)</span> per target instead of the <span class="math inline">\(O(n\log n)\)</span> of a full
+sort, which matters because the trend smoother evaluates every observation. The
+<code>radius &lt;= 0</code> branch handles a target that coincides with every selected point,
+where dividing by the radius would be undefined.</p>
+<p>Cycle-subseries smoothing is the only place that knows about phases. The
+modular mask picks the targets that belong to phase <span class="math inline">\(j\)</span>, and the branch on
+<code>seasonal_window</code> implements the periodic option:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">period</span><span class="p">):</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">period</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">targets</span> <span class="o">=</span> <span class="n">positions</span><span class="p">[(</span><span class="n">positions</span> <span class="o">-</span> <span class="n">j</span><span class="p">)</span> <span class="o">%</span> <span class="n">period</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">seasonal_window</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">span</span><span class="p">,</span> <span class="n">degree</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">span</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">windows</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="k">if</span> <span class="n">windows</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">seasonal_window</span>
+                <span class="n">degree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">seasonal_degree</span>
+                <span class="k">if</span> <span class="n">span</span> <span class="o">&gt;=</span> <span class="n">index</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+                    <span class="n">span</span><span class="p">,</span> <span class="n">degree</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span>
+</code></pre>
+<p>Passing <code>windows=None</code> gives every phase the same span; passing a vector is what
+<code>seasonal_windows</code> does. The <code>index.size &lt; 2</code> guard skips a phase that appears
+only once, where a local fit is not identified.</p>
+<p>The low-pass filter is a compact transcription of (5), with the final LOESS
+evaluated on the same grid:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_low_pass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cycles</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">period</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                  <span class="n">window</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">_moving_average</span><span class="p">(</span><span class="n">cycles</span><span class="p">,</span> <span class="n">period</span><span class="p">)</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">_moving_average</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">period</span><span class="p">)</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">_moving_average</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_loess</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>The input is the extended cycle estimate, so the output is also extended. The
+caller trims <code>start = period - 1</code> from both the cycle estimate and the low-pass
+output, which aligns the first observation with index <span class="math inline">\(m-1\)</span> of the extended
+grid.</p>
+<p>One inner iteration is four lines of component algebra:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">inner</span><span class="p">):</span>
+            <span class="n">detrended</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">trend</span>
+            <span class="n">cycles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cycle_smooth</span><span class="p">(</span><span class="n">detrended</span><span class="p">,</span> <span class="n">period</span><span class="p">,</span> <span class="n">windows</span><span class="p">,</span>
+                                        <span class="n">seasonal_window</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+            <span class="n">low</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_low_pass</span><span class="p">(</span><span class="n">cycles</span><span class="p">,</span> <span class="n">period</span><span class="p">,</span> <span class="n">low_pass_window</span><span class="p">)</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">period</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">seasonal</span> <span class="o">=</span> <span class="n">cycles</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">start</span> <span class="o">+</span> <span class="n">n</span><span class="p">]</span> <span class="o">-</span> <span class="n">low</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">start</span> <span class="o">+</span> <span class="n">n</span><span class="p">]</span>
+            <span class="n">deseasonalised</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">seasonal</span>
+            <span class="n">trend</span> <span class="o">=</span> <span class="n">_loess</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span> <span class="n">deseasonalised</span><span class="p">,</span>
+                           <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span> <span class="n">trend_window</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">trend_degree</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+</code></pre>
+<p><code>detrended</code> is the input to the seasonal smoother, not the original series;
+<code>deseasonalised</code> is the input to the trend smoother. Swapping those two lines
+produces a decomposition that still sums to <span class="math inline">\(y\)</span> but has the trend and seasonal
+roles exchanged, which is why the identity alone is not a test.</p>
+<p>The robust outer loop recomputes the scale from the current remainder and
+restarts the inner loop with the new weights:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_bisquare</span><span class="p">(</span><span class="n">remainder</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="mf">6.0</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">remainder</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="n">scale</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">remainder</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">remainder</span><span class="p">)</span> <span class="o">/</span> <span class="n">scale</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">shape</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">shape</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>The <code>scale &lt;= 0</code> case is not hypothetical: a perfectly periodic series with no
+noise has a zero remainder, and the weights should then be all ones rather than
+a division by zero.</p>
+<p>MSTL is two passes over the periods, each estimating one component on the
+partial series:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">period</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">periods</span><span class="p">):</span>
+                <span class="n">partial</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">other</span><span class="p">,</span> <span class="n">component</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">seasonals</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">other</span> <span class="o">!=</span> <span class="n">k</span><span class="p">:</span>
+                        <span class="n">partial</span> <span class="o">=</span> <span class="n">partial</span> <span class="o">-</span> <span class="n">component</span>
+                <span class="n">component</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run</span><span class="p">(</span>
+                    <span class="n">partial</span><span class="p">,</span> <span class="n">period</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seasonal_window_</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">trend_window_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">low_pass_window_</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">seasonals</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">component</span>
+</code></pre>
+<p>The <code>None</code> for <code>windows</code> is deliberate: each period has its own subseries
+length, so a single window vector of length <code>self.period</code> would index the wrong
+phase. The two passes are enough to separate cycles that are not exact
+multiples; cycles that share a harmonic, such as 7 and 14, are not identifiable
+from the sum alone.</p>
+<p>The window selection is a leave-one-out loop with five candidates:</p>
+<pre class="highlight"><code>            <span class="n">best</span><span class="p">,</span> <span class="n">best_error</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="k">for</span> <span class="n">span</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+                <span class="n">error</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cv_error</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">span</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">error</span> <span class="o">&lt;</span> <span class="n">best_error</span><span class="p">:</span>
+                    <span class="n">best</span><span class="p">,</span> <span class="n">best_error</span> <span class="o">=</span> <span class="n">span</span><span class="p">,</span> <span class="n">error</span>
+            <span class="n">chosen</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">best</span><span class="p">,</span> <span class="n">values</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+</code></pre>
+<p><code>_cv_error</code> refits the subseries with one point held out and predicts it, which
+is why the selected window can differ from phase to phase. The <code>min</code> against
+<code>values.size</code> keeps a span from exceeding the number of available points; the
+smoother itself also clamps, so this is belt and braces.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(n\)</span> observations, period <span class="math inline">\(m\)</span>, seasonal span <span class="math inline">\(s\)</span>, trend span <span class="math inline">\(t\)</span>, inner
+iterations <span class="math inline">\(i\)</span> and outer iterations <span class="math inline">\(o\)</span>:</p>
+<ul>
+<li><strong>One LOESS evaluation:</strong> <span class="math inline">\(O(k)\)</span> to find neighbours plus <span class="math inline">\(O(k)\)</span> for the
+weighted fit, with <span class="math inline">\(k\)</span> the span.</li>
+<li><strong>Cycle-subseries smoothing:</strong> <span class="math inline">\(m\)</span> subseries, each with about <span class="math inline">\(n/m\)</span> points;
+one pass costs <span class="math inline">\(O(n s)\)</span>.</li>
+<li><strong>Low-pass:</strong> three moving averages at <span class="math inline">\(O(n)\)</span> plus one LOESS at <span class="math inline">\(O(n l)\)</span>.</li>
+<li><strong>Trend smoothing:</strong> <span class="math inline">\(O(n t)\)</span>.</li>
+<li><strong>One inner pass:</strong> <span class="math inline">\(O(n(s+t+l))\)</span>.</li>
+<li><strong>Full fit:</strong> <span class="math inline">\(O(i(1+o)\,n(s+t+l))\)</span>.</li>
+<li><strong><code>mstl</code>:</strong> <span class="math inline">\(P\)</span> periods, two passes, so <span class="math inline">\(O(2P\,i\,n(s+t+l))\)</span>.</li>
+<li><strong><code>seasonal_windows</code>:</strong> the CV selection adds <span class="math inline">\(O(m\,C\,n_j^2)\)</span> for <span class="math inline">\(C\)</span>
+candidates and <span class="math inline">\(n_j\approx n/m\)</span> points per subseries, plus the fit.</li>
+<li><strong>Memory:</strong> <span class="math inline">\(O(n)\)</span> for the components and <span class="math inline">\(O(n)\)</span> for the extended cycle
+estimate.</li>
+</ul>
+<p>The demo's 240-point fit is dominated by the trend LOESS and runs in well under
+a second. The cubic term is in the robust outer count, not in <span class="math inline">\(n\)</span>: a series with
+100 000 points and 15 outer iterations is still a linear scan per smoother, but
+the Python loops make it slow enough that a production implementation would
+batch the local fits.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A wrong period splits one seasonal shape into two.</strong> If the true period is 12
+and you use 6, the smoother can represent the fundamental but not the harmonic,
+so the leftover harmonic leaks into the trend and the remainder. The diagnostic
+is a trend that oscillates with the seasonal period, and a remainder with a
+large lag-<span class="math inline">\(m\)</span> autocorrelation. Plot the trend's first difference; a periodic
+zig-zag there means the period is wrong.</p>
+<p><strong>A short trend window absorbs the seasonality.</strong> The trend smoother and the
+seasonal smoother compete for the same low-frequency variation. If <code>trend</code> is
+close to <code>period</code>, the trend can follow the seasonal cycle and the seasonal
+component collapses. Keep the trend window well above the period — the default
+rule uses <span class="math inline">\(1.5m/(1-1.5/s)\)</span> — and check that the seasonal profile has the
+amplitude you expect.</p>
+<p><strong>Robustness is not outlier removal.</strong> The demo's robust fit has a larger
+remainder RSS than the non-robust one because the spikes remain in <span class="math inline">\(R\)</span>. If the
+goal is a clean series for forecasting, the outliers must be removed or modeled
+separately; robust STL only stops them from corrupting <span class="math inline">\(T\)</span> and <span class="math inline">\(S\)</span>. The weight
+vector is the diagnostic: weights near zero mark the observations the fit
+ignored.</p>
+<p><strong>MSTL cannot separate shared harmonics.</strong> Periods 7 and 14, or 12 and 24,
+produce seasonal subspaces that overlap. The two-pass subtraction then has an
+identifiability problem: many splits of the same signal fit equally well. Use
+the smallest set of periods that spans the observed cycles, and check that each
+extracted component has the expected shape rather than trusting the sum.</p>
+<p><strong>Boundary extrapolation is an assumption.</strong> The cycle smoother extrapolates
+one period beyond each end, and the moving averages reflect at the edges. Both
+are reasonable but neither is estimated from data. The first and last few
+seasonal estimates are therefore less reliable than the middle, which matters
+when STL is used to seasonally adjust the most recent observations for a
+nowcast.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>STL is the standard preprocessing step for seasonal economic data. Statistical
+agencies decompose industrial production, retail sales and employment into
+trend, seasonal and irregular components; the seasonally adjusted series is
+then forecast with ARIMA or an exponential smoothing model on the adjusted
+scale. Its appeal is transparency: there is no likelihood, no latent state and
+no convergence to a local optimum, only two smoothers and a loop.</p>
+<p>In energy and utilities it separates weather-driven seasonal demand from the
+trend, and in traffic forecasting it removes the weekly and daily cycles before
+a short-horizon model. In sensor networks it is used to remove diurnal drift
+from a slowly failing sensor, where the robust variant matters because glitches
+are common. MSTL is the natural choice for series with more than one cycle, such
+as hourly electricity demand with daily and weekly periods.</p>
+<p>It is the wrong tool when you need a probabilistic forecast: STL produces
+components, not predictive distributions. It is also weak when the seasonality
+changes shape abruptly, because every subseries is smoothed with a fixed window
+(unless <code>seasonal_windows</code> is used) and the method has no notion of a
+breakpoint. For those cases a state-space decomposition or a regression with
+time-varying seasonal terms is more appropriate.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Cleveland, R. B., Cleveland, W. S., McRae, J. E., Terpenning, I. (1990).
+<em>STL: a seasonal-trend decomposition procedure based on loess.</em> Journal of
+Official Statistics 6(1), 3–73. The original algorithm, including the
+low-pass filter and the outer robustness loop.</li>
+<li>Cleveland, W. S., Devlin, S. J. (1988). <em>Locally weighted regression: an
+approach to regression analysis by local fitting.</em> Journal of the American
+Statistical Association 83(403), 596–610. The LOESS smoother and tricube
+weights behind (2)–(3).</li>
+<li>Cleveland, W. S. (1979). <em>Robust locally weighted regression and smoothing
+scatterplots.</em> JASA 74(368), 829–836. The bisquare robustness idea of (8).</li>
+<li>Hyndman, R. J., Athanasopoulos, G. (2021). <em>Forecasting: Principles and
+Practice</em>, 3rd ed., ch. 3. The applied treatment of STL and its use before
+forecasting.</li>
+<li>Bandara, K., Hyndman, R. J., Bergmeir, C. (2021). <em>MSTL: a seasonal-trend
+decomposition algorithm for time series with multiple seasonal patterns.</em>
+International Journal of Operational Research. The multiple-period extension
+behind (9).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="garch.html"><small>Previous</small><span>GARCH</span></a><a class="next" href="spectral_analysis.html"><small>Next</small><span>Spectral analysis</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">11 · Time series</p><ul class="rail-list"><li><a href="baselines.html"><span class="tick">✓</span><span>Naive baselines</span></a></li><li><a href="ets.html"><span class="tick">✓</span><span>ETS / Holt-Winters</span></a></li><li><a href="arima.html"><span class="tick">✓</span><span>ARIMA</span></a></li><li><a href="var.html"><span class="tick">✓</span><span>Vector autoregression</span></a></li><li><a href="garch.html"><span class="tick">✓</span><span>GARCH</span></a></li><li><a href="stl.html" aria-current="page"><span class="tick">✓</span><span>STL decomposition</span></a></li><li><a href="spectral_analysis.html"><span class="tick">✓</span><span>Spectral analysis</span></a></li><li><a href="dlinear.html"><span class="tick">✓</span><span>DLinear</span></a></li><li><a href="theta.html"><span class="tick">✓</span><span>Theta method</span></a></li><li><a href="croston.html"><span class="tick">✓</span><span>Croston&#x27;s method</span></a></li><li><a href="nbeats.html"><span class="tick">✓</span><span>N-BEATS</span></a></li><li><a href="nhits.html"><span class="tick">✓</span><span>N-HiTS</span></a></li><li><a href="patchtst.html"><span class="tick">✓</span><span>PatchTST</span></a></li><li><a href="tsmixer.html"><span class="tick">✓</span><span>TSMixer</span></a></li><li><a href="deepar.html"><span class="tick">✓</span><span>DeepAR</span></a></li><li><a href="tft.html"><span class="tick">✓</span><span>Temporal fusion transformer</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../10-sequences/index.html"><span class="jump">← 10 · Sequences</span></a></li><li><a href="../12-neural-blocks/index.html"><span class="jump">12 · Neural blocks&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-decomposition">The decomposition</a></li><li class="lvl3"><a href="#local-regression">Local regression</a></li><li class="lvl3"><a href="#cycle-subseries-smoothing">Cycle-subseries smoothing</a></li><li class="lvl3"><a href="#low-pass-filtering">Low-pass filtering</a></li><li class="lvl3"><a href="#trend-update">Trend update</a></li><li class="lvl3"><a href="#robust-weights">Robust weights</a></li><li class="lvl3"><a href="#multiple-periods">Multiple periods</a></li><li class="lvl3"><a href="#choosing-seasonal-windows">Choosing seasonal windows</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/11-time-series/stl.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

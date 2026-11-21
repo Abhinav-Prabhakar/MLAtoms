@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mixed precision · MLAtoms</title>
+<meta name="description" content="FP16/BF16, loss scaling and master weights. A floating-point number is a sign, an exponent and a mantissa. The exponent buys range — how small and how large…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/mixed_precision.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Mixed precision">
+<meta property="og:description" content="FP16/BF16, loss scaling and master weights. A floating-point number is a sign, an exponent and a mantissa. The exponent buys range — how small and how large…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/mixed_precision.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Mixed precision">
+<meta name="twitter:description" content="FP16/BF16, loss scaling and master weights. A floating-point number is a sign, an exponent and a mantissa. The exponent buys range — how small and how large…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Mixed precision", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/mixed_precision.html", "description": "FP16/BF16, loss scaling and master weights. A floating-point number is a sign, an exponent and a mantissa. The exponent buys range \u2014 how small and how large\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="mixed_precision.py.html">source</a></p><h1>Mixed precision — one exponent, three mantissas, and what breaks</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A floating-point number is a sign, an exponent and a mantissa. The exponent
+buys range — how small and how large a number can be — and the mantissa buys
+resolution — how finely neighbouring values can be told apart. Training needs
+both: gradients decay toward <span class="math inline">\(10^{-8}\)</span> and smaller, while weight updates are
+tiny differences between numbers near one.</p>
+<p>Sixteen-bit formats halve the bytes per number but spend the bits differently.
+fp16 keeps five exponent bits and ten mantissa bits, so it has good resolution
+over a narrow range. bf16 keeps eight exponent bits and only seven mantissa
+bits, so it spans fp32's whole range at a resolution of about three decimal
+digits. fp8 keeps four and three, which is enough for a forward pass and not
+much else. The three procedures on top — loss scaling, dynamic scaling and
+master weights — exist because each format fails in a different place.</p>
+<p>The demo emulates each format with explicit rounding, checks the fp16 path
+against numpy's native <code>float16</code> bit for bit, and trains the same classifier
+six ways. fp16, bf16 and the three procedures all reach 1.000 accuracy; fp8
+stalls at 0.587, because a 3-bit mantissa cannot resolve the update.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">arithmetic</th>
+<th style="text-align:left">stored weights</th>
+<th style="text-align:right">scale</th>
+<th style="text-align:left">survives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>fp16</code></td>
+<td style="text-align:left">fp16</td>
+<td style="text-align:left">fp16</td>
+<td style="text-align:right">1</td>
+<td style="text-align:left">normal range</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bf16</code></td>
+<td style="text-align:left">bf16</td>
+<td style="text-align:left">bf16</td>
+<td style="text-align:right">1</td>
+<td style="text-align:left">range, not resolution</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>fp8</code></td>
+<td style="text-align:left">E4M3</td>
+<td style="text-align:left">E4M3</td>
+<td style="text-align:right">1</td>
+<td style="text-align:left">forward only</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>loss_scaling</code></td>
+<td style="text-align:left">fp16</td>
+<td style="text-align:left">fp16</td>
+<td style="text-align:right">fixed</td>
+<td style="text-align:left">small gradients</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dynamic_scaling</code></td>
+<td style="text-align:left">fp16</td>
+<td style="text-align:left">fp16</td>
+<td style="text-align:right">adaptive</td>
+<td style="text-align:left">both</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>master_weights</code></td>
+<td style="text-align:left">fp16</td>
+<td style="text-align:left">fp32</td>
+<td style="text-align:right">1</td>
+<td style="text-align:left">weight updates</td>
+</tr>
+</tbody>
+</table>
+<p>All six share the same one-hidden-layer network and the same demo data; only
+the cast and the bookkeeping change. <code>loss_scaling</code> and <code>dynamic_scaling</code> are
+<code>fp16</code> plus a multiplier applied to the gradient before it is quantised.
+<code>master_weights</code> keeps the parameters in fp32 and casts a working copy for each
+matmul, which is the arrangement every real mixed-precision trainer uses.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="what-a-format-is">What a format is <a class="header-anchor" href="#what-a-format-is">#</a></h3>
+<p>With <span class="math inline">\(e\)</span> exponent bits and <span class="math inline">\(p\)</span> mantissa bits, the largest finite value is</p>
+<div class="math block">
+\[x_{\max}=\left(2-2^{-p}\right)2^{\,2^{e-1}-1},\qquad
+\epsilon=2^{-p},\qquad
+x_{\min}=2^{\,1-\left(2^{e-1}-1\right)},
+\qquad (1)\]
+</div>
+<p>where <span class="math inline">\(\epsilon\)</span> is the gap between 1 and the next representable number. For
+fp16 <span class="math inline">\((e,p)=(5,10)\)</span> this gives <span class="math inline">\(x_{\max}=65504\)</span>, <span class="math inline">\(\epsilon=9.77\times10^{-4}\)</span>
+and <span class="math inline">\(x_{\min}=6.10\times10^{-5}\)</span>. For bf16 <span class="math inline">\((8,7)\)</span> the maximum is
+<span class="math inline">\(3.39\times10^{38}\)</span> — fp32's — with <span class="math inline">\(\epsilon=7.81\times10^{-3}\)</span>. For fp8
+<span class="math inline">\((4,3)\)</span> the maximum is 448, which is why E4M3 has no infinity encoding and
+saturates instead.</p>
+<p>Below <span class="math inline">\(x_{\min}\)</span> a format switches to subnormals: the exponent is pinned and
+the mantissa counts in units of</p>
+<div class="math block">
+\[\delta=2^{\,1-2^{e-1}-p},
+\qquad (2)\]
+</div>
+<p>which for fp16 is <span class="math inline">\(2^{-24}\approx6\times10^{-8}\)</span>. Values smaller than
+<span class="math inline">\(\delta/2\)</span> round to zero, and that is the first hard floor: a gradient below it
+disappears.</p>
+<h3 id="rounding">Rounding <a class="header-anchor" href="#rounding">#</a></h3>
+<p>Every cast here rounds to nearest, ties to even. Given frexp's decomposition
+<span class="math inline">\(x=m2^{E}\)</span> with <span class="math inline">\(m\in[0.5,1)\)</span>, the mantissa is rounded on its own grid:</p>
+<div class="math block">
+\[q(x)=\mathrm{rn}\!\left(m\,2^{p+1}\right)2^{E-p-1},
+\qquad (3)\]
+</div>
+<p>and the subnormal branch replaces <span class="math inline">\(E\)</span> with the pinned exponent and rounds
+<span class="math inline">\(x/\delta\)</span>. The error is at most half an ulp, so the relative error of a normal
+value is bounded by</p>
+<div class="math block">
+\[\frac{|q(x)-x|}{|x|}\le2^{-(p+1)}.
+\qquad (4)\]
+</div>
+<p>For bf16 that is <span class="math inline">\(2^{-8}=3.9\times10^{-3}\)</span>; the demo's worst observed error over
+a sweep is <span class="math inline">\(2.99\times10^{-3}\)</span>, just inside the bound.</p>
+<h3 id="why-gradients-vanish-and-loss-scaling">Why gradients vanish, and loss scaling <a class="header-anchor" href="#why-gradients-vanish-and-loss-scaling">#</a></h3>
+<p>A gradient component <span class="math inline">\(g\)</span> is representable in fp16 only if <span class="math inline">\(|g|\gtrsim\delta/2\)</span>.
+Loss scaling multiplies the loss by a power of two <span class="math inline">\(S\)</span> before the backward pass:</p>
+<div class="math block">
+\[\tilde L=S\,L\ \Longrightarrow\ \tilde g=S\,g,
+\qquad (5)\]
+</div>
+<p>so <span class="math inline">\(10^{-8}\)</span> becomes <span class="math inline">\(10^{-5}\)</span> at <span class="math inline">\(S=1024\)</span>. Dividing the saved gradient by <span class="math inline">\(S\)</span>
+is exact because <span class="math inline">\(S\)</span> is a power of two — multiplication by <span class="math inline">\(2^{k}\)</span> only shifts
+the exponent, and the rounding has already happened at the larger magnitude.
+The demo shows the whole ladder: at fp16, <span class="math inline">\(10^{-9}\)</span> and <span class="math inline">\(10^{-8}\)</span> become zero;
+scaled by 1024 and divided back they survive.</p>
+<p>The catch is overflow. A gradient that was fine unscaled can exceed 65504 when
+multiplied by <span class="math inline">\(S\)</span>; fp16 turns it into infinity and the update is lost.</p>
+<h3 id="dynamic-scaling">Dynamic scaling <a class="header-anchor" href="#dynamic-scaling">#</a></h3>
+<p>A fixed <span class="math inline">\(S\)</span> is either too small to help or too large for some step. The dynamic
+rule halves on overflow and doubles after a run of clean steps:</p>
+<div class="math block">
+\[S_{t+1}=
+\begin{cases}
+\max(S_{\min},\,S_t/2), & \text{overflow},\\[2pt]
+\min(S_{\max},\,2S_t), & \text{$w$ clean steps},\\[2pt]
+S_t, & \text{otherwise}.
+\end{cases}
+\qquad (6)\]
+</div>
+<p>After an overflow the good-step counter resets, so it takes another full window
+before the scale climbs again. The demo's trace is
+<span class="math inline">\(1024,1024,2048,1024,1024,1024,2048,1024\)</span> for a window of three, which is the
+rule applied to <code>F F F T F F F T</code>.</p>
+<h3 id="master-weights">Master weights <a class="header-anchor" href="#master-weights">#</a></h3>
+<p>The update is</p>
+<div class="math block">
+\[w_{t+1}=w_t-\eta\,g_t.
+\qquad (7)\]
+</div>
+<p>If <span class="math inline">\(w_t\)</span> is stored in fp16, the subtraction is rounded back onto the fp16 grid,
+whose spacing near <span class="math inline">\(|w|\)</span> is <span class="math inline">\(\epsilon|w|\)</span>. The update survives only if</p>
+<div class="math block">
+\[\eta\,|g|>\tfrac12\,\epsilon\,|w|.
+\qquad (8)\]
+</div>
+<p>At <span class="math inline">\(\eta=10^{-5}\)</span> and <span class="math inline">\(|w|\approx1\)</span>, the right-hand side is about
+<span class="math inline">\(5\times10^{-4}\)</span> in fp16, larger than most single-step updates. The demo runs
+100 steps at that rate: 57 of 67 fp16 weights are bit-identical to where they
+started, while the same 100 updates move every fp32 master by up to
+<span class="math inline">\(5.5\times10^{-4}\)</span>. Keeping a fp32 copy and rounding only for the matmuls is
+exactly the fix — the accumulator never sees the grid.</p>
+<h3 id="where-the-accumulation-goes">Where the accumulation goes <a class="header-anchor" href="#where-the-accumulation-goes">#</a></h3>
+<p>Mixed precision means <em>storage and multiplication</em> in the narrow format, and
+<em>accumulation</em> in fp32. The forward pass is</p>
+<div class="math block">
+\[h=\tanh\!\left(q(x)\,q(W_1)+q(b_1)\right),\qquad
+z=q(h)\,q(W_2)+q(b_2),
+\qquad (9)\]
+</div>
+<p>with every product cast before it enters the sum. The backward pass mirrors it,
+and the gradient is quantised only once, after it has been scaled:</p>
+<div class="math block">
+\[\tilde g=q(S\,g),\qquad g=\tilde g/S.
+\qquad (10)\]
+</div>
+<p>That single cast point is what makes overflow detectable: if any entry of
+<span class="math inline">\(\tilde g\)</span> is non-finite, the step is dropped and the scale is reduced.</p>
+<h3 id="why-fp8-fails-here">Why fp8 fails here <a class="header-anchor" href="#why-fp8-fails-here">#</a></h3>
+<p>The relative error bound (4) with <span class="math inline">\(p=3\)</span> is <span class="math inline">\(2^{-4}=6.25\%\)</span>, and the grid near a
+weight of order one is spaced by <span class="math inline">\(2^{-3}\)</span>. An update of size
+<span class="math inline">\(\eta|g|\approx10^{-3}\)</span> is smaller than that spacing, so it rounds to zero or to
+a full step depending on where the weight sits. The demo's fp8 run gets to 0.9276
+loss and 0.587 accuracy while every other variant reaches zero loss — the format
+is fine for a forward pass whose inputs are already scaled, and not fine as the
+only storage for a slowly moving weight.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The cast is the whole atom's foundation. <code>frexp</code> splits the number, <code>rint</code>
+rounds the mantissa, <code>ldexp</code> puts it back; the subnormal branch counts in units
+of <span class="math inline">\(\delta\)</span>, and the overflow branch is a comparison against half an ulp past
+the maximum:</p>
+<pre class="highlight"><code>    <span class="n">ebits</span><span class="p">,</span> <span class="n">mbits</span> <span class="o">=</span> <span class="n">FORMATS</span><span class="p">[</span><span class="n">fmt</span><span class="p">]</span>
+    <span class="n">max_exp</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">ebits</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">min_exp</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">max_exp</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="p">(</span><span class="n">min_exp</span> <span class="o">-</span> <span class="n">mbits</span><span class="p">)</span>
+    <span class="n">magnitude</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="n">mantissa</span><span class="p">,</span> <span class="n">exponent</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">frexp</span><span class="p">(</span><span class="n">magnitude</span><span class="p">)</span>
+    <span class="n">rounded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">mantissa</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="p">(</span><span class="n">mbits</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="p">(</span><span class="n">mbits</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ldexp</span><span class="p">(</span><span class="n">rounded</span><span class="p">,</span> <span class="n">exponent</span><span class="p">),</span> <span class="n">values</span><span class="p">)</span>
+    <span class="n">below</span> <span class="o">=</span> <span class="n">magnitude</span> <span class="o">&lt;</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="n">min_exp</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">below</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">values</span> <span class="o">/</span> <span class="n">step</span><span class="p">)</span> <span class="o">*</span> <span class="n">step</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+    <span class="n">limit</span> <span class="o">=</span> <span class="n">MAX_VALUE</span><span class="p">[</span><span class="n">fmt</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">SATURATES</span><span class="p">[</span><span class="n">fmt</span><span class="p">]:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="o">-</span><span class="n">limit</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">edge</span> <span class="o">=</span> <span class="n">limit</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="p">(</span><span class="n">max_exp</span> <span class="o">-</span> <span class="n">mbits</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">out</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">edge</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">values</span><span class="p">),</span> <span class="n">out</span><span class="p">)</span>
+</code></pre>
+<p>The <code>edge</code> comparison is the round-to-nearest rule applied at the top of the
+range: 65519 stays finite, 65520 becomes infinity, exactly as IEEE fp16 does.
+The demo confirms that agreement against numpy over 1505 draws including
+subnormals and overflow.</p>
+<p>The scaler is state plus two rules, and the reset of <code>good</code> is the part people
+forget — without it a single overflow is followed by an immediate doubling:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overflow</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">overflow</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">minimum</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">backoff</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">good</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">good</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">good</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">maximum</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">growth</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">good</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+</code></pre>
+<p><code>_working</code> is the master-weights trick in three lines: the parameters are the
+fp32 masters, and every matmul reads a quantised copy that is thrown away after
+the step:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_working</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">cast</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fmt</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+</code></pre>
+<p>The forward pass casts the input once and keeps its products at the low
+precision while the additions stay fp32:</p>
+<pre class="highlight"><code>        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_working</span><span class="p">()</span>
+        <span class="n">pre</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fmt</span><span class="p">)</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"b1"</span><span class="p">]</span>
+        <span class="n">hidden</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">pre</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">fmt</span><span class="p">)</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="n">hidden</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"b2"</span><span class="p">]</span>
+</code></pre>
+<p>The backward pass quantises the gradient only after scaling it, and returns the
+overflow flag instead of a gradient when any entry is non-finite:</p>
+<pre class="highlight"><code>        <span class="n">scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_scale</span>
+        <span class="n">stored</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">cast</span><span class="p">(</span><span class="n">value</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fmt</span><span class="p">)</span>
+                  <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">grads</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">value</span><span class="p">))</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">stored</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="o">/</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">stored</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span> <span class="kc">False</span>
+</code></pre>
+<p><code>apply</code> is where master weights change the behaviour: the low-precision variant
+rounds the updated weight back onto the grid, the master variant does not:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">gradient</span> <span class="ow">in</span> <span class="n">gradients</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">lr</span> <span class="o">*</span> <span class="n">gradient</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">value</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">master</span>
+                                    <span class="k">else</span> <span class="n">cast</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fmt</span><span class="p">))</span>
+</code></pre>
+<p>And the loop treats a dropped step as a skipped step, not an error — the
+optimiser simply does not advance that iteration:</p>
+<pre class="highlight"><code>            <span class="n">grads</span><span class="p">,</span> <span class="n">overflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">overflow</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"dynamic_scaling"</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">continue</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For <span class="math inline">\(n\)</span> parameters, batch <span class="math inline">\(B\)</span> and a model with <span class="math inline">\(P\)</span> parameter entries:</p>
+<ul>
+<li><strong>Memory:</strong> fp16 and bf16 store <span class="math inline">\(2P\)</span> bytes of weights against <span class="math inline">\(4P\)</span> in fp32;
+master weights store both, so <span class="math inline">\(6P\)</span>. Activations halve, unless the framework
+keeps fp32 copies for the backward pass.</li>
+<li><strong>Arithmetic:</strong> the matmuls cost <span class="math inline">\(O(BP)\)</span> in either format. The cast is <span class="math inline">\(O(P)\)</span>
+per step and runs twice for master weights — once to make the working copy,
+once to quantise the gradient.</li>
+<li><strong>Bandwidth:</strong> the real gain. Half the bytes per tensor means half the traffic
+for weights, activations and gradients, which is why fp16 helps most on
+memory-bound layers.</li>
+<li><strong>The demo:</strong> 67 parameters, a batch of 75, six variants at 400 steps. Each
+cast touches every entry through <code>frexp</code>, <code>rint</code> and <code>ldexp</code>, so it is a
+handful of vectorised passes; the whole demo is well under a second.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Loss scaling and gradient clipping fight.</strong> Clipping must happen after
+unscaling; clipping the scaled gradient at a fixed norm clips <span class="math inline">\(S\)</span> times too
+hard, and the model stops learning while the loss looks finite.</p>
+<p><strong>A scaler that never resets its window oscillates.</strong> Doubling immediately after
+an overflow reproduces the same overflow on the next step. The counter reset in
+(6) is what makes the search converge.</p>
+<p><strong>Skipped steps change the schedule.</strong> Every overflow throws away an iteration,
+so a run with heavy scaling takes more steps to reach the same point. Learning
+rate schedules keyed to the step count must count attempted steps, not applied
+ones.</p>
+<p><strong>bf16 has no useful overflow signal.</strong> Its range matches fp32, so the
+non-finite check almost never fires — and when it does, the cause is a genuine
+blow-up rather than a scale that is too large. bf16 is normally used without a
+scaler at all.</p>
+<p><strong>fp8 saturates silently.</strong> E4M3 clamps at 448 instead of producing infinity,
+so an overflowing activation becomes a plausible-looking large number and the
+loss quietly degrades. Per-tensor scaling is mandatory in practice; this demo
+shows the format, not a production recipe.</p>
+<p><strong>Quantising the update is not the same as quantising the weight.</strong> Master
+weights help because the accumulator stays wide. If the optimiser state is also
+kept narrow, momentum underflows even when the weight does not, and the fix has
+to include the state.</p>
+<p><strong>Rounding is biased without stochastic rounding.</strong> Nearest-even always sends
+a repeatedly tiny update to the same neighbour, so many small steps in the same
+direction can cancel to zero. Stochastic rounding trades that bias for variance
+and is what makes low-precision accumulation usable in long runs.</p>
+<p><strong>Accumulating in the narrow format loses the sum.</strong> A dot product of 4096
+terms accumulated in fp16 loses most of its low bits; the accumulation must be
+fp32 even when the products are fp16. <code>numpy</code> here accumulates in float64 by
+construction, which hides the issue rather than solving it.</p>
+<p><strong>Reductions are where fp16 hurts most.</strong> LayerNorm, softmax and the loss all
+sum over long axes; their intermediate sums overflow or underflow in fp16 long
+before the matmuls do, which is why those layers stay in fp32 in real stacks.</p>
+<p><strong>A cast that is not round-to-nearest is a silent bias.</strong> Truncation toward zero
+is cheaper and is what some hardware does by default; over a training run it
+drags every weight toward zero. The demo's bit-for-bit agreement with numpy's
+<code>float16</code> is the check that this implementation is not doing that.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Automatic mixed precision with fp16 and a dynamic loss scaler is the default on
+Volta and later GPUs: matmuls and convolutions in fp16, master weights, norms
+and losses in fp32. bf16 is preferred where the hardware supports it — TPUs and
+Ampere onward — because it needs no scaler and its range matches fp32, so the
+same recipe works without the overflow machinery.</p>
+<p>fp8 is the current frontier: E4M3 for forward weights and activations, E5M2 for
+gradients, with per-tensor or per-block scaling. The arithmetic in (10) is the
+same; the scaling factors become the whole engineering problem. Master weights
+appear in every large-scale trainer and in ZeRO, which shards the fp32 copy
+along with the optimiser state.</p>
+<p>Outside training, the same three-way split shows up in inference quantisation
+(int8 with an fp32 scale per channel), in mixed-precision ODE solvers, and in
+any pipeline where a wide accumulator sits behind a narrow interface.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Micikevicius, P., Narang, S., Alben, J., Diamos, G., Elsen, E., Garcia, D.,
+Ginsburg, B., Houston, M., Kuchaiev, O., Venkatesh, G., Wu, H. (2018).
+<em>Mixed precision training.</em> ICLR. Loss scaling and master weights,
+equations (5)–(8).</li>
+<li>Kalamkar, D., Mudigere, D., Mellempudi, N., Das, D., Banerjee, K., Avancha,
+S., et al. (2019). <em>A study of BFLOAT16 for deep learning training.</em>
+arXiv:1905.12322. The bf16 trade-off.</li>
+<li>Wang, N., Choi, J., Brand, D., Chen, C.-Y., Gopalakrishnan, K. (2018).
+<em>Training deep neural networks with 8-bit floating point numbers.</em> NeurIPS.
+The case for fp8 with fp32 accumulation.</li>
+<li>Micikevicius, P., Stosic, D., Burgess, N., Cornea, M., Dubey, P., Grisenthwaite,
+R., et al. (2022). <em>FP8 formats for deep learning.</em> arXiv:2209.05433. E4M3
+and E5M2, and the saturation rule.</li>
+<li>Rajbhandari, S., Rasley, J., Ruwase, O., He, Y. (2020). <em>ZeRO: memory
+optimizations towards training a trillion parameter model.</em> SC. Sharded
+master weights and optimiser state.</li>
+<li>Gupta, S., Agrawal, A., Gopalakrishnan, K., Narayanan, P. (2015). <em>Deep
+learning with limited numerical precision.</em> ICML. Stochastic rounding and
+why truncation biases a run.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="checkpointing.html"><small>Previous</small><span>Gradient checkpointing</span></a><a class="next" href="augmentation.html"><small>Next</small><span>Augmentation</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html" aria-current="page"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#what-a-format-is">What a format is</a></li><li class="lvl3"><a href="#rounding">Rounding</a></li><li class="lvl3"><a href="#why-gradients-vanish-and-loss-scaling">Why gradients vanish, and loss scaling</a></li><li class="lvl3"><a href="#dynamic-scaling">Dynamic scaling</a></li><li class="lvl3"><a href="#master-weights">Master weights</a></li><li class="lvl3"><a href="#where-the-accumulation-goes">Where the accumulation goes</a></li><li class="lvl3"><a href="#why-fp8-fails-here">Why fp8 fails here</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/mixed_precision.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Particle filter — particle_filter.py · MLAtoms</title>
+<meta name="description" content="Source of particle_filter.py: Sequential Monte Carlo for nonlinear, non-Gaussian state.">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/particle_filter.py.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Particle filter — particle_filter.py">
+<meta property="og:description" content="Source of particle_filter.py: Sequential Monte Carlo for nonlinear, non-Gaussian state.">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/particle_filter.py.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Particle filter — particle_filter.py">
+<meta name="twitter:description" content="Source of particle_filter.py: Sequential Monte Carlo for nonlinear, non-Gaussian state.">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "SoftwareSourceCode", "name": "Particle filter \u2014 particle_filter.py", "programmingLanguage": "Python", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/particle_filter.py.html", "description": "Source of particle_filter.py: Sequential Monte Carlo for nonlinear, non-Gaussian state.", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout layout--wide"><div><div class="prose code-page"><p class="page-meta"><a href="./index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><a href="particle_filter.html">Particle filter</a><span class="page-meta__sep">/</span><span>source</span></p><h1>particle_filter.py</h1><p class="code-page__bar"><span>371 lines</span><span>·</span><span>6 variants</span><a class="btn" href="particle_filter.py">Raw file</a><a class="btn" href="particle_filter.html">Companion</a></p><pre class="highlight"><code><span class="sd">"""Particle filter — sequential Monte Carlo when the posterior leaves Gaussian.</span>
+
+<span class="sd">Chapter:   05-probabilistic</span>
+<span class="sd">Companion: particle_filter.md</span>
+<span class="sd">Tier 2 · 6 variants: sir, sis, auxiliary_pf, systematic_resample,</span>
+<span class="sd">stratified_resample, regularized_pf</span>
+
+<span class="sd">    w_t^i ∝ w_{t-1}^i · g(z_t | x_t^i),     p(z_{1..T}) ≈ Π_t Σ_i w_{t-1}^i g(z_t|x_t^i)</span>
+
+<span class="sd">A cloud of weighted samples replaces the Gaussian. Each particle is a hypothesis</span>
+<span class="sd">about the state; the weights say how well each hypothesis predicted the</span>
+<span class="sd">observation; and resampling kills the hypotheses the data has ruled out. Nothing</span>
+<span class="sd">is linear and nothing is Gaussian — the price is Monte Carlo error that decays as</span>
+<span class="sd">1/√N, and a sample set that can lose the answer entirely if the weights collapse.</span>
+
+<span class="sd">    sir                  bootstrap: propagate, weight, resample when ESS is low</span>
+<span class="sd">    sis                  propagate and weight only — the weights degenerate, by design</span>
+<span class="sd">    auxiliary_pf         resample *before* propagating, using one-step predictive fit</span>
+<span class="sd">    systematic_resample  one uniform draw, N evenly spaced positions</span>
+<span class="sd">    stratified_resample  one uniform draw per stratum</span>
+<span class="sd">    regularized_pf       resample, then jitter with a kernel to restore diversity</span>
+
+<span class="sd">The first three differ in *when* they resample; the next two in *how* they draw</span>
+<span class="sd">the ancestors; the last in what to do after. Every one of them is a different</span>
+<span class="sd">answer to the same question: where do you spend the variance?</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">VARIANTS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">[</span><span class="s2">"sir"</span><span class="p">,</span> <span class="s2">"sis"</span><span class="p">,</span> <span class="s2">"auxiliary_pf"</span><span class="p">,</span> <span class="s2">"systematic_resample"</span><span class="p">,</span> <span class="s2">"stratified_resample"</span><span class="p">,</span>
+     <span class="s2">"regularized_pf"</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">LOG2PI</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+
+<span class="n">Init</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span>
+<span class="n">Transition</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span>
+<span class="n">LogLik</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PFResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Weighted moments over `T` steps.</span>
+
+<span class="sd">    `mean` is `(T, d)`, `cov` is `(T, d, d)`, `ess` is the effective sample size</span>
+<span class="sd">    `(T,)`, and `loglik` is `log` of the evidence estimate `Π_t Σ_i w g`. The</span>
+<span class="sd">    particles themselves are not returned: they are `N` vectors per step, and</span>
+<span class="sd">    anyone who needs them can re-run with `return_particles=True`.</span>
+<span class="sd">    """</span>
+
+    <span class="n">mean</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">cov</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">loglik</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ess</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">n_resample</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">particles</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">weights</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">particle_filter</span><span class="p">(</span><span class="n">z</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"sir"</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">init</span><span class="p">:</span> <span class="n">Init</span><span class="p">,</span>
+                    <span class="n">transition</span><span class="p">:</span> <span class="n">Transition</span><span class="p">,</span> <span class="n">log_likelihood</span><span class="p">:</span> <span class="n">LogLik</span><span class="p">,</span>
+                    <span class="n">n_particles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2000</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="n">ess_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+                    <span class="n">log_predictive</span><span class="p">:</span> <span class="n">LogLik</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">jitter</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+                    <span class="n">return_particles</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PFResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run one variant over `z` of shape `(T, m)`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    init : callable</span>
+<span class="sd">        `init(N, rng) -&gt; (N, d)`, the prior draw.</span>
+<span class="sd">    transition : callable</span>
+<span class="sd">        `transition(X, rng) -&gt; (N, d)`, the state noise included. Particles move</span>
+<span class="sd">        independently, so the whole cloud is propagated in one vectorised call.</span>
+<span class="sd">    log_likelihood : callable</span>
+<span class="sd">        `log_likelihood(z_t, X) -&gt; (N,)`, the log of `p(z_t | x)` for every</span>
+<span class="sd">        particle, up to a constant that does not depend on `x`.</span>
+<span class="sd">    log_predictive : callable, optional</span>
+<span class="sd">        `log_predictive(z_t, X) -&gt; (N,)`, `p(z_t | x_{t-1})` with the transition</span>
+<span class="sd">        integrated out. Required by `auxiliary_pf`; `0` is what the bootstrap</span>
+<span class="sd">        filter implicitly uses.</span>
+<span class="sd">    ess_threshold : float</span>
+<span class="sd">        Resample when `ESS &lt; ess_threshold * N`. Only `sir`, the two resampling</span>
+<span class="sd">        variants and `regularized_pf` resample at all.</span>
+<span class="sd">    jitter : float</span>
+<span class="sd">        Multiplier on the Silverman bandwidth for `regularized_pf`.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VARIANTS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown variant </span><span class="si">{</span><span class="n">variant</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">VARIANTS</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"auxiliary_pf"</span> <span class="ow">and</span> <span class="n">log_predictive</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">"auxiliary_pf needs log_predictive(z_t, X_prev); without it the method "</span>
+            <span class="s2">"degenerates to sir — pass it, or use variant='sir'"</span>
+        <span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">init</span><span class="p">(</span><span class="n">n_particles</span><span class="p">,</span> <span class="n">rng</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">N</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">lw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">N</span><span class="p">))</span>  <span class="c1"># normalised log weights</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">T</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">T</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span>
+    <span class="n">ess</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+    <span class="n">loglik</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">n_resample</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">T</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"auxiliary_pf"</span><span class="p">:</span>
+            <span class="c1"># First stage: weight each *ancestor* by how well it would have</span>
+            <span class="c1"># predicted z_t with the transition integrated out, then move only</span>
+            <span class="c1"># the ancestors that survive. The normaliser of this stage is the</span>
+            <span class="c1"># evidence increment; the second stage divides it back out.</span>
+            <span class="n">lpred</span> <span class="o">=</span> <span class="n">log_predictive</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">X</span><span class="p">)</span>
+            <span class="n">lw</span> <span class="o">=</span> <span class="n">lw</span> <span class="o">+</span> <span class="n">lpred</span>
+            <span class="n">loglik</span> <span class="o">+=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+            <span class="n">lw</span> <span class="o">-=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">_resample</span><span class="p">(</span><span class="n">lw</span><span class="p">,</span> <span class="s2">"systematic"</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">transition</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">rng</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">n_resample</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">lw</span> <span class="o">=</span> <span class="n">log_likelihood</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">X</span><span class="p">)</span> <span class="o">-</span> <span class="n">lpred</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="n">lw</span> <span class="o">-=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">transition</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">rng</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">lw</span> <span class="o">=</span> <span class="n">lw</span> <span class="o">+</span> <span class="n">log_likelihood</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">X</span><span class="p">)</span>
+            <span class="n">loglik</span> <span class="o">+=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+            <span class="n">lw</span> <span class="o">-=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+
+        <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+        <span class="n">mean</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">w</span> <span class="o">@</span> <span class="n">X</span>
+        <span class="n">cov</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">_weighted_cov</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
+        <span class="n">ess</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">w</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"sis"</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">ess</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">ess_threshold</span> <span class="o">*</span> <span class="n">N</span><span class="p">:</span>
+            <span class="n">scheme</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"systematic_resample"</span><span class="p">:</span> <span class="s2">"systematic"</span><span class="p">,</span>
+                      <span class="s2">"stratified_resample"</span><span class="p">:</span> <span class="s2">"stratified"</span><span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">variant</span><span class="p">,</span> <span class="s2">"multinomial"</span><span class="p">)</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">_resample</span><span class="p">(</span><span class="n">lw</span><span class="p">,</span> <span class="n">scheme</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"regularized_pf"</span><span class="p">:</span>
+                <span class="n">X</span> <span class="o">=</span> <span class="n">_regularize</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">jitter</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+            <span class="n">lw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">N</span><span class="p">))</span>
+            <span class="n">n_resample</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">PFResult</span><span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="n">cov</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">loglik</span><span class="p">),</span> <span class="n">ess</span><span class="p">,</span> <span class="n">n_resample</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">return_particles</span><span class="p">:</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">particles</span><span class="p">,</span> <span class="n">out</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">X</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="c1"># Resampling</span>
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_resample</span><span class="p">(</span><span class="n">lw</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">scheme</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Ancestor indices drawn with probability `exp(lw)`.</span>
+
+<span class="sd">    Multinomial draws `N` independent uniforms; systematic draws one and steps</span>
+<span class="sd">    by exactly `1/N`, so the counts are deterministic given the offset;</span>
+<span class="sd">    stratified draws one per stratum. Systematatic and stratified both have</span>
+<span class="sd">    lower variance than multinomial at the same cost, which is why they are the</span>
+<span class="sd">    default in every serious implementation.</span>
+<span class="sd">    """</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">lw</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+    <span class="n">cdf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+    <span class="n">cdf</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># guard against the sum landing a ulp below 1</span>
+    <span class="k">if</span> <span class="n">scheme</span> <span class="o">==</span> <span class="s2">"multinomial"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">N</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">scheme</span> <span class="o">==</span> <span class="s2">"systematic"</span><span class="p">:</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">N</span><span class="p">))</span> <span class="o">/</span> <span class="n">N</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">scheme</span> <span class="o">==</span> <span class="s2">"stratified"</span><span class="p">:</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">N</span><span class="p">)</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">N</span><span class="p">))</span> <span class="o">/</span> <span class="n">N</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown resampling scheme </span><span class="si">{</span><span class="n">scheme</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_regularize</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">factor</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Jitter resampled particles with a Gaussian kernel, Silverman bandwidth.</span>
+
+<span class="sd">    Resampling copies particles, so duplicates are the same number repeated and</span>
+<span class="sd">    the cloud loses the diversity the next step needs. The bandwidth is the</span>
+<span class="sd">    rule-of-thumb for kernel density estimation, scaled down by `factor`:</span>
+<span class="sd">    `h = factor · (4/(N(d+2)))^{1/(d+4)}`, applied to the empirical covariance.</span>
+<span class="sd">    """</span>
+    <span class="n">N</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">if</span> <span class="n">N</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">d</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">factor</span> <span class="o">*</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">N</span> <span class="o">*</span> <span class="p">(</span><span class="n">d</span> <span class="o">+</span> <span class="mf">2.0</span><span class="p">)))</span> <span class="o">**</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">d</span> <span class="o">+</span> <span class="mf">4.0</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">cov</span> <span class="o">+</span> <span class="mf">1e-12</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+    <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">X</span>
+    <span class="k">return</span> <span class="n">X</span> <span class="o">+</span> <span class="n">h</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="n">N</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span> <span class="o">@</span> <span class="n">L</span><span class="o">.</span><span class="n">T</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="c1"># Helpers</span>
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_logsumexp</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""`log Σ exp(a)`, with the max factored out so weights cannot underflow."""</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">a</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">m</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">a</span> <span class="o">-</span> <span class="n">m</span><span class="p">))))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_weighted_cov</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""`Σ_i w_i (x_i − m)(x_i − m)ᵀ` for a weighted cloud, shape `(d, d)`."""</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">w</span> <span class="o">@</span> <span class="n">X</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="n">X</span> <span class="o">-</span> <span class="n">m</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">Z</span> <span class="o">*</span> <span class="n">w</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Z</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_gauss_logpdf_1d</span><span class="p">(</span><span class="n">resid</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">var</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""`log N(resid; 0, var)` for a vector of residuals — the demo's likelihood."""</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">LOG2PI</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">var</span><span class="p">)</span> <span class="o">+</span> <span class="n">resid</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">var</span><span class="p">)</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="c1"># Demo</span>
+<span class="c1"># --------------------------------------------------------------------------- #</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># --- a model where the exact posterior is available ---------------------</span>
+    <span class="c1"># Scalar autoregression, observed with noise. The Kalman filter is</span>
+    <span class="c1"># the exact answer, so every particle-filter claim becomes a comparison</span>
+    <span class="c1"># against a number rather than against intuition.</span>
+    <span class="n">T</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="mi">40</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span>
+    <span class="n">phi</span> <span class="o">=</span> <span class="mf">0.9</span>
+    <span class="n">A</span><span class="p">,</span> <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">phi</span><span class="p">]]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">1.0</span><span class="p">]])</span>
+    <span class="n">Q</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">q</span><span class="p">]]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">r</span><span class="p">]])</span>
+    <span class="n">m0</span><span class="p">,</span> <span class="n">P0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">1.0</span><span class="p">]])</span>
+
+    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">T</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">T</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">t</span><span class="p">:</span>
+            <span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">phi</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">))</span>
+        <span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">r</span><span class="p">))</span>
+
+    <span class="kn">from</span><span class="w"> </span><span class="nn">kalman</span><span class="w"> </span><span class="kn">import</span> <span class="n">kalman_filter</span>  <span class="c1"># sibling module: same folder, same sys.path</span>
+
+    <span class="n">kf</span> <span class="o">=</span> <span class="n">kalman_filter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="s2">"kf"</span><span class="p">,</span> <span class="n">transition</span><span class="o">=</span><span class="n">A</span><span class="p">,</span> <span class="n">observation</span><span class="o">=</span><span class="n">C</span><span class="p">,</span> <span class="n">Q</span><span class="o">=</span><span class="n">Q</span><span class="p">,</span> <span class="n">R</span><span class="o">=</span><span class="n">R</span><span class="p">,</span> <span class="n">m0</span><span class="o">=</span><span class="n">m0</span><span class="p">,</span> <span class="n">P0</span><span class="o">=</span><span class="n">P0</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">init</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">g</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">m0</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">P0</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">g</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">transition</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">g</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">phi</span> <span class="o">*</span> <span class="n">X</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_lik</span><span class="p">(</span><span class="n">z_t</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_gauss_logpdf_1d</span><span class="p">(</span><span class="n">z_t</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">r</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_pred</span><span class="p">(</span><span class="n">z_t</span><span class="p">,</span> <span class="n">X_prev</span><span class="p">):</span>
+        <span class="c1"># p(z_t | x_{t-1}) with the transition integrated out: the noise adds</span>
+        <span class="k">return</span> <span class="n">_gauss_logpdf_1d</span><span class="p">(</span><span class="n">z_t</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">phi</span> <span class="o">*</span> <span class="n">X_prev</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">q</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span>
+
+    <span class="n">common</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="n">init</span><span class="p">,</span> <span class="n">transition</span><span class="o">=</span><span class="n">transition</span><span class="p">,</span> <span class="n">log_likelihood</span><span class="o">=</span><span class="n">log_lik</span><span class="p">,</span>
+                  <span class="n">n_particles</span><span class="o">=</span><span class="mi">4000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">sir</span> <span class="o">=</span> <span class="n">particle_filter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="s2">"sir"</span><span class="p">,</span> <span class="o">**</span><span class="n">common</span><span class="p">)</span>
+    <span class="n">sis</span> <span class="o">=</span> <span class="n">particle_filter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="s2">"sis"</span><span class="p">,</span> <span class="o">**</span><span class="n">common</span><span class="p">)</span>
+    <span class="n">apf</span> <span class="o">=</span> <span class="n">particle_filter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="s2">"auxiliary_pf"</span><span class="p">,</span> <span class="n">log_predictive</span><span class="o">=</span><span class="n">log_pred</span><span class="p">,</span> <span class="o">**</span><span class="n">common</span><span class="p">)</span>
+
+    <span class="c1"># the cloud reproduces the exact posterior mean and variance</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sir</span><span class="o">.</span><span class="n">mean</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">kf</span><span class="o">.</span><span class="n">mean</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.2</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sir</span><span class="o">.</span><span class="n">cov</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">kf</span><span class="o">.</span><span class="n">cov</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.15</span>
+    <span class="c1"># and the evidence estimate is the exact likelihood, up to Monte Carlo error</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sir</span><span class="o">.</span><span class="n">loglik</span> <span class="o">-</span> <span class="n">kf</span><span class="o">.</span><span class="n">loglik</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="n">sir</span><span class="o">.</span><span class="n">loglik</span><span class="p">,</span> <span class="n">kf</span><span class="o">.</span><span class="n">loglik</span><span class="p">)</span>
+    <span class="c1"># the auxiliary filter targets the same posterior, by a different route</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">apf</span><span class="o">.</span><span class="n">mean</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">sir</span><span class="o">.</span><span class="n">mean</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.2</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">apf</span><span class="o">.</span><span class="n">loglik</span> <span class="o">-</span> <span class="n">kf</span><span class="o">.</span><span class="n">loglik</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="n">apf</span><span class="o">.</span><span class="n">loglik</span><span class="p">,</span> <span class="n">kf</span><span class="o">.</span><span class="n">loglik</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"particle_filter: sir — 4000 particles track the exact Kalman posterior "</span>
+        <span class="sa">f</span><span class="s2">"(max mean error </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sir</span><span class="o">.</span><span class="n">mean</span><span class="p">[:,</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">kf</span><span class="o">.</span><span class="n">mean</span><span class="p">[:,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">); "</span>
+        <span class="sa">f</span><span class="s2">"log p(z) = </span><span class="si">{</span><span class="n">sir</span><span class="o">.</span><span class="n">loglik</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> against </span><span class="si">{</span><span class="n">kf</span><span class="o">.</span><span class="n">loglik</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span>
+    <span class="p">)</span>
+
+    <span class="c1"># --- why resampling is not optional ------------------------------------</span>
+    <span class="c1"># Without it the weights concentrate on one particle and the cloud stops</span>
+    <span class="c1"># representing anything: the effective sample size falls off a cliff.</span>
+    <span class="k">assert</span> <span class="n">sis</span><span class="o">.</span><span class="n">n_resample</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">sir</span><span class="o">.</span><span class="n">n_resample</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="k">assert</span> <span class="n">sis</span><span class="o">.</span><span class="n">ess</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.1</span> <span class="o">*</span> <span class="mi">4000</span> <span class="o">&lt;</span> <span class="n">sir</span><span class="o">.</span><span class="n">ess</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"particle_filter: sis — no resampling: ESS falls from </span><span class="si">{</span><span class="n">sis</span><span class="o">.</span><span class="n">ess</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> to "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">sis</span><span class="o">.</span><span class="n">ess</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> of 4000 particles; sir resampled </span><span class="si">{</span><span class="n">sir</span><span class="o">.</span><span class="n">n_resample</span><span class="si">}</span><span class="s2"> times "</span>
+        <span class="sa">f</span><span class="s2">"and ends at ESS </span><span class="si">{</span><span class="n">sir</span><span class="o">.</span><span class="n">ess</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">"</span>
+    <span class="p">)</span>
+
+    <span class="c1"># --- the auxiliary filter buys variance, not accuracy -------------------</span>
+    <span class="c1"># Same target, same particle count: the evidence estimate should be less</span>
+    <span class="c1"># variable across seeds, because the first stage spends particles where the</span>
+    <span class="c1"># next observation is plausible instead of uniformly.</span>
+    <span class="n">runs</span> <span class="o">=</span> <span class="mi">40</span>
+    <span class="n">ll_sir</span><span class="p">,</span> <span class="n">ll_apf</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">):</span>
+        <span class="n">kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">common</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">100</span> <span class="o">+</span> <span class="n">s</span><span class="p">,</span> <span class="n">n_particles</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+        <span class="n">ll_sir</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">particle_filter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="s2">"sir"</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span><span class="o">.</span><span class="n">loglik</span><span class="p">)</span>
+        <span class="n">ll_apf</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">particle_filter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="s2">"auxiliary_pf"</span><span class="p">,</span> <span class="n">log_predictive</span><span class="o">=</span><span class="n">log_pred</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span><span class="o">.</span><span class="n">loglik</span><span class="p">)</span>
+    <span class="n">spread_sir</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">ll_sir</span><span class="p">))</span>
+    <span class="n">spread_apf</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">ll_apf</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="n">spread_apf</span> <span class="o">&lt;</span> <span class="n">spread_sir</span><span class="p">,</span> <span class="p">(</span><span class="n">spread_apf</span><span class="p">,</span> <span class="n">spread_sir</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"particle_filter: auxiliary_pf — evidence spread over </span><span class="si">{</span><span class="n">runs</span><span class="si">}</span><span class="s2"> seeds "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">spread_apf</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> nats against </span><span class="si">{</span><span class="n">spread_sir</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> for sir, at the same cost"</span>
+    <span class="p">)</span>
+
+    <span class="c1"># --- the resampling schemes -------------------------------------------</span>
+    <span class="c1"># With uniform weights every scheme must return the particles unchanged in</span>
+    <span class="c1"># expectation; systematic and stratified do it exactly, one copy each,</span>
+    <span class="c1"># because their positions tile the unit interval.</span>
+    <span class="n">uniform</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">400</span><span class="p">))</span>
+    <span class="n">probe</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">scheme</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"systematic"</span><span class="p">,</span> <span class="s2">"stratified"</span><span class="p">):</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">_resample</span><span class="p">(</span><span class="n">uniform</span><span class="p">,</span> <span class="n">scheme</span><span class="p">,</span> <span class="n">probe</span><span class="p">),</span> <span class="n">minlength</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">counts</span> <span class="o">==</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="n">scheme</span><span class="p">,</span> <span class="n">counts</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">counts</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="n">multi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">_resample</span><span class="p">(</span><span class="n">uniform</span><span class="p">,</span> <span class="s2">"multinomial"</span><span class="p">,</span> <span class="n">probe</span><span class="p">),</span> <span class="n">minlength</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">multi</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.1</span> <span class="ow">and</span> <span class="n">multi</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span>
+    <span class="c1"># and the two low-variance schemes are the ones wired to the variants</span>
+    <span class="n">sysr</span> <span class="o">=</span> <span class="n">particle_filter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="s2">"systematic_resample"</span><span class="p">,</span> <span class="o">**</span><span class="n">common</span><span class="p">)</span>
+    <span class="n">strr</span> <span class="o">=</span> <span class="n">particle_filter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="s2">"stratified_resample"</span><span class="p">,</span> <span class="o">**</span><span class="n">common</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sysr</span><span class="o">.</span><span class="n">mean</span> <span class="o">-</span> <span class="n">sir</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.2</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sysr</span><span class="o">.</span><span class="n">loglik</span> <span class="o">-</span> <span class="n">kf</span><span class="o">.</span><span class="n">loglik</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1.0</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"particle_filter: systematic_resample — uniform weights give exactly one "</span>
+        <span class="sa">f</span><span class="s2">"copy per particle, where multinomial gives 0..</span><span class="si">{</span><span class="n">multi</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">; evidence "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">sysr</span><span class="o">.</span><span class="n">loglik</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> vs </span><span class="si">{</span><span class="n">strr</span><span class="o">.</span><span class="n">loglik</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> for stratified"</span>
+    <span class="p">)</span>
+
+    <span class="c1"># --- regularisation against sample impoverishment ----------------------</span>
+    <span class="c1"># A deterministic transition and repeated resampling: every copy of the</span>
+    <span class="c1"># surviving particle is identical, and the transition keeps it that way, so</span>
+    <span class="c1"># the cloud ends as N copies of one number. Jitter restores the spread that</span>
+    <span class="c1"># the next likelihood evaluation needs.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">trans_det</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">g</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">phi</span> <span class="o">*</span> <span class="n">X</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">lik_det</span><span class="p">(</span><span class="n">z_t</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_gauss_logpdf_1d</span><span class="p">(</span><span class="n">z_t</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">r</span><span class="p">)</span>
+
+    <span class="n">z3</span> <span class="o">=</span> <span class="mf">1.0e-3</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="n">T</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">plain</span> <span class="o">=</span> <span class="n">particle_filter</span><span class="p">(</span><span class="n">z3</span><span class="p">,</span> <span class="s2">"sir"</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="n">init</span><span class="p">,</span> <span class="n">transition</span><span class="o">=</span><span class="n">trans_det</span><span class="p">,</span>
+                            <span class="n">log_likelihood</span><span class="o">=</span><span class="n">lik_det</span><span class="p">,</span> <span class="n">n_particles</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+                            <span class="n">ess_threshold</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">return_particles</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">reg</span> <span class="o">=</span> <span class="n">particle_filter</span><span class="p">(</span><span class="n">z3</span><span class="p">,</span> <span class="s2">"regularized_pf"</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="n">init</span><span class="p">,</span> <span class="n">transition</span><span class="o">=</span><span class="n">trans_det</span><span class="p">,</span>
+                          <span class="n">log_likelihood</span><span class="o">=</span><span class="n">lik_det</span><span class="p">,</span> <span class="n">n_particles</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+                          <span class="n">ess_threshold</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">return_particles</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">uniq_plain</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">plain</span><span class="o">.</span><span class="n">particles</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">uniq_reg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">reg</span><span class="o">.</span><span class="n">particles</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">size</span>
+    <span class="k">assert</span> <span class="n">uniq_plain</span> <span class="o">&lt;</span> <span class="mi">50</span> <span class="o">&lt;</span> <span class="n">uniq_reg</span><span class="p">,</span> <span class="p">(</span><span class="n">uniq_plain</span><span class="p">,</span> <span class="n">uniq_reg</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">reg</span><span class="o">.</span><span class="n">mean</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">plain</span><span class="o">.</span><span class="n">mean</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">&lt;</span> <span class="mf">0.2</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"particle_filter: regularized_pf — a deterministic transition leaves "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">uniq_plain</span><span class="si">}</span><span class="s2"> distinct particles out of 500 after resampling; jitter keeps "</span>
+        <span class="sa">f</span><span class="s2">"all </span><span class="si">{</span><span class="n">uniq_reg</span><span class="si">}</span><span class="s2">, at the same mean to </span><span class="si">{</span><span class="nb">abs</span><span class="p">(</span><span class="n">reg</span><span class="o">.</span><span class="n">mean</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">plain</span><span class="o">.</span><span class="n">mean</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span>
+    <span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"particle_filter demo passed"</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html" aria-current="page"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/particle_filter.py">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

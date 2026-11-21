@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One-class models · MLAtoms</title>
+<meta name="description" content="One-class SVM and SVDD: a boundary around normal data. Every classifier in this chapter so far needed two classes. Novelty detection has one: the training…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/one_class.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="One-class models">
+<meta property="og:description" content="One-class SVM and SVDD: a boundary around normal data. Every classifier in this chapter so far needed two classes. Novelty detection has one: the training…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/one_class.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="One-class models">
+<meta name="twitter:description" content="One-class SVM and SVDD: a boundary around normal data. Every classifier in this chapter so far needed two classes. Novelty detection has one: the training…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "One-class models", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/one_class.html", "description": "One-class SVM and SVDD: a boundary around normal data. Every classifier in this chapter so far needed two classes. Novelty detection has one: the training\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">03 · Kernels &amp; instance-based</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="one_class.py.html">source</a></p><h1>One-class models — a boundary around the normal, learned from the normal</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Every classifier in this chapter so far needed two classes. Novelty detection
+has one: the training set is normal, and the job is to say when a new point is
+not. There is nothing to separate the data from except empty space, so the
+one-class SVM separates it from the origin:</p>
+<pre class="highlight"><code>      x₂
+       │            ·  ·  ·
+       │         ·   ·   ·     ← the training set, all &quot;normal&quot;
+       │        ·  ·  ·  ·
+       │      ╭──────────╮  ← wᵀφ(x) = ρ, the boundary
+       │     ╱            ╲
+       │    │   margin ρ/‖w‖ │
+       └────┼──────────────┼──────── wᵀφ(x) = 0
+            │              │
+      0 ────┴──────────────┴──────── x₁     the origin, on the wrong side
+</code></pre>
+<p>The model is the hyperplane with the largest margin from the training points
+that still keeps the origin out. Points the margin cannot reach pay a slack, the
+slack costs <span class="math inline">\(C\)</span> each, and the dual is therefore the same kind of program as the
+SVM's — weights on training points, box-constrained — with one change that
+rewrites the interpretation: the equality constraint <span class="math inline">\(\sum_i\alpha_i=1\)</span> replaces
+<span class="math inline">\(\sum_i\alpha_i y_i=0\)</span>. There is no label to balance against, so the weights are
+a <em>distribution</em> over the training set, and every support vector's weight is a
+share of one.</p>
+<p>That constraint is also where <span class="math inline">\(\nu\)</span> comes from. If each weight is at most
+<span class="math inline">\(1/(\nu n)\)</span>, then at least <span class="math inline">\(\nu n\)</span> points must carry weight, and only a point at
+the box can be on the wrong side of the boundary, so at most <span class="math inline">\(\nu n\)</span> points can
+be rejected. Both bounds are counts, not averages, which is why <span class="math inline">\(\nu\)</span> is the
+parameter people actually set: it is the fraction of the training set the model
+is allowed to call abnormal.</p>
+<p>The fourth variant is a different geometry with the same algebra. Instead of the
+widest slab between the data and the origin, take the smallest sphere that
+encloses the data — the support vector data description. With a linear kernel
+the sphere and the slab are different models, and the demo's two centres differ
+by a factor of two. With an RBF kernel they are the <em>same</em> model: the kernel
+diagonal is one everywhere, so the sphere's radius term is a constant in the
+dual, and the two decision functions differ by exactly a factor of two — a fact
+the demo checks to <span class="math inline">\(10^{-9}\)</span>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">geometry</th>
+<th style="text-align:left">kernel</th>
+<th style="text-align:left">parameter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>ocsvm</code></td>
+<td style="text-align:left">widest margin from the origin</td>
+<td style="text-align:left">linear</td>
+<td style="text-align:left"><span class="math inline">\(C\)</span> is the box</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kernel_ocsvm</code></td>
+<td style="text-align:left">the same in feature space</td>
+<td style="text-align:left">RBF</td>
+<td style="text-align:left"><span class="math inline">\(C\)</span> is the box</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>svdd</code></td>
+<td style="text-align:left">smallest enclosing sphere</td>
+<td style="text-align:left">linear or RBF</td>
+<td style="text-align:left"><span class="math inline">\(C\)</span> is the box</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nu_one_class</code></td>
+<td style="text-align:left">widest margin from the origin</td>
+<td style="text-align:left">RBF</td>
+<td style="text-align:left"><span class="math inline">\(\nu\)</span>, box <span class="math inline">\(=1/(\nu n)\)</span></td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid-source"><code class="language-mermaid">graph TD
+  A[normal data only] --&gt; B[separate from the origin]
+  A --&gt; C[enclose in a sphere]
+  B --&gt; D[dual: sum alpha = 1, alpha &lt;= C]
+  C --&gt; E[dual: sum alpha = 1, alpha &lt;= C, minus diag]
+  D --&gt; F[linear kernel: ocsvm]
+  D --&gt; G[RBF kernel: kernel_ocsvm]
+  D --&gt; H[box from nu: nu_one_class]
+  E --&gt; I[svdd]
+  E --&gt; J[with RBF the same alpha as G]
+</code></pre>
+<p><strong><code>ocsvm</code></strong> is the linear model. The boundary is a hyperplane, the normal is
+<code>w_</code>, and the margin is <span class="math inline">\(\rho/\|w\|\)</span> — the distance from the origin to the
+plane. It is the reference point for everything else and the easiest to check by
+hand.</p>
+<p><strong><code>kernel_ocsvm</code></strong> is the same program with a Gaussian kernel. The boundary is
+now a level set of a sum of bumps, so it can close around a cluster instead of
+cutting the space in half, which is what makes the method useful on real data.</p>
+<p><strong><code>svdd</code></strong> swaps the objective for the smallest enclosing sphere: minimise <span class="math inline">\(R^2\)</span>
+with every point inside it, allowing <span class="math inline">\(C\)</span>-priced exceptions. Its dual differs
+from the one-class SVM's by a linear term <span class="math inline">\(\sum_i\alpha_i k(x_i,x_i)\)</span>, which is
+the sphere's radius contribution.</p>
+<p><strong><code>nu_one_class</code></strong> is not a different program, only a different parameterisation:
+the box is <span class="math inline">\(1/(\nu n)\)</span> instead of a free <span class="math inline">\(C\)</span>. The two bounds in the intuition
+then hold exactly, and the demo checks both.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-primal">The primal <a class="header-anchor" href="#the-primal">#</a></h3>
+<p>Let <span class="math inline">\(\phi\)</span> be the feature map of a kernel. The one-class SVM solves</p>
+<div class="math block">
+\[\min_{w,\rho,\xi}\ \tfrac12\|w\|^2+C\sum_i\xi_i-\rho
+\quad\text{s.t.}\quad
+w^{\top}\phi(x_i)\ge\rho-\xi_i,\ \ \xi_i\ge0 .
+\qquad (1)\]
+</div>
+<p>The <span class="math inline">\(\rho\)</span> term is what stops the trivial answer: without it, scaling the
+boundary outward would be free and the model would enclose everything. With it,
+the objective rewards a boundary as far from the origin as the data allows.</p>
+<h3 id="the-dual">The dual <a class="header-anchor" href="#the-dual">#</a></h3>
+<p>With multipliers <span class="math inline">\(\alpha_i\ge0\)</span> for the constraints and <span class="math inline">\(\beta_i\ge0\)</span> for the
+slacks, stationarity gives</p>
+<div class="math block">
+\[w=\sum_i\alpha_i\phi(x_i),\qquad
+\sum_i\alpha_i=1,\qquad
+0\le\alpha_i\le C ,
+\qquad (2)\]
+</div>
+<p>and substituting back leaves the program the code actually solves:</p>
+<div class="math block">
+\[\min_{\alpha}\ \tfrac12\alpha^{\top}K\alpha
+\quad\text{s.t.}\quad
+\mathbf{1}^{\top}\alpha=1,\ \ 0\le\alpha_i\le C .
+\qquad (3)\]
+</div>
+<p>There is no linear term and no label: the objective is the squared norm of the
+expansion, made small by spreading the unit weight over points that are similar
+to each other. The constraint <span class="math inline">\(\mathbf{1}^{\top}\alpha=1\)</span> is the whole method;
+drop it and the answer is <span class="math inline">\(\alpha=0\)</span>, an empty model.</p>
+<h3 id="the-kkt-table">The KKT table <a class="header-anchor" href="#the-kkt-table">#</a></h3>
+<p>With <span class="math inline">\(G=K\alpha\)</span> and <span class="math inline">\(\rho\)</span> the multiplier of the equality constraint, the
+complementary slackness conditions split the training set three ways:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">weight</th>
+<th style="text-align:left">position of the point</th>
+<th style="text-align:left">condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><span class="math inline">\(\alpha_i=0\)</span></td>
+<td style="text-align:left">inside the boundary</td>
+<td style="text-align:left"><span class="math inline">\(G_i\ge\rho\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><span class="math inline">\(0<\alpha_i<C\)</span></td>
+<td style="text-align:left">on the boundary</td>
+<td style="text-align:left"><span class="math inline">\(G_i=\rho\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><span class="math inline">\(\alpha_i=C\)</span></td>
+<td style="text-align:left">outside the boundary</td>
+<td style="text-align:left"><span class="math inline">\(G_i\le\rho\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The decision function is the same expansion minus the offset,</p>
+<div class="math block">
+\[f(x)=\sum_i\alpha_i K(x_i,x)-\rho ,
+\qquad (4)\]
+</div>
+<p>so a free support vector satisfies <span class="math inline">\(f(x_i)=0\)</span> exactly, and the demo checks
+<span class="math inline">\(10^{-16}\)</span>. Points at the box are the ones allowed to be on the wrong side:
+<span class="math inline">\(f<0\)</span> means novel. That is the <em>only</em> route to a negative decision, which is why
+the outlier count is bounded by the number of box weights.</p>
+<p>The offset itself is read off the free support vectors. When none exist, the
+conditions become the interval</p>
+<div class="math block">
+\[\max_{\alpha_i=C}G_i\ \le\ \rho\ \le\ \min_{\alpha_j=0}G_j ,
+\qquad (5)\]
+</div>
+<p>and the code takes its midpoint. Getting this interval backwards is a subtle
+bug: the model still trains and still looks reasonable, but the outlier count
+drifts above <span class="math inline">\(\nu n\)</span> because points at zero weight are classified as novel. The
+demo's <span class="math inline">\(\nu=0.1\)</span> row was thirteen instead of at most twelve before the fix.</p>
+<h3 id="the-sphere">The sphere <a class="header-anchor" href="#the-sphere">#</a></h3>
+<p>The support vector data description replaces the slab with a ball. Its primal is</p>
+<div class="math block">
+\[\min_{R,a,\xi}\ R^2+C\sum_i\xi_i
+\quad\text{s.t.}\quad
+\|\phi(x_i)-a\|^2\le R^2+\xi_i,\ \ \xi_i\ge0 ,
+\qquad (6)\]
+</div>
+<p>and stationarity in <span class="math inline">\(a\)</span> gives <span class="math inline">\(a=\sum_i\alpha_i\phi(x_i)\)</span> as before, with
+<span class="math inline">\(\sum_i\alpha_i=1\)</span> from the derivative in <span class="math inline">\(R^2\)</span>. Substituting back,</p>
+<div class="math block">
+\[\min_{\alpha}\ \alpha^{\top}K\alpha-\sum_i\alpha_i k(x_i,x_i)
+\quad\text{s.t.}\quad
+\mathbf{1}^{\top}\alpha=1,\ \ 0\le\alpha_i\le C .
+\qquad (7)\]
+</div>
+<p>The only difference from (3) is the linear term <span class="math inline">\(-\mathrm{diag}(K)^{\top}\alpha\)</span>.
+Two consequences follow. For a kernel with constant diagonal — RBF, or any
+normalised kernel — that term is a constant, so the minimiser is the same
+<span class="math inline">\(\alpha\)</span> as the one-class SVM's, and the two models are the same model. For a
+kernel whose diagonal varies, like the linear one, the term changes the answer,
+and the ball is not the slab.</p>
+<p>For a free support vector the radius is</p>
+<div class="math block">
+\[R^2=k(x_i,x_i)-2\sum_j\alpha_jK(x_i,x_j)+\alpha^{\top}K\alpha ,
+\qquad (8)\]
+</div>
+<p>which is the squared distance from the point to the centre. Because the gradient
+(7) at a free point is <span class="math inline">\(2(K\alpha)_i-k(x_i,x_i)=\alpha^{\top}K\alpha-R^2\)</span>, the
+stored offset is <span class="math inline">\(\rho_{\text{svdd}}=\alpha^{\top}K\alpha-R^2\)</span>, and the decision
+function is</p>
+<div class="math block">
+\[f_{\text{svdd}}(x)=2\sum_i\alpha_iK(x_i,x)-k(x,x)-\rho_{\text{svdd}} .
+\qquad (9)\]
+</div>
+<p>With <span class="math inline">\(k(x,x)=1\)</span> everywhere this collapses to <span class="math inline">\(2f_{\text{ocsvm}}(x)\)</span> exactly,
+which is the identity the demo measures as <span class="math inline">\(1.4\times10^{-9}\)</span> — the size of the
+KKT tolerance, not of a modelling gap.</p>
+<h3 id="why-nu-is-a-fraction">Why nu is a fraction <a class="header-anchor" href="#why-nu-is-a-fraction">#</a></h3>
+<p>Set the box to <span class="math inline">\(1/(\nu n)\)</span>. Two counting arguments follow.</p>
+<p>Every non-zero weight is at least the box divided by nothing in particular, so
+the number of support vectors is not bounded below by the weights — but their
+<em>sum</em> is fixed at one, and each is at most <span class="math inline">\(1/(\nu n)\)</span>, so</p>
+<div class="math block">
+\[\#\{\alpha_i>0\}\ \ge\ \nu n .
+\qquad (10)\]
+</div>
+<p>And a point can only be rejected if its weight is at the box, so the number of
+box weights, each contributing <span class="math inline">\(1/(\nu n)\)</span> to a total of one, is at most</p>
+<div class="math block">
+\[\#\{f(x_i)<0\}\ \le\ \#\{\alpha_i=C\}\ \le\ \nu n .
+\qquad (11)\]
+</div>
+<p>These are the two facts that make <span class="math inline">\(\nu\)</span> interpretable, and the demo's table is
+their measurement: at <span class="math inline">\(\nu=0.5\)</span> on 120 points, 62 support vectors and 59
+outliers against bounds of 60 and 60. Both are tight, and both are counts rather
+than expectations — a stronger statement than the usual &quot;fraction of outliers on
+average&quot;.</p>
+<h3 id="the-pair-step">The pair step <a class="header-anchor" href="#the-pair-step">#</a></h3>
+<p>The solver is the same sequential minimal optimisation as the SVM's, specialised
+to the equality <span class="math inline">\(\mathbf{1}^{\top}\alpha=1\)</span>. A move keeps it by taking weight
+from one coordinate and giving it to another: <span class="math inline">\(\alpha_i\leftarrow\alpha_i-t\)</span>,
+<span class="math inline">\(\alpha_j\leftarrow\alpha_j+t\)</span>. Along that direction the objective is a
+one-dimensional quadratic with curvature</p>
+<div class="math block">
+\[K_{ii}+K_{jj}-2K_{ij}=\|\phi(x_i)-\phi(x_j)\|^2 ,
+\qquad (12)\]
+</div>
+<p>and the exact minimiser is <span class="math inline">\(t^\star=(G_i-G_j)/\text{curvature}\)</span>, clipped to the
+box. The working set takes <span class="math inline">\(i\)</span> as the largest gradient among the points that can
+give weight (<span class="math inline">\(\alpha_i>0\)</span>) and <span class="math inline">\(j\)</span> as the smallest among the points that can
+take it (<span class="math inline">\(\alpha_j<C\)</span>). At the optimum no such pair has <span class="math inline">\(G_i>G_j\)</span>, so the pair
+violation is the stopping criterion.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="the-working-set">The working set <a class="header-anchor" href="#the-working-set">#</a></h3>
+<pre class="highlight"><code>            <span class="n">up</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">&lt;</span> <span class="n">box</span> <span class="o">-</span> <span class="mf">1e-12</span> <span class="o">*</span> <span class="n">box</span>
+            <span class="n">down</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">&gt;</span> <span class="mf">1e-12</span> <span class="o">*</span> <span class="n">box</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">up</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">down</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">break</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">down</span><span class="p">,</span> <span class="n">gradient</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)))</span>
+            <span class="n">j</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">up</span><span class="p">,</span> <span class="n">gradient</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)))</span>
+            <span class="n">violation</span> <span class="o">=</span> <span class="n">gradient</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">gradient</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+</code></pre>
+<p><code>i</code> gives weight away and must have some to give, so it comes from <code>down</code>; <code>j</code>
+takes weight and must have room, so it comes from <code>up</code>. The tolerance on the
+box is relative — <code>box - 1e-12 * box</code> — because the box can be as small as
+<span class="math inline">\(1/n\)</span> and an absolute tolerance would then exclude every point. Note that a free
+point is in both sets, and that is fine here: if it were both the maximum of
+<code>down</code> and the minimum of <code>up</code>, then every gradient would be equal and the
+violation would be zero, so the loop stops for the right reason.</p>
+<h3 id="the-step">The step <a class="header-anchor" href="#the-step">#</a></h3>
+<pre class="highlight"><code>            <span class="n">curvature</span> <span class="o">=</span> <span class="p">(</span><span class="n">hessian</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">hessian</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span>
+                         <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">hessian</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">curvature</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="n">curvature</span> <span class="o">=</span> <span class="mf">1e-12</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">violation</span> <span class="o">/</span> <span class="n">curvature</span>
+            <span class="n">low</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="o">-</span><span class="n">alpha</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">alpha</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">box</span><span class="p">)</span>
+            <span class="n">high</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">box</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">alpha</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">step</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">alpha</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-=</span> <span class="n">step</span>
+            <span class="n">alpha</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">step</span>
+            <span class="n">gradient</span> <span class="o">+=</span> <span class="n">step</span> <span class="o">*</span> <span class="p">(</span><span class="n">hessian</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">hessian</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span>
+</code></pre>
+<p>The four clips in (12) are the two box constraints on each of the two
+coordinates, written once: <code>alpha[i] - box</code> keeps <span class="math inline">\(i\)</span> from leaving the top,
+<code>alpha[j]</code> keeps <span class="math inline">\(j\)</span> from going below zero, and so on. The gradient update is
+two columns of the Hessian, so a step costs <span class="math inline">\(O(n)\)</span> and the whole fit costs
+<span class="math inline">\(O(Tn)\)</span> after the <span class="math inline">\(O(n^2)\)</span> Gram matrix. The <code>curvature</code> floor catches duplicate
+points, where the pair direction has zero length and the exact step is infinite.</p>
+<h3 id="the-offset">The offset <a class="header-anchor" href="#the-offset">#</a></h3>
+<pre class="highlight"><code>        <span class="n">scale</span> <span class="o">=</span> <span class="mf">1e-9</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">box</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">free</span> <span class="o">=</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">&gt;</span> <span class="n">scale</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">&lt;</span> <span class="n">box</span> <span class="o">-</span> <span class="n">scale</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">free</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">gradient</span><span class="p">[</span><span class="n">free</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+        <span class="n">at_zero</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">&lt;=</span> <span class="n">scale</span>
+        <span class="n">at_box</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">&gt;=</span> <span class="n">box</span> <span class="o">-</span> <span class="n">scale</span>
+        <span class="n">lower</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">gradient</span><span class="p">[</span><span class="n">at_box</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="k">if</span> <span class="n">at_box</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="k">else</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="n">upper</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">gradient</span><span class="p">[</span><span class="n">at_zero</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="k">if</span> <span class="n">at_zero</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+</code></pre>
+<p>This is (5), and the two branch names are worth reading carefully: <code>lower</code> comes
+from the points <em>at the box</em>, whose gradient is below <span class="math inline">\(\rho\)</span>, and <code>upper</code> from
+the points <em>at zero</em>, whose gradient is above it. With free points the answer is
+an average of exact equations; without them it is the midpoint of an interval
+that the training data leaves undetermined, which is an honest statement about a
+model that does not pin its own threshold.</p>
+<h3 id="the-two-problems-in-one-solver">The two problems in one solver <a class="header-anchor" href="#the-two-problems-in-one-solver">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"svdd"</span><span class="p">:</span>
+            <span class="n">hessian</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">gram</span>
+            <span class="n">linear</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">gram</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">hessian</span> <span class="o">=</span> <span class="n">gram</span>
+            <span class="n">linear</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+</code></pre>
+<p>(7) multiplied by two, so that the quadratic form is <span class="math inline">\(\tfrac12\alpha^{\top}H\alpha\)</span>
+in both cases and one solver handles both. The factor two is cosmetic; the
+linear term is not. For the RBF kernel <code>np.diag(gram)</code> is a vector of ones and
+the term only shifts the objective by a constant, which is why the weights come
+out identical.</p>
+<h3 id="two-decision-functions">Two decision functions <a class="header-anchor" href="#two-decision-functions">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"svdd"</span><span class="p">:</span>
+            <span class="n">diagonal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">_kernel_matrix</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span>
+                                              <span class="bp">self</span><span class="o">.</span><span class="n">gamma_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">degree</span><span class="p">,</span>
+                                              <span class="bp">self</span><span class="o">.</span><span class="n">coef0</span><span class="p">))</span>
+            <span class="k">return</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">kernel</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha_</span><span class="p">)</span> <span class="o">-</span> <span class="n">diagonal</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_</span>
+        <span class="k">return</span> <span class="n">kernel</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha_</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_</span>
+</code></pre>
+<p>(9) and (4) in the same method. The <span class="math inline">\(k(x,x)\)</span> term is the squared norm of the
+test point's feature vector, which the kernel can compute without ever forming
+the features — that is the only reason a sphere in an infinite-dimensional space
+is affordable. Note that both branches return &quot;positive means normal&quot;, so the
+downstream <code>predict</code> does not need to know which model it has.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(n\)</span> be the training count, <span class="math inline">\(d\)</span> the features, and <span class="math inline">\(T\)</span> the pair updates.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Gram matrix</td>
+<td style="text-align:left"><span class="math inline">\(O(n^2d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one pair update</td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">the whole fit</td>
+<td style="text-align:left"><span class="math inline">\(O(Tn)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">prediction on <span class="math inline">\(m\)</span> points</td>
+<td style="text-align:left"><span class="math inline">\(O(m\,n_{\text{sv}}\,d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n_{\text{sv}})\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">radius</td>
+<td style="text-align:left"><span class="math inline">\(O(n_{\text{sv}}n)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The Gram matrix dominates in <span class="math inline">\(n\)</span>, and it is the reason this atom does not scale
+to millions of points: the dual needs every pair. The step count is where the
+data matters. The demo's linear problem converges in 55 updates; the RBF
+problem at <span class="math inline">\(\gamma=8\)</span> takes 9124, because a nearly diagonal kernel gives a
+nearly degenerate pair direction and the solver crawls. That is the same
+conditioning story as the SVM and the SVR, and the same cure: scale <span class="math inline">\(\gamma\)</span> to
+the data.</p>
+<p>The model is sparse in the only sense that matters at serving time — it stores
+the support vectors, which in the demo's RBF fit are 11 of 120 points.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Training data centred on the origin.</strong> The linear problem then has no margin
+to find: the best hyperplane passes through the origin, <span class="math inline">\(\rho\approx0\)</span>, and
+almost every point is free. The demo's blob is deliberately at <span class="math inline">\((1.6,1.2)\)</span> for
+this reason. A one-class SVM does not know where &quot;away from the origin&quot; is until
+the data tells it, so centring the data <em>before</em> fitting changes the linear model
+completely — and does nothing at all to the RBF one, which is a hint about which
+model you actually want.</p>
+<p><strong>Reading <span class="math inline">\(\rho\)</span> as a density threshold.</strong> <span class="math inline">\(\rho\)</span> is not a quantile and
+<span class="math inline">\(f(x)\)</span> is not a probability. Its scale is set by the kernel and the weights, so
+a decision value of <span class="math inline">\(0.3\)</span> in one fit and <span class="math inline">\(0.3\)</span> in another mean different things.
+Only the sign, and the ranking within one model, are meaningful.</p>
+<p><strong>A box so small that the problem is infeasible.</strong> The weights have to sum to
+one and each is at most <span class="math inline">\(C\)</span>, so <span class="math inline">\(Cn\ge1\)</span> is required. The code raises rather
+than returning a model that cannot exist, which is the right behaviour and worth
+knowing about when <span class="math inline">\(C\)</span> is swept automatically.</p>
+<p><strong><span class="math inline">\(\nu\)</span> on clean data.</strong> <span class="math inline">\(\nu=0.5\)</span> rejects half the training set <em>whether or not
+half of it is abnormal</em>. The parameter is a budget, not an estimate: if the
+training set is clean, a large <span class="math inline">\(\nu\)</span> manufactures outliers. Set it from the
+contamination you expect, not from what you would like the model to find.</p>
+<p><strong>An over-wide kernel.</strong> At <span class="math inline">\(\gamma=8\)</span> the boundary follows the training sample
+instead of the distribution: 31 support vectors and only <span class="math inline">\(72\%\)</span> of held-out
+inliers kept, against <span class="math inline">\(92\%\)</span> at <span class="math inline">\(\gamma=0.5\)</span>. The failure looks like
+overfitting and is: a narrow kernel makes the training points nearly orthogonal,
+so the model memorises their positions rather than their region.</p>
+<p><strong>Expecting SVDD and the one-class SVM to agree in general.</strong> They agree for a
+constant-diagonal kernel and nowhere else. With a linear kernel the demo's
+centres are <span class="math inline">\((0.82,0.39)\)</span> and <span class="math inline">\((1.69,1.06)\)</span> — the ball is centred on the blob,
+the slab is oriented by the margin — and the two reject different points.</p>
+<p><strong>Confusing the radius with the margin.</strong> For the sphere, <span class="math inline">\(R\)</span> is part of the
+model and (8) is how it is computed. For the slab there is no radius; the
+comparable quantity is <span class="math inline">\(\rho/\|w\|\)</span>, the distance from the origin to the
+boundary. Printing one where the other is meant produces a number that looks
+plausible and ranks models backwards.</p>
+<p><strong>Thresholding the decision value by hand.</strong> <code>predict</code> uses zero because the
+offset was chosen so that free support vectors sit at zero. An arbitrary
+threshold moves the boundary without refitting, so the support vectors no longer
+sit on it and the <span class="math inline">\(\nu\)</span> bounds no longer hold.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Fault and intrusion detection.</strong> The normal regime is easy to record and the
+failures are not, which is exactly the one-class setting. A model per machine,
+trained on a week of healthy telemetry, is the standard industrial deployment.</p>
+<p><strong>Medical screening.</strong> A detector trained on healthy scans, where the abnormal
+class is rare, expensive and heterogeneous, is the classic use of SVDD in imaging
+pipelines, usually as a first filter ahead of a supervised reader.</p>
+<p><strong>Fraud and account takeover.</strong> The transaction stream is normal almost
+everywhere, and a boundary learned on it flags the rest. The <span class="math inline">\(\nu\)</span> parameter is
+attractive here because the operations team knows how many alerts per day it can
+handle, which is a count of the training set, not a <span class="math inline">\(C\)</span>.</p>
+<p><strong>Document and topic novelty.</strong> One-class models on TF-IDF features were the
+standard way to detect a document outside a known corpus before embedding-based
+detectors, and the linear variant is still a strong cheap baseline.</p>
+<p><strong>Novelty in time series.</strong> A window of recent values is a point; a boundary
+around the windows of a healthy signal flags a regime change. The kernel choice
+is a choice of which kinds of change matter.</p>
+<p><strong>Supporting a generative model.</strong> A one-class model is a cheap likelihood-free
+score, and it is often used to filter samples from a generative model before an
+expensive evaluation. The sphere geometry is a natural fit for embeddings, where
+distance is meaningful but coordinates are not.</p>
+<p><strong>Warm-starting a supervised detector.</strong> When a handful of labelled anomalies
+appear, the one-class solution is a sensible initialisation and its support
+vectors are the points worth labelling first.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Schölkopf, B., Platt, J. C., Shawe-Taylor, J., Smola, A. J. &amp; Williamson, R.
+C. (2001). Estimating the support of a high-dimensional distribution.
+<em>Neural Computation</em> 13(7), 1443–1471. The primal (1), the dual (3) and the
+<span class="math inline">\(\nu\)</span> bounds.</li>
+<li>Tax, D. M. J. &amp; Duin, R. P. W. (2004). Support vector data description.
+<em>Machine Learning</em> 54(1), 45–66. The sphere in (6) and its dual (7).</li>
+<li>Schölkopf, B. &amp; Smola, A. J. (2002). <em>Learning with Kernels</em>, chapter 8. MIT
+Press. The unified treatment of both geometries and the RBF equivalence.</li>
+<li>Platt, J. C. (1999). Fast training of support vector machines using sequential
+minimal optimization. In <em>Advances in Kernel Methods</em>. The pair update the
+solver uses.</li>
+<li>Chang, C.-C. &amp; Lin, C.-J. (2011). LIBSVM: a library for support vector
+machines. <em>ACM Transactions on Intelligent Systems and Technology</em> 2(3), 1–27.
+The one-class solver, including the offset interval in (5).</li>
+<li>Manevitz, L. M. &amp; Yousef, M. (2001). One-class SVMs for document
+classification. <em>JMLR</em> 2, 139–154. The text application and the first careful
+comparison with supervised baselines.</li>
+<li>Ruff, L. et al. (2018). Deep one-class classification. <em>ICML</em>. The modern
+descendant, where the sphere is learned by a network instead of a kernel.</li>
+<li>Perera, P., Oza, P., Patel, V. M. et al. (2021). One-class classification:
+a survey. <em>IEEE Transactions on Artificial Intelligence</em>. A map of the
+variants and their failure modes.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="random_features.html"><small>Previous</small><span>Random features</span></a><a class="next" href="nearest_centroid.html"><small>Next</small><span>Nearest centroid</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">03 · Kernels &amp; instance-based</p><ul class="rail-list"><li><a href="svm.html"><span class="tick">✓</span><span>Support vector machine</span></a></li><li><a href="kernel_ridge.html"><span class="tick">✓</span><span>Kernel ridge</span></a></li><li><a href="knn.html"><span class="tick">✓</span><span>k-nearest neighbours</span></a></li><li><a href="svr.html"><span class="tick">✓</span><span>Support vector regression</span></a></li><li><a href="rbf_network.html"><span class="tick">✓</span><span>RBF networks</span></a></li><li><a href="random_features.html"><span class="tick">✓</span><span>Random features</span></a></li><li><a href="one_class.html" aria-current="page"><span class="tick">✓</span><span>One-class models</span></a></li><li><a href="nearest_centroid.html"><span class="tick">✓</span><span>Nearest centroid</span></a></li><li><a href="nystrom.html"><span class="tick">✓</span><span>Nystrom approximation</span></a></li><li><a href="metric_learning.html"><span class="tick">✓</span><span>Metric learning</span></a></li><li><a href="multiple_kernel.html"><span class="tick">✓</span><span>Multiple kernel learning</span></a></li><li><a href="mmd.html"><span class="tick">✓</span><span>MMD &amp; HSIC</span></a></li><li><a href="lvq.html"><span class="tick">✓</span><span>Learning vector quantisation</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../02-linear-models/index.html"><span class="jump">← 02 · Linear models</span></a></li><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">04 · Trees &amp; ensembles&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-primal">The primal</a></li><li class="lvl3"><a href="#the-dual">The dual</a></li><li class="lvl3"><a href="#the-kkt-table">The KKT table</a></li><li class="lvl3"><a href="#the-sphere">The sphere</a></li><li class="lvl3"><a href="#why-nu-is-a-fraction">Why nu is a fraction</a></li><li class="lvl3"><a href="#the-pair-step">The pair step</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#the-working-set">The working set</a></li><li class="lvl3"><a href="#the-step">The step</a></li><li class="lvl3"><a href="#the-offset">The offset</a></li><li class="lvl3"><a href="#the-two-problems-in-one-solver">The two problems in one solver</a></li><li class="lvl3"><a href="#two-decision-functions">Two decision functions</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/03-kernels-and-instance/one_class.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

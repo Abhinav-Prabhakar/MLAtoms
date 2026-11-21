@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge distillation · MLAtoms</title>
+<meta name="description" content="Response, feature and relation distillation with temperature. A trained teacher&#x27;s logits are richer than its labels. The label says which class is right; the…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/distillation.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Knowledge distillation">
+<meta property="og:description" content="Response, feature and relation distillation with temperature. A trained teacher&#x27;s logits are richer than its labels. The label says which class is right; the…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/distillation.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Knowledge distillation">
+<meta name="twitter:description" content="Response, feature and relation distillation with temperature. A trained teacher&#x27;s logits are richer than its labels. The label says which class is right; the…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Knowledge distillation", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/distillation.html", "description": "Response, feature and relation distillation with temperature. A trained teacher's logits are richer than its labels. The label says which class is right; the\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="distillation.py.html">source</a></p><h1>Knowledge distillation — eight ways to move knowledge between models</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A trained teacher's logits are richer than its labels. The label says which
+class is right; the logits also say which wrong classes the teacher considers
+plausible, and by how much. Distillation trains a smaller student to reproduce
+that whole distribution rather than the one-hot target, which transfers
+information the labels never contained.</p>
+<p>The eight variants differ in <em>what</em> gets transferred. <code>response</code> matches
+softened logits — the original Hinton recipe. <code>feature</code> matches hidden states
+through a learned regressor, as in FitNets. <code>relation</code> matches the pairwise
+structure of a batch, so the student learns how examples relate rather than
+what each one scores. <code>attention_transfer</code> matches the token attention maps.
+<code>dkd</code> splits the logit loss into a target-class term and a non-target term, and
+weights them separately.</p>
+<p>The remaining three are procedures rather than new losses. <code>self_distill</code> uses
+a slow exponential moving average of the student as its own teacher.
+<code>born_again</code> trains a sequence of students where generation <span class="math inline">\(g\)</span> teaches
+<span class="math inline">\(g+1\)</span> with no external teacher. <code>online_distill</code> trains two networks at once,
+each distilling from the other, so no pretrained teacher is needed at all.</p>
+<p>The demo trains a teacher on 140 examples, then gives a student only eight
+labels. The hard-label student reaches 0.550 on held-out data; the distilled
+student reaches 0.617, because it also sees the 132 unlabelled inputs through
+the teacher's soft targets.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">transferred</th>
+<th style="text-align:left">extra parameters</th>
+<th style="text-align:left">needs labels</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>response</code></td>
+<td style="text-align:left">softened logits</td>
+<td style="text-align:left">none</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>feature</code></td>
+<td style="text-align:left">hidden states through a regressor</td>
+<td style="text-align:left"><span class="math inline">\(H_tH_s\)</span></td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>relation</code></td>
+<td style="text-align:left">pairwise distances in a batch</td>
+<td style="text-align:left">none</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>self_distill</code></td>
+<td style="text-align:left">logits of an EMA of itself</td>
+<td style="text-align:left">none</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>born_again</code></td>
+<td style="text-align:left">logits of the previous generation</td>
+<td style="text-align:left">none</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>online_distill</code></td>
+<td style="text-align:left">logits of a jointly trained peer</td>
+<td style="text-align:left">a second network</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>attention_transfer</code></td>
+<td style="text-align:left">token attention maps</td>
+<td style="text-align:left">none</td>
+<td style="text-align:left">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dkd</code></td>
+<td style="text-align:left">target and non-target logit terms</td>
+<td style="text-align:left">none</td>
+<td style="text-align:left">yes</td>
+</tr>
+</tbody>
+</table>
+<p>Every variant accepts an optional label vector. When labels are present the
+loss is <code>alpha</code> cross-entropy plus the transfer term; with <code>alpha = 1</code> the model
+is trained normally, and with <code>alpha = 0</code> it is trained only by the teacher.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-response-loss">The response loss <a class="header-anchor" href="#the-response-loss">#</a></h3>
+<p>With temperature <span class="math inline">\(T\)</span>, both networks produce softened distributions</p>
+<div class="math block">
+\[p_s=\mathrm{softmax}(z_s/T),\qquad p_t=\mathrm{softmax}(z_t/T),
+\qquad (1)\]
+</div>
+<p>and the student minimises</p>
+<div class="math block">
+\[L=\alpha\,\mathrm{CE}(y,p_s)+(1-\alpha)\,T^2\,
+\mathrm{KL}\bigl(p_t\,\|\,p_s\bigr).
+\qquad (2)\]
+</div>
+<p>The <span class="math inline">\(T^2\)</span> factor exists because the KL gradient carries a <span class="math inline">\(1/T\)</span>: differentiating
+(1) and the KL gives</p>
+<div class="math block">
+\[\frac{\partial L_{\text{soft}}}{\partial z_s}
+=\frac{T}{B}\,(p_s-p_t),
+\qquad (3)\]
+</div>
+<p>so without the <span class="math inline">\(T^2\)</span> the soft term would shrink by <span class="math inline">\(1/T\)</span> as the temperature
+rises and <span class="math inline">\(\alpha\)</span> would no longer mean what it says. With it, changing <span class="math inline">\(T\)</span>
+changes the <em>shape</em> of the target without changing the overall gradient scale.</p>
+<p>Large <span class="math inline">\(T\)</span> flattens both distributions, which is the point: at <span class="math inline">\(T=1\)</span> the demo's
+trained teacher has a top-class gap of 0.978, and at <span class="math inline">\(T=4\)</span> the gap is 0.565 with
+entropy rising from 0.052 to 0.736. The non-target probabilities become large
+enough to carry a usable signal.</p>
+<h3 id="feature-distillation">Feature distillation <a class="header-anchor" href="#feature-distillation">#</a></h3>
+<p>FitNets matches an intermediate layer, with a regressor <span class="math inline">\(R\)</span> that maps the
+teacher's width to the student's:</p>
+<div class="math block">
+\[L_f=\frac{1}{BTH}\bigl\|H_s-H_tR\bigr\|_F^2,\qquad
+\frac{\partial L_f}{\partial R}
+=-\frac{2}{BTH}H_t^{\top}\bigl(H_s-H_tR\bigr).
+\qquad (4)\]
+</div>
+<p><span class="math inline">\(R\)</span> is trained jointly with the student, so the student is free to choose any
+linear re-encoding of the teacher's features. In the demo <span class="math inline">\(H_t\)</span> has width 8,
+<span class="math inline">\(H_s\)</span> has width 6, and the regressor is <span class="math inline">\(8\times6\)</span>; a student that reproduces
+<span class="math inline">\(H_tR\)</span> scores exactly zero. This is the &quot;hint&quot; of FitNets, and the regressor is
+why the student does not need the same architecture as the teacher.</p>
+<h3 id="relation-distillation">Relation distillation <a class="header-anchor" href="#relation-distillation">#</a></h3>
+<p>RKD compares the geometry of a batch rather than individual outputs. With
+<span class="math inline">\(d_{ij}=\lVert z_i-z_j\rVert\)</span> and <span class="math inline">\(\tilde d=d/\mathrm{mean}(d)\)</span>,</p>
+<div class="math block">
+\[L_r=\frac{1}{N}\sum_{i<j}\bigl(\tilde d^{s}_{ij}
+-\tilde d^{t}_{ij}\bigr)^2,\qquad N=\frac{B(B-1)}{2}.
+\qquad (5)\]
+</div>
+<p>Normalising by the batch mean makes the loss invariant to a global rescale of
+the logits, and summing over unordered pairs makes it invariant to the order of
+the batch. The demo checks both: tripling both sets of logits and reversing the
+batch leave the loss at 0.2007.</p>
+<p>The gradient needs the normalisation differentiated too. With
+<span class="math inline">\(r=\tilde d^s-\tilde d^t\)</span> and <span class="math inline">\(c=\mathrm{mean}(r\odot\tilde d^s)\)</span>,</p>
+<div class="math block">
+\[\frac{\partial L_r}{\partial z_i}
+=\sum_{j\neq i}w_{ij}\,(z_i-z_j),\qquad
+w_{ij}=\frac{2\,(r_{ij}-c)}{N\,\mu_s\,d_{ij}},
+\qquad (6)\]
+</div>
+<p>where <span class="math inline">\(\mu_s=\mathrm{mean}(d^s)\)</span>. The matrix of weights is symmetric, so the
+implementation builds it once and evaluates the sum as a row-sum times <span class="math inline">\(z\)</span>
+minus the matrix product.</p>
+<h3 id="attention-transfer">Attention transfer <a class="header-anchor" href="#attention-transfer">#</a></h3>
+<p>For hidden states <span class="math inline">\(H\in\mathbb R^{B\times T\times H}\)</span>, the attention map is</p>
+<div class="math block">
+\[A=\mathrm{softmax}\!\left(\frac{HH^{\top}}{\sqrt H}\right),\qquad
+\hat A=\frac{A}{\lVert A\rVert_F},
+\qquad (7)\]
+</div>
+<p>with the softmax along the key axis, so every row sums to one. The loss is
+<span class="math inline">\(\lVert\hat A_s-\hat A_t\rVert^2\)</span> averaged over the batch. The row-stochastic
+property is the useful part: the student learns <em>where</em> the teacher looks, not
+what it represents. The backward pass is a softmax Jacobian followed by the
+normalisation, and then the bilinear form contributes
+<span class="math inline">\((dS+dS^{\top})H/\sqrt H\)</span> because <span class="math inline">\(S\)</span> is symmetric in its two token axes.</p>
+<h3 id="decoupled-knowledge-distillation">Decoupled knowledge distillation <a class="header-anchor" href="#decoupled-knowledge-distillation">#</a></h3>
+<p>DKD divides the logit loss into two terms that measure different errors. Let
+<span class="math inline">\(p_t\)</span> be the target-class probability and let <span class="math inline">\(q\)</span> be the distribution on the
+remaining classes after renormalising:</p>
+<div class="math block">
+\[q_i=\frac{p_i}{1-p_t}\quad (i\neq t),\qquad
+L_{\text{TCKD}}=T^2\,\mathrm{KL}\bigl([p_t^{t},1-p_t^{t}]\,
+\|\,[p_t^{s},1-p_t^{s}]\bigr),
+\qquad (8)\]
+</div>
+<div class="math block">
+\[L_{\text{NCKD}}=T^2\,\mathrm{KL}\bigl(q_t\,\|\,q_s\bigr).
+\qquad (9)\]
+</div>
+<p>TCKD is a single binary decision: is the target class likely or not. NCKD is
+the shape of the remaining mass, which is where the inter-class similarities
+live. Their gradients w.r.t. the student logits are</p>
+<div class="math block">
+\[\frac{\partial L_{\text{TCKD}}}{\partial z_j}
+=T\,c\,p_j\,(\delta_{jt}-p_t),\qquad
+c=-\frac{p_t^{t}}{p_t^{s}}+\frac{1-p_t^{t}}{1-p_t^{s}},
+\qquad (10)\]
+</div>
+<div class="math block">
+\[\frac{\partial L_{\text{NCKD}}}{\partial z_j}
+=T\,(q_{sj}-q_{tj})\ \ (j\neq t),\qquad 0\ \ (j=t).
+\qquad (11)\]
+</div>
+<p>The demo separates the cases: a student that matches the teacher exactly scores
+zero on both; a student that gets the target right but flattens the non-target
+mass scores 0.167 TCKD and 0.031 NCKD; a student that gets the target wrong
+scores 4.61 and 0.76. The paper's finding is that NCKD carries most of the
+benefit, which is why the weights are exposed separately.</p>
+<h3 id="symmetric-kl-for-online-distillation">Symmetric KL for online distillation <a class="header-anchor" href="#symmetric-kl-for-online-distillation">#</a></h3>
+<p>Deep mutual learning has no pretrained teacher: two networks each minimise
+their own cross-entropy plus the KL of the other to themselves. The combined
+soft loss is the symmetric divergence</p>
+<div class="math block">
+\[S=\mathrm{KL}(q\|p)+\mathrm{KL}(p\|q),
+\qquad (12)\]
+</div>
+<p>and its gradient is <em>not</em> just the difference of the two distributions, because
+each KL depends on both arguments:</p>
+<div class="math block">
+\[\frac{\partial S}{\partial z_s}
+=\frac1T\Bigl[(p-q)+p\odot\bigl(\log(p/q)-S_p\bigr)\Bigr],
+\qquad S_p=\mathrm{KL}(p\|q).
+\qquad (13)\]
+</div>
+<p>Dropping the log-ratio term is a plausible-looking bug: the loss still falls
+and the networks still train, but the finite-difference check reports an error
+around <span class="math inline">\(2\times10^{-2}\)</span>. The demo's version passes at <span class="math inline">\(1.9\times10^{-10}\)</span>.</p>
+<h3 id="self-distillation-and-born-again">Self-distillation and born-again <a class="header-anchor" href="#self-distillation-and-born-again">#</a></h3>
+<p>A mean teacher keeps a slow copy of the student and distils from it:</p>
+<div class="math block">
+\[\bar\theta\leftarrow\beta\bar\theta+(1-\beta)\theta,\qquad \beta=0.99.
+\qquad (14)\]
+</div>
+<p>The teacher never receives gradients, so the target drifts slowly and acts as a
+temporal ensemble. Born-again instead trains generations sequentially:</p>
+<div class="math block">
+\[\theta_{g+1}=\arg\min_\theta\ \alpha\,\mathrm{CE}(y;\theta)
++(1-\alpha)T^2\,\mathrm{KL}\bigl(p_{\theta_g}\,\|\,p_\theta\bigr),
+\qquad (15)\]
+</div>
+<p>with generation 0 trained on labels alone. The demo's four generations on
+noisy labels score 0.583, 0.633, 0.650 and 0.650, against 0.583 for one plain
+run on the same data.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>Cross-entropy returns its own gradient, which every variant reuses as the hard
+term:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_cross_entropy</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+    <span class="n">probs</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">)</span>
+    <span class="n">batch</span> <span class="o">=</span> <span class="n">logits</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">probs</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">batch</span><span class="p">),</span> <span class="n">labels</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">))</span>
+    <span class="n">grad</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">grad</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">batch</span><span class="p">),</span> <span class="n">labels</span><span class="p">]</span> <span class="o">-=</span> <span class="mf">1.0</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">grad</span> <span class="o">/</span> <span class="n">batch</span>
+</code></pre>
+<p>The KL helper returns the loss and the <span class="math inline">\(T(p_s-p_t)/B\)</span> gradient together. Keeping
+them in one place is what makes the <span class="math inline">\(T^2\)</span> bookkeeping consistent:</p>
+<pre class="highlight"><code>    <span class="n">log_probs</span> <span class="o">=</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="n">student_logits</span> <span class="o">/</span> <span class="n">temperature</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">temperature</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">teacher_probs</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">teacher_probs</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)</span>
+                                        <span class="o">-</span> <span class="n">log_probs</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)))</span>
+    <span class="n">probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_probs</span><span class="p">)</span>
+    <span class="n">grad</span> <span class="o">=</span> <span class="n">temperature</span> <span class="o">*</span> <span class="p">(</span><span class="n">probs</span> <span class="o">-</span> <span class="n">teacher_probs</span><span class="p">)</span> <span class="o">/</span> <span class="n">student_logits</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">grad</span>
+</code></pre>
+<p>Both networks are the same three lines, so the student and teacher differ only
+in their parameters. The mean over tokens is the only place the two token
+positions interact:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_mlp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="n">pre</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"bti,ih-&gt;bth"</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.W1"</span><span class="p">])</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.b1"</span><span class="p">]</span>
+        <span class="n">hidden</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="n">hidden</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.W2"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.b2"</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">hidden</span><span class="p">,</span> <span class="n">logits</span>
+</code></pre>
+<p>The response branch is then one line, and the same code serves the EMA teacher
+and the born-again teacher because both live in <code>self.parameters[&quot;teacher.*&quot;]</code>:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"response"</span><span class="p">,</span> <span class="s2">"self_distill"</span><span class="p">,</span> <span class="s2">"born_again"</span><span class="p">):</span>
+            <span class="n">probs_t</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="s2">"z_t"</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">grad</span> <span class="o">=</span> <span class="n">_kl</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="s2">"z_s"</span><span class="p">],</span> <span class="n">probs_t</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">)</span>
+            <span class="n">dz_s</span> <span class="o">+=</span> <span class="n">soft</span> <span class="o">*</span> <span class="n">grad</span>
+</code></pre>
+<p>Feature distillation adds a direct gradient to the hidden state, and the
+regressor gradient is the outer product of the teacher's features and the
+residual. Note the two different index patterns in the same block:</p>
+<pre class="highlight"><code>        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"feature"</span><span class="p">:</span>
+            <span class="n">difference</span> <span class="o">=</span> <span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="s2">"h_s"</span><span class="p">]</span> <span class="o">-</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"h_t"</span><span class="p">]</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+                <span class="s2">"regressor.W"</span><span class="p">])</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">soft</span> <span class="o">/</span> <span class="n">difference</span><span class="o">.</span><span class="n">size</span>
+            <span class="n">dh_s</span> <span class="o">+=</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">difference</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="s2">"regressor.W"</span><span class="p">]</span> <span class="o">+=</span> <span class="o">-</span><span class="n">scale</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span>
+                <span class="s2">"bth,btd-&gt;hd"</span><span class="p">,</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"h_t"</span><span class="p">],</span> <span class="n">difference</span><span class="p">)</span>
+</code></pre>
+<p>Relation distillation folds the normalisation into a symmetric weight matrix.
+The row-sum-times-<span class="math inline">\(z\)</span> form is the vectorised version of
+<span class="math inline">\(\sum_j w_{ij}(z_i-z_j)\)</span>:</p>
+<pre class="highlight"><code>        <span class="n">residual</span> <span class="o">=</span> <span class="n">normalised_s</span> <span class="o">-</span> <span class="n">normalised_t</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">distance_s</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">share</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">residual</span> <span class="o">*</span> <span class="n">normalised_s</span><span class="p">))</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">residual</span> <span class="o">-</span> <span class="n">share</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">count</span> <span class="o">*</span> <span class="n">mean_s</span><span class="p">)</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">distance_s</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+        <span class="n">spread</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">z_s</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">z_s</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">spread</span><span class="p">[</span><span class="n">upper</span><span class="p">]</span> <span class="o">=</span> <span class="n">weight</span>
+        <span class="n">spread</span> <span class="o">=</span> <span class="n">spread</span> <span class="o">+</span> <span class="n">spread</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">return</span> <span class="n">spread</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">z_s</span> <span class="o">-</span> <span class="n">spread</span> <span class="o">@</span> <span class="n">z_s</span>
+</code></pre>
+<p>Attention transfer is three backward passes stacked: normalisation, softmax,
+and the bilinear score. The last line symmetrises the score gradient because
+<span class="math inline">\(S_{ij}\)</span> and <span class="math inline">\(S_{ji}\)</span> both touch <span class="math inline">\(h_i\)</span>:</p>
+<pre class="highlight"><code>        <span class="n">inner</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">scaled_s</span> <span class="o">*</span> <span class="n">grad_scaled</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">grad_attention</span> <span class="o">=</span> <span class="p">(</span><span class="n">grad_scaled</span> <span class="o">-</span> <span class="n">scaled_s</span> <span class="o">*</span> <span class="n">inner</span><span class="p">)</span> <span class="o">/</span> <span class="n">norm_s</span>
+        <span class="n">inner</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">attention_s</span> <span class="o">*</span> <span class="n">grad_attention</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">grad_scores</span> <span class="o">=</span> <span class="n">attention_s</span> <span class="o">*</span> <span class="p">(</span><span class="n">grad_attention</span> <span class="o">-</span> <span class="n">inner</span><span class="p">)</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">h_s</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">grad_scores</span> <span class="o">+</span> <span class="n">grad_scores</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="o">@</span> <span class="n">h_s</span> <span class="o">*</span> <span class="n">scale</span>
+</code></pre>
+<p>The DKD target term is the binary KL differentiated through the softmax. The
+coefficient is large exactly when the student is confident and wrong:</p>
+<pre class="highlight"><code>        <span class="n">coefficient</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="n">target_t</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">target_s</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+                       <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">target_t</span><span class="p">)</span>
+                       <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">target_s</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">))</span>
+        <span class="n">target_grad</span> <span class="o">=</span> <span class="p">(</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">coefficient</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">probs_s</span>
+                       <span class="o">*</span> <span class="p">(</span><span class="n">onehot</span> <span class="o">-</span> <span class="n">target_s</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])</span> <span class="o">/</span> <span class="n">z_s</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</code></pre>
+<p>The mean-teacher update is the whole of <code>self_distill</code>; there is no gradient
+path into the teacher at all:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"W1"</span><span class="p">,</span> <span class="s2">"b1"</span><span class="p">,</span> <span class="s2">"W2"</span><span class="p">,</span> <span class="s2">"b2"</span><span class="p">):</span>
+            <span class="n">teacher</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="sa">f</span><span class="s2">"teacher.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
+            <span class="n">student</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="sa">f</span><span class="s2">"student.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
+            <span class="n">teacher</span> <span class="o">*=</span> <span class="n">decay</span>
+            <span class="n">teacher</span> <span class="o">+=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">decay</span><span class="p">)</span> <span class="o">*</span> <span class="n">student</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(B\)</span> be the batch, <span class="math inline">\(T\)</span> the tokens, <span class="math inline">\(d\)</span> the input width, <span class="math inline">\(H_s,H_t\)</span> the hidden
+widths, <span class="math inline">\(C\)</span> the classes and <span class="math inline">\(N=B(B-1)/2\)</span>.</p>
+<ul>
+<li><strong>Two MLP passes:</strong> <span class="math inline">\(O(BTdH+BHC)\)</span> forward and the same backward, twice for
+<code>online_distill</code> and once otherwise.</li>
+<li><strong>Response, self, born-again, online:</strong> <span class="math inline">\(O(BC)\)</span> for the KL and its gradient.</li>
+<li><strong>Feature:</strong> <span class="math inline">\(O(BTH_tH_s)\)</span> for the regressor and its gradient; the largest
+per-example term when <span class="math inline">\(H\)</span> is wide.</li>
+<li><strong>Relation:</strong> <span class="math inline">\(O(B^2C)\)</span> for the pairwise distances and <span class="math inline">\(O(B^2)\)</span> for the
+weight matrix, independent of the widths. It is the only variant that
+scales quadratically in the batch.</li>
+<li><strong>Attention transfer:</strong> <span class="math inline">\(O(BT^2H)\)</span> for the scores and their backward.</li>
+<li><strong>DKD:</strong> <span class="math inline">\(O(BC)\)</span>, plus the two masked renormalisations.</li>
+<li><strong>The demo:</strong> batches of 60 to 140, widths up to 16, eight variants. Each
+finite-difference loop evaluates one forward pass per parameter entry, and
+the training blocks run 600 steps over 140 examples. Everything is
+milliseconds except the fitting loops.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A weak teacher teaches weakness.</strong> Every loss here is a divergence from the
+teacher, so a teacher with 0.53 held-out accuracy caps what the student can
+learn from soft targets. The demo's student beats its teacher only because the
+hard labels anchor it; a student trained with <code>alpha = 0</code> would inherit the
+teacher's errors directly.</p>
+<p><strong>Temperature interacts with the loss weight.</strong> The <span class="math inline">\(T^2\)</span> factor keeps the
+gradient scale fixed, but it also scales the reported loss. Tuning <span class="math inline">\(T\)</span> and
+<span class="math inline">\(\alpha\)</span> independently on the loss value rather than held-out accuracy is a
+common way to pick a bad pair.</p>
+<p><strong>The feature regressor can hide a bad student.</strong> <span class="math inline">\(R\)</span> is trained at the same
+time as the student, so it will happily absorb a mismatch the student should
+have fixed — the loss goes to zero while the student's features stay nothing
+like the teacher's. FitNets freezes the hint layer or fixes <span class="math inline">\(R\)</span> for this
+reason.</p>
+<p><strong>Relation losses are invariant to what matters most.</strong> Because the distances
+are normalised by their batch mean, the loss cannot transfer absolute logit
+scale or a rotation of the feature space. That is desirable for robustness and
+bad if the calibration itself is the knowledge.</p>
+<p><strong>Attention maps with few tokens carry almost nothing.</strong> With two tokens each
+row of <span class="math inline">\(A\)</span> has one free parameter, so the transfer is a single number per
+example. Attention transfer was designed for convolutional maps with hundreds
+of spatial positions; here it demonstrates the mechanism, not its power.</p>
+<p><strong>Self-distillation with a stale teacher drifts.</strong> The EMA teacher lags by
+<span class="math inline">\(1/(1-\beta)\)</span> steps. If the student diverges, the teacher keeps pulling it back
+toward the divergence for a while. A very large <span class="math inline">\(\beta\)</span> is stable but slow; a
+small one turns the teacher into a noisy copy of the student.</p>
+<p><strong>Born-again is not a free win.</strong> Each generation inherits its teacher's bias,
+and with a small model on a small dataset the extra rounds can be flat or
+slightly worse. The demo's first generation already sees every label; the
+gain comes from soft targets averaging label noise, not from the recursion
+itself.</p>
+<p><strong>Online distillation needs the symmetric gradient.</strong> Each network's loss
+depends on both logits, so differentiating only the plain difference of
+probabilities is wrong by the log-ratio term in (13). The loss still decreases,
+which is why only a gradient check catches it.</p>
+<p><strong>DKD needs the target index.</strong> TCKD and NCKD are defined relative to the
+ground-truth class, so <code>dkd</code> cannot run without labels; the constructor allows
+<code>y=None</code> and the loss raises instead.</p>
+<p><strong>Numerical zeros in KL.</strong> A teacher that assigns probability exactly zero to a
+class makes <span class="math inline">\(\log p_t\)</span> infinite. Every log here adds <span class="math inline">\(10^{-12}\)</span>, which changes
+the gradient slightly but keeps a saturated teacher from producing NaNs.</p>
+<p><strong>Teacher and student must see the same preprocessing.</strong> Soft targets are
+computed from the teacher's view of the input. Augmenting the student's input
+differently from the teacher's breaks the correspondence silently.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Distillation is the standard way to compress a large model into a deployable
+one: train the teacher once, then fit a smaller student to its outputs. It is
+also the backbone of semi-supervised learning — Noisy Student, self-training
+and mean-teacher methods all generate targets for unlabelled data from a model
+and train on them. FitNets and attention transfer are used when intermediate
+supervision is cheaper than matching outputs, for example when the student has
+a different head.</p>
+<p>DKD and its relatives are now standard in detection and segmentation, where
+the background class dominates and the target/non-target split matters. Deep
+mutual learning trains an ensemble without a pretrained teacher, and born-again
+networks are a cheap way to squeeze another point from a fixed architecture.
+The same recipes scale to language models, where a small model is distilled
+from a large one's token distributions instead of its labels.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Hinton, G., Vinyals, O., Dean, J. (2015). <em>Distilling the knowledge in a
+neural network.</em> arXiv:1503.02531. The temperature and the response loss,
+equations (1)–(3).</li>
+<li>Romero, A., Ballas, N., Kahou, S. E., Chassang, A., Gatta, C., Bengio, Y.
+(2015). <em>FitNets: hints for thin deep nets.</em> ICLR. Equation (4).</li>
+<li>Park, W., Kim, D., Lu, Y., Cho, M. (2019). <em>Relational knowledge
+distillation.</em> CVPR. Distance-wise and angle-wise potentials, (5)–(6).</li>
+<li>Zagoruyko, S., Komodakis, N. (2017). <em>Paying more attention to attention.</em>
+ICLR. Attention transfer, equation (7).</li>
+<li>Zhao, B., Cui, Q., Song, R., Qiu, Y., Liang, J. (2022). <em>Decoupled knowledge
+distillation.</em> CVPR. TCKD and NCKD, (8)–(11).</li>
+<li>Zhang, Y., Xiang, T., Hospedales, T. M., Lu, H. (2018). <em>Deep mutual
+learning.</em> CVPR. The symmetric KL of (12)–(13).</li>
+<li>Tarvainen, A., Valpola, H. (2017). <em>Mean teachers are better role models.</em>
+NeurIPS. The EMA teacher of (14).</li>
+<li>Furlanello, T., Lipton, Z. C., Tschannen, M., Anandkumar, A. (2018).
+<em>Born-again neural networks.</em> ICML. The generation recursion of (15).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="backprop.html"><small>Previous</small><span>Backpropagation</span></a><a class="next" href="checkpointing.html"><small>Next</small><span>Gradient checkpointing</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html" aria-current="page"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-response-loss">The response loss</a></li><li class="lvl3"><a href="#feature-distillation">Feature distillation</a></li><li class="lvl3"><a href="#relation-distillation">Relation distillation</a></li><li class="lvl3"><a href="#attention-transfer">Attention transfer</a></li><li class="lvl3"><a href="#decoupled-knowledge-distillation">Decoupled knowledge distillation</a></li><li class="lvl3"><a href="#symmetric-kl-for-online-distillation">Symmetric KL for online distillation</a></li><li class="lvl3"><a href="#self-distillation-and-born-again">Self-distillation and born-again</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/distillation.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

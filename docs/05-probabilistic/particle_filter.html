@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Particle filter · MLAtoms</title>
+<meta name="description" content="Sequential Monte Carlo for nonlinear, non-Gaussian state. A Kalman filter represents the belief with a mean and a covariance, and that is only correct when…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/particle_filter.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Particle filter">
+<meta property="og:description" content="Sequential Monte Carlo for nonlinear, non-Gaussian state. A Kalman filter represents the belief with a mean and a covariance, and that is only correct when…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/particle_filter.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Particle filter">
+<meta name="twitter:description" content="Sequential Monte Carlo for nonlinear, non-Gaussian state. A Kalman filter represents the belief with a mean and a covariance, and that is only correct when…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Particle filter", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/particle_filter.html", "description": "Sequential Monte Carlo for nonlinear, non-Gaussian state. A Kalman filter represents the belief with a mean and a covariance, and that is only correct when\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="particle_filter.py.html">source</a></p><h1>Particle filter</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A Kalman filter represents the belief with a mean and a covariance, and that is
+only correct when the model is linear and the noise is Gaussian. A particle
+filter represents the same belief with samples — a few thousand state values,
+each carrying a weight — and is correct when the samples are, which is to say
+asymptotically, at a rate of <span class="math inline">\(1/\sqrt{N}\)</span> and with no assumptions about shape.</p>
+<p>The mechanism is Bayes' rule applied to a list. Each particle is a hypothesis
+about the state. Move every hypothesis through the dynamics; score it by how
+well it predicted what you just observed; renormalise. The posterior is the
+weighted cloud.</p>
+<div class="math block">
+\[w_t^i \;\propto\; w_{t-1}^i\, g\!\left(z_t \mid x_t^i\right) \qquad (1)\]
+</div>
+<p>The problem is that scoring is multiplicative, and so is the decay. After a few
+observations a handful of particles hold essentially all the weight, and <span class="math inline">\(N-10\)</span>
+particles are computing nothing. The demo measures it exactly: without
+resampling, the effective sample size of 4000 particles falls from 2772 to
+<strong>1.2</strong> over 40 steps. Resampling is the fix — duplicate the particles that
+survived, in proportion to their weight, and reset all weights to <span class="math inline">\(1/N\)</span> — and it
+is not optional.</p>
+<p>Everything in this file follows from that one tension. Resample too often and
+you lose diversity (the same particle copied <span class="math inline">\(N\)</span> times); too rarely and the
+weights degenerate. Resample well and you spend fewer particles; resample poorly
+and you add noise for nothing.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Resamples</th>
+<th style="text-align:left">Ancestors drawn by</th>
+<th style="text-align:left">Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>sir</code></td>
+<td style="text-align:left">when <code>ESS &lt; 0.5 N</code></td>
+<td style="text-align:left">multinomial</td>
+<td style="text-align:left">the default: bootstrap filter</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sis</code></td>
+<td style="text-align:left">never</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">a short sequence, or as a baseline to show degeneracy</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>auxiliary_pf</code></td>
+<td style="text-align:left">every step, <em>before</em> propagating</td>
+<td style="text-align:left">first-stage predictive weights</td>
+<td style="text-align:left">the likelihood is informative and you can afford <code>p(z_t\mid x_{t-1})</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>systematic_resample</code></td>
+<td style="text-align:left">when <code>ESS &lt; 0.5 N</code></td>
+<td style="text-align:left">one uniform, <span class="math inline">\(N\)</span> evenly spaced positions</td>
+<td style="text-align:left">the standard low-variance choice</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>stratified_resample</code></td>
+<td style="text-align:left">when <code>ESS &lt; 0.5 N</code></td>
+<td style="text-align:left">one uniform per stratum</td>
+<td style="text-align:left">same variance as systematic, slightly easier to parallelise</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>regularized_pf</code></td>
+<td style="text-align:left">when <code>ESS &lt; 0.5 N</code></td>
+<td style="text-align:left">multinomial + kernel jitter</td>
+<td style="text-align:left">the transition is nearly deterministic, or the state is continuous and the cloud collapses</td>
+</tr>
+</tbody>
+</table>
+<p>The split is not along &quot;accuracy&quot; — all six target the same posterior. It is
+along <em>where the variance goes</em>: <code>sir</code> spends it on weight noise, <code>auxiliary_pf</code>
+spends it on a better proposal, <code>systematic_resample</code> spends it on the resampling
+step, and <code>regularized_pf</code> spends a little bias to buy back diversity.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-importance-sampling-sequentially">1. Importance sampling, sequentially <a class="header-anchor" href="#1-importance-sampling-sequentially">#</a></h3>
+<p>We want <span class="math inline">\(\pi_t(x_{1:t}) = p(x_{1:t} \mid z_{1:t})\)</span>, which is proportional to the
+joint <span class="math inline">\(p(x_{1:t}, z_{1:t})\)</span> and normalised by the evidence. Draw from a proposal
+<span class="math inline">\(q(x_{1:t})\)</span> you <em>can</em> sample — here the transition prior — and correct with</p>
+<div class="math block">
+\[w_t = \frac{p(x_{1:t}, z_{1:t})}{q(x_{1:t})} = \frac{p(x_t \mid x_{t-1})\,g(z_t \mid x_t)}{q(x_t \mid x_{1:t-1})}\,\frac{p(x_{1:t-1}, z_{1:t-1})}{q(x_{1:t-1})} \qquad (2)\]
+</div>
+<p>The second factor is yesterday's weight, so the weights update multiplicatively
+by an <em>incremental</em> factor. With the bootstrap proposal
+<span class="math inline">\(q(x_t \mid x_{1:t-1}) = p(x_t \mid x_{t-1})\)</span>, that factor is exactly the
+likelihood — which is (1), and the reason the file takes a <code>transition</code> that
+samples rather than a density.</p>
+<h3 id="2-the-evidence-comes-free">2. The evidence comes free <a class="header-anchor" href="#2-the-evidence-comes-free">#</a></h3>
+<p>The normalising constant of the weighted cloud at step <span class="math inline">\(t\)</span> is an estimate of the
+predictive likelihood:</p>
+<div class="math block">
+\[\widehat{p}(z_t \mid z_{1:t-1}) = \sum_i w_{t-1}^i\, g\!\left(z_t \mid x_t^i\right), \qquad \widehat{p}(z_{1:T}) = \prod_{t=1}^{T}\widehat{p}(z_t \mid z_{1:t-1}) \qquad (3)\]
+</div>
+<p>This estimator is unbiased for <span class="math inline">\(p(z_{1:T})\)</span>, which is a strong statement with a
+sharp practical edge: <span class="math inline">\(\log\widehat{p}\)</span> is <em>not</em> unbiased, and its bias is
+downward by roughly <span class="math inline">\(\mathrm{Var}(\widehat{p})/2p^2\)</span>. That is why the demo
+compares a single run's number, <span class="math inline">\(-57.06\)</span> against the exact <span class="math inline">\(-57.23\)</span>, rather than
+averaging logs.</p>
+<p>The product form is also the reason a particle filter can be used as a likelihood
+inside a parameter sampler: fix <span class="math inline">\(\theta\)</span>, filter, and (3) is a noisy but unbiased
+<span class="math inline">\(p(z \mid \theta)\)</span>.</p>
+<h3 id="3-effective-sample-size">3. Effective sample size <a class="header-anchor" href="#3-effective-sample-size">#</a></h3>
+<p>The variance of the weights is what destroys the estimate, and it is measurable
+without knowing the truth:</p>
+<div class="math block">
+\[\mathrm{ESS} = \frac{1}{\sum_i \left(w_t^i\right)^2}, \qquad 1 \le \mathrm{ESS} \le N \qquad (4)\]
+</div>
+<p>Equal weights give <span class="math inline">\(N\)</span>; a single particle holding all the weight gives 1. The
+threshold in the code is a fraction of <span class="math inline">\(N\)</span> — resample when the cloud is carrying
+fewer than half the particles' worth of information. Note what ESS does <em>not</em>
+say: it is the size of an equally-weighted sample with the same weight variance,
+not the number of particles that represent the posterior well. A cloud of 2000
+distinct particles all in the wrong place has a healthy ESS.</p>
+<h3 id="4-resampling-and-why-systematic-is-better">4. Resampling, and why systematic is better <a class="header-anchor" href="#4-resampling-and-why-systematic-is-better">#</a></h3>
+<p>Resampling draws ancestors <span class="math inline">\(a_i \sim \mathrm{Categorical}(w)\)</span>. Multinomial draws
+<span class="math inline">\(N\)</span> independent uniforms and inverts the CDF. Systematic draws <strong>one</strong> uniform
+<span class="math inline">\(u \sim U[0, 1/N)\)</span> and takes positions <span class="math inline">\(u, u + 1/N, \dots\)</span>; stratified draws one
+uniform inside each stratum <span class="math inline">\([i/N, (i+1)/N)\)</span>.</p>
+<p>All three are unbiased. Their variances differ, and the difference has an exact
+consequence: with uniform weights <span class="math inline">\(w_i = 1/N\)</span> the CDF is <span class="math inline">\(i/N\)</span>, and the systematic
+positions <span class="math inline">\(u + i/N\)</span> land one per interval — <strong>every particle is copied exactly
+once</strong>. Multinomial scatters counts around 1 with variance <span class="math inline">\(1 - 1/N\)</span>. The demo
+asserts the exact property for both low-variance schemes (all counts equal 1) and
+shows multinomial producing up to 4 copies of a particle, which is noise injected
+into a cloud that was already correct.</p>
+<p>This is the &quot;variance of the resampling step&quot;, and it is why systematic
+resampling is the default in every serious implementation.</p>
+<h3 id="5-the-auxiliary-filter">5. The auxiliary filter <a class="header-anchor" href="#5-the-auxiliary-filter">#</a></h3>
+<p>The bootstrap proposal ignores the next observation when it decides where to put
+particles. If the likelihood is narrow, most particles land where <span class="math inline">\(g\)</span> is tiny and
+the weights collapse. The auxiliary filter (Pitt &amp; Shephard) moves the decision
+one step earlier:</p>
+<div class="math block">
+\[\lambda_i \;\propto\; w_{t-1}^i\, p\!\left(z_t \mid x_{t-1}^i\right) \qquad (5)\]
+</div>
+<p>where <span class="math inline">\(p(z_t \mid x_{t-1})\)</span> is the <em>predictive</em> likelihood, with the transition
+integrated out. Sample ancestors by <span class="math inline">\(\lambda\)</span>, propagate them, then correct:</p>
+<div class="math block">
+\[w_t^i \;\propto\; \frac{g\!\left(z_t \mid x_t^i\right)}{p\!\left(z_t \mid x_{t-1}^{a_i}\right)} \qquad (6)\]
+</div>
+<p>and the evidence increment is the normaliser of (5). The demo needs an extra
+argument — <code>log_predictive</code> — because that integrated likelihood is exactly what
+the bootstrap filter never computes. With it, the spread of <span class="math inline">\(\log\widehat{p}\)</span>
+across 40 seeds falls from <span class="math inline">\(0.277\)</span> to <span class="math inline">\(0.107\)</span> nats at the same particle count: the
+same estimate, a quarter of the variance.</p>
+<h3 id="6-regularisation">6. Regularisation <a class="header-anchor" href="#6-regularisation">#</a></h3>
+<p>Resampling copies particles, so a nearly deterministic transition produces
+duplicates that stay duplicates. At the end of the demo run, the plain filter has <strong>19 distinct values out of
+500</strong>; the rest are copies. The fix is to
+jitter after resampling, with a kernel whose bandwidth is the standard
+rule-of-thumb for kernel density estimation:</p>
+<div class="math block">
+\[x^{i} \leftarrow x^{i} + h\,L\,\varepsilon_i, \qquad h = \left(\frac{4}{N(d+2)}\right)^{1/(d+4)} \qquad (7)\]
+</div>
+<p>with <span class="math inline">\(LL^{\top}\)</span> the empirical covariance of the cloud and
+<span class="math inline">\(\varepsilon_i \sim N(0, I)\)</span>. This is Silverman's rule-of-thumb bandwidth. It introduces a small bias — you are smoothing the posterior — in
+exchange for the diversity the next likelihood evaluation needs. The demo asserts
+both halves: 500 distinct particles instead of 19, and a mean that agrees with
+the unregularised filter to <span class="math inline">\(0.005\)</span>.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The public surface is a frozenset and one function; the model arrives as three
+callables, which is what makes the same code work for any state space.</p>
+<pre class="highlight"><code><span class="n">VARIANTS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">[</span><span class="s2">"sir"</span><span class="p">,</span> <span class="s2">"sis"</span><span class="p">,</span> <span class="s2">"auxiliary_pf"</span><span class="p">,</span> <span class="s2">"systematic_resample"</span><span class="p">,</span> <span class="s2">"stratified_resample"</span><span class="p">,</span>
+     <span class="s2">"regularized_pf"</span><span class="p">]</span>
+<span class="p">)</span>
+</code></pre>
+<p><code>init</code> draws from the prior, <code>transition</code> propagates the <em>whole cloud</em> in one
+vectorised call (state noise included, which is why it takes an <code>rng</code> rather than
+a covariance), and <code>log_likelihood</code> scores every particle against one
+observation. That signature is the entire interface to the model.</p>
+<p>The loop is the algorithm. Note where the evidence increment sits: it is the
+normaliser of the weights <em>before</em> they are normalised, computed with
+<code>logsumexp</code> so that a weight of <span class="math inline">\(e^{-800}\)</span> is a small number and not a zero.</p>
+<pre class="highlight"><code>        <span class="k">else</span><span class="p">:</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">transition</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">rng</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">lw</span> <span class="o">=</span> <span class="n">lw</span> <span class="o">+</span> <span class="n">log_likelihood</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">X</span><span class="p">)</span>
+            <span class="n">loglik</span> <span class="o">+=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+            <span class="n">lw</span> <span class="o">-=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+</code></pre>
+<p>The auxiliary branch is (5)–(6) and reads as an inversion of the bootstrap order.
+It adds the predictive log-likelihood to the <em>ancestor</em> weights, resamples on
+that, propagates, and then subtracts the same quantity from the descendants,
+which is (6) in log space.</p>
+<pre class="highlight"><code>            <span class="n">lpred</span> <span class="o">=</span> <span class="n">log_predictive</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">X</span><span class="p">)</span>
+            <span class="n">lw</span> <span class="o">=</span> <span class="n">lw</span> <span class="o">+</span> <span class="n">lpred</span>
+            <span class="n">loglik</span> <span class="o">+=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+            <span class="n">lw</span> <span class="o">-=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">_resample</span><span class="p">(</span><span class="n">lw</span><span class="p">,</span> <span class="s2">"systematic"</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">transition</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">rng</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">n_resample</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">lw</span> <span class="o">=</span> <span class="n">log_likelihood</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">X</span><span class="p">)</span> <span class="o">-</span> <span class="n">lpred</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="n">lw</span> <span class="o">-=</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">lw</span><span class="p">)</span>
+</code></pre>
+<p>The three resampling schemes are four lines each because they differ only in
+where the uniforms are placed. <code>np.searchsorted</code> on the CDF is the inverse-CDF
+transform, and it returns <code>N</code> ancestors rather than <code>N</code> distinct particles —
+duplicates are the point.</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">scheme</span> <span class="o">==</span> <span class="s2">"multinomial"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">N</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">scheme</span> <span class="o">==</span> <span class="s2">"systematic"</span><span class="p">:</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">N</span><span class="p">))</span> <span class="o">/</span> <span class="n">N</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">scheme</span> <span class="o">==</span> <span class="s2">"stratified"</span><span class="p">:</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">N</span><span class="p">)</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">N</span><span class="p">))</span> <span class="o">/</span> <span class="n">N</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+</code></pre>
+<p><code>cdf[-1] = 1.0</code> is the one defensive line: <code>cumsum</code> of <span class="math inline">\(N\)</span> floats can land a ulp
+below 1, and a uniform draw in that last ulp would return index <span class="math inline">\(N\)</span> and crash the
+next gather.</p>
+<p>The weighted moments are a single expression, and the <code>w[:, None]</code> is what makes
+it a covariance rather than a scalar product. This is the &quot;estimate&quot; the filter
+returns — everything else in <code>PFResult</code> is diagnostics.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_weighted_cov</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""`Σ_i w_i (x_i − m)(x_i − m)ᵀ` for a weighted cloud, shape `(d, d)`."""</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">w</span> <span class="o">@</span> <span class="n">X</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="n">X</span> <span class="o">-</span> <span class="n">m</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">Z</span> <span class="o">*</span> <span class="n">w</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Z</span>
+</code></pre>
+<p>Regularisation is (7). The <code>1e-12 I</code> is not cosmetic: after resampling the
+empirical covariance can be singular (all copies identical), and a Cholesky of a
+singular matrix raises. Falling back to returning the cloud unchanged is the
+honest behaviour — jitter with an undefined bandwidth is worse than none.</p>
+<pre class="highlight"><code>    <span class="n">h</span> <span class="o">=</span> <span class="n">factor</span> <span class="o">*</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">N</span> <span class="o">*</span> <span class="p">(</span><span class="n">d</span> <span class="o">+</span> <span class="mf">2.0</span><span class="p">)))</span> <span class="o">**</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">d</span> <span class="o">+</span> <span class="mf">4.0</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">cov</span> <span class="o">+</span> <span class="mf">1e-12</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+    <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">X</span>
+    <span class="k">return</span> <span class="n">X</span> <span class="o">+</span> <span class="n">h</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="n">N</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span> <span class="o">@</span> <span class="n">L</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(N\)</span> particles, <span class="math inline">\(d\)</span> states, <span class="math inline">\(m\)</span> observations and <span class="math inline">\(T\)</span> steps, letting <span class="math inline">\(c_x\)</span> be
+the cost of one transition sample and <span class="math inline">\(c_g\)</span> one likelihood evaluation:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:right">Resampling steps</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>sir</code>, <code>systematic_resample</code>, <code>stratified_resample</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T(N(c_x + c_g) + N\log N))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(Nd + Td^2)\)</span></td>
+<td style="text-align:right"><span class="math inline">\(O(T\,\Pr[\mathrm{ESS}<\tau N])\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sis</code></td>
+<td style="text-align:left"><span class="math inline">\(O(TN(c_x + c_g))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(Nd + Td^2)\)</span></td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>auxiliary_pf</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T(N(c_x + c_g + c_p) + N\log N))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(Nd + Td^2)\)</span></td>
+<td style="text-align:right"><span class="math inline">\(T\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>regularized_pf</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T(N(c_x + c_g) + Nd^2 + d^3))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(Nd + Td^2)\)</span></td>
+<td style="text-align:right">as <code>sir</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <span class="math inline">\(N\log N\)</span> is the <code>searchsorted</code> (a binary search per ancestor); a linear-time
+CDF walk is possible but only wins at large <span class="math inline">\(N\)</span>. <code>regularized_pf</code> adds a <span class="math inline">\(d\times
+d\)</span> Cholesky per resampling, which is negligible unless <span class="math inline">\(d\)</span> is large — and if <span class="math inline">\(d\)</span>
+is large, a particle filter is the wrong tool anyway.</p>
+<p>The cost that matters is not in the table: the number of particles needed for a
+given accuracy grows exponentially in <span class="math inline">\(d\)</span> (Section 5 of the failure modes). In
+one dimension, 1000 particles are plenty; in twenty, <span class="math inline">\(N\)</span> must be in the millions
+before the weights stop degenerating.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Weight degeneracy.</strong> The default failure, and the one the demo makes visible:
+without resampling ESS falls from 2772 to 1.2, so the posterior is being carried
+by one particle. The estimates do not look broken — they look confident — which
+is why the ESS trace must be plotted, not inferred from the output. <em>Diagnostic:</em>
+<code>ess</code> in the result; anything below <span class="math inline">\(0.1N\)</span> for several consecutive steps means
+the proposal is not putting particles where the data is.</p>
+<p><strong>Sample impoverishment.</strong> The mirror image: resample a nearly deterministic
+model and the cloud becomes 19 copies of one number, so the filter can no longer
+respond to new data and reports a variance far too small. <em>Diagnostic:</em> count
+<code>np.unique</code> on returned particles; <em>fix:</em> <code>regularized_pf</code>, or a better proposal
+(the auxiliary filter), or just more process noise — if the model allows it.</p>
+<p><strong>The curse of dimensionality.</strong> The variance of the incremental weights is
+<span class="math inline">\(O(1)\)</span> <em>per dimension</em> for the bootstrap proposal, so the number of particles
+needed for a fixed ESS grows exponentially in <span class="math inline">\(d\)</span> (Bengtsson, Bickel &amp; Li). Ten
+dimensions is comfortable; a hundred is hopeless without a proposal that exploits
+structure — the auxiliary filter, a locally optimal proposal, or a
+Rao-Blackwellised filter that marginalises the linear-Gaussian part.</p>
+<p><strong>Resampling bias in the wrong place.</strong> Resampling every step is legal but adds
+variance for nothing when the weights are still healthy, and it is what drives
+impoverishment. Resampling never is also legal and degenerates. The threshold is
+the whole design decision, and there is no universal value: the file defaults to
+<span class="math inline">\(0.5N\)</span> and the demo shows both extremes.</p>
+<p><strong>A likelihood that is too narrow for the proposal.</strong> If <span class="math inline">\(R \ll Q\)</span>, the
+observation is so precise that a propagated particle is never near it, every
+weight is <span class="math inline">\(e^{-100}\)</span>, and float32-style underflow — or, in log space, a single
+particle holding all the weight — is guaranteed rather than occasional. The
+auxiliary filter and locally optimal proposals exist for this case; so does the
+much simpler fix of inflating the process noise and admitting the model is wrong.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Target tracking.</strong> The original application (Gordon, Salmond &amp; Smith, 1993) and
+still the most common: bearings-only tracking, where the observation is an angle
+and the posterior is a banana that no Gaussian can hold. Add multiple targets and
+the state space becomes multimodal, which is exactly what particles are for.</p>
+<p><strong>Robot localisation.</strong> Monte Carlo localisation with a map: particles are poses,
+the likelihood is a laser scan. Thousands of hypotheses, and the reason the
+method is in every ROS stack. The failure mode is famous — a robot kidnapped and
+moved, whose particle cloud confidently reports the wrong room — and it is why
+&quot;augmented MCL&quot; injects random particles on purpose.</p>
+<p><strong>Econometrics and finance.</strong> Stochastic volatility models are nonlinear state
+space models with a latent variance: <span class="math inline">\(y_t = e^{h_t/2}\varepsilon_t\)</span>,
+<span class="math inline">\(h_t = \mu + \phi(h_{t-1} - \mu) + \sigma\eta_t\)</span>. The particle filter gives the
+likelihood, and PMCMC puts it inside a parameter sampler.</p>
+<p><strong>Data assimilation and ecology.</strong> Weather and ocean models run ensemble filters
+with <span class="math inline">\(10^6\)</span>–<span class="math inline">\(10^8\)</span> states; animal movement models fit hidden behavioural states
+to telemetry. Both are state space models where the transition is a simulator,
+which is the case this file's <code>transition</code> callable is designed for.</p>
+<p><strong>Nested inference.</strong> Andrieu, Doucet &amp; Holenstein's particle MCMC uses (3) as an
+unbiased likelihood estimate inside Metropolis–Hastings, which makes the sampler
+exact for the static parameters — the reason a particle filter is often a
+component rather than a whole method.</p>
+<p>Where it is a trap: low dimension with a linear-Gaussian model, where
+<a href="kalman.py.html"><code>kalman.py</code></a> is exact and cheaper by orders of magnitude; and any
+problem where the posterior is smooth and unimodal, where a Laplace
+approximation or <a href="variational_inference.py.html"><code>variational_inference.py</code></a> will
+answer in a fraction of the time.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Gordon, Salmond &amp; Smith (1993). <em>Novel approach to nonlinear/non-Gaussian
+Bayesian state estimation.</em> IEE Proceedings F 140, 107. The bootstrap filter.</li>
+<li>Kitagawa (1996). <em>Monte Carlo smoother and filter for non-Gaussian nonlinear
+state space models.</em> Journal of Computational and Graphical Statistics 5, 1.
+Resampling and the smoother, independently.</li>
+<li>Liu &amp; Chen (1998). <em>Sequential Monte Carlo methods for dynamic systems.</em> JASA
+93, 1032. The unifying importance-sampling view, and the ESS.</li>
+<li>Pitt &amp; Shephard (1999). <em>Filtering via simulation: auxiliary particle
+filters.</em> JASA 94, 590. The auxiliary filter, (5)–(6).</li>
+<li>Carpenter, Clifford &amp; Fearnhead (1999). <em>Improved particle filter for nonlinear
+problems.</em> IEE Proceedings Radar, Sonar and Navigation 146, 2. Systematic
+resampling, and why it wins.</li>
+<li>Doucet, de Freitas &amp; Gordon (2001). <em>Sequential Monte Carlo Methods in
+Practice.</em> Springer. The reference collection; Chapter 1 is this file.</li>
+<li>Musso, Oudjane &amp; Le Gland (2001). <em>Improving regularised particle filters.</em> In
+<em>Sequential Monte Carlo Methods in Practice.</em> The kernel jitter of (7).</li>
+<li>Bengtsson, Bickel &amp; Li (2008). <em>Curse-of-dimensionality revisited: collapse of
+the particle filter in very large scale systems.</em> IMS Collections 2, 316. The
+exponential-in-<span class="math inline">\(d\)</span> statement, with constants.</li>
+<li>Andrieu, Doucet &amp; Holenstein (2010). <em>Particle Markov chain Monte Carlo
+methods.</em> JRSS-B 72, 269. PMCMC, and the unbiased-likelihood argument.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="kalman.html"><small>Previous</small><span>Kalman filter</span></a><a class="next" href="hierarchical_bayes.html"><small>Next</small><span>Hierarchical Bayes</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html" aria-current="page"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-importance-sampling-sequentially">1. Importance sampling, sequentially</a></li><li class="lvl3"><a href="#2-the-evidence-comes-free">2. The evidence comes free</a></li><li class="lvl3"><a href="#3-effective-sample-size">3. Effective sample size</a></li><li class="lvl3"><a href="#4-resampling-and-why-systematic-is-better">4. Resampling, and why systematic is better</a></li><li class="lvl3"><a href="#5-the-auxiliary-filter">5. The auxiliary filter</a></li><li class="lvl3"><a href="#6-regularisation">6. Regularisation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/particle_filter.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

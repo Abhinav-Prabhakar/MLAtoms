@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>State-space models · MLAtoms</title>
+<meta name="description" content="Linear recurrences that parallelise like convolutions. A state-space model carries a vector of numbers from step to step. At each step it mixes the old state…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/ssm.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="State-space models">
+<meta property="og:description" content="Linear recurrences that parallelise like convolutions. A state-space model carries a vector of numbers from step to step. At each step it mixes the old state…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/ssm.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="State-space models">
+<meta name="twitter:description" content="Linear recurrences that parallelise like convolutions. A state-space model carries a vector of numbers from step to step. At each step it mixes the old state…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "State-space models", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/ssm.html", "description": "Linear recurrences that parallelise like convolutions. A state-space model carries a vector of numbers from step to step. At each step it mixes the old state\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">10 · Sequences</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="ssm.py.html">source</a></p><h1>State-space models — convolution, scan and selection</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A state-space model carries a vector of numbers from step to step. At each step
+it mixes the old state with the new input, then reads an output out of the state:</p>
+<pre class="highlight"><code> x_t ──► B ──►(+)──► h_t ──► C ──► y_t
+              ▲     │
+              └── A ┘
+</code></pre>
+<p>Two linear maps and a sum. Because the map is the same at every step, the whole
+sequence is a convolution: the impulse response is
+<span class="math inline">\(K_j=C A^j B\)</span>, and the output is the input convolved with <span class="math inline">\(K\)</span>. That gives three
+equivalent ways to compute the same numbers — a recurrence, a convolution, and a
+matrix power — and the demo checks that they agree to rounding.</p>
+<p>The point of the family is what <span class="math inline">\(A\)</span> is. A diagonal <span class="math inline">\(A\)</span> makes <span class="math inline">\(A^j\)</span> a list of
+powers, so the kernel is a sum of exponentials and the layer is cheap. A dense
+<span class="math inline">\(A\)</span> can be diagonalised once as <span class="math inline">\(A=V\Lambda V^{-1}\)</span>, which is the same model in
+another basis. The HiPPO initialisation chooses a particular dense <span class="math inline">\(A\)</span> whose state
+is a compressed history of the input: a coefficient vector for a Legendre
+expansion, with a kernel that decays slowly and keeps a usable memory of old
+inputs. S4 is the diagonalised HiPPO, S4D is a diagonal model with a frequency
+grid in place of the eigen-decomposition, and S5 is the same diagonal model
+applied with a parallel scan instead of a convolution.</p>
+<p>The scan is the second idea. A linear recurrence looks serial, but the update is
+an associative operation on pairs: composing <span class="math inline">\((a_1,b_1)\)</span> with <span class="math inline">\((a_2,b_2)\)</span> gives
+<span class="math inline">\((a_1a_2,\ a_2b_1+b_2)\)</span>. Associativity means the steps can be paired in a tree,
+so a sequence of length <span class="math inline">\(L\)</span> is scanned in <span class="math inline">\(\log L\)</span> rounds instead of <span class="math inline">\(L\)</span>. On a
+GPU that is the difference between a kernel launch per step and one scan.</p>
+<p>Selection is the third idea, and it is the one that breaks the convolution.
+Mamba makes the step size <span class="math inline">\(\Delta_t\)</span>, the input map <span class="math inline">\(B_t\)</span> and the output map
+<span class="math inline">\(C_t\)</span> depend on the current input. The recurrence is still linear in the state,
+but it is no longer linear in the input, so there is no fixed kernel and no FFT.
+What it buys is a gate: a large input opens the decay, so the state forgets
+quickly; a quiet input keeps it. The demo measures this directly — perturbing the
+first token leaves <span class="math inline">\(14\%\)</span> of its trace at step ten when nothing follows, and
+<span class="math inline">\(7.7\%\)</span> when a large input arrives at step four.</p>
+<p>The last observation is the one that surprises people. Give a random input to
+HiPPO, to S4 and to a plain diagonal model of the same state size, and fit a
+linear readout that decodes the input at lag <span class="math inline">\(k\)</span> from the state. All three score
+identically, to <span class="math inline">\(6.7\times10^{-13}\)</span>: <span class="math inline">\(0.606\)</span> at lag one and <span class="math inline">\(0.165\)</span> at lag
+sixteen. With one input channel and a linear readout, any two controllable
+state-space models of the same dimension span the same <span class="math inline">\(N\)</span>-dimensional space of
+finite filters. The initialisation changes the basis and the conditioning, not
+the linear memory. What actually differs is the cost of applying the model and,
+once selection enters, the class of computations it can express.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">A</th>
+<th style="text-align:left">applied by</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>hippo</code></td>
+<td style="text-align:left">dense HiPPO-LegS</td>
+<td style="text-align:left">convolution, <span class="math inline">\(O(LN^2)\)</span> kernel</td>
+<td style="text-align:left">designed, long</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>s4</code></td>
+<td style="text-align:left">HiPPO diagonalised</td>
+<td style="text-align:left">convolution, <span class="math inline">\(O(LN)\)</span> kernel</td>
+<td style="text-align:left">same as HiPPO</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>s4d</code></td>
+<td style="text-align:left">diagonal, frequency grid</td>
+<td style="text-align:left">convolution</td>
+<td style="text-align:left">tunable decay</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>diagonal_ssm</code></td>
+<td style="text-align:left">diagonal, real rates</td>
+<td style="text-align:left">convolution</td>
+<td style="text-align:left">exponential</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>s5</code></td>
+<td style="text-align:left">diagonal, complex</td>
+<td style="text-align:left">parallel scan</td>
+<td style="text-align:left">exponential</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>parallel_scan</code></td>
+<td style="text-align:left">diagonal, random</td>
+<td style="text-align:left">parallel scan</td>
+<td style="text-align:left">exponential</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mamba_selective</code></td>
+<td style="text-align:left">diagonal, scaled step</td>
+<td style="text-align:left">sequential</td>
+<td style="text-align:left">input-dependent</td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid-source"><code class="language-mermaid">graph TD
+  A[state space] --&gt; B[linear time invariant]
+  A --&gt; C[selective]
+  B --&gt; B1[hippo]
+  B --&gt; B2[s4]
+  B --&gt; B3[s4d]
+  B --&gt; B4[diagonal_ssm]
+  B --&gt; B5[s5]
+  B --&gt; B6[parallel_scan]
+  C --&gt; C1[mamba_selective]
+</code></pre>
+<p><strong><code>hippo</code></strong> builds the HiPPO-LegS matrix and applies it as a convolution. The
+matrix is dense, so building the kernel costs <span class="math inline">\(O(LN^2)\)</span>, and the state is a
+compressed history with a designed basis.</p>
+<p><strong><code>s4</code></strong> diagonalises that matrix. The eigenvalues are complex, the change of
+basis moves <span class="math inline">\(B\)</span> and <span class="math inline">\(C\)</span>, and the kernel becomes a sum of <span class="math inline">\(N\)</span> exponentials. The
+demo checks that it reproduces the HiPPO kernel to <span class="math inline">\(2.4\times10^{-12}\)</span>.</p>
+<p><strong><code>s4d</code></strong> starts from a diagonal complex <span class="math inline">\(A\)</span> with eigenvalues on a frequency
+grid. There is no eigen-decomposition to do and no dense matrix to store; it is
+the simplest model that keeps the oscillatory structure.</p>
+<p><strong><code>diagonal_ssm</code></strong> uses a real diagonal with a geometric spread of decay rates.
+It is the easiest variant to reason about, and its kernel has a closed form.</p>
+<p><strong><code>s5</code></strong> applies the diagonal model with the parallel scan. The mathematics is
+identical to <code>s4d</code>; the difference is the computation, and the demo checks that
+the two agree.</p>
+<p><strong><code>parallel_scan</code></strong> is the scan itself on a random diagonal model. It is the
+variant to read when the point is the algorithm rather than the
+parameterisation.</p>
+<p><strong><code>mamba_selective</code></strong> makes the step size and the input and output maps depend on
+the input. It is the only variant without a fixed kernel, and the only one that
+can choose what to remember.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="from-recurrence-to-convolution">From recurrence to convolution <a class="header-anchor" href="#from-recurrence-to-convolution">#</a></h3>
+<p>Let <span class="math inline">\(x_t\in\mathbb{R}\)</span>, <span class="math inline">\(h_t\in\mathbb{R}^{N}\)</span>, <span class="math inline">\(A\in\mathbb{R}^{N\times N}\)</span> and
+<span class="math inline">\(B,C\in\mathbb{R}^{N}\)</span>. The layer is</p>
+<div class="math block">
+\[h_t=A h_{t-1}+B x_t,\qquad y_t=C^{\top}h_t,
+\qquad (1)\]
+</div>
+<p>with <span class="math inline">\(h_{-1}=0\)</span>. Unrolling the recurrence gives</p>
+<div class="math block">
+\[h_t=\sum_{j=0}^{t}A^{j}B\,x_{t-j},
+\qquad
+y_t=\sum_{j=0}^{t}\big(C^{\top}A^{j}B\big)x_{t-j}.
+\qquad (2)\]
+</div>
+<p>So the output is a causal convolution of the input with the kernel</p>
+<div class="math block">
+\[K_j=C^{\top}A^{j}B,\qquad j\ge0.
+\qquad (3)\]
+</div>
+<p>Causality is built in: <span class="math inline">\(K_j\)</span> only ever multiplies a past input. The generating
+function of the kernel is the transfer function</p>
+<div class="math block">
+\[K(z)=\sum_{j\ge0}K_j z^{j}=C^{\top}(I-zA)^{-1}B,
+\qquad (4)\]
+</div>
+<p>which is where the poles of the system live: the eigenvalues of <span class="math inline">\(A\)</span>. A stable
+model needs every eigenvalue inside the unit disc, and that is exactly what the
+discretisation below guarantees.</p>
+<h3 id="why-diagonal-is-cheap">Why diagonal is cheap <a class="header-anchor" href="#why-diagonal-is-cheap">#</a></h3>
+<p>If <span class="math inline">\(A=\mathrm{diag}(a_1,\ldots,a_N)\)</span> then <span class="math inline">\(A^{j}=\mathrm{diag}(a_1^{j},\ldots,
+a_N^{j})\)</span>, and the kernel is a sum of <span class="math inline">\(N\)</span> geometric sequences:</p>
+<div class="math block">
+\[K_j=\sum_{n=1}^{N}C_n\,a_n^{j}\,B_n.
+\qquad (5)\]
+</div>
+<p>Building <span class="math inline">\(L\)</span> kernel entries costs <span class="math inline">\(O(LN)\)</span> instead of <span class="math inline">\(O(LN^2)\)</span>, and the layer has
+<span class="math inline">\(3N\)</span> parameters instead of <span class="math inline">\(N^2+2N\)</span>. The price is that the state can only
+represent a sum of exponentials; a dense <span class="math inline">\(A\)</span> can represent any linear system of
+dimension <span class="math inline">\(N\)</span>.</p>
+<h3 id="discretisation">Discretisation <a class="header-anchor" href="#discretisation">#</a></h3>
+<p>The HiPPO matrix is a continuous-time operator <span class="math inline">\(\dot h=A h+B x\)</span>. To use it as a
+recurrence, the code holds the input constant over a step of length <span class="math inline">\(\Delta\)</span> and
+applies the zero-order hold:</p>
+<div class="math block">
+\[\bar A=e^{\Delta A},\qquad
+\bar B=A^{-1}\big(\bar A-I\big)B,\qquad
+\bar C=C.
+\qquad (6)\]
+</div>
+<p>The code computes <span class="math inline">\(\bar A\)</span> from the eigendecomposition of <span class="math inline">\(A\)</span> and solves the
+triangular system for <span class="math inline">\(\bar B\)</span>. Using <span class="math inline">\(A\)</span> directly as a discrete transition is
+the classic mistake: the HiPPO eigenvalues are <span class="math inline">\(-(n+1)\)</span>, outside the unit disc,
+so the powers diverge. The demo's ZOH kernel is stable and decays.</p>
+<h3 id="the-hippo-legs-matrix">The HiPPO-LegS matrix <a class="header-anchor" href="#the-hippo-legs-matrix">#</a></h3>
+<p>HiPPO chooses <span class="math inline">\(A\)</span> so that the state tracks the coefficients of the input history
+in an orthogonal polynomial basis. For Legendre polynomials the scaled matrix is</p>
+<div class="math block">
+\[A_{nk}=
+\begin{cases}
+-\sqrt{(2n+1)(2k+1)} & n>k,\\
+-(n+1) & n=k,\\
+0 & n<k,
+\end{cases}
+\qquad
+B_n=\sqrt{2n+1},
+\qquad (7)\]
+</div>
+<p>with zero-based indices. It is lower triangular, so its eigenvalues are its
+diagonal, <span class="math inline">\(-(n+1)\)</span>: stable in continuous time and increasingly fast modes for
+higher coefficients. The corresponding kernel decays slowly, which is the memory
+the construction is designed for. In the demo the HiPPO kernel is
+<span class="math inline">\(7.8\times10^{-3}\)</span> at lag <span class="math inline">\(60\)</span> and <span class="math inline">\(2.4\times10^{-6}\)</span> at lag <span class="math inline">\(240\)</span>, against
+<span class="math inline">\(5.2\times10^{-2}\)</span> and <span class="math inline">\(6.1\times10^{-6}\)</span> for a real diagonal model with a
+comparable slowest rate.</p>
+<h3 id="s4-is-a-change-of-basis">S4 is a change of basis <a class="header-anchor" href="#s4-is-a-change-of-basis">#</a></h3>
+<p>A diagonalisable matrix can be written <span class="math inline">\(A=V\Lambda V^{-1}\)</span>. Substituting into
+(3),</p>
+<div class="math block">
+\[K_j=C^{\top}V\Lambda^{j}V^{-1}B
+=\sum_{n=1}^{N}\big(C^{\top}V\big)_n\,\lambda_n^{j}\,\big(V^{-1}B\big)_n,
+\qquad (8)\]
+</div>
+<p>which is the diagonal kernel (5) with <span class="math inline">\(C'=V^{\top}C\)</span>, <span class="math inline">\(B'=V^{-1}B\)</span> and
+<span class="math inline">\(a_n=\lambda_n\)</span>. The model is unchanged; only the numbers used to compute it are.
+That is the whole content of &quot;S4 is a diagonal SSM with a special
+initialisation&quot;. The full S4 paper also adds a low-rank correction to <span class="math inline">\(A\)</span> so that
+the diagonalisation is well conditioned; this atom uses the diagonalisation alone,
+which is enough to see the identity.</p>
+<h3 id="the-parallel-scan">The parallel scan <a class="header-anchor" href="#the-parallel-scan">#</a></h3>
+<p>For a scalar recurrence <span class="math inline">\(h_t=a_t h_{t-1}+b_t\)</span>, define the pair
+<span class="math inline">\(p_t=(a_t,b_t)\)</span> and the composition</p>
+<div class="math block">
+\[(a,b)\circ(a',b')=(aa',\ a'b+b').
+\qquad (9)\]
+</div>
+<p>The composition is associative, and the pair for a block of steps is the
+composition of the pairs in the block. An inclusive scan applies the operator
+across the sequence in <span class="math inline">\(\log_2 L\)</span> doubling rounds:</p>
+<pre class="highlight"><code> offset 1:  (a1,b1) (a2,b2) (a3,b3) (a4,b4)
+ offset 2:  (a1,b1) (a1a2, a2b1+b2) ...
+ offset 4:  the prefix for every position
+</code></pre>
+<p>The code's round is two vectorised assignments over the whole sequence, so the
+work is <span class="math inline">\(O(L\log L)\)</span> on one processor and the depth is <span class="math inline">\(O(\log L)\)</span> on many. The
+demo scans a 37-step recurrence in six rounds and matches the serial loop to
+<span class="math inline">\(4.4\times10^{-16}\)</span>.</p>
+<h3 id="selection">Selection <a class="header-anchor" href="#selection">#</a></h3>
+<p>Mamba replaces the fixed step with an input-dependent one:</p>
+<div class="math block">
+\[\Delta_t=\mathrm{softplus}\big(w_\Delta x_t+b_\Delta\big),\qquad
+h_t=\exp(\Delta_t A)\odot h_{t-1}+\Delta_t B_t x_t,
+\qquad (10)\]
+</div>
+<p>where <span class="math inline">\(A\)</span> is diagonal and negative, and <span class="math inline">\(B_t\)</span> and <span class="math inline">\(C_t\)</span> are linear in <span class="math inline">\(x_t\)</span>. The
+matrix exponential is now a vector of scalars, so the step is cheap; but <span class="math inline">\(\Delta_t\)</span>
+depends on the input, so <span class="math inline">\(h_t\)</span> is not a convolution of <span class="math inline">\(x\)</span> with a fixed kernel.
+There is no transfer function, no FFT, and no associative scan — the recurrence
+must be evaluated in order.</p>
+<p>The gate is the point. When <span class="math inline">\(x_t\)</span> is large, <span class="math inline">\(\Delta_t\)</span> grows and
+<span class="math inline">\(\exp(\Delta_t A)\)</span> shrinks, so the old state is wiped and the new input is written
+in. When <span class="math inline">\(x_t\)</span> is small, <span class="math inline">\(\Delta_t\)</span> is small, the decay is close to one, and the
+state persists. In the demo a pulse of one at step zero leaves <span class="math inline">\(14.0\%\)</span> of its
+trace at step ten; inserting an input of two at step four drops that to <span class="math inline">\(7.7\%\)</span>.
+The same model has different memories on different inputs, which no LTI model
+can do.</p>
+<h3 id="what-a-linear-readout-can-see">What a linear readout can see <a class="header-anchor" href="#what-a-linear-readout-can-see">#</a></h3>
+<p>Let <span class="math inline">\(W\in\mathbb{R}^{N}\)</span> be a readout applied to the state. The filter from
+<span class="math inline">\(x_{t-j}\)</span> to <span class="math inline">\(W^{\top}h_t\)</span> has coefficients</p>
+<div class="math block">
+\[g_j=W^{\top}A^{j}B,\qquad j=0,\ldots,N-1.
+\qquad (11)\]
+</div>
+<p>As <span class="math inline">\(W\)</span> ranges over <span class="math inline">\(\mathbb{R}^{N}\)</span>, these vectors range over the Krylov space
+<span class="math inline">\(\mathcal{K}_N(A,B)=\mathrm{span}\{B,AB,\ldots,A^{N-1}B\}\)</span>, which is all of
+<span class="math inline">\(\mathbb{R}^{N}\)</span> when the pair is controllable. Every controllable model with the
+same state dimension therefore realises the same set of length-<span class="math inline">\(N\)</span> filters, and
+a linear probe at a fixed lag cannot tell them apart. The demo's identical scores
+are not a coincidence; they are this statement measured.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="the-hippo-matrix">The HiPPO matrix <a class="header-anchor" href="#the-hippo-matrix">#</a></h3>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_hippo_matrix</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""HiPPO-LegS: lower triangular, with B_n = sqrt(2n + 1)."""</span>
+    <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">state</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">row</span> <span class="o">&gt;</span> <span class="n">column</span><span class="p">:</span>
+                <span class="n">matrix</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">column</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mi">2</span> <span class="o">*</span> <span class="n">row</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">column</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">row</span> <span class="o">==</span> <span class="n">column</span><span class="p">:</span>
+                <span class="n">matrix</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">column</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">row</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">vector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">state</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">vector</span>
+</code></pre>
+<p>The double loop is the definition, written out. The lower triangle is where the
+history mixing lives; the diagonal is the decay. Building it is <span class="math inline">\(O(N^2)\)</span> and it
+is done once, so the clarity is worth more than a vectorised expression here.
+<code>vector</code> is both <span class="math inline">\(B\)</span> and the default <span class="math inline">\(C\)</span>, which makes the kernel symmetric.</p>
+<h3 id="discretising-it">Discretising it <a class="header-anchor" href="#discretising-it">#</a></h3>
+<pre class="highlight"><code>            <span class="n">matrix</span><span class="p">,</span> <span class="n">vector</span> <span class="o">=</span> <span class="n">_hippo_matrix</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="n">eigenvalues</span><span class="p">,</span> <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eig</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+            <span class="n">inverse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span>
+            <span class="n">discrete</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">vectors</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">eigenvalues</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span><span class="p">))</span>
+                               <span class="o">@</span> <span class="n">inverse</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">B_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="p">(</span><span class="n">discrete</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">state</span><span class="p">))</span> <span class="o">@</span> <span class="n">vector</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">C_</span> <span class="o">=</span> <span class="n">vector</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+</code></pre>
+<p>This is (6) in four lines. The matrix exponential is evaluated through the
+eigen-decomposition, and the real part is taken because the imaginary parts are
+rounding noise for a real matrix. The triangular <code>solve</code> computes <span class="math inline">\(A^{-1}(\bar
+A-I)B\)</span> without forming an inverse. The <code>discrete</code> matrix is what <code>hippo</code> stores
+as <code>A_</code>; <code>s4</code> goes one step further and diagonalises it.</p>
+<h3 id="diagonalising">Diagonalising <a class="header-anchor" href="#diagonalising">#</a></h3>
+<pre class="highlight"><code>            <span class="n">values</span><span class="p">,</span> <span class="n">basis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eig</span><span class="p">(</span><span class="n">discrete</span><span class="p">)</span>
+            <span class="n">change</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">basis</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">a_</span> <span class="o">=</span> <span class="n">values</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">B_</span> <span class="o">=</span> <span class="n">change</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">B_</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">C_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">C_</span> <span class="o">@</span> <span class="n">basis</span>
+</code></pre>
+<p>Equation (8) with the names of the code: <code>values</code> are the <span class="math inline">\(\lambda_n\)</span>, <code>change</code>
+is <span class="math inline">\(V^{-1}\)</span>, and <code>self.C_ @ basis</code> is <span class="math inline">\(C^{\top}V\)</span>. From here on the model uses
+<code>a_</code> and never touches a matrix, so the kernel and the recurrence are both
+<span class="math inline">\(O(N)\)</span> per step.</p>
+<h3 id="the-scan">The scan <a class="header-anchor" href="#the-scan">#</a></h3>
+<pre class="highlight"><code>    <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">result_type</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">steps</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">offset</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">while</span> <span class="n">offset</span> <span class="o">&lt;</span> <span class="n">steps</span><span class="p">:</span>
+        <span class="n">b</span><span class="p">[</span><span class="n">offset</span><span class="p">:]</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="n">offset</span><span class="p">:]</span> <span class="o">*</span> <span class="n">b</span><span class="p">[:</span><span class="o">-</span><span class="n">offset</span><span class="p">]</span> <span class="o">+</span> <span class="n">b</span><span class="p">[</span><span class="n">offset</span><span class="p">:]</span>
+        <span class="n">a</span><span class="p">[</span><span class="n">offset</span><span class="p">:]</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="n">offset</span><span class="p">:]</span> <span class="o">*</span> <span class="n">a</span><span class="p">[:</span><span class="o">-</span><span class="n">offset</span><span class="p">]</span>
+        <span class="n">offset</span> <span class="o">*=</span> <span class="mi">2</span>
+    <span class="k">return</span> <span class="n">b</span>
+</code></pre>
+<p>The two assignments are one round of the Hillis-Steele scan. The <code>b</code> update uses
+the <em>old</em> <code>a</code> on the right-hand side, so the assignments cannot be swapped
+without a temporary; the code relies on <code>a[offset:]</code> still holding the previous
+round's values at the moment <code>b</code> is updated. The <code>dtype</code> promotion is what lets
+the same function scan complex diagonal models: an in-place real array would
+silently drop the imaginary part and the check would fail with a warning rather
+than an error.</p>
+<h3 id="the-kernel-diagonal-and-dense">The kernel, diagonal and dense <a class="header-anchor" href="#the-kernel-diagonal-and-dense">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"hippo"</span><span class="p">:</span>
+            <span class="n">power</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">B_</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">C_</span> <span class="o">@</span> <span class="n">power</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">steps</span><span class="p">):</span>
+                <span class="n">power</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">A_</span> <span class="o">@</span> <span class="n">power</span>
+                <span class="n">output</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">C_</span> <span class="o">@</span> <span class="n">power</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">output</span>
+        <span class="n">term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">C_</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">B_</span><span class="p">)</span>
+        <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">steps</span><span class="p">):</span>
+            <span class="n">term</span> <span class="o">=</span> <span class="n">term</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">a_</span>
+            <span class="n">output</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+</code></pre>
+<p>The dense branch applies <span class="math inline">\(A\)</span> once per lag, which is <span class="math inline">\(O(LN^2)\)</span>. The diagonal
+branch multiplies the previous term by <code>a_</code>, which is <span class="math inline">\(O(LN)\)</span> and never forms a
+matrix. <code>term</code> starts at <span class="math inline">\(C\odot B\)</span> and after <span class="math inline">\(j\)</span> updates holds
+<span class="math inline">\(C\odot a^{j}\odot B\)</span>, whose sum is the kernel entry in (5). Taking the real part
+is correct because the output of a real-input system is real even when the
+internal basis is complex.</p>
+<h3 id="forward-dispatch">Forward dispatch <a class="header-anchor" href="#forward-dispatch">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"mamba_selective"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_forward_selective</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"hippo"</span><span class="p">,</span> <span class="s2">"s4"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">size</span><span class="p">))[:</span><span class="n">array</span><span class="o">.</span><span class="n">size</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="n">_SCAN</span><span class="p">:</span>
+            <span class="n">hidden</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_features_diagonal</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">hidden</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">C_</span><span class="p">)</span>
+        <span class="n">impulse</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">impulse</span><span class="p">)[:</span><span class="n">array</span><span class="o">.</span><span class="n">size</span><span class="p">]</span>
+</code></pre>
+<p>Three engines behind one method. The convolution is <code>np.convolve</code>, which is
+<span class="math inline">\(O(L^2)\)</span> here and would be an FFT in a production implementation; the scan is
+used where the variant is about the scan; and the selective model is the only one
+that cannot use either. The <code>[:array.size]</code> slice is the causal truncation:
+<code>np.convolve</code> returns the full linear convolution, whose tail would otherwise
+mix in future inputs.</p>
+<h3 id="the-selective-step">The selective step <a class="header-anchor" href="#the-selective-step">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">_softplus</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w_delta_</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b_delta_</span><span class="p">))</span>
+            <span class="n">decay</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">delta</span> <span class="o">*</span> <span class="n">rates</span><span class="p">)</span>
+            <span class="n">write</span> <span class="o">=</span> <span class="n">delta</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w_b_</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">index</span><span class="p">])</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">decay</span> <span class="o">*</span> <span class="n">state</span> <span class="o">+</span> <span class="n">write</span>
+            <span class="n">output</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="k">return</span> <span class="n">output</span>
+</code></pre>
+<p><code>rates</code> is the vector of positive rates, so <code>decay</code> is <span class="math inline">\(\exp(\Delta_t A)\)</span> with
+<span class="math inline">\(A=-\mathrm{diag}(\text{rates})\)</span>. <code>write</code> is <span class="math inline">\(\Delta_t B_t x_t\)</span> with
+<span class="math inline">\(B_t=w_b x_t\)</span>, which is why the input appears squared. The step is a Python loop
+because the recurrence is genuinely sequential: <code>delta</code> and <code>write</code> at step <span class="math inline">\(t\)</span>
+depend on <span class="math inline">\(x_t\)</span>, so the scan operator is not constant across the sequence and the
+associative trick does not apply.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(L\)</span> be the sequence length, <span class="math inline">\(N\)</span> the state size, and <span class="math inline">\(P\)</span> the parameter count.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">dense kernel (<code>hippo</code>)</td>
+<td style="text-align:left"><span class="math inline">\(O(LN^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(L)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">diagonal kernel</td>
+<td style="text-align:left"><span class="math inline">\(O(LN)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(L)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">convolution forward</td>
+<td style="text-align:left"><span class="math inline">\(O(L^2)\)</span>, <span class="math inline">\(O(L\log L)\)</span> with FFT</td>
+<td style="text-align:left"><span class="math inline">\(O(L)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">dense feature recurrence</td>
+<td style="text-align:left"><span class="math inline">\(O(LN^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(LN)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">diagonal recurrence</td>
+<td style="text-align:left"><span class="math inline">\(O(LN)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(LN)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">parallel scan</td>
+<td style="text-align:left"><span class="math inline">\(O(LN\log L)\)</span> work, <span class="math inline">\(O(\log L)\)</span> depth</td>
+<td style="text-align:left"><span class="math inline">\(O(LN)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">selective forward</td>
+<td style="text-align:left"><span class="math inline">\(O(LN)\)</span> sequential</td>
+<td style="text-align:left"><span class="math inline">\(O(LN)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">parameters</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left"><span class="math inline">\(O(N^2)\)</span> dense, <span class="math inline">\(O(N)\)</span> diagonal</td>
+</tr>
+</tbody>
+</table>
+<p>The asymptotics hide the point. The convolution is <span class="math inline">\(O(L\log L)\)</span> with an FFT and
+independent of <span class="math inline">\(N\)</span> in the transform, while the scan is <span class="math inline">\(O(LN\log L)\)</span> but has
+logarithmic depth and no global transform. On a CPU the FFT usually wins; on a
+GPU the scan's parallelism and the avoidance of a large transform buffer can win,
+which is why S5 and Mamba use it.</p>
+<p>Memory tells the other half of the story. The convolution keeps the kernel and
+the input, <span class="math inline">\(O(L)\)</span>. The recurrence keeps every state if it needs to backpropagate,
+<span class="math inline">\(O(LN)\)</span>, which is why a training-time selective model is memory-hungry and why
+the efficient kernels recompute states instead of storing them.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Using a continuous matrix as a discrete transition.</strong> The HiPPO eigenvalues are
+<span class="math inline">\(-(n+1)\)</span>, so <span class="math inline">\(A^{j}\)</span> grows like <span class="math inline">\((n+1)^j\)</span> and the kernel explodes within a few
+steps. The zero-order hold in (6) is not an optional refinement; it is what makes
+the model stable. The same mistake with a small hand-picked diagonal looks fine
+on a short sequence and fails on a long one.</p>
+<p><strong>A step size that is too large.</strong> Even the ZOH can be too coarse: <span class="math inline">\(\bar A\)</span> has
+eigenvalues <span class="math inline">\(e^{\Delta\lambda}\)</span>, which are stable for any <span class="math inline">\(\Delta>0\)</span> when
+<span class="math inline">\(\lambda<0\)</span>, but the sampled kernel is a poor approximation of the continuous one
+when <span class="math inline">\(\Delta\)</span> is large. The demo uses <span class="math inline">\(\Delta=0.05\)</span> and a state of eight; a
+production model tunes <span class="math inline">\(\Delta\)</span> per channel.</p>
+<p><strong>Forgetting the real part.</strong> The diagonal bases are complex, and a real output
+comes from taking the real part of <span class="math inline">\(C^{\top}h_t\)</span>. Dropping it, or casting a
+complex array to real in place, either raises a warning or silently changes the
+model. The scan's dtype promotion is there to make that failure loud.</p>
+<p><strong>An ill-conditioned change of basis.</strong> The eigenvectors of a non-normal matrix
+can be nearly parallel, and then <span class="math inline">\(V\)</span> and <span class="math inline">\(V^{-1}\)</span> amplify rounding error. S4 adds
+a low-rank term to keep the diagonalisation well conditioned; this atom
+diagonalises the raw HiPPO matrix, which is fine at <span class="math inline">\(N=8\)</span> and would not be at
+<span class="math inline">\(N=256\)</span>.</p>
+<p><strong>Reading only the real part of a complex state.</strong> For <code>s4d</code> and <code>s5</code> the state is
+complex, and a linear probe that sees only <span class="math inline">\(\mathrm{Re}(h_t)\)</span> does not span the
+same filter space as the real variants. The demo's identical scores are for
+<code>hippo</code>, <code>s4</code> and <code>diagonal_ssm</code>, which are real or a real change of basis; the
+complex variants are checked by their kernels and scans instead.</p>
+<p><strong>A non-causal kernel.</strong> A convolution with a kernel indexed from <span class="math inline">\(-(L-1)\)</span> to
+<span class="math inline">\(L-1\)</span> leaks the future. The code builds only <span class="math inline">\(K_j\)</span> for <span class="math inline">\(j\ge0\)</span> and truncates the
+convolution, so the output at <span class="math inline">\(t\)</span> depends on <span class="math inline">\(x_{\le t}\)</span> by construction. A
+symmetric kernel would still fit a training set and fail at inference.</p>
+<p><strong>Assuming the scan is always faster.</strong> On one CPU core the serial loop is
+<span class="math inline">\(O(L)\)</span> and the scan is <span class="math inline">\(O(L\log L)\)</span>; the scan wins only when the rounds run in
+parallel. A model that uses a scan for a batch of one on a laptop can be slower
+than the loop it replaced.</p>
+<p><strong>The selective model treated as an LTI model.</strong> There is no fixed kernel, so
+<code>kernel()</code> raises rather than returning something that looks plausible. Caching a
+kernel for a selective layer, or applying it with an FFT, silently computes a
+different model.</p>
+<p><strong>Softplus overflow.</strong> <span class="math inline">\(\mathrm{softplus}(z)\)</span> is computed with
+<code>logaddexp(0, z)</code>, which is stable for large <span class="math inline">\(|z|\)</span>; a naive <code>log(1 + exp(z))</code>
+overflows at <span class="math inline">\(z\approx 700\)</span> and returns <code>inf</code>, after which the decay is zero and
+the state resets at every step.</p>
+<p><strong>The memory claim measured by a linear probe.</strong> As (11) shows, every controllable
+LTI model of the same dimension scores the same on a linear readout. A benchmark
+that only fits a linear probe cannot distinguish HiPPO from a random diagonal,
+and reporting that it does would be a measurement artefact.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Long-range sequence modelling.</strong> S4 set the state of the art on the Long Range
+Arena, a suite of tasks with dependencies of thousands of steps, and the
+state-space layer is now a standard alternative to attention for long inputs.</p>
+<p><strong>Audio and speech generation.</strong> S4 and S4D model raw waveforms and features with
+a kernel that covers a receptive field of seconds, and the convolution form makes
+training parallel over the whole clip.</p>
+<p><strong>Language modelling.</strong> Mamba matches transformer perplexity at small and medium
+scale while scaling linearly in the sequence length, and hybrid stacks interleave
+state-space layers with attention where exact retrieval is needed.</p>
+<p><strong>Time-series forecasting.</strong> A diagonal state-space layer is a learned
+exponential-smoothing filter, which is a natural fit for sensor data and
+irregular sampling once the step size is made input-dependent.</p>
+<p><strong>Genomics and biological sequences.</strong> Sequences of hundreds of thousands of
+bases are where the quadratic cost of attention is prohibitive, and the
+convolutional form of an SSM handles them with a fixed-size state.</p>
+<p><strong>Video and long-form generation.</strong> The same kernel handles a temporal axis of
+frames; the selective variant can hold a scene summary across cuts and let it
+decay when the scene changes.</p>
+<p><strong>Control and filtering.</strong> The recurrence in (1) is a linear filter, and the
+Kalman filter is the same model with a stochastic state. The classical
+state-space literature is where these equations come from.</p>
+<p><strong>Efficient inference on device.</strong> A diagonal SSM with a small state is a few
+multiply-adds per token and no key-value cache, which is attractive for
+on-device streaming.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Kalman, R. E. (1960). A new approach to linear filtering and prediction
+problems. <em>Journal of Basic Engineering</em> 82(1), 35–45. The state-space
+recurrence and the filter that shares its equations.</li>
+<li>Gu, A., Goel, K. &amp; Ré, C. (2022). Efficiently modeling long sequences with
+structured state spaces. <em>ICLR</em>. S4, the HiPPO initialisation and the
+diagonal-plus-low-rank parameterisation.</li>
+<li>Gu, A., Johnson, M., Goel, K., Saab, K., Dao, T., Rudra, A. &amp; Ré, C. (2021).
+Combining recurrent, convolutional, and continuous-time models with linear
+state space layers. <em>NeurIPS</em>. The HiPPO framework and the LegS matrix.</li>
+<li>Gu, A., Gupta, A., Goel, K. &amp; Ré, C. (2022). On the parameterization and
+initialization of diagonal state space models. <em>NeurIPS</em>. S4D and the
+frequency-grid initialisation.</li>
+<li>Smith, J. T. H., Warrington, A. &amp; Linderman, S. W. (2023). Simplified
+state space layers for sequence modeling. <em>ICLR</em>. S5 and the parallel scan.</li>
+<li>Gu, A. &amp; Dao, T. (2023). Mamba: linear-time sequence modeling with selective
+state spaces. <em>arXiv:2312.00752</em>. Input-dependent steps and the selective scan.</li>
+<li>Dao, T. &amp; Gu, A. (2024). Transformers are SSMs: generalized models and
+efficient algorithms through structured state space duality. <em>ICML</em>. The
+state-space duality and the hardware-aware scan.</li>
+<li>Blelloch, G. E. (1990). Prefix sums and their applications. Technical report,
+Carnegie Mellon University. The associative scan and its work-depth analysis.</li>
+<li>Orvieto, A., Smith, S. L., Gu, A., Fernando, A., Gulcehre, C., Pascanu, R. &amp;
+De, S. (2023). Resurrecting recurrent neural networks for long sequences.
+<em>ICML</em>. The linear recurrent unit, a close relative of the diagonal SSM.</li>
+<li>Fu, D. Y., Dao, T., Saab, K. K., Thomas, A. W., Rudra, A. &amp; Ré, C. (2023).
+Hungry Hungry Hippos: towards language modeling with state space models.
+<em>ICLR</em>. The H3 layer and the convolution-scan hybrid.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="ngram_lm.html"><small>Previous</small><span>N-gram language models</span></a><a class="next" href="../11-time-series/index.html"><small>Next</small><span>11 · Time series</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">10 · Sequences</p><ul class="rail-list"><li><a href="markov_chain.html"><span class="tick">✓</span><span>Markov chains</span></a></li><li><a href="hmm.html"><span class="tick">✓</span><span>Hidden Markov models</span></a></li><li><a href="dtw.html"><span class="tick">✓</span><span>Dynamic time warping</span></a></li><li><a href="rnn.html"><span class="tick">✓</span><span>Recurrent networks</span></a></li><li><a href="lstm_gru.html"><span class="tick">✓</span><span>LSTM &amp; GRU</span></a></li><li><a href="attention.html"><span class="tick">✓</span><span>Attention</span></a></li><li><a href="crf.html"><span class="tick">✓</span><span>Conditional random fields</span></a></li><li><a href="ctc.html"><span class="tick">✓</span><span>Connectionist temporal classification</span></a></li><li><a href="tcn.html"><span class="tick">✓</span><span>Temporal convnets</span></a></li><li><a href="beam_search.html"><span class="tick">✓</span><span>Beam search</span></a></li><li><a href="ngram_lm.html"><span class="tick">✓</span><span>N-gram language models</span></a></li><li><a href="ssm.html" aria-current="page"><span class="tick">✓</span><span>State-space models</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../09-density-and-anomaly/index.html"><span class="jump">← 09 · Density &amp; anomaly</span></a></li><li><a href="../11-time-series/index.html"><span class="jump">11 · Time series&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#from-recurrence-to-convolution">From recurrence to convolution</a></li><li class="lvl3"><a href="#why-diagonal-is-cheap">Why diagonal is cheap</a></li><li class="lvl3"><a href="#discretisation">Discretisation</a></li><li class="lvl3"><a href="#the-hippo-legs-matrix">The HiPPO-LegS matrix</a></li><li class="lvl3"><a href="#s4-is-a-change-of-basis">S4 is a change of basis</a></li><li class="lvl3"><a href="#the-parallel-scan">The parallel scan</a></li><li class="lvl3"><a href="#selection">Selection</a></li><li class="lvl3"><a href="#what-a-linear-readout-can-see">What a linear readout can see</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#the-hippo-matrix">The HiPPO matrix</a></li><li class="lvl3"><a href="#discretising-it">Discretising it</a></li><li class="lvl3"><a href="#diagonalising">Diagonalising</a></li><li class="lvl3"><a href="#the-scan">The scan</a></li><li class="lvl3"><a href="#the-kernel-diagonal-and-dense">The kernel, diagonal and dense</a></li><li class="lvl3"><a href="#forward-dispatch">Forward dispatch</a></li><li class="lvl3"><a href="#the-selective-step">The selective step</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/10-sequences/ssm.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

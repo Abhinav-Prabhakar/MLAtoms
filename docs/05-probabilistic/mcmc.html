@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCMC · MLAtoms</title>
+<meta name="description" content="Sampling the posterior when algebra fails. A Markov chain that forgets where it started and settles into the distribution you cannot integrate. You never…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/mcmc.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="MCMC">
+<meta property="og:description" content="Sampling the posterior when algebra fails. A Markov chain that forgets where it started and settles into the distribution you cannot integrate. You never…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/mcmc.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MCMC">
+<meta name="twitter:description" content="Sampling the posterior when algebra fails. A Markov chain that forgets where it started and settles into the distribution you cannot integrate. You never…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "MCMC", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/mcmc.html", "description": "Sampling the posterior when algebra fails. A Markov chain that forgets where it started and settles into the distribution you cannot integrate. You never\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="mcmc.py.html">source</a></p><h1>MCMC</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A Markov chain that forgets where it started and settles into the distribution
+you cannot integrate. You never evaluate the posterior — you only compare it at
+two points, and a ratio of densities is all a Metropolis rule needs.</p>
+<div class="math block">
+\[P(x \to \mathrm{d}x') = q(x \to x')\,a(x, x')\,\mathrm{d}x' \qquad (1)\]
+</div>
+<p>If <code>a</code> is chosen so that the chain is reversible with respect to <span class="math inline">\(\pi\)</span>,</p>
+<div class="math block">
+\[\pi(x)\,q(x \to x')\,a(x, x') \;=\; \pi(x')\,q(x' \to x)\,a(x', x) \qquad (2)\]
+</div>
+<p>then <span class="math inline">\(\pi\)</span> is stationary, and under mild conditions the chain converges to it
+from any starting point. That single equation generates every sampler in the
+file: the variants differ only in which proposal <code>q</code> they can afford and how
+much structure they exploit to make <code>a</code> large.</p>
+<p>The economics are the whole subject. A random-walk proposal is free and accepts
+often but moves <span class="math inline">\(O(\sqrt{d})\)</span> per step, so it needs <span class="math inline">\(O(d)\)</span> steps to decorrelate.
+A gradient tells you which way is uphill, and following a Hamiltonian
+trajectory moves <span class="math inline">\(O(1)\)</span> per step regardless of <code>d</code> — the same posterior for
+orders of magnitude fewer density evaluations, at the price of a gradient.
+Everything else is engineering that trade.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Proposal <code>q</code></th>
+<th style="text-align:left">Cost per draw</th>
+<th style="text-align:left">Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>metropolis_hastings</code></td>
+<td style="text-align:left"><span class="math inline">\(N(x, s^2 I)\)</span></td>
+<td style="text-align:left">1 density</td>
+<td style="text-align:left">nothing is differentiable, <code>d</code> is small, you need a baseline</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gibbs</code></td>
+<td style="text-align:left">the exact full conditional</td>
+<td style="text-align:left">1 conditional per coordinate</td>
+<td style="text-align:left">conditionals are conjugate or one-dimensional</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>hmc</code></td>
+<td style="text-align:left">leapfrog trajectory of length <span class="math inline">\(L\varepsilon\)</span></td>
+<td style="text-align:left"><span class="math inline">\(L\)</span> gradients + <span class="math inline">\(L\)</span> densities</td>
+<td style="text-align:left">differentiable, <code>d</code> from 10 to 10⁶</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nuts</code></td>
+<td style="text-align:left">HMC, trajectory length chosen by u-turns</td>
+<td style="text-align:left"><code>2^depth</code> gradients</td>
+<td style="text-align:left">you do not know the trajectory length — the default choice</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>slice_sampling</code></td>
+<td style="text-align:left">uniform under the density along a line</td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span> densities</td>
+<td style="text-align:left">no gradients, awkward shapes, heavy tails</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adaptive_metropolis</code></td>
+<td style="text-align:left"><span class="math inline">\(N(x, s_t^2 I)\)</span> with <span class="math inline">\(s_t\)</span> tuned</td>
+<td style="text-align:left">1 density</td>
+<td style="text-align:left">you want Metropolis without a tuning sweep</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>diagnostics</code></td>
+<td style="text-align:left">— (uses the random walk)</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">always, before you believe any of the above</td>
+</tr>
+</tbody>
+</table>
+<p><code>diagnostics</code> is not a kernel. It is the three numbers — R-hat, effective sample
+size, acceptance — that tell you whether the other six produced anything. It
+lives here because a sampler shipped without them is a random number generator
+with a story attached.</p>
+<p><code>gibbs</code> is Metropolis with acceptance probability exactly one applied to a
+proposal you can only make when the conditional is available. <code>nuts</code> is <code>hmc</code>
+with the hardest hyper-parameter — trajectory length — removed. <code>slice_sampling</code>
+is the only kernel here that needs no tuning at all and the only one that is
+happy with a target whose mean does not exist.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="metropolishastings">Metropolis–Hastings <a class="header-anchor" href="#metropolishastings">#</a></h3>
+<p>Propose <span class="math inline">\(x' \sim q(\cdot \mid x)\)</span>, accept with</p>
+<div class="math block">
+\[a(x, x') \;=\; \min\left(1, \frac{\pi(x')\,q(x \mid x')}{\pi(x)\,q(x' \mid x)}\right)
+\;=\; \min\left(1, e^{\ell(x') - \ell(x)}\right) \qquad (3)\]
+</div>
+<p>for a symmetric proposal. The second equality is why no normalising constant is
+ever needed: only the difference in log density appears, and it is compared with
+<span class="math inline">\(\log U\)</span>. Substituting (3) into (2) gives detailed balance in one line — the
+numerator of one direction is the denominator of the other.</p>
+<h3 id="gibbs">Gibbs <a class="header-anchor" href="#gibbs">#</a></h3>
+<p>If <span class="math inline">\(q\)</span> is the full conditional <span class="math inline">\(p(x_j \mid x_{-j})\)</span>, then
+<span class="math inline">\(\ell(x') - \ell(x) = \log p(x_j' \mid x_{-j}) - \log p(x_j \mid x_{-j})\)</span>, and
+the Hastings ratio is exactly the inverse of the proposal ratio. The acceptance
+probability is 1. Gibbs is not an approximation of Metropolis; it is the case
+where the proposal is already correct.</p>
+<p>The corollary is the failure: if <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span> are correlated at <span class="math inline">\(\rho = 0.99\)</span>,
+the conditional for <span class="math inline">\(x_1\)</span> is a very narrow distribution around
+<span class="math inline">\(\rho x_2\)</span>, so each sweep moves a distance proportional to <span class="math inline">\(1 - \rho^2\)</span>. Gibbs
+is a random walk that has quietly chosen a terrible step size.</p>
+<h3 id="hamiltonian-monte-carlo">Hamiltonian Monte Carlo <a class="header-anchor" href="#hamiltonian-monte-carlo">#</a></h3>
+<p>Add a momentum <span class="math inline">\(p \sim N(0, M)\)</span> and integrate Hamilton's equations for the
+augmented density <span class="math inline">\(\pi(x)N(p; 0, M)\)</span>:</p>
+<div class="math block">
+\[H(x, p) \;=\; -\ell(x) + \tfrac{1}{2} p^\top M^{-1} p, \qquad
+\dot{x} = M^{-1}p, \quad \dot{p} = \nabla \ell(x) \qquad (4)\]
+</div>
+<p>The leapfrog integrator alternates half-kicks and drifts, is symplectic and
+reversible, and therefore preserves the stationary distribution <em>exactly</em> up to
+the Metropolis correction</p>
+<div class="math block">
+\[a \;=\; \min\left(1, e^{H_0 - H_1}\right) \qquad (5)\]
+</div>
+<p>In the demo, a target with standard deviations <span class="math inline">\((1, 10)\)</span> and the matching metric
+<span class="math inline">\(M = \mathrm{diag}(1, 10^{-2})\)</span> keeps the mean energy error at <span class="math inline">\(0.05\)</span> and
+delivers 21× the random walk's effective samples per evaluation on the slow
+coordinate. With the identity metric the same code would still be correct, and
+would take a step size small enough for the narrow coordinate that the wide one
+barely moves — the metric, not the integrator, decides whether HMC works.</p>
+<h3 id="nuts">NUTS <a class="header-anchor" href="#nuts">#</a></h3>
+<p>Trajectory length is the remaining knob, and it is target-dependent. NUTS grows
+the trajectory by doubling, in a random direction, and stops when either end
+turns back towards the other:</p>
+<div class="math block">
+\[(x^{+} - x^{-}) \cdot p^{-} < 0 \quad \text{or} \quad (x^{+} - x^{-}) \cdot p^{+} < 0
+\qquad (6)\]
+</div>
+<p>The proposal is drawn from the new subtree with probability proportional to its
+number of states, which keeps the doubling unbiased. The step size is tuned by
+dual averaging during warm-up,</p>
+<div class="math block">
+\[\log \varepsilon_{t+1} = \mu - \frac{\sqrt{t}}{\gamma}\,\bar h_t, \qquad
+\bar h_t = \left(1 - \frac{1}{t+t_0}\right)\bar h_{t-1} + \frac{1}{t+t_0}\left(\delta - \bar\alpha_t\right)
+\qquad (7)\]
+</div>
+<p>and initialised by doubling from <span class="math inline">\(\varepsilon = 1\)</span> until a single leapfrog
+accepts about half the time. The target <span class="math inline">\(\delta\)</span> is not 0.234: random-walk
+optimal scaling says nothing about Hamiltonian dynamics, which want
+<span class="math inline">\(\delta \approx 0.8\)</span> because a rejected trajectory has already paid for every
+leapfrog step.</p>
+<h3 id="slice-sampling">Slice sampling <a class="header-anchor" href="#slice-sampling">#</a></h3>
+<p>Sample uniformly from the region under the density. Draw a level
+<span class="math inline">\(y = \ell(x_0) - e\)</span> with <span class="math inline">\(e \sim \mathrm{Exp}(1)\)</span>, then a point uniformly from
+<span class="math inline">\(\{x : \ell(x) > y\}\)</span> along a line. The returned point is uniform on the slice,
+so the kernel is reversible with acceptance 1, and the only tuning is a window
+width that adapts to the local scale as it steps out. It is the only sampler
+here that handles a Cauchy target — whose mean does not exist — without any
+special casing.</p>
+<h3 id="adaptation-and-diagnostics">Adaptation and diagnostics <a class="header-anchor" href="#adaptation-and-diagnostics">#</a></h3>
+<p>Robbins–Monro tunes the proposal during burn-in:</p>
+<div class="math block">
+\[\log s_{t+1} = \log s_t + \gamma_t\,(\alpha_t - \alpha^{*}), \qquad \gamma_t \propto t^{-0.6}
+\qquad (8)\]
+</div>
+<p>A decaying gain is not a detail. Adapting forever makes the kernel
+non-homogeneous and destroys the stationary distribution; decaying to zero makes
+the adaptation vanish asymptotically, so the chain converges. Freeze the scale
+after warm-up and the guarantee holds.</p>
+<p>Two chains that disagree have not mixed. Compare between- and within-chain
+variance:</p>
+<div class="math block">
+\[\hat R = \sqrt{\frac{\frac{n-1}{n}W + \frac{B}{n}}{W}} \qquad (9)\]
+</div>
+<p>and count how many independent draws the autocorrelation has cost you:</p>
+<div class="math block">
+\[\mathrm{ESS} = \frac{mn}{1 + 2\sum_{t \geq 1}\rho_t} \qquad (10)\]
+</div>
+<p>with Geyer's initial positive pair sum truncating the series where it stops
+being informative. Identical chains give <span class="math inline">\(\hat R = \sqrt{1 - 1/n} = 0.99975\)</span>,
+not 1 — the <span class="math inline">\(1/n\)</span> factor is visible in the demo, which is a good sign the
+formula was implemented rather than approximated.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The whole atom is one class plus three functions. <code>VARIANTS</code> is the public API;
+<code>sample</code> dispatches on it.</p>
+<pre class="highlight"><code><span class="n">VARIANTS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">[</span><span class="s2">"metropolis_hastings"</span><span class="p">,</span> <span class="s2">"gibbs"</span><span class="p">,</span> <span class="s2">"hmc"</span><span class="p">,</span> <span class="s2">"nuts"</span><span class="p">,</span> <span class="s2">"slice_sampling"</span><span class="p">,</span>
+     <span class="s2">"adaptive_metropolis"</span><span class="p">,</span> <span class="s2">"diagnostics"</span><span class="p">]</span>
+<span class="p">)</span>
+</code></pre>
+<p><code>sample</code> returns <code>(n, d)</code> and records the price of every draw in <code>n_eval_</code> and
+<code>n_grad_</code>. Those counters are the reason the HMC comparison in the demo is
+honest: kernels are compared per evaluation, not per iteration.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"gibbs"</span><span class="p">:</span>
+            <span class="n">chain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gibbs</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"hmc"</span><span class="p">,</span> <span class="s2">"nuts"</span><span class="p">):</span>
+            <span class="n">chain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hamiltonian</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"slice_sampling"</span><span class="p">:</span>
+            <span class="n">chain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slice</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">chain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_random_walk</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+</code></pre>
+<p>The Metropolis core is four lines, and the one that would be wrong in a naive
+implementation is the comparison: it is a log-space test against <code>log U</code>, not
+<code>U &lt; ratio</code>, because the ratio underflows for any meaningful move in high
+dimensions.</p>
+<pre class="highlight"><code>            <span class="n">prop</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+            <span class="n">lpp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lp</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+            <span class="n">ok</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">())</span> <span class="o">&lt;</span> <span class="n">lpp</span> <span class="o">-</span> <span class="n">lp</span>
+            <span class="k">if</span> <span class="n">ok</span><span class="p">:</span>
+                <span class="n">x</span><span class="p">,</span> <span class="n">lp</span> <span class="o">=</span> <span class="n">prop</span><span class="p">,</span> <span class="n">lpp</span>
+                <span class="n">accepted</span> <span class="o">+=</span> <span class="mi">1</span>
+</code></pre>
+<p>Gibbs is the same loop with the proposal replaced by a draw from the
+conditional, which is why it has no accept step at all.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_warmup</span> <span class="o">+</span> <span class="n">n</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">draw</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">samplers</span><span class="p">):</span>
+                <span class="n">x</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">draw</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+</code></pre>
+<p>When a closed-form conditional is not available, the same variant slices it.
+This is the useful trick: Gibbs-with-slice is a valid Gibbs sampler whose
+conditionals are each one-dimensional, so nothing is rejected and no algebra is
+required.</p>
+<pre class="highlight"><code>        <span class="n">y</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">logp</span><span class="p">(</span><span class="n">x0</span><span class="p">))</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">exponential</span><span class="p">())</span>
+        <span class="n">left</span> <span class="o">=</span> <span class="n">x0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">())</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="n">left</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">width</span>
+</code></pre>
+<p>The slice's shrinkage loop is the invariant: every rejected draw moves an
+endpoint inward, so the interval always contracts around points above the level
+and cannot wander into the tail.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">):</span>
+            <span class="n">x1</span> <span class="o">=</span> <span class="n">left</span> <span class="o">+</span> <span class="p">(</span><span class="n">right</span> <span class="o">-</span> <span class="n">left</span><span class="p">)</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">())</span>
+            <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">logp</span><span class="p">(</span><span class="n">x1</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">y</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">x1</span>
+</code></pre>
+<p>HMC's leapfrog is where the mass matrix must be handled in momentum form.
+Updating a <em>velocity</em> as if it were a momentum is off by a factor of <code>M</code>, which
+shows up as energy that is not conserved on an anisotropic target — exactly the
+bug the demo's <code>|ΔH| = 0.05</code> assertion catches.</p>
+<pre class="highlight"><code>        <span class="n">p</span> <span class="o">=</span> <span class="n">p</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">eps</span> <span class="o">*</span> <span class="n">g</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">eps</span> <span class="o">*</span> <span class="n">p</span> <span class="o">/</span> <span class="n">m</span>
+        <span class="n">lp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lp</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grad</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">p</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">eps</span> <span class="o">*</span> <span class="n">g</span>
+</code></pre>
+<p>The NUTS leaf is the slice test and the Metropolis ratio in Hamiltonian form.
+Getting the sign of <code>logu</code> wrong makes every tree empty and the chain frozen at
+its starting point — a bug that produces a plausible-looking trace and zero
+mixing.</p>
+<pre class="highlight"><code>            <span class="n">H1</span> <span class="o">=</span> <span class="o">-</span><span class="n">lp1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kinetic</span><span class="p">(</span><span class="n">p1</span><span class="p">)</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">logu</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="n">H1</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">logu</span> <span class="o">&lt;</span> <span class="o">-</span><span class="n">H1</span> <span class="o">+</span> <span class="mf">1000.0</span><span class="p">)</span>
+            <span class="n">alpha</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">H0</span> <span class="o">-</span> <span class="n">H1</span><span class="p">)))</span>
+</code></pre>
+<p>The recursion reuses the same <code>_tree</code> for both directions and joins two
+subtrees, stopping when the endpoints turn back.</p>
+<pre class="highlight"><code>        <span class="n">delta</span> <span class="o">=</span> <span class="n">xp</span> <span class="o">-</span> <span class="n">xm</span>
+        <span class="n">no_uturn</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">delta</span> <span class="o">@</span> <span class="n">pm</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="nb">float</span><span class="p">(</span><span class="n">delta</span> <span class="o">@</span> <span class="n">pp</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>Step-size initialisation is a doubling search, not a constant. Starting dual
+averaging from an arbitrary step is the difference between converging in 500
+warm-up draws and wandering for 5,000.</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="n">trial</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">direction</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">better</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">elif</span> <span class="n">better</span> <span class="o">!=</span> <span class="p">(</span><span class="n">direction</span> <span class="o">==</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="k">break</span>
+            <span class="n">eps</span> <span class="o">*=</span> <span class="mf">2.0</span><span class="o">**</span><span class="n">direction</span>
+</code></pre>
+<p>The acceptance target is variant-aware, and that is not cosmetic: with the
+random-walk value 0.234, NUTS settles on a step where most trajectories are
+rejected and reports a mean tree depth of 1.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"hmc"</span><span class="p">,</span> <span class="s2">"nuts"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="mf">0.8</span>
+        <span class="k">return</span> <span class="mf">0.44</span> <span class="k">if</span> <span class="n">d</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">0.234</span>
+</code></pre>
+<p>The ESS estimator sums autocorrelation in pairs and stops at the first
+non-positive pair. Truncating at a fixed lag either throws away real
+correlation or adds noise; the pair rule is the standard fix.</p>
+<pre class="highlight"><code>    <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">lag</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">lag</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">rho</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+        <span class="n">pair</span> <span class="o">=</span> <span class="n">rho</span><span class="p">[</span><span class="n">lag</span><span class="p">]</span> <span class="o">+</span> <span class="n">rho</span><span class="p">[</span><span class="n">lag</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">pair</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">total</span> <span class="o">+=</span> <span class="n">pair</span>
+        <span class="n">lag</span> <span class="o">+=</span> <span class="mi">2</span>
+</code></pre>
+<p>R-hat is between-chain variance added to within-chain variance:</p>
+<pre class="highlight"><code>    <span class="n">W</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">chains</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+    <span class="n">B</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">chains</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">var_hat</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span> <span class="o">*</span> <span class="n">W</span> <span class="o">+</span> <span class="n">B</span> <span class="o">/</span> <span class="n">n</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var_hat</span> <span class="o">/</span> <span class="n">W</span><span class="p">))</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Per draw, with <code>d</code> the dimension and <code>L</code> the trajectory length:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:right">Density evaluations per draw</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>metropolis_hastings</code></td>
+<td style="text-align:left"><code>O(d)</code></td>
+<td style="text-align:left"><code>O(n d)</code></td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gibbs</code></td>
+<td style="text-align:left"><code>O(d)</code> per sweep with closed forms, <code>O(d²)</code> to evaluate them</td>
+<td style="text-align:left"><code>O(n d)</code></td>
+<td style="text-align:right">0 (conditionals)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>hmc</code></td>
+<td style="text-align:left"><code>O(L d)</code></td>
+<td style="text-align:left"><code>O(n d)</code></td>
+<td style="text-align:right"><code>2L</code> (plus <code>L</code> gradients)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nuts</code></td>
+<td style="text-align:left"><code>O(2^depth d)</code></td>
+<td style="text-align:left"><code>O(n d)</code></td>
+<td style="text-align:right"><code>≤ 2^{depth+1}</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>slice_sampling</code></td>
+<td style="text-align:left"><code>O(d)</code> expected, <code>O(1)</code> per coordinate</td>
+<td style="text-align:left"><code>O(n d)</code></td>
+<td style="text-align:right">~3–5 per coordinate</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adaptive_metropolis</code></td>
+<td style="text-align:left"><code>O(d)</code></td>
+<td style="text-align:left"><code>O(n d + warmup)</code></td>
+<td style="text-align:right">1</td>
+</tr>
+</tbody>
+</table>
+<p>The stored chain dominates memory: 100,000 draws of 1,000 parameters is 800 MB
+in float64. Nothing here streams; subsample or checkpoint if that matters.</p>
+<p>What actually dominates wall-clock is not the per-draw cost but the number of
+draws needed, and that is set by the <em>effective</em> sample size. The demo's
+anisotropic target shows the whole point: the random walk spends 10,000
+evaluations to get 39 effective draws of the slow coordinate; HMC spends 160,000
+to get 10,000, which is 21× cheaper per effective draw.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The trace looks stationary and the diagnostics lie.</strong> R-hat compares chains to
+each other, so four chains started in the same mode agree perfectly about a
+multimodal target. The demo constructs the failure deliberately: two chains
+frozen at ±6 give R-hat = 849, but if both had started at −6 the number would
+have been 1.000 and the posterior mean wrong by 6. <em>Fix:</em> overdispersed
+starting points, and plot the trace.</p>
+<p><strong>Acceptance is fine and mixing is not.</strong> In the anisotropic demo the random
+walk accepts 40% of its proposals while the slow coordinate gets 39 effective
+samples out of 10,000. Acceptance measures the proposal relative to the local
+scale, not progress through the posterior. <em>Fix:</em> look at ESS per coordinate,
+not at the acceptance rate.</p>
+<p><strong>Energy explodes instead of decorrelating.</strong> A leapfrog step above the
+stability limit <span class="math inline">\(2/\omega\)</span> turns a trajectory into a diverging orbit; the
+symptom is a sudden collapse of acceptance when the step size grows, and a
+<code>|ΔH|</code> in the tens. The demo's first implementation had exactly this bug — a
+velocity updated as if it were a momentum, off by the mass matrix — and the
+assertion <code>energy_error_ &lt; 0.2</code> is what caught it. <em>Fix:</em> <code>ΔH</code> percentiles per
+draw; divergences concentrate in the funnel of a hierarchical model.</p>
+<p><strong>Adapting forever.</strong> Any tuning that does not decay keeps the kernel
+non-homogeneous and the chain does not converge to π. <em>Fix:</em> freeze after
+warm-up, as <code>adaptive_metropolis</code> and <code>nuts</code> do here, and check that the
+adaptation has settled before the first stored draw.</p>
+<p><strong>Correlated conditionals.</strong> Gibbs on a Gaussian with ρ = 0.99 needs
+<code>O((1-ρ²)^{-1})</code> sweeps, which is 5,000 per effective draw. Nothing about the
+code is wrong. <em>Fix:</em> reparameterise, or use HMC on the joint.</p>
+<p><strong>No burn-in is not &quot;none needed&quot;.</strong> Every kernel here is started from <code>x0</code>, and
+the first draws are not from π. The demo discards <code>n_warmup</code>; the diagnostics for
+a chain with <code>n_warmup = 0</code> and a bad start will show it as a shift, not as an
+R-hat.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Hierarchical and multilevel models.</strong> The reason MCMC is in every Bayesian's
+toolkit: a model with partial pooling has no closed-form posterior, and the
+funnel geometry is exactly what NUTS was designed to survive.</li>
+<li><strong>Latent variable and mixture models.</strong> Label switching, unknown <span class="math inline">\(K\)</span>, and
+posteriors over assignments are all sampling problems (see
+<a href="dirichlet_process.py.html"><code>dirichlet_process.py</code></a>).</li>
+<li><strong>Gaussian process hyperparameters.</strong> The marginal likelihood is available,
+but its gradient with respect to a handful of kernel parameters is often not;
+slice sampling or NUTS on the log-hyperparameters is the standard fallback
+(see <a href="gaussian_process.py.html"><code>gaussian_process.py</code></a>).</li>
+<li><strong>Posterior predictive checks.</strong> Drawing parameters and then data is the
+cheapest model criticism that exists, and it requires only a sampler.</li>
+<li><strong>Calibration of expensive simulators.</strong> When the likelihood is a simulation,
+approximate Bayesian computation wraps a sampler around it.</li>
+</ul>
+<p>Where it is a trap: a conjugate model with three parameters. The posterior is
+normal, beta, or Dirichlet in closed form, and 10,000 draws buy you Monte Carlo
+error on a number you could have written down. <a href="bayesian_inference.py.html"><code>bayesian_inference.py</code></a>
+exists for those cases. MCMC is for the posterior you cannot write down, and its
+cost is measured in gradients, not in elegance.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Metropolis, Rosenbluth, Rosenbluth, Teller &amp; Teller (1953). <em>Equation of state
+calculations by fast computing machines.</em> J. Chem. Phys. 21, 1087. The original.</li>
+<li>Hastings (1970). <em>Monte Carlo sampling methods using Markov chains and their
+applications.</em> Biometrika 57, 97. The asymmetric-proposal correction.</li>
+<li>Geman &amp; Geman (1984). <em>Stochastic relaxation, Gibbs distributions, and the
+Bayesian restoration of images.</em> IEEE TPAMI 6, 721. Gibbs sampling, from
+image restoration.</li>
+<li>Neal (2003). <em>Slice sampling.</em> Annals of Statistics 31, 705. Stepping out and
+shrinkage; still the best no-tuning sampler.</li>
+<li>Duane, Kennedy, Pendleton &amp; Roweth (1987). <em>Hybrid Monte Carlo.</em> Physics
+Letters B 195, 216. HMC's origin, in lattice QCD.</li>
+<li>Hoffman &amp; Gelman (2014). <em>The No-U-Turn Sampler.</em> JMLR 15, 1593. NUTS,
+dual averaging and the u-turn criterion implemented here.</li>
+<li>Betancourt (2017). <em>A conceptual introduction to Hamiltonian Monte Carlo.</em>
+arXiv:1701.02434. The best explanation of why the geometry matters.</li>
+<li>Gelman &amp; Rubin (1992). <em>Inference from iterative simulation using multiple
+sequences.</em> Statistical Science 7, 457. R-hat.</li>
+<li>Vehtari, Gelman, Simpson, Carpenter &amp; Bürkner (2021). <em>Rank-normalization,
+folding, and localization: an improved R-hat.</em> Bayesian Analysis 16, 667.
+What to use instead of the version in this file when the posterior is heavy
+tailed.</li>
+<li>Brooks, Gelman, Jones &amp; Meng (2011). <em>Handbook of Markov Chain Monte Carlo.</em>
+CRC Press. The survey to keep on the shelf.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="bayesian_inference.html"><small>Previous</small><span>Bayesian inference</span></a><a class="next" href="variational_inference.html"><small>Next</small><span>Variational inference</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html" aria-current="page"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#metropolishastings">Metropolis–Hastings</a></li><li class="lvl3"><a href="#gibbs">Gibbs</a></li><li class="lvl3"><a href="#hamiltonian-monte-carlo">Hamiltonian Monte Carlo</a></li><li class="lvl3"><a href="#nuts">NUTS</a></li><li class="lvl3"><a href="#slice-sampling">Slice sampling</a></li><li class="lvl3"><a href="#adaptation-and-diagnostics">Adaptation and diagnostics</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/mcmc.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

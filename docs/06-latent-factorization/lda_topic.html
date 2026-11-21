@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Latent Dirichlet allocation · MLAtoms</title>
+<meta name="description" content="Topic mixtures: Gibbs, variational Bayes, streaming and seeds. A document is a bag of words. LSA takes that literally and decomposes the bag. LDA asks a…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/lda_topic.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Latent Dirichlet allocation">
+<meta property="og:description" content="Topic mixtures: Gibbs, variational Bayes, streaming and seeds. A document is a bag of words. LSA takes that literally and decomposes the bag. LDA asks a…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/lda_topic.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Latent Dirichlet allocation">
+<meta name="twitter:description" content="Topic mixtures: Gibbs, variational Bayes, streaming and seeds. A document is a bag of words. LSA takes that literally and decomposes the bag. LDA asks a…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Latent Dirichlet allocation", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/lda_topic.html", "description": "Topic mixtures: Gibbs, variational Bayes, streaming and seeds. A document is a bag of words. LSA takes that literally and decomposes the bag. LDA asks a\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">06 · Latent structure &amp; factorisation</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="lda_topic.py.html">source</a></p><h1>Latent Dirichlet allocation</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A document is a bag of words. LSA takes that literally and decomposes the bag.
+LDA asks a different question — not <em>how do I factor this matrix</em> but <em>what
+process would produce it</em> — and the answer it proposes is the smallest one that
+works:</p>
+<pre class="highlight"><code>   α ──▶ θ_d ──▶ z_dn ──▶ w_dn ◀── β_k
+         ▲        ▲                 ▲
+         │        └── one topic per token
+         └── a document is a mixture over topics
+                          K topics, one β_k each
+
+   for each document d:
+       θ_d ~ Dirichlet(α, …, α)              the mixture
+       for each of the N_d words:
+           z_dn ~ Categorical(θ_d)           pick a topic
+           w_dn ~ Categorical(β_{z_dn})      draw a word from it
+</code></pre>
+<p>That is the whole model: two Dirichlet priors and two categorical draws. There
+is no matrix in the generative story at all. The counts appear only because the
+generator is run many times and then histogrammed, and the histogram is what a
+corpus gives you:</p>
+<div class="math block">
+\[x_{dw} \;=\; \#\{n : w_{dn} = w\}. \qquad (1)\]
+</div>
+<p>The consequences of taking the story seriously are not cosmetic.</p>
+<p><strong>It explains the zeros.</strong> A term with count zero in a document is not &quot;a small
+value&quot;; it is a term the document's mixture did not generate. LSA and NMF treat
+the same zero as a small residual, and both are free to fill it in with whatever
+the low-rank structure prefers. LDA cannot: a topic that puts mass on a term
+contributes to that term's rate in every document that uses the topic.</p>
+<p><strong>It makes the factors probabilities.</strong> A row of <code>components_</code> is a
+distribution over the vocabulary, so it sums to one and its entries are rates.
+That is why topic printouts are readable — &quot;the 15 most probable words&quot; is a
+meaningful summary — and why <code>doc_topic_</code> rows are mixtures, not loadings.</p>
+<p><strong>It separates the two things a corpus has.</strong> Document length is <span class="math inline">\(N_d\)</span>, drawn
+once and then fixed; the topic mixture is <span class="math inline">\(\theta_d\)</span>. LSA's weighting has to
+fight document length because it is baked into the counts. LDA conditions on it,
+and a 2 000-word document and a 200-word one with the same mixture get the same
+<span class="math inline">\(\theta\)</span>.</p>
+<p>The price is that the likelihood is a product over tokens of sums over topics,
+which has no closed-form posterior. Everything in this file is a way of paying
+that price, and the first three variants differ only in how:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"></th>
+<th style="text-align:left">what is left to infer</th>
+<th style="text-align:left">diagnostic</th>
+<th style="text-align:left">measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>collapsed_gibbs</code></td>
+<td style="text-align:left">the token assignments <span class="math inline">\(z\)</span></td>
+<td style="text-align:left"><span class="math inline">\(\log p(w,z)\)</span></td>
+<td style="text-align:left">exact in the limit, no bound</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>variational_bayes</code></td>
+<td style="text-align:left"><span class="math inline">\(q(\theta)q(\beta)q(z)\)</span></td>
+<td style="text-align:left">the ELBO</td>
+<td style="text-align:left">monotone, <span class="math inline">\(+4\,270\)</span> nats</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>online_lda</code></td>
+<td style="text-align:left">the same <span class="math inline">\(q\)</span>, one batch at a time</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">0.996 to the batch fit</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>seeded_lda</code></td>
+<td style="text-align:left"><span class="math inline">\(z\)</span>, with a prior on some words</td>
+<td style="text-align:left"><span class="math inline">\(\log p(w,z)\)</span></td>
+<td style="text-align:left">labelling becomes identity</td>
+</tr>
+</tbody>
+</table>
+<p>On the demo corpus all three unsupervised fitters recover the same three topics
+to a cosine of <span class="math inline">\(0.99\)</span> against the parameters that generated the data, and to
+<span class="math inline">\(1.00\)</span> against each other (after matching the labelling, which no fit can
+determine). The fitter does not change the answer. It changes the cost, the
+diagnostic, and the amount of data you need in memory — and <code>seeded_lda</code>
+changes the <em>information</em>, which is a different kind of change.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">What it does</th>
+<th style="text-align:left">Cost</th>
+<th style="text-align:left">Where it wins</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>collapsed_gibbs</code></td>
+<td style="text-align:left">sample each token's topic from its full conditional</td>
+<td style="text-align:left"><span class="math inline">\(O(NK)\)</span> per sweep</td>
+<td style="text-align:left">exact, no step size, no bound to trust</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>variational_bayes</code></td>
+<td style="text-align:left">coordinate ascent on a mean-field bound</td>
+<td style="text-align:left"><span class="math inline">\(O(DKV)\)</span> per iteration</td>
+<td style="text-align:left">fast, deterministic, has an objective</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>online_lda</code></td>
+<td style="text-align:left">the same, with a minibatch and a decaying step</td>
+<td style="text-align:left"><span class="math inline">\(O(BKV)\)</span> per step</td>
+<td style="text-align:left">data larger than memory, streams</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>seeded_lda</code></td>
+<td style="text-align:left">collapsed Gibbs with seed words carrying extra prior mass</td>
+<td style="text-align:left"><span class="math inline">\(O(NK)\)</span> per sweep</td>
+<td style="text-align:left">labelled topics, faster convergence</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>collapsed_gibbs</code></strong> integrates <span class="math inline">\(\theta\)</span> and <span class="math inline">\(\beta\)</span> out analytically and
+samples only the <span class="math inline">\(N\)</span> token assignments. It is exact — the chain's stationary
+distribution is the posterior — and it is the variant everyone means by &quot;LDA
+with Gibbs&quot;. Its weakness is that it has no objective: <span class="math inline">\(\log p(w,z)\)</span> for a
+single sample of <span class="math inline">\(z\)</span> is not a bound and not monotone, and the demo's trace shows
+it settling into a band about 80 nats wide and staying there forever. That is
+correct behaviour, not a bug, and it is the main thing practitioners
+misdiagnose as non-convergence.</p>
+<p><strong><code>variational_bayes</code></strong> replaces each posterior with a factorised <span class="math inline">\(q\)</span> and
+ascends the resulting bound. Every step is exact given the others, so the ELBO
+increases at every iteration — the demo asserts it, and the smallest observed
+step is <span class="math inline">\(0.001\)</span>. It is deterministic given a seed, it converges in tens of
+iterations here rather than hundreds of sweeps, and at the end you get a number
+you can compare across models. What you do not get is the posterior: the
+mean-field family is too narrow, and the bound can sit well below the evidence.</p>
+<p><strong><code>online_lda</code></strong> is <code>variational_bayes</code> with two changes: the global parameter
+<span class="math inline">\(\lambda\)</span> is updated by a natural-gradient step rather than set, and the local
+step runs on a minibatch. The demo makes the step size do visible work. Feed
+the batches in topical order — one class of documents at a time, which is what
+a stream looks like — and with <span class="math inline">\(\rho_t = (\tau_0+t)^{-0.7}\)</span> the fit lands
+<span class="math inline">\(0.996\)</span> cosine from batch VB; with <span class="math inline">\(\kappa = 0\)</span>, so <span class="math inline">\(\rho_t = 1\)</span> and the
+estimate is <em>whatever the last batch said</em>, it lands <span class="math inline">\(0.687\)</span>. Nothing about the
+model changed. The averaging is the algorithm.</p>
+<p><strong><code>seeded_lda</code></strong> adds a third Dirichlet parameter: for a token whose word is a
+seed for topic <span class="math inline">\(k\)</span>, the topic-<span class="math inline">\(k\)</span> concentration is <span class="math inline">\(\alpha + s\)</span> instead of
+<span class="math inline">\(\alpha\)</span>. It fixes the one quantity the likelihood cannot determine — which
+topic is called topic 1 — and it converges faster. On five topics the unseeded
+fit returns the topics in the order <span class="math inline">\((0,2,1,3,4)\)</span> at cosine <span class="math inline">\(0.98\)</span>; with seeds,
+the order is the identity, and five sweeps reach <span class="math inline">\(0.94\)</span> where the unseeded fit
+reaches <span class="math inline">\(0.84\)</span>. Seeds are not free, and the demo also measures the bill: at 120
+sweeps the seeded fit is <span class="math inline">\(0.95\)</span> against the unseeded <span class="math inline">\(0.98\)</span>, because a seed
+word is <em>every occurrence</em> of that word, and the prior keeps re-asserting them.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-likelihood-and-where-the-count-matrix-comes-from">1. The likelihood, and where the count matrix comes from <a class="header-anchor" href="#1-the-likelihood-and-where-the-count-matrix-comes-from">#</a></h3>
+<p>With <span class="math inline">\(\beta\)</span> the <span class="math inline">\(K \times V\)</span> topic-word matrix, one document of length <span class="math inline">\(N_d\)</span>
+has likelihood</p>
+<div class="math block">
+\[p(w_d \mid \theta_d, \beta) \;=\; \prod_{n=1}^{N_d} \sum_{k=1}^{K} \theta_{dk}\,\beta_{k w_{dn}}, \qquad (2)\]
+</div>
+<p>a product of <em>mixtures</em> — this is exactly the extra sum that LSA does not have.
+Grouping tokens by type turns the product over positions into a product over the
+vocabulary:</p>
+<div class="math block">
+\[p(w_d \mid \theta_d, \beta) \;=\; \prod_{w=1}^{V} \left(\sum_{k} \theta_{dk}\beta_{kw}\right)^{x_{dw}}. \qquad (3)\]
+</div>
+<p>So the count matrix is a sufficient statistic for the whole corpus — this is
+why LDA takes the same input as LSA and NMF — but (3) is not a low-rank
+approximation of <span class="math inline">\(X\)</span>, it is a product of <span class="math inline">\(V\)</span> sums per document. The log of it is
+what the perplexity in the demo measures.</p>
+<h3 id="2-collapsing-dirichletmultinomial-conjugacy">2. Collapsing: Dirichlet–multinomial conjugacy <a class="header-anchor" href="#2-collapsing-dirichletmultinomial-conjugacy">#</a></h3>
+<p>The trick that makes Gibbs cheap is that <span class="math inline">\(\theta\)</span> and <span class="math inline">\(\beta\)</span> can be integrated
+out in closed form. For one document, with a <span class="math inline">\(\mathrm{Dir}(\alpha)\)</span> prior on
+<span class="math inline">\(\theta\)</span>,</p>
+<div class="math block">
+\[\int p(z_d \mid \theta)\, p(\theta)\, d\theta \;=\; \frac{\Gamma(K\alpha)}{\Gamma(\alpha)^{K}}\, \frac{\prod_k \Gamma(n_{dk}+\alpha)}{\Gamma(N_d + K\alpha)}, \qquad (4)\]
+</div>
+<p>where <span class="math inline">\(n_{dk}\)</span> counts the tokens of document <span class="math inline">\(d\)</span> assigned to topic <span class="math inline">\(k\)</span>. That is
+the Dirichlet-multinomial, and the same identity with <span class="math inline">\(\beta\)</span> and the topic
+counts <span class="math inline">\(n_{kw}\)</span>, <span class="math inline">\(n_k\)</span> gives <span class="math inline">\(p(w \mid z)\)</span>. Multiplying,</p>
+<div class="math block">
+\[p(w, z) \;=\; \underbrace{\prod_d \frac{\Gamma(K\alpha)}{\Gamma(\alpha)^K}\frac{\prod_k \Gamma(n_{dk}+\alpha)}{\Gamma(N_d+K\alpha)}}_{p(z)} \cdot \underbrace{\prod_k \frac{\Gamma(V\beta)}{\Gamma(\beta)^V}\frac{\prod_w \Gamma(n_{kw}+\beta)}{\Gamma(n_k+V\beta)}}_{p(w\mid z)}. \qquad (5)\]
+</div>
+<p>Every quantity in (5) is a count. That is the whole reason the sampler is four
+lines of arithmetic: no <span class="math inline">\(\theta\)</span>, no <span class="math inline">\(\beta\)</span>, no gradient.</p>
+<p>The demo computes (5) directly — <code>_collapsed_loglik</code> is a transcription of it —
+and the resulting trace is the honest picture of MCMC: it starts at <span class="math inline">\(-17\,098\)</span>
+with a random assignment, jumps to about <span class="math inline">\(-12\,000\)</span> within ten sweeps, and then
+fluctuates in a band of roughly <span class="math inline">\(\pm 40\)</span> nats forever. It never becomes
+monotone, because each recorded value is one draw from the posterior, not an
+average.</p>
+<h3 id="3-the-full-conditional">3. The full conditional <a class="header-anchor" href="#3-the-full-conditional">#</a></h3>
+<p>Subtracting token <span class="math inline">\(n\)</span> (currently on topic <span class="math inline">\(k_0\)</span>) from the counts and applying
+(5) to the two terms that mention it leaves one ratio of Gammas, which collapses
+by <span class="math inline">\(\Gamma(x+1) = x\,\Gamma(x)\)</span>:</p>
+<div class="math block">
+\[p(z_n = k \mid z_{-n}, w) \;\propto\; \underbrace{\frac{n_{dk}^{-n} + \alpha}{N_d - 1 + K\alpha}}_{\text{this document likes } k} \cdot \underbrace{\frac{n_{kw}^{-n} + \beta}{n_k^{-n} + V\beta}}_{\text{topic } k \text{ likes this word}}, \qquad (6)\]
+</div>
+<p>where the superscript <span class="math inline">\(-n\)</span> means the counts with token <span class="math inline">\(n\)</span> removed. Both
+factors are what they look like: the first is how much of the document is
+already on topic <span class="math inline">\(k\)</span> (with the prior as a pseudo-count), the second is how much
+of topic <span class="math inline">\(k\)</span> is already this word.</p>
+<p>Two features are worth naming because they are the model, not an implementation
+detail.</p>
+<p><strong>The normaliser <span class="math inline">\(n_k + V\beta\)</span> is not cosmetic.</strong> It penalises large topics:
+a topic with many tokens pays more for each new one. Without it the sampler
+would be a rich-get-richer process with no ceiling, and all tokens would collapse
+into one topic. With <span class="math inline">\(\beta\)</span> small the penalty is mild and topics grow; with
+<span class="math inline">\(\beta\)</span> large the penalty dominates and every topic stays near-uniform.</p>
+<p><strong>The prior is a pseudo-count, so &quot;small <span class="math inline">\(\alpha\)</span>&quot; means &quot;sparse documents&quot;.</strong>
+<span class="math inline">\(\alpha = 0.1\)</span> puts <span class="math inline">\(0.1\)</span> of mass on each topic before any token is seen; a
+30-token document is then a mixture of one or two topics, not an even blend of
+three. That is the knob that makes <span class="math inline">\(n_{dk}+\alpha\)</span> behave like a smoothed count
+ratio rather than a real one, and choosing it is a modelling decision about how
+mixed you believe documents are.</p>
+<h3 id="4-seeds-as-a-prior-not-a-constraint">4. Seeds as a prior, not a constraint <a class="header-anchor" href="#4-seeds-as-a-prior-not-a-constraint">#</a></h3>
+<p><code>seeded_lda</code> adds <span class="math inline">\(s\)</span> to the concentration of the topic a word seeds:</p>
+<div class="math block">
+\[p(z_n = k \mid z_{-n}, w) \;\propto\; \frac{n_{dk}^{-n} + \alpha + s\,\mathbb{1}[k = \mathrm{seed}(w_n)]}{N_d - 1 + K\alpha + s\,\mathbb{1}[\mathrm{seed}(w_n) \ne \varnothing]} \cdot \frac{n_{kw}^{-n}+\beta}{n_k^{-n}+V\beta}. \qquad (7)\]
+</div>
+<p>This is a genuine Dirichlet prior — the model with seeds is LDA with a
+word-dependent <span class="math inline">\(\alpha\)</span> — which is why it does not have the pathologies of a
+hard clamp. A clamped token cannot move even when the rest of the document
+overwhelmingly disagrees, so a wrong seed becomes an unfixable error and the
+topic it was pinned to absorbs every occurrence of that word. A seeded token can
+move, it just needs more evidence. The demo shows the difference in the numbers:
+the strength is <span class="math inline">\(s = 2\)</span> by default, and raising it to <span class="math inline">\(10\)</span> changes the result by
+less than <span class="math inline">\(0.002\)</span> on this corpus — the prior saturates, it does not tighten
+indefinitely, because once a topic is at <span class="math inline">\(99\%\)</span> the extra mass is irrelevant.</p>
+<p>The measure that makes seeds legible is coverage. The demo's five topics have
+two seed words each out of fifty, and those ten words account for <span class="math inline">\(1\,168\)</span> of
+the <span class="math inline">\(2\,400\)</span> tokens — 49% of the corpus. Seed words are the <em>frequent</em> ones, so
+&quot;two seed words per topic&quot; is not a small annotation; it is a prior on half the
+data. That is why five sweeps improve from <span class="math inline">\(0.84\)</span> to <span class="math inline">\(0.94\)</span>, and also why the
+converged fit loses <span class="math inline">\(0.03\)</span> of cosine: the repeated evidence is being counted
+twice.</p>
+<h3 id="5-mean-field-and-why-the-updates-are-exact">5. Mean field, and why the updates are exact <a class="header-anchor" href="#5-mean-field-and-why-the-updates-are-exact">#</a></h3>
+<p>Write the variational family as</p>
+<div class="math block">
+\[q(\theta, \beta, z) \;=\; \prod_d q(\theta_d) \prod_k q(\beta_k) \prod_{d,n} q(z_{dn}), \qquad (8)\]
+</div>
+<p>with <span class="math inline">\(q(\theta_d) = \mathrm{Dir}(\gamma_d)\)</span>, <span class="math inline">\(q(\beta_k) = \mathrm{Dir}(\lambda_k)\)</span>
+and <span class="math inline">\(q(z_{dn}) = \mathrm{Cat}(\phi_{dn})\)</span>. Coordinate ascent on the ELBO gives,
+for each coordinate, the exponentiated expectation of the log joint over the
+others. For <span class="math inline">\(z\)</span>,</p>
+<div class="math block">
+\[\phi_{dnk} \;\propto\; \exp\left\{ \mathbb{E}[\log \theta_{dk}] + \mathbb{E}[\log \beta_{kw_{dn}}] \right\}, \qquad (9)\]
+</div>
+<p>and for the two Dirichlets, the same Dirichlet-multinomial form as (4):</p>
+<div class="math block">
+\[\gamma_{dk} = \alpha + \sum_n \phi_{dnk}, \qquad \lambda_{kw} = \beta + \sum_d x_{dw}\,\phi_{dkw}. \qquad (10)\]
+</div>
+<p>The expectations are digammas: <span class="math inline">\(\mathbb{E}[\log \theta_{dk}] = \Psi(\gamma_{dk}) - \Psi(\sum_{k'}\gamma_{dk'})\)</span>.</p>
+<p>The one place an implementation goes wrong is (10)'s second equation. The
+statistic for <span class="math inline">\(\lambda\)</span> is <span class="math inline">\(\sum_d x_{dw}\phi_{dkw}\)</span> — a <span class="math inline">\(K \times V\)</span> expected
+count of <em>word-topic</em> pairs — not the per-document topic totals, which is the
+statistic for <span class="math inline">\(\gamma\)</span>. Conflating them is tempting because both are sums of
+<span class="math inline">\(\phi\)</span>, and it is silent: the fit still converges, and the topic-word matrix
+comes out at cosine <span class="math inline">\(0.575\)</span> instead of <span class="math inline">\(0.989\)</span> because <span class="math inline">\(\lambda\)</span> was handed
+document-level totals with no word information in them at all.</p>
+<p>The reason the updates are closed-form at all is the conjugacy of §2: the
+Dirichlet is the conjugate prior for the categorical, so the optimal <span class="math inline">\(q\)</span> given
+the rest is always the same family with updated counts. This is why LDA's CAVI
+is ten lines, and why a model with a logistic-normal prior instead has to be
+fitted by gradient methods.</p>
+<h3 id="6-the-elbo-term-by-term">6. The ELBO, term by term <a class="header-anchor" href="#6-the-elbo-term-by-term">#</a></h3>
+<div class="math block">
+\[\mathcal{L} \;=\; \underbrace{\mathbb{E}[\log p(\theta)] + \mathbb{E}[\log p(\beta)]}_{\text{priors}} \;+\; \underbrace{\mathbb{H}[q(\theta)] + \mathbb{H}[q(\beta)] + \mathbb{H}[q(z)]}_{\text{entropies}} \;+\; \underbrace{\mathbb{E}[\log p(w, z \mid \theta, \beta)]}_{\text{data}}, \qquad (11)\]
+</div>
+<p>with <span class="math inline">\(\mathbb{H}[q] = -\mathbb{E}[\log q]\)</span>. The middle group is where every
+implemented ELBO goes wrong, because it is written with a minus sign in the code
+— <code>- sum((gamma - 1) * Eg)</code> — and expanded, not left as an entropy.</p>
+<p>Written out for the two Dirichlet factors, one document and one topic,</p>
+<div class="math block">
+\[\mathbb{E}[\log p(\theta_d)] = (\alpha - 1)\sum_k \mathbb{E}[\log \theta_{dk}] - \log B(\alpha), \qquad (12)\]
+</div>
+<div class="math block">
+\[-\mathbb{E}[\log q(\theta_d)] = -\sum_k (\gamma_{dk}-1)\,\mathbb{E}[\log \theta_{dk}] + \log B(\gamma_d), \qquad (13)\]
+</div>
+<p>with <span class="math inline">\(B\)</span> the Dirichlet normaliser <span class="math inline">\(B(a) = \prod_k \Gamma(a_k) / \Gamma(\sum_k a_k)\)</span>.
+The signs in (12) and (13) are the part that is easy to get backwards, and
+getting them backwards is <em>not</em> a crash: the central term flips sign, the
+iteration still converges smoothly, and the &quot;bound&quot; decreases monotonically
+from <span class="math inline">\(-15\,708\)</span> to <span class="math inline">\(-11\,437\)</span>. The demo asserts
+<code>steps.min() &gt; -1e-6</code>, which is exactly the assertion that catches it — the
+symptom of a wrong ELBO is an ELBO that moves the wrong way, and nothing else.</p>
+<p>The data term is where <span class="math inline">\(\phi\)</span> earns its keep:</p>
+<div class="math block">
+\[\mathbb{E}[\log p(w, z \mid \theta, \beta)] = \sum_{d,w} x_{dw} \sum_k \phi_{dkw}\left(\mathbb{E}[\log \theta_{dk}] + \mathbb{E}[\log \beta_{kw}] - \log \phi_{dkw}\right), \qquad (14)\]
+</div>
+<p>and the <span class="math inline">\(-\log\phi\)</span> inside is the <span class="math inline">\(-\mathbb{E}[\log q(z)]\)</span> term, not a separate
+one — the two are the same series written once. That is why the code has one
+loop where the derivation has three terms.</p>
+<h3 id="7-stochastic-vi-and-what-the-step-size-is-for">7. Stochastic VI, and what the step size is for <a class="header-anchor" href="#7-stochastic-vi-and-what-the-step-size-is-for">#</a></h3>
+<p>Batch CAVI touches all <span class="math inline">\(D\)</span> documents per iteration. SVI touches <span class="math inline">\(B\)</span> and treats
+the minibatch statistic as an estimate of the full one, rescaled by <span class="math inline">\(D/B\)</span>:</p>
+<div class="math block">
+\[\lambda \;\leftarrow\; (1-\rho_t)\,\lambda + \rho_t\left(\beta + \frac{D}{B}\sum_{d \in \mathcal{B}} \mathbb{E}[n_{kw}^{(d)}]\right), \qquad \rho_t = (\tau_0 + t)^{-\kappa}. \qquad (15)\]
+</div>
+<p>The rescaling is what makes it unbiased; the step size is what makes it
+<em>converge</em>. The Robbins–Monro conditions are <span class="math inline">\(\sum_t \rho_t = \infty\)</span> and
+<span class="math inline">\(\sum_t \rho_t^2 < \infty\)</span>, which <span class="math inline">\(\kappa \in (0.5, 1]\)</span> satisfies and <span class="math inline">\(\kappa = 0\)</span>
+does not: with <span class="math inline">\(\rho_t = 1\)</span> the recursion is <span class="math inline">\(\lambda \leftarrow\)</span> last batch, so
+the estimate has the variance of a single batch no matter how many batches you
+have seen. On i.i.d. minibatches that noise is harmless — every batch is a
+draw from the same distribution — and the demo's sorted stream is the case where
+it is not: the last 16 documents are one topic, and <span class="math inline">\(\lambda\)</span> remembers exactly
+that. <span class="math inline">\(0.996\)</span> against <span class="math inline">\(0.687\)</span> is the same algorithm with one constant changed.</p>
+<p>The order dependence is a real design decision, not an oversight. <code>online_lda</code>
+consumes rows in the order you give them and cycles; it does not shuffle. A
+caller with i.i.d. data can shuffle first, and a caller with a stream cannot —
+and it is the caller who knows which they have.</p>
+<h3 id="8-what-the-likelihood-cannot-tell-you">8. What the likelihood cannot tell you <a class="header-anchor" href="#8-what-the-likelihood-cannot-tell-you">#</a></h3>
+<p>For any permutation <span class="math inline">\(\pi\)</span> of the topics, substituting <span class="math inline">\(\theta_{d\pi(k)}\)</span>,
+<span class="math inline">\(\beta_{\pi(k)w}\)</span> for the originals leaves (2) unchanged. The posterior
+therefore has <span class="math inline">\(K!\)</span> equivalent modes, and a fit returns one of them according to
+where the sampler or the initialisation happened to land. This is not a
+numerical artefact: it is a symmetry of the model, and no amount of data
+removes it.</p>
+<p>The demo shows both directions. Permuting <code>components_</code> and the matching <code>lam_</code>
+of a fitted VB model leaves the held-out perplexity bit-identical — measured
+difference <span class="math inline">\(0.0\)</span>, because everything downstream is a function of
+<span class="math inline">\(\theta\beta\)</span> and the product is invariant. Permuting a <em>Gibbs</em> fit's
+<code>components_</code> changes perplexity by <span class="math inline">\(0.05\)</span>, which looks like evidence against
+invariance and is not: <code>transform</code> for Gibbs runs a 20-sweep chain per document
+with its own random numbers, so the difference is Monte Carlo noise, <span class="math inline">\(0.24\%\)</span> of
+<span class="math inline">\(20.5\)</span>. The model is invariant; a sampler is not, bit for bit.</p>
+<p>Non-identifiability is why <code>_match_topics</code> exists and why every accuracy number
+in the demo is computed after a brute-force search over <span class="math inline">\(K!\)</span> permutations. For
+<span class="math inline">\(K \le 8\)</span> that is at most <span class="math inline">\(40\,320\)</span> permutations and the honest thing to do; any
+greedy matching is a heuristic that silently fails when two topics are similar.
+It is also why <code>seeded_lda</code> is worth a variant: seeds are the only mechanism in
+this file that picks a labelling <em>by construction</em> instead of by convention.</p>
+<h3 id="9-perplexity-and-what-the-demos-number-means">9. Perplexity, and what the demo's number means <a class="header-anchor" href="#9-perplexity-and-what-the-demos-number-means">#</a></h3>
+<div class="math block">
+\[\mathrm{perplexity}(X) \;=\; \exp\left\{-\frac{\sum_{d,w} x_{dw} \log \hat{p}_{dw}}{\sum_{d,w} x_{dw}}\right\}, \qquad \hat{p}_{dw} = \sum_k \hat\theta_{dk}\hat\beta_{kw}. \qquad (16)\]
+</div>
+<p>It is the effective vocabulary size the model is choosing between; <span class="math inline">\(20.5\)</span> against
+a 40-term vocabulary means the model has narrowed the field by a factor of two.</p>
+<p>The demo's fitted model scores <span class="math inline">\(20.52\)</span> and the corpus generator scores <span class="math inline">\(20.57\)</span>:
+the fit beats the model that produced the data. That is not a bug and not
+evidence of a better model — <span class="math inline">\(\hat\theta_d\)</span> is inferred from the same document
+it is then scored on, so a 30-token document gives the inference a chance to
+overfit itself. The comparison that is meaningful is between models scored the
+same way, which is why the doc reports Gibbs <span class="math inline">\(20.52\)</span> against VB <span class="math inline">\(20.27\)</span>
+(it is a real difference — VB's tighter fit to this corpus) and not against the
+oracle.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>LDA(n_topics=3, *, variant=&quot;collapsed_gibbs&quot;, alpha=0.1, beta=0.01, n_iter=150, seed=0, tau0=1.0, kappa=0.7, batch_size=16, n_local=5, seed_words=None, seed_strength=2.0)</code> with <code>fit</code>, <code>transform</code>, <code>fit_transform</code>,
+<code>perplexity</code>, and the attributes <code>components_</code> <span class="math inline">\((K, V)\)</span> row-normalised,
+<code>doc_topic_</code> <span class="math inline">\((D, K)\)</span> row-normalised, <code>lam_</code>, <code>elbo_curve_</code>, <code>loglik_curve_</code>.</p>
+<p><code>components_</code> is <code>(K, V)</code> for the same reason <code>nmf.py</code>'s is: a row is a topic,
+and <code>theta @ components_</code> is the fitted rate matrix. <code>doc_topic_</code> is the training
+mixture from the <em>last</em> state of the fit, so for Gibbs it is one sample and for
+VB it is the mean of <span class="math inline">\(q(\theta_d)\)</span>; both are row-normalised, and the demo
+asserts it.</p>
+<h3 id="1-the-count-matrix-as-a-token-list">1. The count matrix as a token list <a class="header-anchor" href="#1-the-count-matrix-as-a-token-list">#</a></h3>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_expand</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Count matrix → the flat token list `(document, term)` it represents."""</span>
+    <span class="n">n_docs</span><span class="p">,</span> <span class="n">n_terms</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">docs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_docs</span><span class="p">),</span> <span class="n">X</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">))</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_terms</span><span class="p">),</span> <span class="n">n_docs</span><span class="p">),</span> <span class="n">X</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">docs</span><span class="p">,</span> <span class="n">words</span>
+</code></pre>
+<p>The sampler is written in terms of tokens because (6) is a statement about one
+token at a time, and because the same code then does not care how the counts are
+distributed. <code>np.repeat</code> with a counts array is the idiomatic expansion: for each
+document, its row of counts says how many times to repeat each term id.
+<span class="math inline">\(4\,800\)</span> tokens for the demo corpus, and this function is the entire bridge
+between the matrix representation and the generative one.</p>
+<p><code>X.ravel()</code> and the two <code>repeat</code>s must be in the same order — document-major —
+which is why <code>words</code> repeats the <em>tiled</em> term ids rather than concatenating
+documents. Getting this wrong pairs tokens with the wrong document, and the
+sampler still runs and still produces topics, just worse ones.</p>
+<h3 id="2-the-gibbs-update">2. The Gibbs update <a class="header-anchor" href="#2-the-gibbs-update">#</a></h3>
+<pre class="highlight"><code>                <span class="n">own</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">owner</span><span class="p">[</span><span class="n">n</span><span class="p">])</span>
+                <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+                <span class="n">p</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]</span> <span class="o">*</span> <span class="n">K</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">K</span><span class="p">):</span>
+                    <span class="n">a</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">+</span> <span class="p">(</span><span class="n">strength</span> <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="n">own</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span>
+                    <span class="n">v</span> <span class="o">=</span> <span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+</span> <span class="n">a</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_kw</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">w</span><span class="p">]</span> <span class="o">+</span> <span class="n">beta</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_k</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+</span> <span class="n">Vbeta</span><span class="p">)</span>
+                    <span class="n">p</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                    <span class="n">total</span> <span class="o">+=</span> <span class="n">v</span>
+                <span class="n">u</span> <span class="o">=</span> <span class="n">uniform</span><span class="p">()</span> <span class="o">*</span> <span class="n">total</span>
+                <span class="n">k1</span> <span class="o">=</span> <span class="n">K</span> <span class="o">-</span> <span class="mi">1</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">K</span><span class="p">):</span>
+                    <span class="n">u</span> <span class="o">-=</span> <span class="n">p</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">u</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+                        <span class="n">k1</span> <span class="o">=</span> <span class="n">k</span>
+                        <span class="k">break</span>
+</code></pre>
+<p>(6) and (7). The counts were decremented before this block and are incremented
+after it, so every factor is the <em>leave-one-out</em> count the conditional needs.
+Normalising is skipped deliberately: sampling from an unnormalised vector by
+scaling one uniform by the total is exact, and it saves a division per token per
+topic — with <span class="math inline">\(4\,800\)</span> tokens and 120 sweeps that is <span class="math inline">\(1.7\)</span> million divisions.</p>
+<p><code>strength</code> is a local, not <code>self.seed_strength</code>, because this loop runs
+<span class="math inline">\(1.7\)</span> million times and an attribute lookup inside it is measurable. <code>own</code> is
+<span class="math inline">\(-1\)</span> for every token when not seeding, so the <code>k == own</code> test never fires and
+the seeded and unseeded samplers are the same code path — one prior term,
+zeroed out.</p>
+<p>The cumulative-sum sampling is the standard inverse-CDF trick written as a loop
+rather than <code>np.searchsorted(np.cumsum(p), u)</code>: at <span class="math inline">\(K=3\)</span> the Python loop is
+faster than building two numpy arrays, and at <span class="math inline">\(K=100\)</span> the numpy version wins.
+Neither is the bottleneck; the <span class="math inline">\(O(NK)\)</span> sweep is.</p>
+<h3 id="3-the-collapsed-log-likelihood">3. The collapsed log-likelihood <a class="header-anchor" href="#3-the-collapsed-log-likelihood">#</a></h3>
+<pre class="highlight"><code>        <span class="c1"># p(z | α): one Dirichlet–multinomial normaliser per document ...</span>
+        <span class="n">ll</span> <span class="o">=</span> <span class="n">n_docs</span> <span class="o">*</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">a</span><span class="p">)</span> <span class="o">-</span> <span class="n">K</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">a</span><span class="p">))</span>
+        <span class="n">ll</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">_lgamma</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">n_dk</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">+</span> <span class="n">a</span><span class="p">)))</span>
+        <span class="n">ll</span> <span class="o">-=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">_lgamma</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="nb">sum</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">n_dk</span><span class="p">])</span> <span class="o">+</span> <span class="n">K</span> <span class="o">*</span> <span class="n">a</span><span class="p">)))</span>
+        <span class="c1"># ... and p(w | z, β): one per topic.</span>
+        <span class="n">ll</span> <span class="o">+=</span> <span class="n">K</span> <span class="o">*</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">V</span> <span class="o">*</span> <span class="n">b</span><span class="p">)</span> <span class="o">-</span> <span class="n">V</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+        <span class="n">ll</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">_lgamma</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">n_kw</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">+</span> <span class="n">b</span><span class="p">)))</span>
+        <span class="n">ll</span> <span class="o">-=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">_lgamma</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">n_k</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">+</span> <span class="n">V</span> <span class="o">*</span> <span class="n">b</span><span class="p">)))</span>
+</code></pre>
+<p>(5), with the two normalisers per level written out. <code>_lgamma</code> is applied to the
+whole count array at once, which is why the function is vectorised: the corpus
+needs <span class="math inline">\(DK + KV\)</span> of them — one per document-topic and topic-word pair — and a
+scalar loop over that many <code>math.lgamma</code> calls costs more than the sweep it is
+measuring.</p>
+<p>Two honest caveats live in this function's docstring and in the trace it
+produces. It is <span class="math inline">\(\log p(w, z)\)</span>, not <span class="math inline">\(\log p(w)\)</span> — the assignments are a
+variable, so it is not a bound and it is not comparable to the ELBO. And it is
+evaluated every tenth sweep rather than every sweep: <span class="math inline">\(DK + KV = 480\)</span> log-Gammas
+is cheap, but not cheap enough to pay for twelve times over when the number it
+produces moves by <span class="math inline">\(\pm 40\)</span> nats anyway.</p>
+<h3 id="4-one-mean-field-e-step">4. One mean-field E-step <a class="header-anchor" href="#4-one-mean-field-e-step">#</a></h3>
+<pre class="highlight"><code>        <span class="n">Eg</span> <span class="o">=</span> <span class="n">_digamma</span><span class="p">(</span><span class="n">gamma</span><span class="p">)</span> <span class="o">-</span> <span class="n">_digamma</span><span class="p">(</span><span class="n">gamma</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="n">El</span> <span class="o">=</span> <span class="n">_digamma</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span> <span class="o">-</span> <span class="n">_digamma</span><span class="p">(</span><span class="n">lam</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">))</span>
+        <span class="n">cnt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">gamma</span><span class="p">)</span>
+        <span class="n">phis</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">logits</span> <span class="o">=</span> <span class="n">Eg</span><span class="p">[</span><span class="n">d</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">El</span>                   <span class="c1"># (K, V) per document</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">logits</span> <span class="o">-</span> <span class="n">_logsumexp</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+            <span class="n">phis</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+            <span class="n">per</span> <span class="o">=</span> <span class="n">phi</span> <span class="o">*</span> <span class="n">X</span><span class="p">[</span><span class="n">d</span><span class="p">]</span>
+            <span class="n">stats</span> <span class="o">+=</span> <span class="n">per</span>
+            <span class="n">cnt</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="o">=</span> <span class="n">per</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>(9) and (10). <code>Eg[d][:, None] + El</code> is a <span class="math inline">\(K \times V\)</span> matrix of the two
+expected log-probabilities; a softmax <em>down the columns</em> gives <span class="math inline">\(\phi_{dkw}\)</span> for
+every word in the document at once, which is why the loop is over documents and
+not over tokens. <code>per = phi * X[d]</code> then multiplies by the counts, so a word
+appearing three times contributes three times — the count-matrix shortcut that
+makes CAVI <span class="math inline">\(O(DKV)\)</span> rather than <span class="math inline">\(O(NK)\)</span>.</p>
+<p><code>stats</code> is (10)'s second equation and <code>cnt</code> is its first, accumulated in the
+same pass. Keeping them separate is the difference between cosine <span class="math inline">\(0.989\)</span> and
+<span class="math inline">\(0.575\)</span>; the two are easy to confuse because both are sums of <span class="math inline">\(\phi\)</span>, and only
+one of them knows which word it came from.</p>
+<p>The <code>_logsumexp</code> shift is not needed at the demo's parameters and belongs in the
+code anyway. Since <span class="math inline">\(\Psi(x) \approx -1/x\)</span> for small <span class="math inline">\(x\)</span>, an unseen word in a
+topic has expected log-probability <span class="math inline">\(\approx -1/\beta\)</span>: <span class="math inline">\(-100\)</span> at
+<span class="math inline">\(\beta = 0.01\)</span>, and <span class="math inline">\(-10\,000\)</span> at <span class="math inline">\(\beta = 10^{-4}\)</span>, which is below the double-
+precision underflow point of <span class="math inline">\(-745\)</span>. When every exponential in a column flushes
+to zero, <code>phi</code> is <span class="math inline">\(0/0\)</span> and <code>stats</code> is NaN, and <span class="math inline">\(\beta\)</span> is exactly the knob a
+user is invited to make smaller when they want sparser topics.</p>
+<h3 id="5-the-elbo">5. The ELBO <a class="header-anchor" href="#5-the-elbo">#</a></h3>
+<pre class="highlight"><code>        <span class="n">out</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">a</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">Eg</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="o">-</span> <span class="n">n_docs</span> <span class="o">*</span> <span class="p">(</span>
+            <span class="n">K</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">a</span><span class="p">))</span>
+        <span class="n">out</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">((</span><span class="n">b</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">El</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="o">-</span> <span class="n">K</span> <span class="o">*</span> <span class="p">(</span>
+            <span class="n">V</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">lgamma</span><span class="p">(</span><span class="n">V</span> <span class="o">*</span> <span class="n">b</span><span class="p">))</span>
+</code></pre>
+<p>(12), twice — once for <span class="math inline">\(\theta\)</span>, once for <span class="math inline">\(\beta\)</span> — with the Dirichlet
+normaliser written as <span class="math inline">\(K\log\Gamma(\alpha) - \log\Gamma(K\alpha) = -\log B(\alpha)\)</span>
+and multiplied by the number of documents (or topics) that have one. Expanding
+<code>math.lgamma</code> rather than computing <span class="math inline">\(B\)</span> is a small clarity win here: the
+subtraction that has to be right is visible.</p>
+<p>The prior term is where the sign errors live, and the demo's assertion is the
+only defence. Note what is <em>not</em> here: no <span class="math inline">\(\log\phi\)</span>, no data. Those are the
+last group, and they are computed in the loop over documents because they are
+the only part that scales with the counts.</p>
+<h3 id="6-the-two-closed-form-updates">6. The two closed-form updates <a class="header-anchor" href="#6-the-two-closed-form-updates">#</a></h3>
+<pre class="highlight"><code>            <span class="n">stats</span><span class="p">,</span> <span class="n">cnt</span><span class="p">,</span> <span class="n">phis</span><span class="p">,</span> <span class="n">Eg</span><span class="p">,</span> <span class="n">El</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vb_step</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">lam</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elbo_curve_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elbo</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">phis</span><span class="p">,</span> <span class="n">Eg</span><span class="p">,</span> <span class="n">El</span><span class="p">))</span>
+            <span class="n">gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">cnt</span>
+            <span class="n">lam</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">+</span> <span class="n">stats</span>
+</code></pre>
+<p>(10), and the reason CAVI needs no step size: each coordinate is set to its
+exact optimum given the others, so the bound cannot decrease. The order of the
+three lines matters for the diagnostic — the ELBO is recorded for the state that
+produced <code>phis</code>, i.e. <em>before</em> the update — and recording it after the update
+instead would compare a state against a <span class="math inline">\(q\)</span> that was optimised for a different
+one, which shows up as a small negative step.</p>
+<p><code>lam = self.beta + stats</code> is not <code>lam += ...</code>. It is a full reassignment from
+the sufficient statistic, which is what makes the iteration converge to a fixed
+point rather than accumulate: the Dirichlet <span class="math inline">\(\lambda\)</span> is the only global
+parameter, and (10) says it is a function of the current <span class="math inline">\(q(z)\)</span> with no memory.</p>
+<h3 id="7-the-step-size-that-does-the-work">7. The step size that does the work <a class="header-anchor" href="#7-the-step-size-that-does-the-work">#</a></h3>
+<pre class="highlight"><code>            <span class="n">rho</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tau0</span> <span class="o">+</span> <span class="n">t</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">kappa</span><span class="p">)</span>
+            <span class="n">lam</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">rho</span><span class="p">)</span> <span class="o">*</span> <span class="n">lam</span> <span class="o">+</span> <span class="n">rho</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">+</span> <span class="p">(</span><span class="n">n_docs</span> <span class="o">/</span> <span class="n">B</span><span class="p">)</span> <span class="o">*</span> <span class="n">stats</span><span class="p">)</span>
+</code></pre>
+<p>(15). The <code>n_docs / B</code> rescaling is the unbiasedness; the interpolation is the
+variance reduction. <code>tau0 = 1</code> shifts the schedule so that <span class="math inline">\(\rho_0 = 1\)</span> — the
+first batch is used whole, which is standard and matters because a fresh
+<span class="math inline">\(\lambda\)</span> from <code>rng.random</code> is a terrible initialisation and should be
+overwritten rather than averaged with. <code>kappa = 0.7</code> is the paper's default and
+satisfies both Robbins–Monro conditions.</p>
+<p>Above it, <code>self.n_local</code> iterations of the local step run per batch, and each
+batch's <span class="math inline">\(\gamma\)</span> starts from <span class="math inline">\(\alpha + N_d/K\)</span> rather than from the previous
+batch's — the documents are new, so there is nothing to carry over, and the
+<code>D/B</code> rescaling in the global step is what supplies the memory. The nested loop
+reinitialises <code>stats</code> and <code>cnt</code> inside the local loop deliberately: only the
+last local iteration's statistic corresponds to the <span class="math inline">\(\gamma\)</span> that is exported.</p>
+<h3 id="8-inference-for-a-new-document">8. Inference for a new document <a class="header-anchor" href="#8-inference-for-a-new-document">#</a></h3>
+<pre class="highlight"><code>            <span class="n">z</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+            <span class="n">n_dk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">K</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_iter</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                    <span class="n">n_dk</span><span class="p">[</span><span class="n">z</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">-=</span> <span class="mi">1</span>
+                    <span class="n">p</span> <span class="o">=</span> <span class="p">(</span><span class="n">n_dk</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="n">phi</span><span class="p">[:,</span> <span class="n">w</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+                    <span class="n">p</span> <span class="o">/=</span> <span class="n">p</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                    <span class="n">k</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">()))</span>
+                    <span class="n">k</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">K</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">z</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">k</span>
+                    <span class="n">n_dk</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+</code></pre>
+<p>(6) with <span class="math inline">\(\beta\)</span> frozen: only the first factor is unknown, so the conditional is
+<code>(n_dk + alpha) * phi[:, word]</code>. The <code>n_kw</code> term of the full conditional is
+replaced by the fitted <code>phi</code>, which is the whole point of having fitted it — the
+document no longer has a vote on what a topic means, only on which topics it
+uses.</p>
+<p><code>np.searchsorted(np.cumsum(p), rng.random())</code> is the inverse-CDF sample in its
+numpy form; <code>min(k, K - 1)</code> guards the case where the uniform lands above the
+last cumulative entry by a rounding hair. And the 20 sweeps are per document, on
+30 tokens — cheap, and the reason the demo's Gibbs perplexity is <span class="math inline">\(0.05\)</span> away
+from being permutation-invariant: a short chain does not fully mix.</p>
+<h3 id="9-digamma-and-log-gamma-written-out">9. Digamma and log-gamma, written out <a class="header-anchor" href="#9-digamma-and-log-gamma-written-out">#</a></h3>
+<pre class="highlight"><code>    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+    <span class="n">small</span> <span class="o">=</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="mf">6.0</span>
+    <span class="k">while</span> <span class="n">small</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>                         <span class="c1"># Ψ(x) = Ψ(x+1) − 1/x</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">small</span><span class="p">,</span> <span class="n">r</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">small</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">r</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">small</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">small</span> <span class="o">=</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="mf">6.0</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">y</span> <span class="o">*</span> <span class="n">y</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">r</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">/</span> <span class="n">y</span> <span class="o">-</span> <span class="n">f</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">12</span> <span class="o">-</span> <span class="n">f</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">120</span> <span class="o">-</span> <span class="n">f</span> <span class="o">*</span> <span class="p">(</span>
+        <span class="mi">1</span> <span class="o">/</span> <span class="mi">252</span> <span class="o">-</span> <span class="n">f</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">240</span> <span class="o">-</span> <span class="n">f</span> <span class="o">/</span> <span class="mi">132</span><span class="p">))))</span>
+</code></pre>
+<p>The recurrence pushes every argument up to <span class="math inline">\(y \ge 6\)</span>, where the asymptotic
+series <span class="math inline">\(\Psi(y) \approx \log y - \frac{1}{2y} - \sum_n \frac{B_{2n}}{2n y^{2n}}\)</span>
+is accurate to about <span class="math inline">\(10^{-10}\)</span> — measured against the true values at
+<span class="math inline">\(\Psi(1) = -0.577216\)</span>, <span class="math inline">\(\Psi(0.5) = -1.963510\)</span>, <span class="math inline">\(\Psi(10) = 2.251753\)</span>. The
+Bernoulli coefficients in the bracket are <span class="math inline">\(1/12, 1/120, 1/252, 1/240, 1/132\)</span>:
+five terms, and the fifth is there because <span class="math inline">\(\alpha = 0.1\)</span> makes <span class="math inline">\(\gamma\)</span> close to
+<span class="math inline">\(0.1\)</span> often and the series is worse the smaller the argument.</p>
+<p><code>_lgamma</code> is the same construction with the recurrence <span class="math inline">\(\Gamma(y) =
+\Gamma(y+1)/y\)</span> and Stirling's series, accurate to <span class="math inline">\(2 \times 10^{-14}\)</span> on the
+values this file uses. Both are vectorised with <code>while small.any()</code> for exactly
+one reason: the ELBO calls them on whole count arrays, and a scalar loop over
+<span class="math inline">\(KV\)</span> entries would cost more than the rest of the fit.</p>
+<p>The <code>np.where(small, y, 1.0)</code> idiom is the safe form — it prevents <code>1/y</code> from
+dividing by zero on entries that have already been shifted out of the &quot;small&quot;
+set, which produces a warning and an inf even though <code>np.where</code> discards it.</p>
+<h3 id="10-matching-the-labelling">10. Matching the labelling <a class="header-anchor" href="#10-matching-the-labelling">#</a></h3>
+<pre class="highlight"><code>    <span class="n">C</span> <span class="o">=</span> <span class="p">(</span><span class="n">A</span> <span class="o">@</span> <span class="n">B</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">na</span><span class="p">,</span> <span class="n">EPS</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">nb</span><span class="p">,</span> <span class="n">EPS</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">score</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">C</span><span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">K</span><span class="p">)))</span>
+
+    <span class="n">best</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">permutations</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">K</span><span class="p">)),</span> <span class="n">key</span><span class="o">=</span><span class="n">score</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">score</span><span class="p">(</span><span class="n">best</span><span class="p">)</span> <span class="o">/</span> <span class="n">K</span><span class="p">,</span> <span class="n">best</span>
+</code></pre>
+<p>§8, as a function. The cosine matrix is computed once, and then every
+permutation is a lookup — <span class="math inline">\(K!\)</span> additions rather than <span class="math inline">\(K!\)</span> dot products. The
+returned permutation is reported by the demo rather than hidden, because for the
+unseeded fit it is the interesting output: <code>(0, 2, 1, 3, 4)</code> says the first two
+topics came back swapped, which is not an error and not a worse fit.</p>
+<p><code>np.maximum(., EPS)</code> guards a topic that received no mass at all; with
+<span class="math inline">\(\beta = 0.01\)</span> that cannot happen after a fit, but <code>_match_topics</code> is also called
+on partial states by the demo.</p>
+<h3 id="11-what-the-estimator-refuses">11. What the estimator refuses <a class="header-anchor" href="#11-what-the-estimator-refuses">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="ow">or</span> <span class="p">(</span><span class="n">X</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"LDA needs non-negative counts"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">X</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"LDA samples tokens, so the counts must be integers"</span><span class="p">)</span>
+</code></pre>
+<p>The refusal is the model. <span class="math inline">\(x_{dw}\)</span> in (5) enters through <span class="math inline">\(\Gamma(n_{dw} + \beta)\)</span>,
+and a fractional <span class="math inline">\(x\)</span> would make that a continuous function of a quantity that is
+supposed to be a count — the sampler has no token to move. tf-idf'd LSA input
+is rejected here, correctly, and the error message says why rather than leaving
+a user to discover that their weighted matrix produced a Gamma function of 0.37.</p>
+<p>The integer check is <code>np.allclose</code> against a round, not <code>dtype.kind == &quot;i&quot;</code>,
+because a float array of whole numbers is a perfectly good count matrix and a
+caller who built it with <code>astype(float)</code> should not be punished. What is rejected
+is <em>values</em> that are not counts.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><span class="math inline">\(D\)</span> documents, <span class="math inline">\(V\)</span> terms, <span class="math inline">\(K\)</span> topics, <span class="math inline">\(N\)</span> tokens, <span class="math inline">\(B\)</span> batch size, <span class="math inline">\(T\)</span> iterations.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Operation</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:left">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>_expand</code></td>
+<td style="text-align:left"><span class="math inline">\(O(N + DV)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(N)\)</span></td>
+<td style="text-align:left">the token list, once</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_fit_gibbs</code>, per sweep</td>
+<td style="text-align:left"><span class="math inline">\(O(NK)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(N + KV)\)</span></td>
+<td style="text-align:left">counts are sparse lists</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_collapsed_loglik</code></td>
+<td style="text-align:left"><span class="math inline">\(O(DK + KV)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(KV)\)</span></td>
+<td style="text-align:left">every tenth sweep</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_vb_step</code></td>
+<td style="text-align:left"><span class="math inline">\(O(DKV)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(DKV)\)</span></td>
+<td style="text-align:left">one <span class="math inline">\(K \times V\)</span> per document</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_elbo</code></td>
+<td style="text-align:left"><span class="math inline">\(O(DKV)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span> extra</td>
+<td style="text-align:left">reuses the <code>phis</code> the E-step made</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_fit_online</code>, per step</td>
+<td style="text-align:left"><span class="math inline">\(O(BKV)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(B K + KV)\)</span></td>
+<td style="text-align:left">independent of <span class="math inline">\(D\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_infer_gibbs</code></td>
+<td style="text-align:left"><span class="math inline">\(O(N_d K)\)</span> per document</td>
+<td style="text-align:left"><span class="math inline">\(O(N_d)\)</span></td>
+<td style="text-align:left">20 sweeps</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>perplexity</code></td>
+<td style="text-align:left"><span class="math inline">\(O(mKV)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(mV)\)</span></td>
+<td style="text-align:left">over the documents you pass</td>
+</tr>
+</tbody>
+</table>
+<p>The interesting comparison is the second row against the fourth. Gibbs is
+<span class="math inline">\(O(NK)\)</span> per sweep with <span class="math inline">\(O(N)\)</span> state, and VB is <span class="math inline">\(O(DKV)\)</span> per iteration with an
+<span class="math inline">\(O(DKV)\)</span> <code>phi</code>. For a corpus of <span class="math inline">\(30\)</span>-token documents, <span class="math inline">\(N = 30D\)</span>, so a Gibbs
+sweep touches <span class="math inline">\(30K\)</span> operations per document and a VB iteration touches
+<span class="math inline">\(KV = 40K\)</span>: nearly the same arithmetic, and Gibbs needs <em>more</em> passes.</p>
+<p>What decides it in practice is vectorisation, and it decides against Gibbs. A
+120-sweep Gibbs fit here takes <span class="math inline">\(0.48\)</span> s against <span class="math inline">\(0.13\)</span> s for 80 VB iterations,
+a factor of <span class="math inline">\(3.7\)</span>, because VB's inner work is three numpy calls on a
+<span class="math inline">\(K 	imes V\)</span> array and Gibbs's is a Python loop over <span class="math inline">\(4\,800\)</span> tokens per sweep.
+The asymptotics say they are comparable; the constant says use VB. The whole
+demo is <span class="math inline">\(1.9\)</span> s because it runs eight fits.</p>
+<p>The asymptotics do eventually matter, and they matter in Gibbs's favour on
+<em>long</em> documents: <span class="math inline">\(N_d\)</span> can be ten thousand tokens, while <span class="math inline">\(KV\)</span> cannot, and
+CAVI never revisits a document while Gibbs revisits every token every sweep.</p>
+<p>The online row is the one that matters at scale: per step, <span class="math inline">\(B\)</span> documents, so
+the cost is independent of <span class="math inline">\(D\)</span> once the data is streamed. <code>lam</code> is the only
+persistent state — <span class="math inline">\(KV\)</span> floats — which is why online LDA can fit a corpus that
+does not fit in memory, and why the demo can hold the whole thing in an array
+and pretend.</p>
+<p>Memory is where a real implementation diverges from this file. <code>_vb_step</code>
+allocates a <span class="math inline">\(K \times V\)</span> matrix per document; at <span class="math inline">\(K = 100\)</span>, <span class="math inline">\(V = 10^5\)</span> that is
+80 MB per document, and no corpus survives it. The standard fix is to keep
+<code>phi</code> implicitly as <code>Eg[d] + El</code> and compute the statistics in the same pass,
+which is what the loop does <em>not</em> do because the ELBO needs the explicit
+<code>phis</code>. Trade a factor of two in speed for the bound, or drop the ELBO.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>1. <span class="math inline">\(K\)</span> is not estimated, and neither diagnostic picks it.</strong> On this corpus the
+truth is <span class="math inline">\(K = 3\)</span>, and held-out perplexity says <span class="math inline">\(K = 6\)</span> and still falling:
+<span class="math inline">\(23.14, 20.27, 20.12, 19.96, 19.72\)</span> for <span class="math inline">\(K = 2, \ldots, 6\)</span>. More topics always
+help here because <span class="math inline">\(\theta_d\)</span> is inferred from the document it is then scored on,
+so the extra topics are being used to fit each document's noise. The training
+ELBO does not rescue it either: <span class="math inline">\(-11\,423\)</span> at <span class="math inline">\(K=3\)</span>, then <span class="math inline">\(-11\,591\)</span>,
+<span class="math inline">\(-11\,706\)</span>, <span class="math inline">\(-11\,826\)</span>. That ordering is not a capacity statement — <span class="math inline">\(\alpha\)</span> is
+per topic, so raising <span class="math inline">\(K\)</span> also raises the total prior mass <span class="math inline">\(K\alpha\)</span> and widens
+the mean-field gap — and comparing bounds computed in different parameter spaces
+is not a model comparison at all. Every &quot;choose <span class="math inline">\(K\)</span>&quot; heuristic in the literature
+is a proxy: coherence needs a reference corpus, stability needs several seeds,
+and held-out perplexity needs a scoring rule that does not let the model fit the
+document it is scored on.</p>
+<p><strong>2. Topics are not identified, so any cross-fit comparison is void until you
+permute.</strong> §8. The demo's unseeded five-topic fit comes back as
+<span class="math inline">\((0,2,1,3,4)\)</span>. A pipeline that compares <code>components_[0]</code> across two fits is
+comparing arbitrary objects; a pipeline that averages topic-word matrices across
+seeds is producing an average of different labelings and will report a topic
+that is the mean of two real ones. This is not exotic — it is the default
+failure of every topic-model ensemble.</p>
+<p><strong>3. Seeds are evidence, and evidence counts each occurrence.</strong> The demo's
+ten seed words cover 49% of the tokens. At strength <span class="math inline">\(2\)</span> that buys faster
+convergence (<span class="math inline">\(0.84 \to 0.94\)</span> at five sweeps) and costs converged accuracy
+(<span class="math inline">\(0.98 \to 0.95\)</span>). The mechanism is not subtle: a seed word's every appearance
+pushes towards its topic, so a topic seeded with a word that is merely frequent
+in the corpus becomes the &quot;frequent word&quot; topic and drags unrelated documents
+into it. Choosing seeds is choosing a prior, and it should be as deliberate as
+choosing <span class="math inline">\(\alpha\)</span>.</p>
+<p><strong>4. Non-integer or weighted input is rejected, and that is correct.</strong> §11. The
+temptation is to feed tf-idf or L2-normalised rows because that is what LSA
+takes. LDA's likelihood is a product over tokens; there is no token to move in a
+weighted row, and a &quot;count&quot; of <span class="math inline">\(0.37\)</span> gives a Gamma function of nothing.</p>
+<p><strong>5. <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> decide document sparsity and topic sparsity, and both
+are usually left at defaults.</strong> The demo's <span class="math inline">\(\alpha = 0.1\)</span> makes a 30-token
+document a mixture of one or two topics; <span class="math inline">\(\alpha = 5\)</span> makes every document a
+flat mixture and drops the recovery from <span class="math inline">\(0.99\)</span> to <span class="math inline">\(0.95\)</span>. <span class="math inline">\(\beta = 1.0\)</span> spreads
+every topic over the whole vocabulary and raises held-out perplexity from <span class="math inline">\(20.3\)</span>
+to <span class="math inline">\(20.5\)</span>. Neither is catastrophic, and neither is a default worth inheriting
+unexamined.</p>
+<p><strong>6. The Gibbs diagnostic is not monotone, and it is not a bound.</strong> The
+<span class="math inline">\(80\)</span>-nat band in §2 is what a correct chain looks like. Users used to the ELBO
+read it as failure and run 10 000 sweeps to chase a number that will never stop
+moving. The right check is on a quantity you care about — held-out perplexity,
+topic stability across seeds, or a downstream metric.</p>
+<p><strong>7. Perplexity is comparable only within a model class, and it can beat its
+own oracle.</strong> §9: <span class="math inline">\(20.52\)</span> against <span class="math inline">\(20.57\)</span> because <span class="math inline">\(\theta\)</span> is inferred from the
+scored document. LDA's perplexity is also known to favour <span class="math inline">\(\alpha \to 0\)</span> and to
+disagree with human-judged topic quality (Chang et al. 2009), so a perplexity
+table is not a topic-quality table.</p>
+<p><strong>8. Gibbs <code>transform</code> is stochastic, so fits are not reproducible bit for
+bit.</strong> The demo's perplexity changes by <span class="math inline">\(0.05\)</span> when the topic order is
+permuted — not because the model changed but because <code>_infer_gibbs</code> draws its
+own random numbers and the chain's trajectory does. <code>variational_bayes</code> has no
+such issue: its transform is deterministic and permutation-invariant to exactly
+<span class="math inline">\(0.0\)</span>.</p>
+<p><strong>9. Online LDA with <span class="math inline">\(\kappa = 0\)</span> is not online LDA.</strong> <span class="math inline">\(0.996\)</span> against <span class="math inline">\(0.687\)</span>
+on a topic-sorted stream. The failure is silent on shuffled data, which is why
+it survives testing: i.i.d. minibatches hide the missing averaging, and the
+first deployment on a real stream — where order carries information — exposes
+it.</p>
+<p><strong>10. Documents with no tokens break the mixture.</strong> <span class="math inline">\(N_d = 0\)</span> makes (6)'s first
+factor <span class="math inline">\(0/0\)</span>; <code>_infer_gibbs</code> returns the uniform mixture instead, which is the
+right limit and a reminder that <span class="math inline">\(\theta_d\)</span> is unidentifiable without data. The
+same happens to a document whose every term is unseen at fit time.</p>
+<p><strong>11. Everything here is dense and single-machine.</strong> <code>X</code> is <span class="math inline">\(D \times V\)</span> dense,
+<code>phi</code> is <span class="math inline">\(K \times V\)</span> per document, and the sampler is a Python loop. For
+<span class="math inline">\(D = 10^6\)</span> and <span class="math inline">\(V = 10^5\)</span> this file is off by several orders of magnitude in
+both memory and time; the algorithms survive (sparse counts, sparse <code>phi</code>,
+minibatches) and the code does not.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Topic discovery in text.</strong> The original application and still the most
+common: a corpus of abstracts, reviews or news, and the output is <span class="math inline">\(K\)</span> ranked
+word lists plus per-document mixtures. The mixtures are often more useful than
+the topics — they are a low-dimensional document representation that a
+downstream regression can use without ever reading the words.</li>
+<li><strong>Population genetics.</strong> Pritchard, Stephens &amp; Donnelly (2000) introduced
+this model independently as &quot;admixture&quot; for genotype data, where a document
+is an individual, a word is an allele, and <span class="math inline">\(\theta_d\)</span> is that individual's
+ancestry proportions. <code>structure</code> and <code>admixture</code> are LDA with a different
+likelihood, and the <span class="math inline">\(K\)</span> problem there is the famous &quot;how many ancestral
+populations&quot; question.</li>
+<li><strong>Recommendation and collaborative filtering.</strong> Users as documents, items as
+words: the mixture is a taste profile and each topic is a co-purchase
+pattern. It behaves like a non-negative factorisation with a probabilistic
+story, and it inherits the same popularity bias.</li>
+<li><strong>Image and audio categorisation.</strong> &quot;Words&quot; are visual codewords from a
+quantised feature space (SIFT descriptors, MFCC frames); a &quot;document&quot; is an
+image or a clip. The bag-of-words assumption is even more obviously wrong here
+and it works anyway, which is worth knowing.</li>
+<li><strong>Seeded and supervised variants.</strong> Seeds (§4) are how LDA is used when some
+labels exist; the same idea with a per-token label likelihood is supervised
+LDA, and the same idea with a time index is a dynamic topic model. The prior
+is the extension point, which is why this file's <code>seeded_lda</code> is a variant
+rather than a separate atom.</li>
+<li><strong>Diachronic and comparative linguistics.</strong> Cognate sets, sound changes and
+language families: a &quot;document&quot; is a word form in a language, the topics are
+sound correspondences. The model's lack of word order is an advantage here,
+because the correspondence is positional rather than linear.</li>
+<li><strong>As a baseline for embeddings.</strong> A topic model is the cheap, interpretable
+representation: <span class="math inline">\(K\)</span> numbers per document, no GPU, and the weights are readable.
+Modern practice uses it to <em>describe</em> an embedding space — fitting LDA to
+clusters of contextual vectors is a standard way to say what a direction in a
+transformer means — which is the same trick in the other direction.</li>
+</ul>
+<p>Where it is a trap: choosing <span class="math inline">\(K\)</span> by likelihood; comparing topics across fits
+without permuting; treating perplexity as quality; seeding with frequent words
+and calling the result semi-supervised; and using LDA on data that is not counts
+of exchangeable tokens.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li><strong>Blei, Ng &amp; Jordan (2003),</strong> <em>Latent Dirichlet allocation</em> — the paper, with
+the mean-field derivation of §5 and the original variational inference. Note
+that it is variational, not Gibbs; the collapsed sampler came from the next
+entry.</li>
+<li><strong>Griffiths &amp; Steyvers (2004),</strong> <em>Finding scientific topics</em> — the collapsed
+Gibbs sampler of §2–§3, and the demonstration on PNAS abstracts that made LDA
+the default topic model.</li>
+<li><strong>Pritchard, Stephens &amp; Donnelly (2000),</strong> <em>Inference of population structure
+using multilocus genotype data</em> — the same model for genetic admixture, found
+independently, and still cited in that literature under the name <code>structure</code>.</li>
+<li><strong>Hoffman, Blei &amp; Bach (2013),</strong> <em>Stochastic variational inference</em> — §7:
+natural-gradient steps, the <span class="math inline">\((\tau_0 + t)^{-\kappa}\)</span> schedule, and the
+minibatch rescaling. The online variant here is a direct transcription.</li>
+<li><strong>Jagarlamudi, Daumé III &amp; Udupa (2012),</strong> <em>Incorporating lexical priors into
+topic models using seeding</em> — seeded LDA, and the analysis of why seeds should
+be a prior rather than a constraint.</li>
+<li><strong>Teh, Newman &amp; Welling (2007),</strong> <em>A collapsed variational Bayesian inference
+algorithm for latent Dirichlet allocation</em> — the middle ground between §3 and
+§5: collapse <span class="math inline">\(\theta\)</span> and <span class="math inline">\(\beta\)</span> but keep <span class="math inline">\(q(z)\)</span> factorised, which is more
+accurate than mean field and faster than Gibbs.</li>
+<li><strong>Wallach, Mimno, Dicker &amp; McCallum (2009),</strong> <em>Rethinking LDA: why priors
+matter</em> — the <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> sensitivity of §5 and of failure mode 5, in
+more detail than a demo can afford.</li>
+<li><strong>Chang, Boyd-Graber, Gerrish, Wang &amp; Blei (2009),</strong> <em>Reading tea leaves: how
+humans interpret topic models</em> — the result that perplexity and human-judged
+topic quality disagree, which is failure mode 7.</li>
+<li><strong>Blei &amp; Lafferty (2006),</strong> <em>Dynamic topic models</em> — what the same generative
+story becomes when <span class="math inline">\(\beta\)</span> is allowed to drift, and the clearest example of
+the prior as the extension point.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="lsa.html"><small>Previous</small><span>Latent semantic analysis</span></a><a class="next" href="cca.html"><small>Next</small><span>Canonical correlation</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">06 · Latent structure &amp; factorisation</p><ul class="rail-list"><li><a href="pca.html"><span class="tick">✓</span><span>PCA</span></a></li><li><a href="nmf.html"><span class="tick">✓</span><span>Non-negative matrix factorisation</span></a></li><li><a href="probabilistic_pca.html"><span class="tick">✓</span><span>Probabilistic PCA</span></a></li><li><a href="factor_analysis.html"><span class="tick">✓</span><span>Factor analysis</span></a></li><li><a href="ica.html"><span class="tick">✓</span><span>Independent component analysis</span></a></li><li><a href="lsa.html"><span class="tick">✓</span><span>Latent semantic analysis</span></a></li><li><a href="lda_topic.html" aria-current="page"><span class="tick">✓</span><span>Latent Dirichlet allocation</span></a></li><li><a href="cca.html"><span class="tick">✓</span><span>Canonical correlation</span></a></li><li><a href="sparse_coding.html"><span class="tick">✓</span><span>Sparse coding</span></a></li><li><a href="dictionary_learning.html"><span class="tick">✓</span><span>Dictionary learning</span></a></li><li><a href="tensor_decomposition.html"><span class="tick">✓</span><span>Tensor decomposition</span></a></li><li><a href="plsa.html"><span class="tick">✓</span><span>Probabilistic LSA</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../05-probabilistic/index.html"><span class="jump">← 05 · Probabilistic models</span></a></li><li><a href="../07-clustering/index.html"><span class="jump">07 · Clustering&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-likelihood-and-where-the-count-matrix-comes-from">1. The likelihood, and where the count matrix comes from</a></li><li class="lvl3"><a href="#2-collapsing-dirichletmultinomial-conjugacy">2. Collapsing: Dirichlet–multinomial conjugacy</a></li><li class="lvl3"><a href="#3-the-full-conditional">3. The full conditional</a></li><li class="lvl3"><a href="#4-seeds-as-a-prior-not-a-constraint">4. Seeds as a prior, not a constraint</a></li><li class="lvl3"><a href="#5-mean-field-and-why-the-updates-are-exact">5. Mean field, and why the updates are exact</a></li><li class="lvl3"><a href="#6-the-elbo-term-by-term">6. The ELBO, term by term</a></li><li class="lvl3"><a href="#7-stochastic-vi-and-what-the-step-size-is-for">7. Stochastic VI, and what the step size is for</a></li><li class="lvl3"><a href="#8-what-the-likelihood-cannot-tell-you">8. What the likelihood cannot tell you</a></li><li class="lvl3"><a href="#9-perplexity-and-what-the-demos-number-means">9. Perplexity, and what the demo&#x27;s number means</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-the-count-matrix-as-a-token-list">1. The count matrix as a token list</a></li><li class="lvl3"><a href="#2-the-gibbs-update">2. The Gibbs update</a></li><li class="lvl3"><a href="#3-the-collapsed-log-likelihood">3. The collapsed log-likelihood</a></li><li class="lvl3"><a href="#4-one-mean-field-e-step">4. One mean-field E-step</a></li><li class="lvl3"><a href="#5-the-elbo">5. The ELBO</a></li><li class="lvl3"><a href="#6-the-two-closed-form-updates">6. The two closed-form updates</a></li><li class="lvl3"><a href="#7-the-step-size-that-does-the-work">7. The step size that does the work</a></li><li class="lvl3"><a href="#8-inference-for-a-new-document">8. Inference for a new document</a></li><li class="lvl3"><a href="#9-digamma-and-log-gamma-written-out">9. Digamma and log-gamma, written out</a></li><li class="lvl3"><a href="#10-matching-the-labelling">10. Matching the labelling</a></li><li class="lvl3"><a href="#11-what-the-estimator-refuses">11. What the estimator refuses</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/06-latent-factorization/lda_topic.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

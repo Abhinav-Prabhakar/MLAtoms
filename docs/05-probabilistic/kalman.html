@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalman filter · MLAtoms</title>
+<meta name="description" content="Optimal filtering for linear-Gaussian state space models. A hidden state drifts; a noisy sensor reports on it. Both halves are Gaussian, so the posterior…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/kalman.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Kalman filter">
+<meta property="og:description" content="Optimal filtering for linear-Gaussian state space models. A hidden state drifts; a noisy sensor reports on it. Both halves are Gaussian, so the posterior…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/kalman.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Kalman filter">
+<meta name="twitter:description" content="Optimal filtering for linear-Gaussian state space models. A hidden state drifts; a noisy sensor reports on it. Both halves are Gaussian, so the posterior…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Kalman filter", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/kalman.html", "description": "Optimal filtering for linear-Gaussian state space models. A hidden state drifts; a noisy sensor reports on it. Both halves are Gaussian, so the posterior\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="kalman.py.html">source</a></p><h1>Kalman filter</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A hidden state drifts; a noisy sensor reports on it. Both halves are Gaussian,
+so the posterior stays Gaussian, and a Gaussian is two numbers. That is the
+whole reason this filter is forty lines instead of an MCMC run: the belief never
+needs a representation more complicated than a mean and a covariance.</p>
+<p>Two sentences drive the recursion. <strong>Predict</strong> is the law of total expectation:
+the state moves through the dynamics, so the mean moves through <span class="math inline">\(A\)</span> and the
+covariance is pushed through <span class="math inline">\(A\)</span> and inflated by process noise <span class="math inline">\(Q\)</span>. <strong>Update</strong> is
+conditioning on one observation: among all state values consistent with the
+prediction, weight them by how well they would have predicted what you saw.</p>
+<div class="math block">
+\[m_t^{-} = A m_{t-1}, \qquad P_t^{-} = A P_{t-1} A^{\top} + Q \qquad (1)\]
+</div>
+<div class="math block">
+\[S_t = C P_t^{-} C^{\top} + R, \qquad K_t = P_t^{-} C^{\top} S_t^{-1} \qquad (2)\]
+</div>
+<div class="math block">
+\[m_t = m_t^{-} + K_t\,(z_t - C m_t^{-}), \qquad P_t = P_t^{-} - K_t C P_t^{-} \qquad (3)\]
+</div>
+<p><span class="math inline">\(S_t\)</span> is the covariance of the <em>innovation</em> <span class="math inline">\(z_t - C m_t^{-}\)</span>: the observation
+noise <span class="math inline">\(R\)</span> plus the state uncertainty mapped into observation space. <span class="math inline">\(K_t\)</span> is the
+fraction of the innovation you accept. When <span class="math inline">\(R\)</span> is tiny the filter believes the
+sensor and <span class="math inline">\(P\)</span> collapses; when <span class="math inline">\(P^{-}\)</span> is tiny it believes the model and
+<span class="math inline">\(K \to 0\)</span>.</p>
+<p>The filter is worth more than its estimates, because the same recursion gives the
+likelihood. Each innovation is Gaussian under the model,</p>
+<div class="math block">
+\[p(z_{1..T}) = \prod_{t=1}^{T} N\!\left(z_t;\; C m_t^{-},\, S_t\right) \qquad (4)\]
+</div>
+<p>so the log-likelihood is a running sum with no extra work. That is how the
+parameters <span class="math inline">\(Q\)</span> and <span class="math inline">\(R\)</span> are usually fitted, and it is why the demo checks (4)
+against the exact joint Gaussian of the whole sequence — a check that catches a
+wrong <span class="math inline">\(S\)</span> immediately, where the means alone might not.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">What changes</th>
+<th style="text-align:left">Cost</th>
+<th style="text-align:left">Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>kf</code></td>
+<td style="text-align:left">the recursion (1)–(3)</td>
+<td style="text-align:left"><span class="math inline">\(O(n^3 + m^3)\)</span> per step</td>
+<td style="text-align:left">the model is linear and Gaussian — this is exact</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ekf</code></td>
+<td style="text-align:left"><span class="math inline">\(f\)</span> and <span class="math inline">\(h\)</span> linearised at the mean</td>
+<td style="text-align:left">one Jacobian per step</td>
+<td style="text-align:left">mildly nonlinear, Jacobians available</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ukf</code></td>
+<td style="text-align:left"><span class="math inline">\(2n+1\)</span> sigma points through <span class="math inline">\(f\)</span> and <span class="math inline">\(h\)</span></td>
+<td style="text-align:left"><span class="math inline">\(2n+1\)</span> evaluations per step</td>
+<td style="text-align:left">nonlinear, no Jacobian, or the EKF's linearisation is degenerate</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>information_filter</code></td>
+<td style="text-align:left">the same posterior as <span class="math inline">\((y, J) = (P^{-1}m, P^{-1})\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n^3)\)</span> per step, two inversions</td>
+<td style="text-align:left">many sensors fused, or a distributed estimate</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rts_smoother</code></td>
+<td style="text-align:left">backward pass after the forward pass</td>
+<td style="text-align:left">one extra <span class="math inline">\(O(n^3)\)</span> per step</td>
+<td style="text-align:left">the data is offline; you want <span class="math inline">\(p(z_t \mid z_{1..T})\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>missing_obs</code></td>
+<td style="text-align:left">update restricted to the observed rows</td>
+<td style="text-align:left">same as <code>kf</code></td>
+<td style="text-align:left">sensors drop out, irregular sampling, ragged panels</td>
+</tr>
+</tbody>
+</table>
+<p>The split is real, not cosmetic. <code>kf</code>, <code>information_filter</code>, <code>rts_smoother</code> and
+<code>missing_obs</code> compute the <em>exact</em> posterior and differ only in algebra or in what
+they do with the answer; <code>ekf</code> and <code>ukf</code> are approximations whose error is second
+order in the curvature of <span class="math inline">\(f\)</span> and <span class="math inline">\(h\)</span>.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-why-the-update-is-a-matrix-identity">1. Why the update is a matrix identity <a class="header-anchor" href="#1-why-the-update-is-a-matrix-identity">#</a></h3>
+<p>Everything follows from the Gaussian conditioning identity. If
+<span class="math inline">\((x, z) \sim N(\mu, \Sigma)\)</span> with blocks, then</p>
+<div class="math block">
+\[x \mid z \;\sim\; N\!\left(\mu_x + \Sigma_{xz}\Sigma_{zz}^{-1}(z - \mu_z),\;\; \Sigma_{xx} - \Sigma_{xz}\Sigma_{zz}^{-1}\Sigma_{zx}\right) \qquad (5)\]
+</div>
+<p>For the state-space model, <span class="math inline">\(z_t = C x_t + v\)</span> with <span class="math inline">\(v \sim N(0, R)\)</span>, so
+<span class="math inline">\(\Sigma_{xz} = P^{-}C^{\top}\)</span>, <span class="math inline">\(\Sigma_{zz} = C P^{-} C^{\top} + R = S\)</span>, and
+<span class="math inline">\(\Sigma_{xx} = P^{-}\)</span>. Substituting into (5) gives (2)–(3) with nothing left over.
+The reason <span class="math inline">\(P\)</span> shrinks is the Schur complement: conditioning removes the part of
+the variance that the observation explains.</p>
+<h3 id="2-the-likelihood-is-the-product-of-innovations">2. The likelihood is the product of innovations <a class="header-anchor" href="#2-the-likelihood-is-the-product-of-innovations">#</a></h3>
+<p>Write <span class="math inline">\(p(z_{1..T}) = \prod_t p(z_t \mid z_{1..t-1})\)</span>. Under the model,
+<span class="math inline">\(z_t \mid z_{1..t-1} \sim N(C m_t^{-}, S_t)\)</span> — the predictive distribution the
+filter already computed. Hence (4). This is also the cleanest way to see that a
+filter and a smoother are different questions: the filter's product is
+<span class="math inline">\(p(z_{1..T})\)</span>, while its per-step posterior is <span class="math inline">\(p(x_t \mid z_{1..t})\)</span>.</p>
+<p>The demo verifies this the hard way, by assembling the <span class="math inline">\(Tm \times Tm\)</span> covariance
+of the whole observation sequence from the state covariances and taking its
+Cholesky log-density. The filter's sum matches to <span class="math inline">\(10^{-8}\)</span>: same model, two
+routes, one number.</p>
+<h3 id="3-smoothing">3. Smoothing <a class="header-anchor" href="#3-smoothing">#</a></h3>
+<p>The filter answers &quot;where was the state given the past&quot;. The smoother answers
+&quot;given everything&quot;, and for offline data it is strictly better. The RTS recursion
+runs backwards from the last filtered moment:</p>
+<div class="math block">
+\[G_t = P_t A^{\top}\left(A P_t A^{\top} + Q\right)^{-1} \qquad (6)\]
+</div>
+<div class="math block">
+\[m_t^{s} = m_t + G_t\left(m_{t+1}^{s} - A m_t\right), \qquad P_t^{s} = P_t + G_t\left(P_{t+1}^{s} - P_{t+1}^{-}\right)G_t^{\top} \qquad (7)\]
+</div>
+<p><span class="math inline">\(G_t\)</span> is the same matrix the forward pass built to predict <span class="math inline">\(P_{t+1}^{-}\)</span> — which
+is why the smoother needs the filter's covariances, not just its means. The
+variance can only shrink: <span class="math inline">\(P_t^{s} \preceq P_t\)</span>, with equality at <span class="math inline">\(t = T\)</span> where
+there is no future to condition on. The demo checks both facts, and the payoff is
+visible: position RMSE <span class="math inline">\(0.622\)</span> filtered against <span class="math inline">\(0.351\)</span> smoothed on the same data.</p>
+<h3 id="4-the-information-form">4. The information form <a class="header-anchor" href="#4-the-information-form">#</a></h3>
+<p>Premultiply (3) by <span class="math inline">\(P^{-1}\)</span> and define <span class="math inline">\(J = P^{-1}\)</span>, <span class="math inline">\(y = Jm\)</span>. The update
+becomes additive:</p>
+<div class="math block">
+\[J_t = J_t^{-} + C^{\top}R^{-1}C, \qquad y_t = y_t^{-} + C^{\top}R^{-1}z_t \qquad (8)\]
+</div>
+<p>Fusing <span class="math inline">\(k\)</span> sensors is <span class="math inline">\(k\)</span> additions — the reason decentralised and
+multi-sensor systems are written this way. The prediction is the ugly half:</p>
+<div class="math block">
+\[J_t^{-} = \left(A J_{t-1}^{-1} A^{\top} + Q\right)^{-1}, \qquad y_t^{-} = J_t^{-} A J_{t-1}^{-1} y_{t-1} \qquad (9)\]
+</div>
+<p>Two inversions per step, so the form is a loss unless the sensor count is high or
+the estimate is being split across machines. The demo fits both and requires
+agreement to <span class="math inline">\(10^{-9}\)</span>: same posterior, different arithmetic.</p>
+<h3 id="5-linearisation-the-ekf">5. Linearisation: the EKF <a class="header-anchor" href="#5-linearisation-the-ekf">#</a></h3>
+<p>Replace the model by its first-order Taylor expansion at the current mean:</p>
+<div class="math block">
+\[f(x) \approx f(m) + F(m)(x - m), \qquad h(x) \approx h(m) + H(m)(x - m) \qquad (10)\]
+</div>
+<p>and run (1)–(3) on the linearised model. The covariance transform is correct to
+first order; the mean is biased by <span class="math inline">\(\tfrac12\mathrm{tr}(F'' P)\)</span> and
+<span class="math inline">\(\tfrac12\mathrm{tr}(H'' P)\)</span> — terms that vanish on a linear model, which is why
+the demo's linear-model assertion (EKF equals KF to <span class="math inline">\(10^{-9}\)</span>) is the right unit
+test and says nothing about accuracy on a curve.</p>
+<p>The failure is not subtle when the linearisation point is wrong. The demo's
+one-step test has <span class="math inline">\(h(x) = x^2\)</span> and a prior mean of zero, so <span class="math inline">\(H = 2m = 0\)</span>: the
+filter concludes the observation is uninformative and returns the prior. The true
+evidence is <span class="math inline">\(-1.323\)</span> nats, the UKF reports <span class="math inline">\(-1.290\)</span>, the EKF reports <span class="math inline">\(-4.768\)</span>.</p>
+<h3 id="6-the-unscented-transform">6. The unscented transform <a class="header-anchor" href="#6-the-unscented-transform">#</a></h3>
+<p>Instead of differentiating, propagate a small deterministic set of points that
+matches the first two moments exactly. With <span class="math inline">\(n\)</span> states, <span class="math inline">\(2n+1\)</span> points:</p>
+<div class="math block">
+\[\mathcal{X}_0 = m, \qquad \mathcal{X}_{i}^{\pm} = m \pm \left[\sqrt{(n+\lambda)P}\right]_{i}, \qquad \lambda = \alpha^2(n+\kappa) - n \qquad (11)\]
+</div>
+<div class="math block">
+\[w_0^{m} = \frac{\lambda}{n+\lambda}, \quad w_0^{c} = w_0^{m} + 1 - \alpha^2 + \beta, \quad w_i^{m} = w_i^{c} = \frac{1}{2(n+\lambda)} \qquad (12)\]
+</div>
+<p>Push the points through <span class="math inline">\(f\)</span>, take the weighted mean and covariance, and you have
+the predicted moments to second order — no Jacobian, only <span class="math inline">\(2n+1\)</span> evaluations. The
+update needs a cross-covariance, which the same points supply:</p>
+<div class="math block">
+\[\Sigma_{xz} = \sum_i w_i^{c}\left(\mathcal{X}_i - m\right)\left(\mathcal{Z}_i - \hat z\right)^{\top}, \qquad K = \Sigma_{xz} S^{-1} \qquad (13)\]
+</div>
+<p>Two details that are easy to get wrong, and both are in the code. The sigma points
+used for <span class="math inline">\(h\)</span> must be <strong>redrawn from the predicted moments</strong>: the points that went
+through <span class="math inline">\(f\)</span> describe the previous state, not this one. And <span class="math inline">\(\beta = 2\)</span> is the
+correction for a Gaussian prior; with <span class="math inline">\(\beta = 0\)</span> the predicted covariance of a
+quadratic is biased low.</p>
+<p><span class="math inline">\(\alpha\)</span> controls how far the points sit from the mean. Many implementations set
+<span class="math inline">\(\alpha = 10^{-3}\)</span> so the points hug the mean, which is a numerical convenience in
+high dimensions — it costs accuracy, and at <span class="math inline">\(\alpha \to 0\)</span> the transform
+degenerates towards the EKF. This file defaults to <span class="math inline">\(\alpha = 1\)</span>, where the
+weights are <span class="math inline">\(O(1)\)</span> and (11) is exact for the moments it claims.</p>
+<h3 id="7-missing-observations">7. Missing observations <a class="header-anchor" href="#7-missing-observations">#</a></h3>
+<p>A missing entry is not a zero and not a NaN to be interpolated. It means the
+update has no information from that coordinate, so the correct posterior is</p>
+<div class="math block">
+\[m_t = m_t^{-} + K (z_t^{\text{obs}} - C^{\text{obs}} m_t^{-}), \qquad K = P^{-}(C^{\text{obs}})^{\top}\left(C^{\text{obs}} P^{-} (C^{\text{obs}})^{\top} + R^{\text{obs}}\right)^{-1} \qquad (14)\]
+</div>
+<p>with <span class="math inline">\(C^{\text{obs}}\)</span> and <span class="math inline">\(R^{\text{obs}}\)</span> the observed rows and block. When no
+row survives, the posterior is the prediction and <span class="math inline">\(P\)</span> grows by <span class="math inline">\(Q\)</span> — the filter
+gets less certain because nothing arrived. The demo checks a sharp consequence:
+observing one coordinate of a two-dimensional observation must give <em>exactly</em> the
+same answer as a filter built for that coordinate alone.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>One frozenset, one dispatcher, and the two halves of the algorithm behind it.</p>
+<pre class="highlight"><code><span class="n">VARIANTS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">[</span><span class="s2">"kf"</span><span class="p">,</span> <span class="s2">"ekf"</span><span class="p">,</span> <span class="s2">"ukf"</span><span class="p">,</span> <span class="s2">"information_filter"</span><span class="p">,</span> <span class="s2">"rts_smoother"</span><span class="p">,</span> <span class="s2">"missing_obs"</span><span class="p">]</span>
+<span class="p">)</span>
+</code></pre>
+<p>The dispatcher is where the API's one awkwardness lives: <code>transition</code> and
+<code>observation</code> are matrices for four variants and callables for two. Rather than
+two entry points, <code>kalman_filter</code> reads the variant and converts. <code>rts_smoother</code>
+is the forward filter plus a backward pass, so it shares the matrix branch.</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"kf"</span><span class="p">,</span> <span class="s2">"information_filter"</span><span class="p">,</span> <span class="s2">"rts_smoother"</span><span class="p">,</span> <span class="s2">"missing_obs"</span><span class="p">):</span>
+        <span class="n">A</span><span class="p">,</span> <span class="n">C</span> <span class="o">=</span> <span class="n">_as_matrix</span><span class="p">(</span><span class="n">transition</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="n">_as_matrix</span><span class="p">(</span><span class="n">observation</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"information_filter"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_information_filter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">m0</span><span class="p">,</span> <span class="n">P0</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">_kf</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">m0</span><span class="p">,</span> <span class="n">P0</span><span class="p">,</span> <span class="n">skip</span><span class="o">=</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"missing_obs"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"rts_smoother"</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">smooth_mean</span><span class="p">,</span> <span class="n">out</span><span class="o">.</span><span class="n">smooth_cov</span> <span class="o">=</span> <span class="n">_rts</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">Q</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+</code></pre>
+<p>The core is (1)–(3). The one line that is not the textbook formula is
+<code>np.linalg.solve(St, Ct @ P).T</code>: the gain is <span class="math inline">\(P C^{\top} S^{-1}\)</span>, and solving for
+<span class="math inline">\(S\,X = (CP)^{\top}\)</span> then transposing avoids forming <span class="math inline">\(S^{-1}\)</span> explicitly — the
+same number, half the work and a slightly better conditioned result.</p>
+<pre class="highlight"><code>        <span class="n">Ct</span> <span class="o">=</span> <span class="n">C</span><span class="p">[</span><span class="n">obs</span><span class="p">]</span>
+        <span class="n">St</span> <span class="o">=</span> <span class="n">Ct</span> <span class="o">@</span> <span class="n">P</span> <span class="o">@</span> <span class="n">Ct</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">R</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">obs</span><span class="p">,</span> <span class="n">obs</span><span class="p">)]</span>
+        <span class="n">innov</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">,</span> <span class="n">obs</span><span class="p">]</span> <span class="o">-</span> <span class="n">Ct</span> <span class="o">@</span> <span class="n">mu</span>
+        <span class="n">loglik</span> <span class="o">+=</span> <span class="n">_gauss_logpdf</span><span class="p">(</span><span class="n">innov</span><span class="p">,</span> <span class="n">St</span><span class="p">)</span>
+        <span class="n">K</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">St</span><span class="p">,</span> <span class="n">Ct</span> <span class="o">@</span> <span class="n">P</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>  <span class="c1"># P Cᵀ S⁻¹, without an explicit inverse</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">K</span> <span class="o">@</span> <span class="n">innov</span>
+        <span class="n">P</span> <span class="o">=</span> <span class="n">P</span> <span class="o">-</span> <span class="n">K</span> <span class="o">@</span> <span class="n">Ct</span> <span class="o">@</span> <span class="n">P</span>
+        <span class="n">P</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">P</span> <span class="o">+</span> <span class="n">P</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+</code></pre>
+<p>That symmetrisation is not decoration. The update is a subtraction of two
+positive-definite matrices, so round-off can leave <span class="math inline">\(P\)</span> with a small negative
+eigenvalue; symmetrising does not cure it but keeps the error from compounding,
+and a Cholesky inside <code>_gauss_logpdf</code> will raise rather than silently propagate a
+non-positive matrix. In long runs, the Joseph form
+<span class="math inline">\(P = (I-KC)P(I-KC)^{\top} + KRK^{\top}\)</span> is the answer, at twice the cost.</p>
+<p>Missing data is a mask, not a special case, which is why <code>missing_obs</code> is one
+boolean argument rather than a second filter. The <code>raise</code> is the interesting
+branch: <code>kf</code> refuses a NaN and names the variant that handles it.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">skip</span><span class="p">:</span>
+            <span class="n">obs</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">])</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">"z has a missing observation; use variant='missing_obs', which "</span>
+                    <span class="s2">"restricts the update to the observed rows"</span>
+                <span class="p">)</span>
+            <span class="n">obs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+</code></pre>
+<p>An empty observation set is a real state: the update is the identity, and the
+filter has to record the prediction as the posterior. Conflating this with
+&quot;skip the step entirely&quot; is the classic bug — the state would stop moving.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="ow">not</span> <span class="n">obs</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="c1"># Nothing to condition on: the posterior *is* the prediction. The</span>
+            <span class="c1"># update still happens, it is just the identity.</span>
+            <span class="n">n_skipped</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">mean</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">cov</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu</span><span class="p">,</span> <span class="n">P</span>
+            <span class="k">continue</span>
+</code></pre>
+<p>The information form is (8)–(9) literally: two adds for the measurement, two
+inversions for the prediction. This is also where the filter's arithmetic shows
+its cost — note that the posterior is recovered by inverting <span class="math inline">\(J\)</span> at every step
+purely so the two variants can be compared.</p>
+<pre class="highlight"><code>            <span class="n">J</span> <span class="o">=</span> <span class="n">J_pred</span> <span class="o">+</span> <span class="n">Ct</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">Rt</span><span class="p">,</span> <span class="n">Ct</span><span class="p">)</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">y_pred</span> <span class="o">+</span> <span class="n">Ct</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">Rt</span><span class="p">,</span> <span class="n">zt</span><span class="p">)</span>
+</code></pre>
+<p>The smoother is (6)–(7) and nothing else. <code>P_pred</code> is recomputed rather than
+stored: <span class="math inline">\(A P_t A^{\top} + Q\)</span> is exactly what the forward pass used, so the
+smoother could read it off a saved array, and caching it would save one matrix
+product per step.</p>
+<pre class="highlight"><code>    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">T</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">P_pred</span> <span class="o">=</span> <span class="n">A</span> <span class="o">@</span> <span class="n">out</span><span class="o">.</span><span class="n">cov</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">@</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">Q</span>
+        <span class="n">G</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">P_pred</span><span class="p">,</span> <span class="n">A</span> <span class="o">@</span> <span class="n">out</span><span class="o">.</span><span class="n">cov</span><span class="p">[</span><span class="n">t</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">sm</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">mean</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">+</span> <span class="n">G</span> <span class="o">@</span> <span class="p">(</span><span class="n">sm</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">A</span> <span class="o">@</span> <span class="n">out</span><span class="o">.</span><span class="n">mean</span><span class="p">[</span><span class="n">t</span><span class="p">])</span>
+        <span class="n">sc</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">cov</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">+</span> <span class="n">G</span> <span class="o">@</span> <span class="p">(</span><span class="n">sc</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">P_pred</span><span class="p">)</span> <span class="o">@</span> <span class="n">G</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">sc</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">sc</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">+</span> <span class="n">sc</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+</code></pre>
+<p>The UKF is where the interesting mistakes live. The weights are (12), and the two
+weight vectors differ only in the first entry — that single number is the
+second-order correction for a Gaussian, and dropping it biases the predicted
+variance low on any curved <span class="math inline">\(f\)</span>.</p>
+<pre class="highlight"><code>    <span class="n">lam</span> <span class="o">=</span> <span class="n">alpha</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="n">kappa</span><span class="p">)</span> <span class="o">-</span> <span class="n">n</span>
+    <span class="n">wm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="n">lam</span><span class="p">))</span>
+    <span class="n">wc</span> <span class="o">=</span> <span class="n">wm</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">wm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">lam</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="n">lam</span><span class="p">)</span>
+    <span class="n">wc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">wm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">alpha</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">beta</span><span class="p">)</span>
+</code></pre>
+<p>The update then redraws the sigma points from the predicted moments. Reusing the
+points that went through <span class="math inline">\(f\)</span> — the tempting version, and the bug this file had
+first — conditions on the <em>previous</em> state's distribution and is off by more than
+a unit in the mean on the demo's linear model.</p>
+<pre class="highlight"><code>            <span class="n">Xs</span> <span class="o">=</span> <span class="n">_sigma_points</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">n</span> <span class="o">+</span> <span class="n">lam</span><span class="p">)</span>
+            <span class="n">Z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">h</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">Xs</span><span class="p">])</span>
+            <span class="n">zhat</span> <span class="o">=</span> <span class="n">wm</span> <span class="o">@</span> <span class="n">Z</span>
+            <span class="n">Zt</span> <span class="o">=</span> <span class="n">Z</span><span class="p">[:,</span> <span class="n">obs</span><span class="p">]</span>
+            <span class="n">S</span> <span class="o">=</span> <span class="n">_weighted_cov</span><span class="p">(</span><span class="n">Zt</span><span class="p">,</span> <span class="n">Zt</span><span class="p">,</span> <span class="n">zhat</span><span class="p">[</span><span class="n">obs</span><span class="p">],</span> <span class="n">zhat</span><span class="p">[</span><span class="n">obs</span><span class="p">],</span> <span class="n">wc</span><span class="p">)</span> <span class="o">+</span> <span class="n">R</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">obs</span><span class="p">,</span> <span class="n">obs</span><span class="p">)]</span>
+            <span class="n">cross</span> <span class="o">=</span> <span class="n">_weighted_cov</span><span class="p">(</span><span class="n">Xs</span><span class="p">,</span> <span class="n">Zt</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">zhat</span><span class="p">[</span><span class="n">obs</span><span class="p">],</span> <span class="n">wc</span><span class="p">)</span>
+</code></pre>
+<p><code>_weighted_cov</code> is public-minded about a detail that is easy to get wrong: the
+cross-covariance is between <em>state</em> deviations and <em>observation</em> deviations, and
+its transpose is what makes the gain <span class="math inline">\((n, m)\)</span> rather than <span class="math inline">\((m, n)\)</span>.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_weighted_cov</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">ma</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">mb</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">w</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""`Σ_i w_i (a_i − ma)(b_i − mb)ᵀ` — the cross-covariance the gain needs.</span>
+
+<span class="sd">    Computing the cross term directly, rather than reading it off a scatter</span>
+<span class="sd">    matrix, is what lets the UKF update a state it never observed.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">a</span> <span class="o">-</span> <span class="n">ma</span><span class="p">)</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">w</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">mb</span><span class="p">))</span>
+</code></pre>
+<p>The demo's exact likelihood check is the one piece of test code worth reading,
+because it is a different algorithm: the joint covariance of <span class="math inline">\(z_{1..T}\)</span> built
+from the state covariances, with <span class="math inline">\(C A^{i-j}\)</span> carrying a state <span class="math inline">\(j\)</span> forward to
+observation <span class="math inline">\(i\)</span>.</p>
+<pre class="highlight"><code>    <span class="n">S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">T</span> <span class="o">*</span> <span class="n">m</span><span class="p">,</span> <span class="n">T</span> <span class="o">*</span> <span class="n">m</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">T</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">Pij</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="n">j</span><span class="p">):</span>
+                <span class="n">Pij</span> <span class="o">=</span> <span class="n">A</span> <span class="o">@</span> <span class="n">Pij</span>
+            <span class="n">block</span> <span class="o">=</span> <span class="n">C</span> <span class="o">@</span> <span class="n">Pij</span> <span class="o">@</span> <span class="n">C</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(n\)</span> states, <span class="math inline">\(m\)</span> observations and <span class="math inline">\(T\)</span> steps:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:right">Inversions per step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>kf</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T(n^3 + m^3))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(T n^2)\)</span></td>
+<td style="text-align:right">0 (two solves)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>information_filter</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T n^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(T n^2)\)</span></td>
+<td style="text-align:right">2</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rts_smoother</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T n^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(T n^2)\)</span></td>
+<td style="text-align:right">0 (one solve)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ekf</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T(n^3 + c_J + m^3))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(T n^2)\)</span></td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ukf</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T(n^3 + (2n+1)(c_f + c_h)))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(T n^2)\)</span></td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>missing_obs</code></td>
+<td style="text-align:left"><span class="math inline">\(O(T(n^3 + m_{\text{obs}}^3))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(T n^2)\)</span></td>
+<td style="text-align:right">0</td>
+</tr>
+</tbody>
+</table>
+<p>The cubic is the covariance. It is why the filter is cheap for <span class="math inline">\(n = 10\)</span> and
+hopeless for <span class="math inline">\(n = 10^4\)</span> — and why the ensemble and particle filters exist: they
+replace <span class="math inline">\(O(n^3)\)</span> with <span class="math inline">\(O(Nn)\)</span> for <span class="math inline">\(N\)</span> samples, at the price of Monte Carlo error.
+Storing every covariance is <span class="math inline">\(O(T n^2)\)</span>; if you only need the final state, do not
+allocate the arrays.</p>
+<p><code>ukf</code> is the most expensive variant per step in practice, because <span class="math inline">\(h\)</span> is
+evaluated <span class="math inline">\(2n+1\)</span> times and each evaluation may be a numerical model. That is
+still linear in <span class="math inline">\(n\)</span> and usually cheaper than deriving a Jacobian by hand.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The linearisation point is not where the probability is.</strong> The EKF's <span class="math inline">\(H = 0\)</span> at
+a symmetric prior makes a quadratic sensor look blind: <span class="math inline">\(-4.768\)</span> nats against a
+true <span class="math inline">\(-1.323\)</span> on one observation. Nothing about the estimate looks broken — the
+mean is right, the variance is untouched — but the likelihood is wrong by 3.4
+nats, so any model comparison, any <span class="math inline">\(Q\)</span>/<span class="math inline">\(R\)</span> fit by maximum likelihood, and any
+gate that thresholds the innovation will be wrong. <em>Diagnostic:</em> rerun with
+<code>ukf</code>; if the likelihood moves by more than a nat on a one-step problem, the
+linearisation is the problem.</p>
+<p><strong>The covariance stops being positive definite.</strong> <span class="math inline">\(P - KCP\)</span> is a difference of
+positive-definite matrices, and in float64 it loses definiteness after thousands
+of steps or immediately when <span class="math inline">\(R\)</span> is tiny. The symptom is a <code>LinAlgError</code> from a
+Cholesky deep inside a likelihood evaluation, or a covariance with a <span class="math inline">\(-10^{-12}\)</span>
+eigenvalue that the next update turns into a real failure. <em>Diagnostic:</em> track
+the smallest eigenvalue of <span class="math inline">\(P\)</span>; <em>fix:</em> the Joseph form, or a square-root filter
+that propagates a Cholesky factor and cannot represent an indefinite matrix.</p>
+<p><strong>Divergence on a strongly curved model.</strong> A first version of this demo used
+<span class="math inline">\(f(x) = 0.5x + 25x/(1+x^2)\)</span> with a quadratic sensor, where the derivative
+vanishes near the mean: with no information arriving, <span class="math inline">\(P\)</span> grew geometrically
+until it reached <code>inf</code> at step 109. The filter did not raise; it produced
+<code>nan</code>s and a likelihood of <code>nan</code>. <em>Diagnostic:</em> log the innovation and <span class="math inline">\(S\)</span> —
+a growing <span class="math inline">\(S\)</span> with a shrinking gain is the filter telling you the model and the
+data disagree; use <code>ukf</code>, inflate <span class="math inline">\(Q\)</span>, or fix the model.</p>
+<p><strong>Treating a missing value as a number.</strong> Interpolating a gap and feeding it to
+<code>kf</code> as if it were data makes the filter <em>more</em> confident at exactly the steps
+where it should be less. <code>missing_obs</code> exists so that this is a decision, not an
+accident: the posterior at a gap is the prediction, and the trace of <span class="math inline">\(P\)</span> grows.</p>
+<p><strong>A wrong <span class="math inline">\(R\)</span> that hides in the covariance.</strong> <span class="math inline">\(R\)</span> too small makes <span class="math inline">\(K \to 1\)</span>, the
+filter chases noise, and <span class="math inline">\(P\)</span> collapses so hard that later real changes are
+ignored (&quot;filter lock&quot;). <span class="math inline">\(R\)</span> too large does the opposite: the filter ignores the
+sensor and follows the model, and the innovation becomes systematically biased
+rather than white. <em>Diagnostic:</em> the normalised innovation squared
+<span class="math inline">\(e^{\top} S^{-1} e\)</span> should average about <span class="math inline">\(m\)</span>; the demo's exact likelihood check is
+the same idea in one number.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Navigation and sensor fusion.</strong> The origin of the method, and still its
+largest use: an IMU integrated at high rate between GPS fixes, with the
+information form when several sensors report on the same state. Apollo's
+onboard computer ran a 15-state filter with a 24 Hz update.</p>
+<p><strong>Tracking and radar.</strong> Constant-velocity or constant-acceleration models with
+position-only observations; <code>missing_obs</code> is the normal case, not an exception,
+because a target drops out of a radar sweep for a few frames all the time.</p>
+<p><strong>Econometrics and structural time series.</strong> Local level, local linear trend and
+seasonal components are all state-space models, fitted by maximising (4) over
+<span class="math inline">\(Q\)</span> and <span class="math inline">\(R\)</span>, and smoothed for historical estimates. <code>statsmodels</code>'
+<code>UnobservedComponents</code> is this file with a parameter optimiser on top.</p>
+<p><strong>Control.</strong> The LQG controller is a Kalman filter feeding an LQR gain; the
+separation principle says the two can be designed independently precisely
+because the conditional mean is a sufficient statistic for a linear-Gaussian
+system.</p>
+<p><strong>Online learning of a linear model.</strong> Recursive least squares is the Kalman
+filter with <span class="math inline">\(A = I\)</span>, <span class="math inline">\(Q = 0\)</span>, <span class="math inline">\(C\)</span> the feature row and <span class="math inline">\(R\)</span> the noise variance —
+the same recursion seen from a different literature. <a href="../02-linear-models/ridge.py.html"><code>ridge.py</code></a>
+is the batch version.</p>
+<p>Where it is a trap: any posterior that is not unimodal, and any model where the
+nonlinearity is the point rather than a nuisance. A Gaussian belief cannot
+represent &quot;either here or there&quot;, and a filter that is confident and wrong is
+worse than one that is uncertain. <a href="particle_filter.py.html"><code>particle_filter.py</code></a>
+exists for that case, and <a href="mcmc.py.html"><code>mcmc.py</code></a> when the state is not sequential
+at all.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Kalman (1960). <em>A new approach to linear filtering and prediction problems.</em>
+Journal of Basic Engineering 82, 35. Three pages, and the whole thing.</li>
+<li>Kalman &amp; Bucy (1961). <em>New results in linear filtering and prediction theory.</em>
+Journal of Basic Engineering 83, 95. The continuous-time form and the
+optimality proof.</li>
+<li>Rauch, Tung &amp; Striebel (1965). <em>Maximum likelihood estimates of linear dynamic
+systems.</em> AIAA Journal 3, 1445. The smoother.</li>
+<li>Anderson &amp; Moore (1979). <em>Optimal Filtering.</em> Prentice-Hall. The reference for
+the information form, the Joseph form and stability analysis.</li>
+<li>Julier &amp; Uhlmann (1997). <em>A new extension of the Kalman filter to nonlinear
+systems.</em> SPIE AeroSense. The unscented transform.</li>
+<li>Wan &amp; van der Merwe (2000). <em>The unscented Kalman filter for nonlinear
+estimation.</em> IEEE AS-SPCC. The weights in (12), including <span class="math inline">\(\beta\)</span>.</li>
+<li>Julier &amp; Uhlmann (2004). <em>Unscented filtering and nonlinear estimation.</em>
+Proceedings of the IEEE 92, 401. Why <span class="math inline">\(\alpha \to 0\)</span> is a mistake, and what the
+transform is actually second-order in.</li>
+<li>Särkkä (2013). <em>Bayesian Filtering and Smoothing.</em> Cambridge. The one book to
+read next: it derives this file, the particle filter and the extended Kalman
+filter in the same notation.</li>
+<li>Durbin &amp; Koopman (2012). <em>Time Series Analysis by State Space Methods.</em> Oxford.
+The applied view: structural models, diffuse initialisation, and the
+likelihood as an optimisation objective.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="variational_inference.html"><small>Previous</small><span>Variational inference</span></a><a class="next" href="particle_filter.html"><small>Next</small><span>Particle filter</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html" aria-current="page"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-why-the-update-is-a-matrix-identity">1. Why the update is a matrix identity</a></li><li class="lvl3"><a href="#2-the-likelihood-is-the-product-of-innovations">2. The likelihood is the product of innovations</a></li><li class="lvl3"><a href="#3-smoothing">3. Smoothing</a></li><li class="lvl3"><a href="#4-the-information-form">4. The information form</a></li><li class="lvl3"><a href="#5-linearisation-the-ekf">5. Linearisation: the EKF</a></li><li class="lvl3"><a href="#6-the-unscented-transform">6. The unscented transform</a></li><li class="lvl3"><a href="#7-missing-observations">7. Missing observations</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/kalman.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

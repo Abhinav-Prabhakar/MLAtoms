@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beam search — beam_search.py · MLAtoms</title>
+<meta name="description" content="Source of beam_search.py: Beam, greedy, top-k and nucleus decoding.">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/beam_search.py.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Beam search — beam_search.py">
+<meta property="og:description" content="Source of beam_search.py: Beam, greedy, top-k and nucleus decoding.">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/beam_search.py.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Beam search — beam_search.py">
+<meta name="twitter:description" content="Source of beam_search.py: Beam, greedy, top-k and nucleus decoding.">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "SoftwareSourceCode", "name": "Beam search \u2014 beam_search.py", "programmingLanguage": "Python", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/beam_search.py.html", "description": "Source of beam_search.py: Beam, greedy, top-k and nucleus decoding.", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout layout--wide"><div><div class="prose code-page"><p class="page-meta"><a href="./index.html">10 · Sequences</a><span class="page-meta__sep">/</span><a href="beam_search.html">Beam search</a><span class="page-meta__sep">/</span><span>source</span></p><h1>beam_search.py</h1><p class="code-page__bar"><span>531 lines</span><span>·</span><span>7 variants</span><a class="btn" href="beam_search.py">Raw file</a><a class="btn" href="beam_search.html">Companion</a></p><pre class="highlight"><code><span class="sa">r</span><span class="sd">"""Beam search — choosing a sequence from a next-token distribution.</span>
+
+<span class="sd">Chapter:   10-sequences</span>
+<span class="sd">Companion: beam_search.md</span>
+<span class="sd">Tier 2 · 7 variants: greedy, beam, top_k, top_p, temperature,</span>
+<span class="sd">                    repetition_penalty, contrastive</span>
+
+<span class="sd">    score(y) = sum_t log p(y_t | y_(1:t-1))                            (1)</span>
+<span class="sd">    beam     = the B highest-scoring prefixes at every step            (2)</span>
+
+<span class="sd">A language model gives a distribution over the next token given everything</span>
+<span class="sd">before it. Turning that into a sentence is a search problem: the number of</span>
+<span class="sd">sequences of length T is V^T, and the model only ever scores one step at a time.</span>
+<span class="sd">This atom implements the standard answers.</span>
+
+<span class="sd">Greedy decoding takes the most likely token at each step. Beam search keeps the</span>
+<span class="sd">B most likely prefixes and extends all of them, which finds a better sequence at</span>
+<span class="sd">the cost of B times the work. Sampling replaces the argmax with a draw, and the</span>
+<span class="sd">three sampling variants shape the distribution first: temperature rescales the</span>
+<span class="sd">logits, top-k keeps the k best tokens, and top-p keeps the smallest set whose</span>
+<span class="sd">mass reaches p. Repetition penalty divides the scores of tokens already in the</span>
+<span class="sd">context. Contrastive decoding subtracts the log-probabilities of a weaker</span>
+<span class="sd">amateur model, which suppresses tokens that are likely for generic reasons rather</span>
+<span class="sd">than because of the context.</span>
+
+<span class="sd">Everything is numpy and deterministic. The model is a callable that maps a token</span>
+<span class="sd">prefix to logits, so the atom is independent of any particular language model and</span>
+<span class="sd">the demos can use exact tables. The numbers to carry away: on a two-step table</span>
+<span class="sd">where greedy takes the locally better first token it ends at probability 0.3000</span>
+<span class="sd">while a beam of two finds the 0.3600 sequence, a beam wide enough to keep every</span>
+<span class="sd">prefix matches brute force over all 27 sequences exactly, temperature T makes the</span>
+<span class="sd">distribution exactly softmax(z/T), top-p at 0.7 keeps the two tokens holding 0.75</span>
+<span class="sd">of the mass, a repetition penalty of two sends a one-token loop on a four-token</span>
+<span class="sd">pass before it locks, and contrastive decoding flips a choice the expert alone</span>
+<span class="sd">would make.</span>
+<span class="sd">"""</span>  <span class="c1"># noqa: E501</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">VARIANTS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"greedy"</span><span class="p">,</span> <span class="s2">"beam"</span><span class="p">,</span> <span class="s2">"top_k"</span><span class="p">,</span> <span class="s2">"top_p"</span><span class="p">,</span> <span class="s2">"temperature"</span><span class="p">,</span>
+            <span class="s2">"repetition_penalty"</span><span class="p">,</span> <span class="s2">"contrastive"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_log_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Log probabilities, with -inf entries allowed and masked rows refused."""</span>
+    <span class="n">peak</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">logits</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">peak</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"every token has zero probability"</span><span class="p">)</span>
+    <span class="n">shifted</span> <span class="o">=</span> <span class="n">logits</span> <span class="o">-</span> <span class="n">peak</span>
+    <span class="k">return</span> <span class="n">shifted</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">shifted</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_masked_top_k</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Keep the k largest logits, set the rest to -inf."""</span>
+    <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;=</span> <span class="n">logits</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">logits</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">logits</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">order</span><span class="p">[:</span><span class="n">k</span><span class="p">]]</span> <span class="o">=</span> <span class="n">logits</span><span class="p">[</span><span class="n">order</span><span class="p">[:</span><span class="n">k</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">output</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_masked_top_p</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Keep the smallest set of tokens whose probability reaches p."""</span>
+    <span class="n">probabilities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_log_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">))</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">probabilities</span><span class="p">)</span>
+    <span class="n">cumulative</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">probabilities</span><span class="p">[</span><span class="n">order</span><span class="p">])</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cumulative</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">keep</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">logits</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">order</span><span class="p">[:</span><span class="n">keep</span><span class="p">]]</span> <span class="o">=</span> <span class="n">logits</span><span class="p">[</span><span class="n">order</span><span class="p">[:</span><span class="n">keep</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">output</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Decoder</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Decode sequences from a next-token model.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    variant : str</span>
+<span class="sd">        One of `VARIANTS`.</span>
+<span class="sd">    beam : int</span>
+<span class="sd">        Width of the beam, or one for greedy.</span>
+<span class="sd">    k : int</span>
+<span class="sd">        Number of tokens kept by `top_k`.</span>
+<span class="sd">    p : float</span>
+<span class="sd">        Mass kept by `top_p`, in ``(0, 1]``.</span>
+<span class="sd">    temperature : float</span>
+<span class="sd">        Divisor applied to the logits by `temperature`.</span>
+<span class="sd">    penalty : float</span>
+<span class="sd">        Divisor for repeated tokens, at least one.</span>
+<span class="sd">    alpha : float</span>
+<span class="sd">        Weight of the amateur model in `contrastive`.</span>
+<span class="sd">    max_length : int</span>
+<span class="sd">        Number of tokens generated after the prompt.</span>
+<span class="sd">    seed : int</span>
+<span class="sd">        Seed for the sampling variants.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    logprob_ : float</span>
+<span class="sd">        Log probability of the returned continuation under the model.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"beam"</span><span class="p">,</span> <span class="n">beam</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+                 <span class="n">p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span><span class="p">,</span> <span class="n">temperature</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">penalty</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.2</span><span class="p">,</span>
+                 <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">max_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">variant</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VARIANTS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown variant </span><span class="si">{</span><span class="n">variant</span><span class="si">!r}</span><span class="s2">; choose from </span><span class="si">{</span><span class="n">VARIANTS</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">low</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">"beam"</span><span class="p">,</span> <span class="n">beam</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"k"</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                                 <span class="p">(</span><span class="s2">"max_length"</span><span class="p">,</span> <span class="n">max_length</span><span class="p">,</span> <span class="mi">1</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span> <span class="ow">or</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="n">low</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be an integer of at least </span><span class="si">{</span><span class="n">low</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;</span> <span class="n">p</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"p must lie in (0, 1]"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">temperature</span><span class="p">)</span> <span class="ow">or</span> <span class="n">temperature</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"temperature must be finite and positive"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">penalty</span><span class="p">)</span> <span class="ow">or</span> <span class="n">penalty</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"penalty must be finite and at least one"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="ow">or</span> <span class="n">alpha</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"alpha must be finite and non-negative"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">=</span> <span class="n">variant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">beam</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temperature</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">penalty</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">penalty</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_length</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_length</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logprob_</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="c1"># input handling</span>
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prompt</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">array</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"the prompt must be one-dimensional"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">):</span>
+            <span class="n">numeric</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">numeric</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">numeric</span><span class="p">)):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"prompt tokens must be integers"</span><span class="p">)</span>
+            <span class="n">array</span> <span class="o">=</span> <span class="n">numeric</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">size</span> <span class="ow">and</span> <span class="n">array</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"prompt tokens must be non-negative"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">token</span><span class="p">)</span> <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">array</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_logits</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">scores</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"scores must be callable"</span><span class="p">)</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">scores</span><span class="p">(</span><span class="n">context</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">values</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"scores must return one logit per token"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">values</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"the vocabulary needs at least two tokens"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">values</span><span class="p">))</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">values</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"logits must be finite or negative infinity"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">values</span>
+
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="c1"># shaping the distribution</span>
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_penalise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logits</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"repetition_penalty"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">logits</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">logits</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">context</span><span class="p">):</span>
+            <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">token</span> <span class="o">&lt;</span> <span class="n">output</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+                <span class="n">output</span><span class="p">[</span><span class="n">token</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="n">token</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">penalty</span> <span class="k">if</span> <span class="n">output</span><span class="p">[</span><span class="n">token</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
+                                 <span class="k">else</span> <span class="n">output</span><span class="p">[</span><span class="n">token</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">penalty</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logits</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span>
+                      <span class="n">amateur</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Log probabilities after the variant's shaping."""</span>
+        <span class="n">shaped</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_penalise</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"contrastive"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">amateur</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"contrastive decoding needs an amateur model"</span><span class="p">)</span>
+            <span class="n">expert</span> <span class="o">=</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="n">shaped</span><span class="p">)</span>
+            <span class="n">weak</span> <span class="o">=</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_logits</span><span class="p">(</span><span class="n">amateur</span><span class="p">,</span> <span class="n">context</span><span class="p">))</span>
+            <span class="n">shaped</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="n">expert</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">weak</span>
+            <span class="k">return</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="n">shaped</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"temperature"</span><span class="p">:</span>
+            <span class="n">shaped</span> <span class="o">=</span> <span class="n">shaped</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"top_k"</span><span class="p">:</span>
+            <span class="n">shaped</span> <span class="o">=</span> <span class="n">_masked_top_k</span><span class="p">(</span><span class="n">shaped</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"top_p"</span><span class="p">:</span>
+            <span class="n">shaped</span> <span class="o">=</span> <span class="n">_masked_top_p</span><span class="p">(</span><span class="n">shaped</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="n">shaped</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="c1"># searches</span>
+    <span class="c1"># ------------------------------------------------------------------ #</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_argmax</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">prompt</span>
+        <span class="n">logprob</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_length</span><span class="p">):</span>
+            <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logits</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">tokens</span><span class="p">)</span>
+            <span class="n">log_probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distribution</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span>
+            <span class="n">token</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">log_probs</span><span class="o">.</span><span class="n">argmax</span><span class="p">())</span>
+            <span class="n">logprob</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_probs</span><span class="p">[</span><span class="n">token</span><span class="p">])</span>
+            <span class="n">tokens</span> <span class="o">=</span> <span class="n">tokens</span> <span class="o">+</span> <span class="p">(</span><span class="n">token</span><span class="p">,)</span>
+            <span class="k">if</span> <span class="n">eos</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">token</span> <span class="o">==</span> <span class="n">eos</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_beam</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+        <span class="n">beams</span> <span class="o">=</span> <span class="p">[(</span><span class="n">prompt</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)]</span>
+        <span class="n">finished</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_length</span><span class="p">):</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span> <span class="ow">in</span> <span class="n">beams</span><span class="p">:</span>
+                <span class="n">log_probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distribution</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_logits</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">tokens</span><span class="p">),</span> <span class="n">tokens</span><span class="p">,</span>
+                                               <span class="n">amateur</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">log_probs</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="n">logprob</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_probs</span><span class="p">[</span><span class="n">token</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">eos</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">token</span> <span class="o">==</span> <span class="n">eos</span><span class="p">:</span>
+                        <span class="n">finished</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tokens</span> <span class="o">+</span> <span class="p">(</span><span class="n">token</span><span class="p">,),</span> <span class="n">value</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tokens</span> <span class="o">+</span> <span class="p">(</span><span class="n">token</span><span class="p">,),</span> <span class="n">value</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">candidates</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">candidates</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="o">-</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">beams</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[:</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">finished</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="p">:</span>
+                <span class="n">best_finished</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">score</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">score</span> <span class="ow">in</span> <span class="n">finished</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">best_finished</span><span class="p">:</span>
+                    <span class="k">break</span>
+        <span class="n">pool</span> <span class="o">=</span> <span class="n">finished</span> <span class="o">+</span> <span class="n">beams</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">best</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">best</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">prompt</span>
+        <span class="n">logprob</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_length</span><span class="p">):</span>
+            <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logits</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">tokens</span><span class="p">)</span>
+            <span class="n">log_probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distribution</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span>
+            <span class="n">probabilities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_probs</span><span class="p">)</span>
+            <span class="n">probabilities</span> <span class="o">=</span> <span class="n">probabilities</span> <span class="o">/</span> <span class="n">probabilities</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="n">token</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">probabilities</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">probabilities</span><span class="p">))</span>
+            <span class="n">logprob</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_probs</span><span class="p">[</span><span class="n">token</span><span class="p">])</span>
+            <span class="n">tokens</span> <span class="o">=</span> <span class="n">tokens</span> <span class="o">+</span> <span class="p">(</span><span class="n">token</span><span class="p">,)</span>
+            <span class="k">if</span> <span class="n">eos</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">token</span> <span class="o">==</span> <span class="n">eos</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="o">=</span><span class="p">(),</span> <span class="n">eos</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">amateur</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Generate a continuation and return the whole sequence."""</span>
+        <span class="n">prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prompt</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">eos</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eos</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span> <span class="ow">or</span> <span class="n">eos</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"eos must be a non-negative integer"</span><span class="p">)</span>
+            <span class="n">channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logits</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">)</span><span class="o">.</span><span class="n">size</span>
+            <span class="k">if</span> <span class="n">eos</span> <span class="o">&gt;=</span> <span class="n">channels</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"eos is outside the vocabulary"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"beam"</span><span class="p">:</span>
+            <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"top_k"</span><span class="p">,</span> <span class="s2">"top_p"</span><span class="p">,</span> <span class="s2">"temperature"</span><span class="p">):</span>
+            <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tokens</span><span class="p">,</span> <span class="n">logprob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_argmax</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">eos</span><span class="p">,</span> <span class="n">amateur</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logprob_</span> <span class="o">=</span> <span class="n">logprob</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tokens</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sequence_logprob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">,</span> <span class="n">sequence</span><span class="p">,</span> <span class="n">prompt</span><span class="o">=</span><span class="p">())</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Log probability of a full sequence after the prompt, under the model."""</span>
+        <span class="n">prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prompt</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+        <span class="n">sequence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prompt</span><span class="p">(</span><span class="n">sequence</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sequence</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">prompt</span><span class="p">)]</span> <span class="o">!=</span> <span class="n">prompt</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"the sequence must start with the prompt"</span><span class="p">)</span>
+        <span class="n">logprob</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">prompt</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">sequence</span><span class="p">)):</span>
+            <span class="n">log_probs</span> <span class="o">=</span> <span class="n">_log_softmax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_logits</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">sequence</span><span class="p">[:</span><span class="n">index</span><span class="p">]))</span>
+            <span class="n">logprob</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_probs</span><span class="p">[</span><span class="n">sequence</span><span class="p">[</span><span class="n">index</span><span class="p">]])</span>
+        <span class="k">return</span> <span class="n">logprob</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------- #</span>
+<span class="c1"># demo</span>
+<span class="c1"># ---------------------------------------------------------------------- #</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_table</span><span class="p">(</span><span class="n">rows</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A model whose logits are a fixed table keyed by the token prefix."""</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">scores</span><span class="p">(</span><span class="n">context</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"no row for </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">scores</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_two_step</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The table where the locally best first token is not the best start."""</span>
+    <span class="n">log</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="p">():</span> <span class="p">[</span><span class="n">log</span><span class="p">(</span><span class="mf">0.6</span><span class="p">),</span> <span class="n">log</span><span class="p">(</span><span class="mf">0.4</span><span class="p">)],</span>
+        <span class="p">(</span><span class="mi">0</span><span class="p">,):</span> <span class="p">[</span><span class="n">log</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span> <span class="n">log</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)],</span>
+        <span class="p">(</span><span class="mi">1</span><span class="p">,):</span> <span class="p">[</span><span class="n">log</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span> <span class="n">log</span><span class="p">(</span><span class="mf">0.9</span><span class="p">)],</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_greedy_and_beam</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A two-step table where greedy takes the wrong first token."""</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">_table</span><span class="p">(</span><span class="n">_two_step</span><span class="p">())</span>
+    <span class="n">greedy</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"greedy"</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+    <span class="n">beam</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"beam"</span><span class="p">,</span> <span class="n">beam</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+    <span class="n">greedy_log</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"greedy"</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">greedy_log</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+    <span class="n">beam_log</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"beam"</span><span class="p">,</span> <span class="n">beam</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">beam_log</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"two steps, two tokens, p(0) = 0.6 and then a 50/50 split:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  greedy takes </span><span class="si">{</span><span class="n">greedy</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2"> at log probability "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">greedy_log</span><span class="o">.</span><span class="n">logprob_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, probability </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">greedy_log</span><span class="o">.</span><span class="n">logprob_</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  a beam of two takes </span><span class="si">{</span><span class="n">beam</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2"> at log probability "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">beam_log</span><span class="o">.</span><span class="n">logprob_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, probability </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">beam_log</span><span class="o">.</span><span class="n">logprob_</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  Greedy is exact for one step and wrong for the sequence: 0.6 x 0.5"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  loses to 0.4 x 0.9, and the better first token is the rare one."</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]))</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">greedy</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+    <span class="k">assert</span> <span class="n">beam_log</span><span class="o">.</span><span class="n">logprob_</span> <span class="o">&gt;</span> <span class="n">greedy_log</span><span class="o">.</span><span class="n">logprob_</span> <span class="o">+</span> <span class="mf">0.15</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_exhaustive</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Beam wide enough to keep everything must equal brute force."""</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">length</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">ndindex</span><span class="p">(</span><span class="o">*</span><span class="p">([</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">length</span><span class="p">)):</span>
+            <span class="n">rows</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">prefix</span><span class="p">)]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1.5</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">_table</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">best_log</span><span class="p">,</span> <span class="n">best</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">ndindex</span><span class="p">(</span><span class="o">*</span><span class="p">([</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">length</span><span class="p">)):</span>
+        <span class="n">sequence</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"greedy"</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="n">length</span><span class="p">)</span><span class="o">.</span><span class="n">sequence_logprob</span><span class="p">(</span>
+            <span class="n">scores</span><span class="p">,</span> <span class="n">sequence</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="n">best_log</span><span class="p">:</span>
+            <span class="n">best_log</span><span class="p">,</span> <span class="n">best</span> <span class="o">=</span> <span class="n">value</span><span class="p">,</span> <span class="n">sequence</span>
+    <span class="n">exact</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"beam"</span><span class="p">,</span> <span class="n">beam</span><span class="o">=</span><span class="mi">3</span> <span class="o">**</span> <span class="n">length</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="n">length</span><span class="p">)</span>
+    <span class="n">found</span> <span class="o">=</span> <span class="n">exact</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"all </span><span class="si">{</span><span class="mi">3</span><span class="w"> </span><span class="o">**</span><span class="w"> </span><span class="n">length</span><span class="si">}</span><span class="s2"> sequences of length </span><span class="si">{</span><span class="n">length</span><span class="si">}</span><span class="s2"> under a random table:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  brute force picks </span><span class="si">{</span><span class="n">best</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2"> at </span><span class="si">{</span><span class="n">best_log</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  a beam of </span><span class="si">{</span><span class="mi">3</span><span class="w"> </span><span class="o">**</span><span class="w"> </span><span class="n">length</span><span class="si">}</span><span class="s2"> picks </span><span class="si">{</span><span class="n">found</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2"> at "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">exact</span><span class="o">.</span><span class="n">logprob_</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">narrow</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"beam"</span><span class="p">,</span> <span class="n">beam</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="n">length</span><span class="p">)</span>
+    <span class="n">narrow_tokens</span> <span class="o">=</span> <span class="n">narrow</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  a beam of one picks </span><span class="si">{</span><span class="n">narrow_tokens</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2"> at </span><span class="si">{</span><span class="n">narrow</span><span class="o">.</span><span class="n">logprob_</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">found</span><span class="p">,</span> <span class="n">best</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">exact</span><span class="o">.</span><span class="n">logprob_</span> <span class="o">-</span> <span class="n">best_log</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-12</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_temperature</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Temperature T turns p into p^(1/T), renormalised."""</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_log_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"a four-token distribution and the effect of temperature:"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">temperature</span> <span class="ow">in</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">):</span>
+        <span class="n">decoder</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"temperature"</span><span class="p">,</span> <span class="n">temperature</span><span class="o">=</span><span class="n">temperature</span><span class="p">)</span>
+        <span class="n">shaped</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">decoder</span><span class="o">.</span><span class="n">_distribution</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="p">()))</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_log_softmax</span><span class="p">(</span><span class="n">logits</span> <span class="o">/</span> <span class="n">temperature</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  T = </span><span class="si">{</span><span class="n">temperature</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">   </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">shaped</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2">   "</span>
+              <span class="sa">f</span><span class="s2">"matches softmax(z/T) to </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">shaped</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">expected</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">shaped</span> <span class="o">-</span> <span class="n">expected</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">1e-12</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">shaped</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-12</span>
+    <span class="n">cold</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"temperature"</span><span class="p">,</span> <span class="n">temperature</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">_distribution</span><span class="p">(</span>
+        <span class="n">logits</span><span class="p">,</span> <span class="p">()))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  T = 0.5 moves mass from </span><span class="si">{</span><span class="n">base</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">cold</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> on token 1"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  low temperature sharpens toward the argmax; high temperature flattens"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">cold</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">base</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">cold</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">base</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_top_k_and_p</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Truncation keeps a fixed count or a fixed mass."""</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"a distribution of 0.5, 0.25, 0.15, 0.1:"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+        <span class="n">kept</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">_masked_top_k</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">k</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  top-k with k = </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2"> keeps </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">kept</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">}</span><span class="s2"> token(s), "</span>
+              <span class="sa">f</span><span class="s2">"mass </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_log_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">))[</span><span class="n">kept</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">):</span>
+        <span class="n">kept</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">_masked_top_p</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">p</span><span class="p">))</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_log_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">))[</span><span class="n">kept</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  top-p with p = </span><span class="si">{</span><span class="n">p</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> keeps </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">kept</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">}</span><span class="s2"> token(s), "</span>
+              <span class="sa">f</span><span class="s2">"mass </span><span class="si">{</span><span class="n">mass</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">kept</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">_masked_top_p</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  top-p is the smallest set that reaches the mass, so 0.75 is enough"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  for 0.7 and the answer is two tokens, not a fixed count"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">kept</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_log_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">))[</span><span class="n">kept</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="mf">0.75</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">_masked_top_k</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_repetition</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A penalty turns a one-token loop into a cycle through the vocabulary."""</span>
+    <span class="n">fixed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">,</span> <span class="mf">2.2</span><span class="p">])</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">fixed</span>  <span class="c1"># noqa: E731</span>
+    <span class="n">plain</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"greedy"</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+    <span class="n">penalised</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"repetition_penalty"</span><span class="p">,</span> <span class="n">penalty</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+                        <span class="n">max_length</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"a model that always prefers token 0, eight steps:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  no penalty        </span><span class="si">{</span><span class="n">plain</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  penalty of two    </span><span class="si">{</span><span class="n">penalised</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  Dividing a used token's logit by two drops it below the next best"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  unused one, so the loop visits four tokens before it locks on. The"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  penalty reads the set of tokens in the context, not their recency,"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  so once all four are used the ranking is fixed and it repeats."</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">plain</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">penalised</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_contrastive</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Subtracting an amateur model suppresses generic tokens."""</span>
+    <span class="n">expert</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">])</span>
+    <span class="n">amateur</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">3.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+    <span class="n">plain</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"greedy"</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">plain_tokens</span> <span class="o">=</span> <span class="n">plain</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">expert</span><span class="p">)</span>
+    <span class="n">contrast</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"contrastive"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">contrast_tokens</span> <span class="o">=</span> <span class="n">contrast</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">expert</span><span class="p">,</span>
+                                      <span class="n">amateur</span><span class="o">=</span><span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">amateur</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"an expert that mildly prefers token 0, an amateur that loves it:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  the expert alone picks token </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">plain_tokens</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  contrastive decoding picks token </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">contrast_tokens</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  at alpha 0.5 the expert's margin of "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">expert</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">expert</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> is outweighed by the amateur's "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">amateur</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">amateur</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">plain_tokens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="k">assert</span> <span class="n">contrast_tokens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">neutral</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"contrastive"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">neutral</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">expert</span><span class="p">,</span>
+                          <span class="n">amateur</span><span class="o">=</span><span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">amateur</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_beam_eos</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Ending early beats a locally better continuation."""</span>
+    <span class="n">log</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">():</span> <span class="p">[</span><span class="n">log</span><span class="p">(</span><span class="mf">0.6</span><span class="p">),</span> <span class="n">log</span><span class="p">(</span><span class="mf">0.4</span><span class="p">)],</span>
+        <span class="p">(</span><span class="mi">0</span><span class="p">,):</span> <span class="p">[</span><span class="n">log</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span> <span class="n">log</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)],</span>
+    <span class="p">}</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">_table</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+    <span class="n">greedy</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"greedy"</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">greedy_tokens</span> <span class="o">=</span> <span class="n">greedy</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">eos</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"two tokens, the second is the end token, two steps at most:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  greedy never emits it: </span><span class="si">{</span><span class="n">greedy_tokens</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2"> at "</span>
+          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">greedy</span><span class="o">.</span><span class="n">logprob_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">width</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">):</span>
+        <span class="n">decoder</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"beam"</span><span class="p">,</span> <span class="n">beam</span><span class="o">=</span><span class="n">width</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">eos</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  beam of </span><span class="si">{</span><span class="n">width</span><span class="si">}</span><span class="s2"> stops:      </span><span class="si">{</span><span class="n">tokens</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2"> at "</span>
+              <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">decoder</span><span class="o">.</span><span class="n">logprob_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  Ending at once pays 0.4; the 0.6 start leads to a 0.5 split, so"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  both continuations are worth 0.3 and the short answer wins."</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  Finished sequences leave the beam but stay in the comparison,"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  and the search stops once the best active prefix cannot beat them."</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">greedy_tokens</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+    <span class="n">decoder</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"beam"</span><span class="p">,</span> <span class="n">beam</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">decoder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">eos</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">]))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_demo_guards</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Malformed decoders, prompts and tables, all refused."""</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">_table</span><span class="p">(</span><span class="n">_two_step</span><span class="p">())</span>
+    <span class="n">attempts</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"nope"</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">beam</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">1.5</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">temperature</span><span class="o">=</span><span class="mf">0.0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">temperature</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">penalty</span><span class="o">=</span><span class="mf">0.5</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">alpha</span><span class="o">=-</span><span class="mf">1.0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">]),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="o">=</span><span class="p">[[</span><span class="mi">0</span><span class="p">]]),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">prompt</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">eos</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">eos</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"not callable"</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">])),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">])),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="k">lambda</span> <span class="n">context</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">])),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">variant</span><span class="o">=</span><span class="s2">"contrastive"</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">scores</span><span class="p">),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sequence_logprob</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">prompt</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Decoder</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">_table</span><span class="p">({():</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]})),</span>
+    <span class="p">]</span>
+    <span class="n">refused</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">attempt</span> <span class="ow">in</span> <span class="n">attempts</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">attempt</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">refused</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">refused</span><span class="si">}</span><span class="s2"> malformed calls refused out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">attempts</span><span class="p">)</span><span class="si">}</span><span class="s2">: an unknown"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  variant, a zero width, a probability outside (0, 1], a zero or"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  infinite temperature, a penalty below one, a negative alpha, a"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  fractional or negative or nested prompt, an end token outside the"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  vocabulary, a non-callable or ill-shaped table, a non-finite"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  logit, a contrastive decoder with no amateur, a sequence that does"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"  not start with the prompt, and a table with no row for a prefix."</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">refused</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">attempts</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">_demo_greedy_and_beam</span><span class="p">()</span>
+    <span class="n">_demo_exhaustive</span><span class="p">()</span>
+    <span class="n">_demo_temperature</span><span class="p">()</span>
+    <span class="n">_demo_top_k_and_p</span><span class="p">()</span>
+    <span class="n">_demo_repetition</span><span class="p">()</span>
+    <span class="n">_demo_contrastive</span><span class="p">()</span>
+    <span class="n">_demo_beam_eos</span><span class="p">()</span>
+    <span class="n">_demo_guards</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"beam_search demo passed"</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">10 · Sequences</p><ul class="rail-list"><li><a href="markov_chain.html"><span class="tick">✓</span><span>Markov chains</span></a></li><li><a href="hmm.html"><span class="tick">✓</span><span>Hidden Markov models</span></a></li><li><a href="dtw.html"><span class="tick">✓</span><span>Dynamic time warping</span></a></li><li><a href="rnn.html"><span class="tick">✓</span><span>Recurrent networks</span></a></li><li><a href="lstm_gru.html"><span class="tick">✓</span><span>LSTM &amp; GRU</span></a></li><li><a href="attention.html"><span class="tick">✓</span><span>Attention</span></a></li><li><a href="crf.html"><span class="tick">✓</span><span>Conditional random fields</span></a></li><li><a href="ctc.html"><span class="tick">✓</span><span>Connectionist temporal classification</span></a></li><li><a href="tcn.html"><span class="tick">✓</span><span>Temporal convnets</span></a></li><li><a href="beam_search.html" aria-current="page"><span class="tick">✓</span><span>Beam search</span></a></li><li><a href="ngram_lm.html"><span class="tick">✓</span><span>N-gram language models</span></a></li><li><a href="ssm.html"><span class="tick">✓</span><span>State-space models</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../09-density-and-anomaly/index.html"><span class="jump">← 09 · Density &amp; anomaly</span></a></li><li><a href="../11-time-series/index.html"><span class="jump">11 · Time series&nbsp;→</span></a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/10-sequences/beam_search.py">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

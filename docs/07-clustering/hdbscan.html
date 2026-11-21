@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HDBSCAN · MLAtoms</title>
+<meta name="description" content="Mutual reachability, the condensed tree and cluster stability. DBSCAN has one knob that decides everything: eps. It also has a structural weakness — a single…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/hdbscan.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="HDBSCAN">
+<meta property="og:description" content="Mutual reachability, the condensed tree and cluster stability. DBSCAN has one knob that decides everything: eps. It also has a structural weakness — a single…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/hdbscan.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HDBSCAN">
+<meta name="twitter:description" content="Mutual reachability, the condensed tree and cluster stability. DBSCAN has one knob that decides everything: eps. It also has a structural weakness — a single…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "HDBSCAN", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/hdbscan.html", "description": "Mutual reachability, the condensed tree and cluster stability. DBSCAN has one knob that decides everything: eps. It also has a structural weakness \u2014 a single\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">07 · Clustering</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="hdbscan.py.html">source</a></p><h1>HDBSCAN</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>DBSCAN has one knob that decides everything: <code>eps</code>. It also has a structural weakness —
+a single <code>eps</code> cannot fit a dense blob and a diffuse cloud at the same time. Set it for
+the blob and the cloud is all noise; set it for the cloud and the blob merges with its
+neighbours.</p>
+<p>HDBSCAN dissolves the problem instead of tuning it. Build the clustering at <em>every</em>
+density, and then decide which clusters are worth keeping:</p>
+<ol>
+<li><strong>Core distance.</strong> <code>d_core(x)</code> is the distance to the <code>min_samples</code>-th nearest
+neighbour — a local density estimate at <code>x</code>.</li>
+<li><strong>Mutual reachability.</strong> Replace <code>d(a,b)</code> by
+<code>max(d_core(a), d_core(b), d(a,b))</code>. Two points in a sparse region are pushed apart
+even if they are physically close, so a chain of sparse points cannot bridge two
+dense clusters.</li>
+<li><strong>Minimum spanning tree</strong> of that graph. Its edges, sorted by weight, are the entire
+single-linkage hierarchy: every merge is one edge.</li>
+<li><strong>Stability.</strong> A cluster earns credit for every point that stays inside it over its
+<code>λ = 1/distance</code> lifetime.</li>
+<li><strong>Excess of mass.</strong> Keep a cluster when it earns more credit than its children
+combined; otherwise keep the children.</li>
+</ol>
+<p>Because the threshold <code>eps</code> is gone, only <code>min_cluster_size</code> (how small a group may be)
+and <code>min_samples</code> (how smooth the density estimate is) remain, and both are far less
+sensitive than <code>eps</code>. The demo's three blobs of different density plus a uniform
+background come out as exactly three clusters, with <code>0.989</code> accuracy among labelled
+points and <code>0.907</code> of the true inliers recovered.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Selection</th>
+<th style="text-align:left">What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>hdbscan</code></td>
+<td style="text-align:left">excess of mass on the whole hierarchy</td>
+<td style="text-align:left">the reference algorithm</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>hdbscan_star</code></td>
+<td style="text-align:left">one flat DBSCAN* cut at the best level</td>
+<td style="text-align:left">the hierarchy read without stability</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>stability</code></td>
+<td style="text-align:left">rank all nodes by stability, keep the best non-overlapping ones</td>
+<td style="text-align:left">stability as a first-class quantity</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>soft_clustering</code></td>
+<td style="text-align:left">EOM clusters, then inverse-distance memberships</td>
+<td style="text-align:left">graded assignment</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approximate</code></td>
+<td style="text-align:left">EOM on an MST built from a k-NN graph</td>
+<td style="text-align:left">the scaling trick</td>
+</tr>
+</tbody>
+</table>
+<p><code>hdbscan</code> is Campello et al.'s excess-of-mass (EOM) rule and is what &quot;HDBSCAN&quot; means
+without qualification. <code>hdbscan_star</code> is the other classical reading: pick the level
+<code>λ</code> where the hierarchy has the most valid clusters and take DBSCAN* there. It is
+cheaper (no stability accumulation) and it labels nearly everything — <code>35</code> noise points
+against <code>127</code>, with <code>1.000</code> inlier coverage — but it also absorbs part of the uniform
+background, which is why its accuracy is <code>0.927</code> rather than <code>0.989</code>.</p>
+<p><code>stability</code> ranks the nodes directly: sort every cluster-size-valid node by stability
+and greedily keep the best ones that do not overlap. On well-separated data it agrees
+with EOM, which is the point of the demo (<code>[115.1 40.3 118.1]</code> from both), but it
+exposes the raw numbers and behaves differently when a parent node is genuinely more
+stable than its children.</p>
+<p><code>soft_clustering</code> keeps the EOM clusters and replaces the hard label with a membership
+vector. Each cluster is represented by its densest point, memberships are
+<code>1/d²</code>-weighted, and small memberships are zeroed and renormalised. <code>79</code> of the 650
+points end up split between two clusters — the boundary points whose assignment is a
+coin flip — while the median point has a maximum membership of <code>1.00</code>.</p>
+<p><code>approximate</code> builds the MST from a <code>k</code>-nearest-neighbour graph instead of every pair.
+On the demo it examines <code>6383</code> candidate pairs instead of <code>210925</code>, returns the same
+three clusters, and loses nothing in accuracy (<code>0.989</code>).</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Core distance and mutual reachability.</strong> Let <code>k = min_samples</code> and let <code>d_k(x)</code> be the
+distance from <code>x</code> to its <code>k</code>-th nearest neighbour. Then</p>
+<div class="math block">
+\[d_{\text{core}}(x) = d_k(x),
+\qquad
+d_{\text{mreach}}(a,b) = \max\{d_{\text{core}}(a),\, d_{\text{core}}(b),\, d(a,b)\}\]
+</div>
+<p>The mutual reachability graph is the complete graph with these weights. It has two
+interpretations that matter:</p>
+<ul>
+<li>It is the DBSCAN graph at level <code>λ</code> if you keep only edges with <code>d_mreach ≤ 1/λ</code>:
+two points are connected exactly when both are core at that radius and close enough.</li>
+<li>It inflates the distance between a core point and a sparse neighbour to the core
+radius, so the sparse point's attachment to the dense cluster becomes as long as the
+cluster's own density scale. That is what suppresses single-linkage chaining.</li>
+</ul>
+<p><strong>Why the MST is the hierarchy.</strong> In a graph with edge weights, single-linkage
+clustering at threshold <code>d</code> is the connected components of the edges of weight <code>≤ d</code>.
+Kruskal's algorithm processes edges in increasing order and unions components — so it
+<em>is</em> single-linkage, and the sequence of unions it performs is the dendrogram, at a cost
+of one MST instead of all <code>n(n−1)/2</code> edges. Prim's algorithm computes the same MST
+without materialising the sort. That equivalence is the theoretical core of HDBSCAN:
+<strong>one MST contains every single-linkage clustering of the data</strong>.</p>
+<p>Formally, for any threshold <code>d</code>, the components of the mutual reachability graph at <code>d</code>
+are the components of the subgraph of the MST restricted to edges <code>≤ d</code>. So the
+hierarchy can be built from <code>n−1</code> numbers rather than <code>n²</code>.</p>
+<p><strong>λ and the tree.</strong> Write <code>λ = 1/d</code>. Small <code>λ</code> is coarse (large distance), large <code>λ</code> is
+fine. Each internal node <code>c</code> of the dendrogram is created by one merge at level
+<code>λ_c = 1/w_c</code> and splits at <code>λ = level(c)</code>. Its lifetime is the interval
+<code>(birth(c), level(c)]</code>, where <code>birth(c)</code> is the <code>λ</code> of the merge that created its
+parent. Along any root-to-leaf path these intervals partition the <code>λ</code> axis, so at any
+<code>λ</code> exactly one node per path is &quot;active&quot; — that is why a flat cut is well defined.</p>
+<p>The value <code>λ_p = 1/d_core(p)</code> is where point <code>p</code> stops being a core point: beyond it,
+<code>p</code> is too sparse to anchor a cluster.</p>
+<p><strong>Stability.</strong> The stability of <code>c</code> is the total <code>λ</code>-lifetime its points spend inside
+it:</p>
+<div class="math block">
+\[s(c) = \sum_{p \in c}\Big(\min\big(\lambda_p,\, \text{level}(c)\big) - \text{birth}(c)\Big)_+\]
+</div>
+<p>The <code>min</code> says a point contributes only until it stops being core, and only while <code>c</code>
+exists; the <code>(·)_+</code> says points that are already gone when <code>c</code> appears contribute
+nothing. A tight, long-lived cluster accumulates a large <code>s</code>; a transient merge of two
+distant blobs accumulates almost nothing.</p>
+<p><strong>Excess of mass.</strong> Define the selection recursively:</p>
+<div class="math block">
+\[\text{keep}(c) =
+\begin{cases}
+\{c\} & \text{if } s(c) > \sum_{c' \in \text{children}(c)} \text{keep}(c'),\\[4pt]
+\bigcup_{c'} \text{keep}(c') & \text{otherwise}
+\end{cases}\]
+</div>
+<p>with leaves that are smaller than <code>min_cluster_size</code> contributing nothing. A parent is
+kept only when merging its children <em>adds</em> mass — that is the &quot;excess&quot; in excess of
+mass. It prefers fewer, larger clusters when the children are unstable fragments of one
+dense region, and more, smaller clusters when the parent spans a sparse gap.</p>
+<p>The root always wins this comparison, because <code>s(root) = Σ_p min(λ_p, level_root)</code>
+grows with <code>n</code> while its children's stabilities are bounded by their own short
+lifetimes. HDBSCAN therefore excludes the root unless <code>allow_single_cluster=True</code> —
+this is a real branch in the library, and forgetting it silently returns one cluster on
+every dataset. The demo relies on the excluded-root path.</p>
+<p><strong>Flat cut.</strong> At level <code>λ</code>, the active nodes are <code>{c : birth(c) &lt; λ ≤ level(c)}</code>, and
+they partition the leaves. A DBSCAN* reading of the hierarchy is one such cut. Choosing
+<code>λ</code> to maximise the number of clusters of size <code>≥ min_cluster_size</code> (ties broken by
+covered points) is the greedy optimum over the <code>n</code> candidate levels, which is what
+<code>_best_flat_cut</code> enumerates. It is cheap and exact, and it needs no stability at all —
+at the cost of being sensitive to which level wins.</p>
+<p><strong>Soft membership.</strong> For selected cluster <code>c</code> with exemplar <code>e_c</code> (its densest point),</p>
+<div class="math block">
+\[\mu_c(x) = \frac{1/\|x-e_c\|^2}{\sum_{c'} 1/\|x-e_{c'}\|^2}\]
+</div>
+<p>then entries below <code>min_probability</code> are zeroed and the row renormalised. Inverse-square
+distance is the natural kernel here: it is the harmonic potential of a point mass, so a
+point twice as far from one exemplar gets a quarter of the weight, and a point sitting
+on an exemplar gets essentially all of it.</p>
+<p><strong>Outlier score.</strong> The GLOSH score of Campello et al. is</p>
+<div class="math block">
+\[\text{score}(p) = 1 - \frac{\lambda_p}{\lambda_{\max}}\]
+</div>
+<p>with <code>λ_max</code> the largest core-<code>λ</code> in the sample. It is scale-free (it depends only on
+the density ordering), it needs no labelled anomalies, and it is exactly the quantity
+the hierarchy already computed. The demo's uniform background scores <code>0.943</code> against
+<code>0.718</code> for clustered points.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>Core distances come from one <code>partition</code>, which is <code>O(n)</code> per row instead of a sort:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_core_distances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">D</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">D</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_samples</span><span class="p">,</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="n">k</span><span class="p">]</span>
+</code></pre>
+<p><code>D[i, i] = 0</code>, so index <code>k</code> in the sorted row is the <code>k</code>-th <em>other</em> point — the
+neighbour count convention that makes <code>min_samples=1</code> the nearest neighbour rather than
+the point itself. <code>np.partition</code> places the <code>k</code>-th smallest value in position <code>k</code> and
+leaves the rest unordered, which is all this needs; a full <code>sort</code> would be <code>O(n log n)</code>
+for the same answer. <code>min(self.min_samples, n − 1)</code> guards a dataset smaller than <code>k</code>.</p>
+<p>Prim's algorithm runs over the dense matrix, keeping one best edge per unseen node:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="n">masked</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">seen</span><span class="p">,</span> <span class="n">INF</span><span class="p">,</span> <span class="n">best</span><span class="p">)</span>
+            <span class="n">u</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">masked</span><span class="p">))</span>
+            <span class="n">seen</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="n">parent</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">edges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">mr</span><span class="p">[</span><span class="n">u</span><span class="p">,</span> <span class="n">parent</span><span class="p">[</span><span class="n">u</span><span class="p">]]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">parent</span><span class="p">[</span><span class="n">u</span><span class="p">]),</span> <span class="n">u</span><span class="p">))</span>
+            <span class="n">upd</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">seen</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">mr</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">best</span><span class="p">)</span>
+            <span class="n">best</span><span class="p">[</span><span class="n">upd</span><span class="p">]</span> <span class="o">=</span> <span class="n">mr</span><span class="p">[</span><span class="n">u</span><span class="p">][</span><span class="n">upd</span><span class="p">]</span>
+            <span class="n">parent</span><span class="p">[</span><span class="n">upd</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span>
+</code></pre>
+<p><code>masked</code> is the standard &quot;argmin over unseen&quot; and is a full <code>O(n)</code> copy each step, so
+the loop is <code>O(n²)</code> — the same order as the distance matrix it operates on, which is why
+it is not worth a heap here. <code>best[u]</code> starts at infinity except for node 0, so the tree
+grows from an arbitrary root and the first iteration adds nothing. The recorded edge
+weight is the <em>parent's</em> side of the cut, which is the MST edge; taking <code>mr[u, v]</code> for
+the current <code>u</code> and its old parent would be the same number.</p>
+<p>The k-NN approximation replaces the <code>n²</code> scan with a sparse edge list:</p>
+<pre class="highlight"><code>        <span class="n">k</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">approx_neighbors</span> <span class="ow">or</span> <span class="mi">3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_samples</span><span class="p">,</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="n">mr</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="p">:</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">edges</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+</code></pre>
+<p><code>k+1</code> columns because <code>argpartition</code> includes the point itself. The dict keyed on the
+<em>sorted</em> pair deduplicates: <code>(i,j)</code> and <code>(j,i)</code> are the same edge and must not be
+counted twice, or Kruskal would see two edges for one connection and the union-find
+would silently ignore the duplicate. <code>3 * min_samples</code> is the usual rule of thumb;
+raising it makes the graph denser and the result more exact at the cost of the speed-up.</p>
+<p>The tree is built by replaying MST edges in increasing order:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">w</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">edges</span><span class="p">):</span>
+            <span class="n">ri</span><span class="p">,</span> <span class="n">rj</span> <span class="o">=</span> <span class="n">find</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="n">find</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ri</span> <span class="o">==</span> <span class="n">rj</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">w</span> <span class="k">if</span> <span class="n">w</span> <span class="o">&gt;</span> <span class="n">EPS</span> <span class="k">else</span> <span class="n">INF</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">node_of</span><span class="p">[</span><span class="n">ri</span><span class="p">],</span> <span class="n">node_of</span><span class="p">[</span><span class="n">rj</span><span class="p">]</span>
+            <span class="n">nodes</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s2">"level"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">level</span><span class="p">),</span> <span class="s2">"birth"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">"children"</span><span class="p">:</span> <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">],</span>
+                <span class="s2">"points"</span><span class="p">:</span> <span class="n">nodes</span><span class="p">[</span><span class="n">a</span><span class="p">][</span><span class="s2">"points"</span><span class="p">]</span> <span class="o">+</span> <span class="n">nodes</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="s2">"points"</span><span class="p">],</span>
+                <span class="s2">"size"</span><span class="p">:</span> <span class="n">nodes</span><span class="p">[</span><span class="n">a</span><span class="p">][</span><span class="s2">"size"</span><span class="p">]</span> <span class="o">+</span> <span class="n">nodes</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="s2">"size"</span><span class="p">],</span>
+            <span class="p">})</span>
+            <span class="n">uf</span><span class="p">[</span><span class="n">ri</span><span class="p">]</span> <span class="o">=</span> <span class="n">rj</span>
+            <span class="n">node_of</span><span class="p">[</span><span class="n">rj</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+</code></pre>
+<p>Each accepted edge creates exactly one internal node, so the tree has <code>2n−1</code> nodes and
+the loop is Kruskal with union by &quot;attach the second root under the first&quot;. <code>level</code> is
+<code>1/w</code>, and <code>nodes[child][&quot;birth&quot;]</code> is filled in afterwards in one pass, because a node's
+birth is its <em>parent's</em> level and the parent does not exist yet when the child is
+created. <code>w = 0</code> (duplicate points) gives an infinite level, which is correct: a
+duplicate is infinitely dense and never splits. The union-find is path-halving, which is
+enough for <code>n</code> operations.</p>
+<p>Stability is the only place the point lists are used as more than bookkeeping:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">):</span>
+            <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span> <span class="o">=</span> <span class="n">node</span><span class="p">[</span><span class="s2">"birth"</span><span class="p">],</span> <span class="n">node</span><span class="p">[</span><span class="s2">"level"</span><span class="p">]</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">node</span><span class="p">[</span><span class="s2">"points"</span><span class="p">]:</span>
+                <span class="n">lp</span> <span class="o">=</span> <span class="n">lam</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">lp</span><span class="p">):</span>
+                    <span class="n">lp</span> <span class="o">=</span> <span class="mf">1e300</span>
+                <span class="n">total</span> <span class="o">+=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">lp</span><span class="p">,</span> <span class="n">hi</span><span class="p">)</span> <span class="o">-</span> <span class="n">lo</span><span class="p">)</span>
+            <span class="n">stab</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">total</span><span class="p">)</span>
+</code></pre>
+<p><code>min(lp, hi)</code> is the point's fall-out <code>λ</code> (its own density or the cluster's split,
+whichever comes first) and <code>lo</code> is when the cluster appeared; the difference is the
+<code>λ</code>-lifetime the point spends inside. <code>max(0, ...)</code> handles the case <code>lo &gt; λ_p</code> — a point
+that was already non-core when the cluster was born. The <code>1e300</code> substitution for
+duplicate points (infinite <code>λ</code>) keeps the arithmetic finite without changing any
+comparison.</p>
+<p>Selection is a five-line recursion:</p>
+<pre class="highlight"><code>        <span class="n">picks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">node</span><span class="p">[</span><span class="s2">"children"</span><span class="p">]:</span>
+            <span class="n">sub</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eom</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+            <span class="n">picks</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">sub</span><span class="p">)</span>
+            <span class="n">score</span> <span class="o">+=</span> <span class="n">s</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stab</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">score</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stab</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">picks</span><span class="p">,</span> <span class="n">score</span>
+</code></pre>
+<p>The returned pair is <code>(clusters, total stability of those clusters)</code>, so the parent's
+comparison uses the stability of what the children would <em>actually</em> contribute — not
+their raw stability, which would double count when a child is itself replaced by
+grandchildren. Sizes below <code>min_cluster_size</code> return <code>([], 0.0)</code> at the top of the
+function, which prunes entire subtrees of fragments in one test.</p>
+<p>The flat cut is a sweep over the distinct levels:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">lam</span> <span class="ow">in</span> <span class="n">levels</span><span class="p">:</span>
+            <span class="n">cut</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span>
+                   <span class="k">if</span> <span class="n">n</span><span class="p">[</span><span class="s2">"birth"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">lam</span> <span class="o">&lt;=</span> <span class="n">n</span><span class="p">[</span><span class="s2">"level"</span><span class="p">]</span>
+                   <span class="ow">and</span> <span class="n">n</span><span class="p">[</span><span class="s2">"size"</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_cluster_size</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">cut</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cut</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">nodes</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">"size"</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">cut</span><span class="p">)))</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="o">&gt;</span> <span class="n">best_key</span><span class="p">:</span>
+                <span class="n">best_key</span><span class="p">,</span> <span class="n">best</span> <span class="o">=</span> <span class="n">key</span><span class="p">,</span> <span class="n">cut</span>
+</code></pre>
+<p>The strict <code>birth &lt; λ ≤ level</code> matters at the boundaries: adjacent nodes share an
+endpoint (<code>level(child) = birth(parent)</code>), and using <code>≤</code> on both sides would put two
+nested nodes in the same cut. The tuple comparison <code>(count, coverage)</code> means &quot;most
+clusters first, then the most points covered&quot; — a deliberate choice, since a single huge
+cluster covers the most points but is useless as a clustering.</p>
+<p>Labels are assigned per selected subtree:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">selected</span><span class="p">):</span>
+            <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">c</span><span class="p">]</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="n">node</span><span class="p">[</span><span class="s2">"level"</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">node</span><span class="p">[</span><span class="s2">"points"</span><span class="p">]:</span>
+                <span class="n">labels</span><span class="p">[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">idx</span>
+                <span class="n">proba</span><span class="p">[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">level</span> <span class="o">&lt;=</span> <span class="mf">0.0</span> <span class="k">else</span> <span class="nb">min</span><span class="p">(</span>
+                    <span class="mf">1.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lam</span><span class="p">[</span><span class="n">p</span><span class="p">])</span> <span class="o">/</span> <span class="n">level</span><span class="p">)</span>
+</code></pre>
+<p><code>proba</code> is the fraction of the cluster's <code>λ</code>-range the point survives: 1 for a point
+denser than the cluster's split level, less for a point that barely made it in. It is
+the HDBSCAN membership strength, and it is what separates a core member from a border
+one without a second membership model.</p>
+<p>Soft memberships use the densest point of each cluster as its exemplar:</p>
+<pre class="highlight"><code>        <span class="n">E</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">exemplars</span><span class="p">)</span>
+        <span class="n">d2</span> <span class="o">=</span> <span class="p">((</span><span class="n">X</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">E</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="n">EPS</span><span class="p">)</span>
+        <span class="n">proba</span> <span class="o">=</span> <span class="n">w</span> <span class="o">/</span> <span class="n">w</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">proba</span><span class="p">[</span><span class="n">proba</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_probability</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">proba</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">proba</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">EPS</span><span class="p">)</span>
+</code></pre>
+<p>The broadcast <code>X[:, None, :] - E[None, :, :]</code> is an <code>n×k×d</code> temporary, which is fine for
+a handful of clusters and would need blocking for many. Multiplying by <code>1/d²</code> rather
+than taking a <code>softmax</code> of <code>−d</code> is deliberate: no temperature to tune, and the weights
+decay at the same rate as a physical potential. Zeroing then renormalising keeps rows
+summing to one after the threshold, which is what makes the result a probability vector
+rather than a truncated one.</p>
+<p>The density score needs only <code>λ</code>:</p>
+<pre class="highlight"><code>        <span class="n">lam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lam</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lam</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">top</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">lam</span><span class="p">))</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="k">else</span> <span class="mf">1.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outlier_scores_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">lam</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">top</span><span class="p">,</span>
+                                       <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+</code></pre>
+<p><code>np.isfinite</code> masks the infinite <code>λ</code> of duplicate points before the max, because
+<code>inf/inf</code> is <code>nan</code> and would poison every score. <code>np.nanmax</code> over the finite mask is the
+densest point in the sample; the clip keeps the scores in <code>[0,1]</code> when a point is denser
+than the reference (impossible in-sample, possible for out-of-sample queries).</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Step</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Distance matrix</td>
+<td style="text-align:left"><code>O(n² d)</code></td>
+<td style="text-align:left"><code>O(n²)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Core distances</td>
+<td style="text-align:left"><code>O(n²)</code></td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">MST (Prim)</td>
+<td style="text-align:left"><code>O(n²)</code></td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Tree build</td>
+<td style="text-align:left"><code>O(n log n)</code> sort + <code>O(n α(n))</code> unions</td>
+<td style="text-align:left"><code>O(n)</code> nodes</td>
+</tr>
+<tr>
+<td style="text-align:left">Stability</td>
+<td style="text-align:left">`O(Σ_c</td>
+<td style="text-align:left">c</td>
+</tr>
+<tr>
+<td style="text-align:left">EOM selection</td>
+<td style="text-align:left"><code>O(n)</code></td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Flat cut</td>
+<td style="text-align:left"><code>O(n²)</code> over levels</td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Soft memberships</td>
+<td style="text-align:left"><code>O(n K d)</code></td>
+<td style="text-align:left"><code>O(n K)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>O(n²)</code> distance matrix is the bottleneck, and it is the reason HDBSCAN is usually
+paired with a k-d tree or an approximate nearest-neighbour index: with one, the MST is
+built from <code>O(n k)</code> edges and the whole pipeline becomes <code>O(n k log n)</code>. This file's
+<code>approximate</code> variant is the graph half of that trick — the demo drops from <code>210925</code>
+candidate pairs to <code>6383</code> — but it still computes the full matrix, so the timings stay
+quadratic. <code>Σ_c |c|</code> is <code>O(n log n)</code> for a balanced tree and <code>O(n²)</code> in the worst case
+(a caterpillar); it is the price of storing point lists per node.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong><code>min_cluster_size</code> too small.</strong> The hierarchy has a node for every merge, so a tiny
+threshold turns the tree into noise fragments and EOM selects many small clusters.
+Set it to the smallest group you would act on (15–50 is usual), not to <code>1</code>.</li>
+<li><strong><code>min_samples</code> too small.</strong> With <code>min_samples = 1</code> the mutual reachability reduces to
+plain distance and HDBSCAN becomes single linkage: the demo's uniform background
+would chain the three blobs into one cluster. <code>min_samples</code> is the knob that buys
+robustness to chaining.</li>
+<li><strong>The root trap.</strong> <code>s(root)</code> grows with <code>n</code>, so selecting on the whole tree returns
+one cluster for every dataset. The <code>allow_single_cluster=False</code> branch is not a
+nicety; the demo would fail without it.</li>
+<li><strong><code>min_samples</code> larger than the cluster.</strong> If a cluster has fewer than <code>min_samples</code>
+points, none of its members is core there, so its core distances equal the
+<code>min_samples</code>-th neighbour distance <em>outside</em> the cluster and the whole group looks
+sparse. Keep <code>min_samples &lt; min_cluster_size</code>.</li>
+<li><strong>Duplicate points.</strong> <code>d_core = 0</code> gives <code>λ = ∞</code> and infinite stability, which can
+dominate the selection. The code guards the arithmetic (<code>1e300</code>) but not the
+semantics: deduplicate, or accept that exact duplicates form an unbreakable core.</li>
+<li><strong>Flat-cut instability.</strong> <code>hdbscan_star</code> picks one level, and the level with the most
+clusters is not necessarily the level with the best clusters. On the demo it labels
+<code>35</code> noise points and covers everything, absorbing background that EOM rejects —
+higher recall, lower precision.</li>
+<li><strong>Soft memberships ignore density.</strong> Inverse-distance memberships are geometric: a
+sparse background point gets a confident membership if it happens to sit near an
+exemplar. Combine them with <code>outlier_scores_</code> or with <code>probabilities_</code> from the EOM
+fit when density matters.</li>
+<li><strong>GLOSH with one component.</strong> The score is relative to the densest point in the
+sample, so on a single uniform blob every point scores near zero even if the blob is
+the anomaly relative to incoming data. Fit on reference data and score new points
+against the fitted <code>λ_max</code>.</li>
+<li><strong>Approximate MST disconnect.</strong> A k-NN graph can be disconnected, which would leave
+a forest instead of a tree. The code adds a synthetic root at <code>λ = 0</code> to keep the
+selection well-defined, but the resulting hierarchy has a fake top-level merge; check
+<code>n_edges_ == n − 1</code> before trusting an approximate fit.</li>
+<li><strong>Quadratic memory.</strong> <code>n = 100k</code> needs 80 GB for the distance matrix. Use the k-NN
+path, a spatial index, or Borůvka's algorithm on a sparse graph — HDBSCAN's
+asymptotics are fine, this file's implementation is not.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Anomaly detection without labels.</strong> <code>outlier_scores_</code> ranks points by local density;
+the demo's background separates at <code>0.943</code> against <code>0.718</code>. Used for intrusion
+detection, sensor faults, and transaction monitoring.</li>
+<li><strong>Variable-density clustering.</strong> Astronomy (star clusters against a background field),
+geo-spatial event data, and single-cell expression data all have clusters whose
+density varies by orders of magnitude, where DBSCAN's single <code>eps</code> fails.</li>
+<li><strong>Topic discovery in embeddings.</strong> Cluster document embeddings without choosing <code>K</code>;
+the noise label isolates boilerplate and one-off documents.</li>
+<li><strong>Hierarchical taxonomies.</strong> The tree is a dendrogram, so <code>cluster_stability_</code> and the
+node structure give a hierarchy rather than a flat partition — useful for browsing and
+for choosing a granularity later.</li>
+<li><strong>Pre-labelling for supervision.</strong> Cluster the unlabelled pool, label the clusters,
+and send the noise to human review; the soft memberships say which points are worth a
+second look.</li>
+<li><strong>As a stronger baseline than k-means.</strong> When someone reaches for k-means on data with
+unknown <code>K</code> and outliers, HDBSCAN is usually the better first attempt and needs less
+tuning.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Campello, Moulavi &amp; Sander, <em>Density-Based Clustering Based on Hierarchical Density
+Estimates</em>, 2013, PAKDD — HDBSCAN, mutual reachability, stability and excess of mass.</li>
+<li>Campello, Moulavi, Zimek &amp; Sander, <em>Hierarchical Density Estimates for Data
+Clustering, Visualization, and Outlier Detection</em>, 2015, ACM TKDD — HDBSCAN*, the
+GLOSH outlier score, and the flat-extraction variants.</li>
+<li>McInnes, Healy &amp; Astels, <em>hdbscan: Hierarchical Density Based Clustering</em>, 2017, JOSS
+— the reference implementation and the <code>allow_single_cluster</code> behaviour.</li>
+<li>Chaudhuri &amp; Dasgupta, <em>Rates of Convergence for the Cluster Tree</em>, 2010, NeurIPS — why
+the single-linkage tree estimated from a sample converges to the population tree.</li>
+<li>Ester, Kriegel, Sander &amp; Xu, <em>A Density-Based Algorithm for Discovering Clusters in
+Large Spatial Databases with Noise</em>, 1996, KDD — the <code>eps</code>-based ancestor whose
+parameter HDBSCAN removes.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="dbscan.html"><small>Previous</small><span>DBSCAN</span></a><a class="next" href="spectral_clustering.html"><small>Next</small><span>Spectral clustering</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">07 · Clustering</p><ul class="rail-list"><li><a href="kmeans.html"><span class="tick">✓</span><span>k-means</span></a></li><li><a href="gmm.html"><span class="tick">✓</span><span>Gaussian mixture</span></a></li><li><a href="dbscan.html"><span class="tick">✓</span><span>DBSCAN</span></a></li><li><a href="hdbscan.html" aria-current="page"><span class="tick">✓</span><span>HDBSCAN</span></a></li><li><a href="spectral_clustering.html"><span class="tick">✓</span><span>Spectral clustering</span></a></li><li><a href="agglomerative.html"><span class="tick">✓</span><span>Hierarchical clustering</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>k-medoids</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>OPTICS</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Mean shift</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Fuzzy c-means</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Cluster validity</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BIRCH</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Affinity propagation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Density peaks</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Self-organising maps</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Subspace clustering</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../06-latent-factorization/index.html"><span class="jump">← 06 · Latent structure &amp; factorisation</span></a></li><li><a href="../08-manifold/index.html"><span class="jump">08 · Manifolds &amp; embeddings&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/07-clustering/hdbscan.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

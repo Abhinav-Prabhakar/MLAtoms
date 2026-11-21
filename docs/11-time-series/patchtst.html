@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PatchTST · MLAtoms</title>
+<meta name="description" content="Patch tokens with channel independence. A transformer on a long univariate series has a problem: the sequence of timesteps is short and each token is a…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/patchtst.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="PatchTST">
+<meta property="og:description" content="Patch tokens with channel independence. A transformer on a long univariate series has a problem: the sequence of timesteps is short and each token is a…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/patchtst.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PatchTST">
+<meta name="twitter:description" content="Patch tokens with channel independence. A transformer on a long univariate series has a problem: the sequence of timesteps is short and each token is a…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "PatchTST", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/patchtst.html", "description": "Patch tokens with channel independence. A transformer on a long univariate series has a problem: the sequence of timesteps is short and each token is a\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">11 · Time series</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="patchtst.py.html">source</a></p><h1>PatchTST — patch the window, attend within it, share across channels</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A transformer on a long univariate series has a problem: the sequence of
+timesteps is short and each token is a single scalar. Attention over a thousand
+barely-informative scalars is expensive, and the self-attention pattern has
+little to latch onto. PatchTST changes the unit of attention from the timestep
+to the <strong>patch</strong>: cut the look-back window into overlapping chunks of twelve
+observations, embed each chunk, and attend over a handful of tokens instead of
+hundreds.</p>
+<p>Two consequences follow. First, a patch carries local shape — level, slope,
+curvature — so the token is informative before any attention happens. Second,
+the sequence length collapses from <span class="math inline">\(L\)</span> to roughly <span class="math inline">\(L/P\)</span>, so the cost of
+attention falls by a factor of <span class="math inline">\(P^2\)</span> and the model can afford a longer
+look-back.</p>
+<p>The second idea is <strong>channel independence</strong>. Given a multivariate series, do not
+mix the channels: treat each one as its own univariate problem and share the
+weights. The forecast for one channel never depends on the others, which is a
+strong prior — it says the relationship between channels is not something the
+model should learn. It sounds like a limitation, and it is, but it is also the
+regularisation that makes PatchTST hard to beat on standard benchmarks: a
+channel-mixing model can overfit spurious cross-correlations, while the
+independent one cannot.</p>
+<p>The variants cover the training protocol:</p>
+<ul>
+<li><strong><code>patchtst</code></strong> is the supervised model on one channel.</li>
+<li><strong><code>channel_independent</code></strong> applies the identical model to every channel with
+one set of weights, so permuting the channels permutes the forecast.</li>
+<li><strong><code>supervised</code></strong> masks patches, reconstructs them, then fine-tunes every
+weight on the forecasting loss.</li>
+<li><strong><code>self_supervised</code></strong> masks patches, then freezes the representation and fits
+only a linear head — the linear-probe test of what the pretraining learned.</li>
+</ul>
+<p>The demo trains on 348 points and holds out 12. The supervised model reaches a
+held-out MAE of <span class="math inline">\(0.2956\)</span>; fine-tuning after masked pretraining improves it to
+<span class="math inline">\(0.2691\)</span>, while a frozen linear probe reaches only <span class="math inline">\(0.4015\)</span>.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">representation</th>
+<th style="text-align:left">trained</th>
+<th style="text-align:left">held-out MAE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>patchtst</code></td>
+<td style="text-align:left">one channel</td>
+<td style="text-align:left">from scratch</td>
+<td style="text-align:left">0.2956</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>channel_independent</code></td>
+<td style="text-align:left">per channel, shared</td>
+<td style="text-align:left">from scratch</td>
+<td style="text-align:left">0.9256 joint</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>supervised</code></td>
+<td style="text-align:left">masked pretraining</td>
+<td style="text-align:left">all weights</td>
+<td style="text-align:left">0.2691</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>self_supervised</code></td>
+<td style="text-align:left">masked pretraining</td>
+<td style="text-align:left">head only</td>
+<td style="text-align:left">0.4015</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>patchtst</code></strong> builds 289 windows from the 348-point training span, cuts each
+48-step window into four non-overlapping patches of twelve, and embeds them
+into 16 dimensions. The in-sample MSE is <span class="math inline">\(0.0561\)</span> in per-window variance units,
+and the held-out MAE of <span class="math inline">\(0.2956\)</span> beats both naive (<span class="math inline">\(1.5527\)</span>) and seasonal naive
+(<span class="math inline">\(0.4627\)</span>).</p>
+<p><strong><code>channel_independent</code></strong> is fitted to two channels, the second an affine
+transform of the first plus small noise. The joint MAE of <span class="math inline">\(0.9256\)</span> is dominated
+by the second channel, which has three times the scale. Swapping the columns of
+the input swaps the columns of the forecast with a maximum difference of
+exactly zero, because the channels never meet inside the network.</p>
+<p><strong><code>supervised</code></strong> pretrains with 30% of the patches hidden and a reconstruction
+MSE of <span class="math inline">\(0.0713\)</span>, then fine-tunes every weight on the forecast. Fine-tuning moves
+the encoder by <span class="math inline">\(1.3013\)</span> in maximum absolute value and lowers the held-out MAE
+from <span class="math inline">\(0.2956\)</span> to <span class="math inline">\(0.2691\)</span>.</p>
+<p><strong><code>self_supervised</code></strong> uses the same pretrained weights but freezes the encoder
+and the patch embedding, training only the <span class="math inline">\(12\times64\)</span> linear head. The frozen
+representation changes by exactly zero, and the probe reaches <span class="math inline">\(0.4015\)</span>. On this
+small series the representation alone is weaker than supervised training — the
+pretraining has only 289 windows to learn from, and the probe cannot fix what
+the encoder never learned.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="patching">Patching <a class="header-anchor" href="#patching">#</a></h3>
+<p>A window <span class="math inline">\(x\in\mathbb R^{L}\)</span> is cut into <span class="math inline">\(N\)</span> patches of length <span class="math inline">\(P\)</span> with stride
+<span class="math inline">\(S\)</span>:</p>
+<div class="math block">
+\[N=\Bigl\lfloor\frac{L-P}{S}\Bigr\rfloor+1,\qquad
+p_i=x_{(i-1)S+1:(i-1)S+P},\qquad i=1,\dots,N .
+\qquad (1)\]
+</div>
+<p>With <span class="math inline">\(L=48\)</span>, <span class="math inline">\(P=12\)</span> and <span class="math inline">\(S=12\)</span> this gives <span class="math inline">\(N=4\)</span> non-overlapping patches; with
+<span class="math inline">\(S=6\)</span> it gives <span class="math inline">\(N=7\)</span> overlapping ones. Non-overlapping patches are cheaper and,
+on the demo series, better: each patch then covers exactly one seasonal period.</p>
+<h3 id="patch-embedding">Patch embedding <a class="header-anchor" href="#patch-embedding">#</a></h3>
+<p>Each patch is projected to a <span class="math inline">\(d\)</span>-dimensional token and a learned positional
+vector is added:</p>
+<div class="math block">
+\[h_i=W_p p_i+b_p+e_i,\qquad W_p\in\mathbb R^{d\times P},\quad
+e_i\in\mathbb R^{d}.
+\qquad (2)\]
+</div>
+<p>The projection is linear, so the model can learn a filter bank — a patch of
+twelve points becomes twelve learned projections of that shape. No pooling is
+involved, which is why P is small; a large P would make <span class="math inline">\(W_p\)</span> a wide matrix
+with little structure.</p>
+<h3 id="self-attention">Self-attention <a class="header-anchor" href="#self-attention">#</a></h3>
+<p>With <span class="math inline">\(H_a\)</span> heads and <span class="math inline">\(d_h=d/H_a\)</span>, the layer computes</p>
+<div class="math block">
+\[Q=hW_q^{\top}+b_q,\quad K=hW_k^{\top},\quad V=hW_v^{\top}+b_v,
+\qquad (3)\]
+</div>
+<p>and, per head,</p>
+<div class="math block">
+\[\mathrm{Attn}(Q,K,V)=\mathrm{softmax}\!\Bigl(\frac{QK^{\top}}{\sqrt{d_h}}\Bigr)V .
+\qquad (4)\]
+</div>
+<p>The key bias is omitted deliberately: adding a constant to a row of <span class="math inline">\(K\)</span> adds a
+constant to every score in that row, and softmax is invariant to it. Including
+it would create a parameter with an identically zero gradient.</p>
+<p>The heads are concatenated and projected:</p>
+<div class="math block">
+\[\mathrm{MHA}(h)=\mathrm{Concat}\bigl(\mathrm{head}_1,\dots,
+\mathrm{head}_{H_a}\bigr)W_o^{\top}+b_o .
+\qquad (5)\]
+</div>
+<h3 id="the-encoder-block">The encoder block <a class="header-anchor" href="#the-encoder-block">#</a></h3>
+<p>The implementation uses post-norm residual blocks with a ReLU feed-forward
+network:</p>
+<div class="math block">
+\[u=h+\mathrm{MHA}(\mathrm{LN}(h)),
+\qquad (6)\]
+</div>
+<div class="math block">
+\[\mathrm{Block}(h)=u+\mathrm{ReLU}(\mathrm{LN}(u)W_1^{\top}+b_1)W_2^{\top}+b_2 .
+\qquad (7)\]
+</div>
+<p>Layer normalisation is affine-free:</p>
+<div class="math block">
+\[\mathrm{LN}(z)=\frac{z-\mu}{\sqrt{\sigma^2+\epsilon}},\qquad
+\mu=\frac{1}{d}\sum_j z_j,\quad
+\sigma^2=\frac{1}{d}\sum_j (z_j-\mu)^2 .
+\qquad (8)\]
+</div>
+<p>Dropping the learnable gain and bias removes <span class="math inline">\(2d\)</span> parameters per layer and,
+more importantly, removes two more gradient terms from an already long backward
+pass. On a model this small the gain is mostly in code clarity.</p>
+<h3 id="the-forecast-head">The forecast head <a class="header-anchor" href="#the-forecast-head">#</a></h3>
+<p>The encoder output is flattened across patches and mapped to the horizon:</p>
+<div class="math block">
+\[\hat y=W_h\,\mathrm{vec}(h^{(N)})+b_h,\qquad
+W_h\in\mathbb R^{H\times Nd}.
+\qquad (9)\]
+</div>
+<p>Flattening rather than pooling keeps the position of each patch. A pooled
+representation would force the head to recover where in time each feature came
+from, which is exactly the information the head needs to place a forecast.</p>
+<h3 id="the-supervised-objective">The supervised objective <a class="header-anchor" href="#the-supervised-objective">#</a></h3>
+<p>Training minimises the mean squared error over windows:</p>
+<div class="math block">
+\[L_{\mathrm{sup}}=\frac{1}{WH}\sum_{w=1}^{W}\lVert \hat y_w-y_w\rVert_2^2 .
+\qquad (10)\]
+</div>
+<p>Every parameter — patch projection, position, encoder, head — is updated by
+Adam on this loss.</p>
+<h3 id="channel-independence">Channel independence <a class="header-anchor" href="#channel-independence">#</a></h3>
+<p>For a <span class="math inline">\(C\)</span>-channel series, the channels are stacked into the batch:</p>
+<div class="math block">
+\[\{x^{(1)},\dots,x^{(C)}\}\longrightarrow
+\{(x^{(c)},y^{(c)})\}_{c=1}^{C},
+\qquad (11)\]
+</div>
+<p>and the same weights are applied to each. The forecast is therefore equivariant
+to permutations of the channels: if <span class="math inline">\(\pi\)</span> reorders the channels then
+<span class="math inline">\(\hat y(\pi x)=\pi\hat y(x)\)</span>. The demo checks this numerically and gets a
+difference of exactly zero, which is the strongest possible version of the
+claim.</p>
+<h3 id="masked-pretraining">Masked pretraining <a class="header-anchor" href="#masked-pretraining">#</a></h3>
+<p>A mask <span class="math inline">\(m\in\{0,1\}^{N}\)</span> hides a fraction <span class="math inline">\(\rho\)</span> of the patches. The model sees
+<span class="math inline">\(x\odot(1-m)\)</span> and must reconstruct the hidden patches:</p>
+<div class="math block">
+\[L_{\mathrm{mask}}=
+\frac{1}{|\mathcal M|P}\sum_{(i,j)\in\mathcal M}
+\bigl(\hat p_{ij}-p_{ij}\bigr)^2,
+\qquad (12)\]
+</div>
+<p>where <span class="math inline">\(\mathcal M\)</span> is the set of masked (patch, position) pairs. The mask is
+redrawn every epoch and every row is forced to hide at least one patch, so no
+window is left untouched.</p>
+<h3 id="linear-probing">Linear probing <a class="header-anchor" href="#linear-probing">#</a></h3>
+<p>After pretraining, two protocols are possible. The <code>supervised</code> variant keeps
+the pretrained weights as an initialisation and fine-tunes everything on
+(10). The <code>self_supervised</code> variant freezes the encoder and the patch
+embedding and fits only <span class="math inline">\(W_h,b_h\)</span>:</p>
+<div class="math block">
+\[W_h^{\star}=\arg\min_{W_h}\sum_{w}
+\lVert W_h\,\mathrm{vec}(h_w)+b_h-y_w\rVert_2^2 .
+\qquad (13)\]
+</div>
+<p>Because the representation is fixed, (13) is a linear least-squares problem, and
+the probe measures the information the pretraining actually put into <span class="math inline">\(h\)</span>. The
+gap between the probe and fine-tuning is the value of the pretrained
+initialisation beyond its linear content.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>Patching is an index gather, which is both faster and clearer than a loop:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_patches</span><span class="p">(</span><span class="n">windows</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">patch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">stride</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">windows</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">number</span> <span class="o">=</span> <span class="n">_patch_count</span><span class="p">(</span><span class="n">windows</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">patch</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
+    <span class="n">starts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">number</span><span class="p">)</span> <span class="o">*</span> <span class="n">stride</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">starts</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">patch</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="k">return</span> <span class="n">windows</span><span class="p">[:,</span> <span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">patch</span><span class="p">)</span>
+</code></pre>
+<p>The gather produces <code>(count, number, patch)</code> directly, so no later reshape is
+needed. The same helper serves training windows and the single prediction
+window, which guarantees that the two views of a patch are identical.</p>
+<p>Layer normalisation is a free function rather than a layer, because it has no
+parameters. The cache keeps the centred input and the inverse standard
+deviation, which is everything the backward pass needs:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_layer_norm</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">centred</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">mean</span>
+    <span class="n">variance</span> <span class="o">=</span> <span class="p">(</span><span class="n">centred</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">inverse</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">variance</span> <span class="o">+</span> <span class="mf">1e-5</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">centred</span> <span class="o">*</span> <span class="n">inverse</span><span class="p">,</span> <span class="p">(</span><span class="n">centred</span><span class="p">,</span> <span class="n">inverse</span><span class="p">)</span>
+</code></pre>
+<p>The backward pass is the standard expression for a normalisation with no
+affine term. It has three pieces — the gradient itself, its mean, and its
+projection onto the centred input — because the normalisation couples every
+coordinate of a token:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_layer_norm_backward</span><span class="p">(</span><span class="n">gradient</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="n">centred</span><span class="p">,</span> <span class="n">inverse</span> <span class="o">=</span> <span class="n">cache</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">scaled</span> <span class="o">=</span> <span class="p">(</span><span class="n">gradient</span> <span class="o">*</span> <span class="n">centred</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">inverse</span> <span class="o">/</span> <span class="n">width</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span>
+        <span class="n">width</span> <span class="o">*</span> <span class="n">gradient</span> <span class="o">-</span> <span class="n">total</span> <span class="o">-</span> <span class="n">centred</span> <span class="o">*</span> <span class="n">inverse</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">scaled</span><span class="p">)</span>
+</code></pre>
+<p>Forgetting the <code>total</code> term is the usual bug: it still trains, but the gradient
+is wrong and the model silently learns a slightly different objective.</p>
+<p>The forward pass reads in the order of (3)–(7). Keeping the split heads in the
+cache lets the backward pass avoid re-splitting:</p>
+<pre class="highlight"><code>        <span class="n">normalised</span><span class="p">,</span> <span class="n">norm_cache</span> <span class="o">=</span> <span class="n">_layer_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">normalised</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"Wq"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"bq"</span><span class="p">]</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">normalised</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"Wk"</span><span class="p">]</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">normalised</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"Wv"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"bv"</span><span class="p">]</span>
+        <span class="n">qh</span> <span class="o">=</span> <span class="n">_split_heads</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">)</span>
+        <span class="n">kh</span> <span class="o">=</span> <span class="n">_split_heads</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">)</span>
+        <span class="n">vh</span> <span class="o">=</span> <span class="n">_split_heads</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">)</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">qh</span> <span class="o">@</span> <span class="n">kh</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">)</span>
+        <span class="n">attention</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+        <span class="n">mixed</span> <span class="o">=</span> <span class="n">attention</span> <span class="o">@</span> <span class="n">vh</span>
+        <span class="n">joined</span> <span class="o">=</span> <span class="n">_merge_heads</span><span class="p">(</span><span class="n">mixed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+        <span class="n">attended</span> <span class="o">=</span> <span class="n">joined</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"Wo"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"bo"</span><span class="p">]</span>
+        <span class="n">first</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">attended</span>
+</code></pre>
+<p>The attention backward is where most mistakes happen. The softmax Jacobian is
+not the elementwise product with <code>1 - a</code>; it is
+<span class="math inline">\(\partial a_i/\partial s_j=a_i(\delta_{ij}-a_j)\)</span>, which collapses to
+<span class="math inline">\(a\odot(g-\langle g,a\rangle)\)</span> when contracted with an upstream gradient:</p>
+<pre class="highlight"><code>        <span class="n">attention_grad</span> <span class="o">=</span> <span class="n">mixed_grad</span> <span class="o">@</span> <span class="n">vh</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">value_grad</span> <span class="o">=</span> <span class="n">attention</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">@</span> <span class="n">mixed_grad</span>
+        <span class="n">centre</span> <span class="o">=</span> <span class="p">(</span><span class="n">attention_grad</span> <span class="o">*</span> <span class="n">attention</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">scores_grad</span> <span class="o">=</span> <span class="n">attention</span> <span class="o">*</span> <span class="p">(</span><span class="n">attention_grad</span> <span class="o">-</span> <span class="n">centre</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">)</span>
+        <span class="n">query_grad</span> <span class="o">=</span> <span class="n">scores_grad</span> <span class="o">@</span> <span class="n">kh</span>
+        <span class="n">key_grad</span> <span class="o">=</span> <span class="n">scores_grad</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">@</span> <span class="n">qh</span>
+</code></pre>
+<p>The numeric gradient check in development matched all eleven parameter arrays
+to about <span class="math inline">\(10^{-8}\)</span>, which is what the finite-difference tolerance allows.</p>
+<p>Masked pretraining hides patches by zeroing their embedding input. A zero
+patch is not a special token — the mask is communicated by the position of the
+zero, and the reconstruction head learns to invert it:</p>
+<pre class="highlight"><code>            <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="n">batch</span><span class="p">,</span> <span class="n">count</span><span class="p">))</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_ratio</span>
+            <span class="n">empty</span> <span class="o">=</span> <span class="o">~</span><span class="n">mask</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">empty</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">empty</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+                <span class="n">mask</span><span class="p">[</span><span class="n">empty</span><span class="p">,</span> <span class="n">columns</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">visible</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">patches</span><span class="p">)</span>
+</code></pre>
+<p>Forcing at least one masked patch per row matters when <span class="math inline">\(N\)</span> is small: with four
+patches and <span class="math inline">\(\rho=0.3\)</span>, the probability that a row hides nothing is
+<span class="math inline">\(0.7^4\approx0.24\)</span>, so without the guard a quarter of the batch would contribute
+no gradient.</p>
+<p>The two training protocols differ by one boolean. When it is off, the
+optimiser is given only the head, so the encoder is not merely frozen by a
+small learning rate — it is absent from the update entirely:</p>
+<pre class="highlight"><code>        <span class="n">parameters</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">head_parameters</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">train_encoder</span><span class="p">:</span>
+            <span class="n">parameters</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">parameters</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">embed_parameters</span><span class="p">,</span>
+                          <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">parameters</span><span class="p">}</span>
+        <span class="n">combined</span> <span class="o">=</span> <span class="n">_Adam</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">)</span>
+</code></pre>
+<p>That is why the demo can assert an exact zero change in the frozen
+representation: no code path touches those arrays.</p>
+<p>Channel independence is implemented by folding the channel axis into the batch
+before patching and unfolding it after the head:</p>
+<pre class="highlight"><code>        <span class="n">windows</span> <span class="o">=</span> <span class="n">left</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq_len</span><span class="p">)</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">right</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span>
+</code></pre>
+<p><code>transpose(0, 2, 1)</code> turns <code>(window, time, channel)</code> into
+<code>(window, channel, time)</code>, so the reshape interleaves channels into the batch
+rather than mixing them into the patch. Every channel then becomes an
+independent row of the same matrix product.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(W\)</span> windows, <span class="math inline">\(L\)</span> look-back, <span class="math inline">\(N\)</span> patches, patch size <span class="math inline">\(P\)</span>, width <span class="math inline">\(d\)</span>, <span class="math inline">\(H_a\)</span>
+heads, feed-forward width <span class="math inline">\(f\)</span> and <span class="math inline">\(E\)</span> epochs:</p>
+<ul>
+<li><strong>Patching:</strong> <span class="math inline">\(O(WNP)\)</span> memory for the gathered array.</li>
+<li><strong>Embedding:</strong> <span class="math inline">\(O(WNdP)\)</span> for the projection and <span class="math inline">\(O(WNd)\)</span> for the position.</li>
+<li><strong>Attention scores:</strong> <span class="math inline">\(O(WN^2d)\)</span> time and <span class="math inline">\(O(WH_aN^2)\)</span> memory for the
+attention maps; this is the term that patching shrinks, since <span class="math inline">\(N\approx L/P\)</span>.</li>
+<li><strong>Feed-forward:</strong> <span class="math inline">\(O(WNdf)\)</span>.</li>
+<li><strong>One epoch:</strong> <span class="math inline">\(O(WN(dP+Nd+df))\)</span>, dominated by <span class="math inline">\(dP\)</span> and <span class="math inline">\(df\)</span>.</li>
+<li><strong>Full supervised fit:</strong> the above times <span class="math inline">\(E\)</span>.</li>
+<li><strong>Pretraining:</strong> the same per epoch over <code>pretrain_epochs</code>, plus the
+reconstruction head.</li>
+<li><strong>Prediction:</strong> one window, so <span class="math inline">\(O(NdP+N^2d+Ndf)\)</span> and independent of the
+training size.</li>
+</ul>
+<p>With <span class="math inline">\(L=48\)</span>, <span class="math inline">\(N=4\)</span>, <span class="math inline">\(d=16\)</span> and 289 windows, an epoch is a few hundred
+microseconds; the demo's four fits, including pretraining, take about
+<span class="math inline">\(4.5\)</span> seconds. The patch count is the lever: stride six doubles <span class="math inline">\(N\)</span> and roughly
+quadruples the attention cost for a small accuracy change.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A patch shorter than the season is blind to it.</strong> With <span class="math inline">\(P=8\)</span> and a period of
+twelve, no patch contains a full cycle, so the first token cannot represent the
+seasonal shape and the model must reconstruct it from attention. Patches of
+twelve on a period of twelve work well; patches of four do not. Match the patch
+length to the shortest structure you expect.</p>
+<p><strong>Channel independence is an assumption, not a fact.</strong> If two channels are
+genuinely coupled — a price and its spread, a load and its temperature — the
+independent model cannot exploit the coupling. It will still fit, but it leaves
+accuracy on the table, and the gap is invisible unless you compare against a
+channel-mixing model. Use CI as the default and as a strong baseline, not as a
+universal truth.</p>
+<p><strong>Pretrained features can be worse than supervised ones.</strong> The linear probe in
+the demo reaches <span class="math inline">\(0.4015\)</span> against <span class="math inline">\(0.2691\)</span> for fine-tuning and <span class="math inline">\(0.2956\)</span> from
+scratch. Pretraining on 289 windows does not produce a representation that is
+linearly decodable; the encoder has learned features that only become useful
+when the head above them can move too. Self-supervision needs scale to pay off.</p>
+<p><strong>The flatten head is large.</strong> <span class="math inline">\(W_h\)</span> has <span class="math inline">\(H\times Nd\)</span> entries, which for a long
+look-back and many patches is the biggest matrix in the model. It also has no
+structural prior: every output step mixes every patch with its own weights.
+Pooling or an attention-based decoder would shrink it, at the cost of losing
+positional detail.</p>
+<p><strong>Post-norm blocks need a learning-rate that respects them.</strong> The residual path
+passes through a normalisation at every block, so gradients are rescaled on the
+way back. With 400 epochs and <span class="math inline">\(10^{-2}\)</span> the demo trains; at <span class="math inline">\(3\times10^{-3}\)</span> it
+underfits badly (<span class="math inline">\(0.79\)</span> in-sample MSE after 120 epochs). Pre-norm would be more
+forgiving, at the cost of a different residual topology.</p>
+<p><strong>Masking is a weak pretext task on short series.</strong> With four tokens and a 30%
+mask, each epoch hides about one patch per row. The reconstruction loss falls
+quickly to <span class="math inline">\(0.07\)</span>, but the representation it produces is not obviously better
+than random features. Masked pretraining is worth it when the unlabelled
+corpus is large; on a few hundred windows it is mostly a regulariser.</p>
+<p><strong>One season of history is not enough for a transformer.</strong> Attention can compare
+patches, but with four patches there are only six pairs, and most of the
+model's capacity goes into the head. The architecture shines on windows of
+hundreds of steps; on a 48-step window a linear model with a seasonal term is a
+fair fight.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>PatchTST is used for medium- and long-horizon forecasting where the look-back is
+long enough to contain many cycles: electricity load and price, traffic,
+weather, retail demand at the aggregate level, and financial volatility. The
+channel-independent design makes it a natural fit for datasets with hundreds of
+related series — the weights are shared, so adding a series costs nothing but
+data.</p>
+<p>The self-supervised protocol is used for transfer: pretrain on a large,
+unlabelled corpus of series from the same domain, then fine-tune or probe on the
+small target series. The paper reports that this beats training from scratch
+when the target data are scarce — the opposite of what the demo shows, because
+the demo's pretraining corpus is the target itself.</p>
+<p>It is the wrong tool for very short series, for intermittent demand, and for
+problems where cross-channel structure is the signal. It is also not
+probabilistic: the head emits a point forecast. For intervals, add a quantile
+head or use a model with a likelihood.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Nie, Y., Nguyen, N. H., Sinthong, P., Kalagnanam, J. (2023). <em>A time series is
+worth one word: Patching time series with transformers.</em> ICLR. Patching,
+channel independence, and the masked pretraining protocol.</li>
+<li>Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N.,
+Kaiser, L., Polosukhin, I. (2017). <em>Attention is all you need.</em> NeurIPS. The
+encoder block in (3)–(7).</li>
+<li>Ba, J. L., Kiros, J. R., Hinton, G. E. (2016). <em>Layer normalization.</em>
+arXiv:1607.06450. Equation (8) and its backward pass.</li>
+<li>Devlin, J., Chang, M.-W., Lee, K., Toutanova, K. (2019). <em>BERT: Pre-training
+of deep bidirectional transformers for language understanding.</em> NAACL. The
+masked-reconstruction pretext task adapted in (12).</li>
+<li>Zeng, A., Chen, M., Zhang, L., Xu, Q. (2023). <em>Are transformers effective for
+time series forecasting?</em> AAAI. The linear-baseline argument that motivates
+keeping a simple head.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="nhits.html"><small>Previous</small><span>N-HiTS</span></a><a class="next" href="tsmixer.html"><small>Next</small><span>TSMixer</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">11 · Time series</p><ul class="rail-list"><li><a href="baselines.html"><span class="tick">✓</span><span>Naive baselines</span></a></li><li><a href="ets.html"><span class="tick">✓</span><span>ETS / Holt-Winters</span></a></li><li><a href="arima.html"><span class="tick">✓</span><span>ARIMA</span></a></li><li><a href="var.html"><span class="tick">✓</span><span>Vector autoregression</span></a></li><li><a href="garch.html"><span class="tick">✓</span><span>GARCH</span></a></li><li><a href="stl.html"><span class="tick">✓</span><span>STL decomposition</span></a></li><li><a href="spectral_analysis.html"><span class="tick">✓</span><span>Spectral analysis</span></a></li><li><a href="dlinear.html"><span class="tick">✓</span><span>DLinear</span></a></li><li><a href="theta.html"><span class="tick">✓</span><span>Theta method</span></a></li><li><a href="croston.html"><span class="tick">✓</span><span>Croston&#x27;s method</span></a></li><li><a href="nbeats.html"><span class="tick">✓</span><span>N-BEATS</span></a></li><li><a href="nhits.html"><span class="tick">✓</span><span>N-HiTS</span></a></li><li><a href="patchtst.html" aria-current="page"><span class="tick">✓</span><span>PatchTST</span></a></li><li><a href="tsmixer.html"><span class="tick">✓</span><span>TSMixer</span></a></li><li><a href="deepar.html"><span class="tick">✓</span><span>DeepAR</span></a></li><li><a href="tft.html"><span class="tick">✓</span><span>Temporal fusion transformer</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../10-sequences/index.html"><span class="jump">← 10 · Sequences</span></a></li><li><a href="../12-neural-blocks/index.html"><span class="jump">12 · Neural blocks&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#patching">Patching</a></li><li class="lvl3"><a href="#patch-embedding">Patch embedding</a></li><li class="lvl3"><a href="#self-attention">Self-attention</a></li><li class="lvl3"><a href="#the-encoder-block">The encoder block</a></li><li class="lvl3"><a href="#the-forecast-head">The forecast head</a></li><li class="lvl3"><a href="#the-supervised-objective">The supervised objective</a></li><li class="lvl3"><a href="#channel-independence">Channel independence</a></li><li class="lvl3"><a href="#masked-pretraining">Masked pretraining</a></li><li class="lvl3"><a href="#linear-probing">Linear probing</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/11-time-series/patchtst.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

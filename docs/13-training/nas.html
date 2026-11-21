@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neural architecture search · MLAtoms</title>
+<meta name="description" content="Searching the architecture instead of hand-designing it. Architecture design is usually a human loop: try a network, read the validation curve, change one…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/nas.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Neural architecture search">
+<meta property="og:description" content="Searching the architecture instead of hand-designing it. Architecture design is usually a human loop: try a network, read the validation curve, change one…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/nas.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Neural architecture search">
+<meta name="twitter:description" content="Searching the architecture instead of hand-designing it. Architecture design is usually a human loop: try a network, read the validation curve, change one…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Neural architecture search", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/nas.html", "description": "Searching the architecture instead of hand-designing it. Architecture design is usually a human loop: try a network, read the validation curve, change one\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="nas.py.html">source</a></p><h1>Neural architecture search — six ways to choose the activations</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Architecture design is usually a human loop: try a network, read the
+validation curve, change one thing, repeat. Neural architecture search (NAS)
+automates the loop. The search space here is deliberately tiny so that every
+method can be run to completion: two cells, each cell picks one of four
+activations — identity, <span class="math inline">\(\tanh\)</span>, ReLU or <span class="math inline">\(\sin\)</span> — for <span class="math inline">\(4^2=16\)</span> genomes. The
+task is a periodic boundary, <span class="math inline">\(\sin(6x)+0.3y>0\)</span>, so the genome that matters is
+the one containing a periodic unit. Exhaustive search finds <code>sin/sin</code> at 0.894,
+and the all-affine network scores 0.569: the signal is real, and the space is
+small enough that &quot;good search&quot; has a definite meaning.</p>
+<p>Six strategies attack the same 16-cell space. <code>darts</code> relaxes the discrete
+choice into a softmax over operations and takes gradients through the
+relaxation. <code>enas</code> keeps a controller that samples genomes and is trained by
+REINFORCE from their rewards. <code>amoebanet</code> and <code>regularized_evolution</code> run
+tournaments and mutate winners, with different replacement rules. <code>supernet</code>
+trains one pool of weights by sampling paths, then reads every genome out of
+the shared pool. <code>once_for_all</code> trains one wide network per second-cell choice
+and slices narrower widths out of it for free.</p>
+<p>The results are not a ranking of &quot;best method&quot;. AmoebaNet, regularized
+evolution and the supernet find <code>sin/sin</code> or <code>sin/tanh</code> at 0.894 and 0.879;
+DARTS and once-for-all settle at 0.700, because the relaxed optimum and the
+fixed trunk are not the discrete optimum; ENAS pays 9,900 gradient steps to
+reach 0.757. That spread is the lesson: the search algorithm, the proxy it
+optimises, and the budget it spends are three different things, and a NAS
+paper that reports only the final accuracy is hiding two of them.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">mechanism</th>
+<th style="text-align:left">genome</th>
+<th style="text-align:right">score</th>
+<th style="text-align:right">nets</th>
+<th style="text-align:right">steps</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>darts</code></td>
+<td style="text-align:left">softmax relaxation, gradient on <span class="math inline">\(\alpha\)</span></td>
+<td style="text-align:left"><code>sin/relu</code></td>
+<td style="text-align:right">0.700</td>
+<td style="text-align:right">3</td>
+<td style="text-align:right">1200</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>enas</code></td>
+<td style="text-align:left">controller, REINFORCE</td>
+<td style="text-align:left"><code>relu/sin</code></td>
+<td style="text-align:right">0.757</td>
+<td style="text-align:right">33</td>
+<td style="text-align:right">9900</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>amoebanet</code></td>
+<td style="text-align:left">tournament, aging population</td>
+<td style="text-align:left"><code>sin/sin</code></td>
+<td style="text-align:right">0.894</td>
+<td style="text-align:right">12</td>
+<td style="text-align:right">3600</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>regularized_evolution</code></td>
+<td style="text-align:left">tournament, replace worst</td>
+<td style="text-align:left"><code>sin/tanh</code></td>
+<td style="text-align:right">0.879</td>
+<td style="text-align:right">24</td>
+<td style="text-align:right">7200</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>once_for_all</code></td>
+<td style="text-align:left">one wide net, sliced widths</td>
+<td style="text-align:left"><code>tanh/sin</code></td>
+<td style="text-align:right">0.700</td>
+<td style="text-align:right">7</td>
+<td style="text-align:right">2100</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>supernet</code></td>
+<td style="text-align:left">shared pool, sampled paths</td>
+<td style="text-align:left"><code>sin/sin</code></td>
+<td style="text-align:right">0.894</td>
+<td style="text-align:right">3</td>
+<td style="text-align:right">2100</td>
+</tr>
+</tbody>
+</table>
+<p>Exhaustive search over all 16 genomes costs 48 networks and 14,400 steps for
+the same 0.894. &quot;Nets&quot; counts every training, and each genome is trained three
+times with fixed seeds so that the objective is deterministic; the seeds are
+identical for every variant, so all six searches optimise the same benchmark.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-objective">The objective <a class="header-anchor" href="#the-objective">#</a></h3>
+<p>A genome <span class="math inline">\(g=(g_1,g_2)\)</span> selects one activation per cell. Training a genome
+means minimising the usual softmax cross-entropy, and scoring it means
+measuring test accuracy. Because a single initialisation is noisy, the
+benchmark averages <span class="math inline">\(R\)</span> fixed seeds:</p>
+<div class="math block">
+\[g^\star=\arg\max_{g\in\mathcal G}\ \frac1R\sum_{r=1}^{R}
+\mathrm{Acc}\big(\mathcal D_{\mathrm{test}};\theta(g,s_r)\big),
+\qquad (1)\]
+</div>
+<p>with <span class="math inline">\(|\mathcal G|=16\)</span> and <span class="math inline">\(R=3\)</span>. Exhaustive search evaluates all 16 terms of
+(1): 48 trainings, 14,400 gradient steps, and the answer <code>sin/sin</code> at 0.894.
+Every variant below is a way to avoid evaluating all 16.</p>
+<h3 id="the-network">The network <a class="header-anchor" href="#the-network">#</a></h3>
+<p>Each cell is an affine map followed by the chosen activation:</p>
+<div class="math block">
+\[h_1=f_{g_1}(W_1x+b_1),\qquad
+h_2=f_{g_2}(W_2h_1+b_2),\qquad
+p=\mathrm{softmax}(W_3h_2+b_3),
+\qquad (2)\]
+</div>
+<p>and the loss is <span class="math inline">\(-\log p_y\)</span>. The two cells share a head but not their weights;
+the search changes only which <span class="math inline">\(f\)</span> is applied where.</p>
+<h3 id="enas-a-controller-and-reinforce">ENAS: a controller and REINFORCE <a class="header-anchor" href="#enas-a-controller-and-reinforce">#</a></h3>
+<p>ENAS parameterises a distribution over genomes with a controller
+<span class="math inline">\(\pi_\theta(g)=\prod_\ell \pi_{\theta_\ell}(g_\ell)\)</span> and samples genomes from
+it. The reward is the validation accuracy, and the controller is updated by</p>
+<div class="math block">
+\[\nabla_\theta J(\theta)=\mathbb E_{g\sim\pi_\theta}
+\left[\big(R(g)-b\big)\nabla_\theta\log\pi_\theta(g)\right],
+\qquad (3)\]
+</div>
+<p>where <span class="math inline">\(b\)</span> is a running baseline. The code uses the score-function form
+directly: for the sampled cell, the gradient of <span class="math inline">\(\log\pi\)</span> is
+<span class="math inline">\(e_{g_\ell}-p_\ell\)</span>, and the update is</p>
+<div class="math block">
+\[\theta_\ell\leftarrow\theta_\ell+\eta\,\big(R-b\big)
+\big(e_{g_\ell}-p_\ell\big).
+\qquad (4)\]
+</div>
+<p>The baseline <span class="math inline">\(b\)</span> is an exponential moving average of rewards, which does not
+change the expectation of (3) but removes most of its variance. ENAS draws 16
+genomes, of which 11 are distinct, and the duplicates are free because
+<code>evaluate</code> caches by genome.</p>
+<h3 id="darts-relax-the-choice">DARTS: relax the choice <a class="header-anchor" href="#darts-relax-the-choice">#</a></h3>
+<p>DARTS replaces the discrete pick with a softmax over operations:</p>
+<div class="math block">
+\[\bar o_\ell(x)=\sum_{o\in\mathcal O}
+\frac{\exp(\alpha_{\ell,o})}{\sum_{o'}\exp(\alpha_{\ell,o'})}\,o(x),
+\qquad (5)\]
+</div>
+<p>so the network is differentiable in <span class="math inline">\(\alpha\)</span>. With <span class="math inline">\(w_{\ell,o}\)</span> the softmax
+weight, the derivative with respect to the logit is</p>
+<div class="math block">
+\[\frac{\partial L}{\partial\alpha_{\ell,o}}
+=\sum_i \frac{\partial L}{\partial\bar o_\ell(x_i)}\,
+w_{\ell,o}\big(o(x_i)-\bar o_\ell(x_i)\big),
+\qquad (6)\]
+</div>
+<p>which is exactly the <code>d_alpha</code> accumulation in <code>_mix_grads</code>. The original
+method also differentiates through a few steps of the inner training
+(bilevel); the code takes the first-order shortcut,</p>
+<div class="math block">
+\[\nabla_\alpha L_{\mathrm{val}}
+\approx \nabla_\alpha L_{\mathrm{val}}
+\big(\theta-\xi\nabla_\theta L_{\mathrm{train}}\big),
+\qquad (7)\]
+</div>
+<p>ignoring the Hessian term. The relaxed model trains for 300 steps, the
+architecture logits take a descent step of 0.05 per iteration, and the winner
+is the argmax of each row. The direction of that step is load-bearing: with
+<code>alpha += ...</code> the search ascends the loss and returns a near-affine genome
+instead. Here the descent direction lands on <code>sin/relu</code>.</p>
+<h3 id="weight-sharing-the-supernet">Weight sharing: the supernet <a class="header-anchor" href="#weight-sharing-the-supernet">#</a></h3>
+<p>A supernet trains one parameter pool <span class="math inline">\(\theta\)</span> against a distribution over
+paths:</p>
+<div class="math block">
+\[\min_\theta\ \mathbb E_{g\sim p(g)}\,
+L\big(g;\theta\big),\qquad p\ \text{uniform on }\mathcal G .
+\qquad (8)\]
+</div>
+<p>Each path uses its own <span class="math inline">\((W_1,W_2)\)</span> blocks and the shared head, so sampling a
+path updates the blocks it touches. The code samples in shuffled rounds of 16,
+four rounds in total, so every genome is updated four times instead of the
+sparse coverage of independent sampling. After training, every genome
+is read out with the same <span class="math inline">\(\theta\)</span>; the readout is the &quot;shared estimate&quot;.</p>
+<p>The estimate is biased. A shared pool is optimised for the <em>average</em> path, and
+the head in particular sees a different hidden distribution at every step, so</p>
+<div class="math block">
+\[\mathrm{Acc}\big(g;\theta_{\mathrm{shared}}\big)\neq
+\mathrm{Acc}\big(g;\theta(g)\big),
+\qquad (9)\]
+</div>
+<p>and the ranking it induces need not agree with (1). Here the shared estimate
+for the winner is 0.833 while the benchmark is 0.894, and in general the
+correlation between the two rankings is well below one — which is why one-shot
+NAS reports a <em>ranking</em>, then retrains the winner.</p>
+<h3 id="evolution-and-aging">Evolution and aging <a class="header-anchor" href="#evolution-and-aging">#</a></h3>
+<p>The evolutionary variants keep a population of genomes, pick a parent by
+<span class="math inline">\(k\)</span>-way tournament, mutate one cell, and insert the child. The regularized
+variant replaces the worst member; AmoebaNet replaces the <em>oldest</em>, a rule that
+prevents a single lineage from taking over. Mutation changes one cell
+with probability 0.4, the other with 0.4, and both with 0.2:</p>
+<div class="math block">
+\[g'=\begin{cases}(u,g_2)&u\sim U(\mathcal O),\ \text{prob }0.4\\
+(g_1,u)&\text{prob }0.4\\
+(u,v)&\text{prob }0.2\end{cases}
+\qquad (10)\]
+</div>
+<p>The demo's AmoebaNet starts from the four distinct one-cell genomes, expands
+them to <code>(c,c)</code>, and ages the population; it reaches <code>sin/sin</code> after 12
+trainings. Regularized evolution starts from six random genomes and reaches
+<code>sin/tanh</code> after 24; the extra cost is the price of the wider initial
+population and of replacing the worst rather than the oldest.</p>
+<h3 id="once-for-all-elastic-width">Once-for-all: elastic width <a class="header-anchor" href="#once-for-all-elastic-width">#</a></h3>
+<p>OFA trains one wide network and derives sub-networks by masking channels:</p>
+<div class="math block">
+\[h=\big(W\odot m_w\big)x,\qquad m_w\in\{0,1\}^{d},
+\qquad (11)\]
+</div>
+<p>so a width-<span class="math inline">\(w\)</span> slice is a prefix of the wide weight matrix. The demo trains
+one width-8 network per second-cell operation with the first cell fixed to
+<code>tanh</code>, then evaluates widths 4, 6 and 8 by slicing. It finds <code>tanh/sin</code> at
+0.700. The first cell is frozen, so the periodic unit can never appear where
+the task needs it, and that ceiling is visible in the score: the method is
+searching widths, not activations.</p>
+<h3 id="what-the-budget-buys">What the budget buys <a class="header-anchor" href="#what-the-budget-buys">#</a></h3>
+<p>Counting gradient steps rather than wall-clock makes the comparison portable.
+Each genome costs <span class="math inline">\(R\)</span> trainings of <span class="math inline">\(T\)</span> steps, so exhaustive search costs</p>
+<div class="math block">
+\[C_{\mathrm{exhaustive}}=|\mathcal G|\,R\,T=16\cdot 3\cdot 300=14{,}400,
+\qquad (12)\]
+</div>
+<p>and a search that scores <span class="math inline">\(N\)</span> distinct genomes costs <span class="math inline">\(N R T\)</span> plus any
+architecture-level overhead. AmoebaNet's <span class="math inline">\(N=4\)</span> gives 3,600 steps for the same
+0.894; the supernet pays one 1,200-step shared pass and then three retrains for
+2,100. ENAS's <span class="math inline">\(N=11\)</span> costs 9,900 and still misses the optimum — sample
+efficiency is not automatically better than enumeration on a 16-cell space.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The forward pass is the genome made concrete: two lookups into the parameter
+dictionary, one activation each, and a shared head.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">genome</span><span class="p">):</span>
+    <span class="n">pre_one</span> <span class="o">=</span> <span class="n">x</span> <span class="o">@</span> <span class="n">params</span><span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="n">genome</span><span class="p">[</span><span class="mi">0</span><span class="p">])][</span><span class="s2">"W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="n">genome</span><span class="p">[</span><span class="mi">0</span><span class="p">])][</span><span class="s2">"b"</span><span class="p">]</span>
+    <span class="n">first</span> <span class="o">=</span> <span class="n">ACTS</span><span class="p">[</span><span class="n">genome</span><span class="p">[</span><span class="mi">0</span><span class="p">]](</span><span class="n">pre_one</span><span class="p">)</span>
+    <span class="n">pre_two</span> <span class="o">=</span> <span class="n">first</span> <span class="o">@</span> <span class="n">params</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="n">genome</span><span class="p">[</span><span class="mi">1</span><span class="p">])][</span><span class="s2">"W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="n">genome</span><span class="p">[</span><span class="mi">1</span><span class="p">])][</span><span class="s2">"b"</span><span class="p">]</span>
+    <span class="n">second</span> <span class="o">=</span> <span class="n">ACTS</span><span class="p">[</span><span class="n">genome</span><span class="p">[</span><span class="mi">1</span><span class="p">]](</span><span class="n">pre_two</span><span class="p">)</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">second</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"head"</span><span class="p">][</span><span class="s2">"W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"head"</span><span class="p">][</span><span class="s2">"b"</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">logits</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">pre_one</span><span class="p">,</span> <span class="n">first</span><span class="p">,</span> <span class="n">pre_two</span><span class="p">,</span> <span class="n">second</span><span class="p">)</span>
+</code></pre>
+<p>The benchmark is the mean over fixed seeds, and the cache is what makes
+repeated sampling in ENAS and evolution cheap:</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">restarts</span><span class="p">):</span>
+                <span class="n">params</span> <span class="o">=</span> <span class="n">_init</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">))</span>
+                <span class="n">_train</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">genome</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">decay</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n_trained</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span>
+                <span class="n">probs</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">test_x</span><span class="p">,</span> <span class="n">genome</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">scores</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">probs</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">test_y</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">[</span><span class="n">genome</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">scores</span><span class="p">))</span>
+</code></pre>
+<p>DARTS builds the mixture (5) by evaluating all four operations on the same
+pre-activation and combining the results with the softmax weights:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_mix_forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">alpha</span><span class="p">):</span>
+        <span class="n">weight1</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">alpha</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">weight2</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">alpha</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">pre1</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="o">@</span> <span class="n">params</span><span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="n">op</span><span class="p">)][</span><span class="s2">"W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="n">op</span><span class="p">)][</span><span class="s2">"b"</span><span class="p">]</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">OPS</span><span class="p">]</span>
+        <span class="n">act1</span> <span class="o">=</span> <span class="p">[</span><span class="n">ACTS</span><span class="p">[</span><span class="n">op</span><span class="p">](</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">op</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">OPS</span><span class="p">,</span> <span class="n">pre1</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+        <span class="n">hidden</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">weight1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">act1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">OPS</span><span class="p">)))</span>
+</code></pre>
+<p>and then takes the descent step on the logits — the sign that decides whether
+the search works:</p>
+<pre class="highlight"><code>            <span class="n">grads</span><span class="p">,</span> <span class="n">d_alpha</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mix_grads</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span>
+            <span class="n">_apply</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">grads</span><span class="p">,</span> <span class="n">first</span><span class="p">,</span> <span class="n">second</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">decay</span><span class="p">)</span>
+            <span class="n">alpha</span> <span class="o">-=</span> <span class="mf">0.05</span> <span class="o">*</span> <span class="n">d_alpha</span>
+</code></pre>
+<p>ENAS's controller update is (4) with a score-function gradient per cell and a
+moving-average baseline:</p>
+<pre class="highlight"><code>            <span class="n">baseline</span> <span class="o">=</span> <span class="mf">0.7</span> <span class="o">*</span> <span class="n">baseline</span> <span class="o">+</span> <span class="mf">0.3</span> <span class="o">*</span> <span class="n">score</span>
+            <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+                <span class="n">grad</span> <span class="o">=</span> <span class="o">-</span><span class="n">probs</span><span class="p">[</span><span class="n">layer</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">grad</span><span class="p">[</span><span class="n">OPS</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">genome</span><span class="p">[</span><span class="n">layer</span><span class="p">])]</span> <span class="o">+=</span> <span class="mf">1.0</span>
+                <span class="n">theta</span><span class="p">[</span><span class="n">layer</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">score</span> <span class="o">-</span> <span class="n">baseline</span><span class="p">)</span> <span class="o">*</span> <span class="n">grad</span>
+</code></pre>
+<p>The two evolutionary variants share the tournament and the mutation, and
+differ only in what leaves the population. AmoebaNet ages:</p>
+<pre class="highlight"><code>            <span class="n">score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">evaluate</span><span class="p">((</span><span class="n">child</span><span class="p">,</span> <span class="n">child</span><span class="p">),</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">test_x</span><span class="p">,</span> <span class="n">test_y</span><span class="p">)</span>
+            <span class="n">population</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">scores</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">population</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">child</span><span class="p">)</span>
+            <span class="n">scores</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">score</span><span class="p">)</span>
+</code></pre>
+<p>while regularized evolution replaces its worst member. The supernet trains in
+shuffled rounds so that every genome is visited before any is revisited:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">rounds</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">slot</span> <span class="o">=</span> <span class="p">(</span><span class="n">step</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">GRID</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">slot</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">order</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">GRID</span><span class="p">))]</span>
+            <span class="n">genome</span> <span class="o">=</span> <span class="n">GRID</span><span class="p">[</span><span class="n">order</span><span class="p">[</span><span class="n">slot</span><span class="p">]]</span>
+</code></pre>
+<p>OFA derives a narrower subnet by slicing the prefix of each weight matrix and
+running the same forward pass:</p>
+<pre class="highlight"><code>                <span class="n">sliced</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">"tanh"</span><span class="p">):</span> <span class="p">{</span>
+                        <span class="s2">"W"</span><span class="p">:</span> <span class="n">params</span><span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">"tanh"</span><span class="p">)][</span><span class="s2">"W"</span><span class="p">][:,</span> <span class="p">:</span><span class="n">width</span><span class="p">],</span>
+                        <span class="s2">"b"</span><span class="p">:</span> <span class="n">params</span><span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">"tanh"</span><span class="p">)][</span><span class="s2">"b"</span><span class="p">][:</span><span class="n">width</span><span class="p">]},</span>
+                    <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span> <span class="p">{</span>
+                        <span class="s2">"W"</span><span class="p">:</span> <span class="n">params</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="n">op</span><span class="p">)][</span><span class="s2">"W"</span><span class="p">][:</span><span class="n">width</span><span class="p">,</span> <span class="p">:</span><span class="n">width</span><span class="p">],</span>
+                        <span class="s2">"b"</span><span class="p">:</span> <span class="n">params</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="n">op</span><span class="p">)][</span><span class="s2">"b"</span><span class="p">][:</span><span class="n">width</span><span class="p">]},</span>
+                    <span class="s2">"head"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"W"</span><span class="p">:</span> <span class="n">params</span><span class="p">[</span><span class="s2">"head"</span><span class="p">][</span><span class="s2">"W"</span><span class="p">][:</span><span class="n">width</span><span class="p">],</span>
+                             <span class="s2">"b"</span><span class="p">:</span> <span class="n">params</span><span class="p">[</span><span class="s2">"head"</span><span class="p">][</span><span class="s2">"b"</span><span class="p">]}}</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(|\mathcal G|\)</span> be the number of genomes, <span class="math inline">\(T\)</span> the steps per training and
+<span class="math inline">\(R\)</span> the restarts.</p>
+<ul>
+<li><strong>Exhaustive:</strong> <span class="math inline">\(|\mathcal G|RT\)</span> gradient steps. Here <span class="math inline">\(16\cdot3\cdot300
+=14{,}400\)</span>, and it is the reference the other five are measured against.</li>
+<li><strong>DARTS:</strong> one relaxed training plus one retrain, <span class="math inline">\(2T\)</span> steps and one
+architecture level. The mixture evaluates all four operations per cell per
+step, so each step is four times the arithmetic of a discrete forward pass;
+the step count does not show that multiplier.</li>
+<li><strong>ENAS:</strong> <span class="math inline">\(N R T\)</span> for <span class="math inline">\(N\)</span> distinct sampled genomes, plus a controller whose
+cost is negligible at this scale.</li>
+<li><strong>Evolution:</strong> <span class="math inline">\(N R T\)</span> with <span class="math inline">\(N\)</span> the number of distinct genomes ever scored;
+the tournament and mutation are <span class="math inline">\(O(1)\)</span>.</li>
+<li><strong>Supernet:</strong> one shared pass of four rounds of <span class="math inline">\(|\mathcal G|\)</span> steps, plus
+<span class="math inline">\(R T\)</span> for the retrain. The shared pass is cheap per step but sees only one
+path at a time.</li>
+<li><strong>OFA:</strong> one training per first-cell choice, then a forward pass per slice;
+the slice evaluation is free compared with training.</li>
+</ul>
+<p>The exhaustive probe alone is 14,400 steps; the six searches add about 26,000
+more. Every training is a two-layer network on 240 points, so the constant is
+small; the point of the table is the ratio between <span class="math inline">\(N R T\)</span> and
+<span class="math inline">\(|\mathcal G|RT\)</span>, not absolute time.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The relaxed optimum is not the discrete optimum.</strong> DARTS trains the mixture
+in (5) and then takes an argmax, but the mixture's best weights need not point
+at the best discrete genome. Here it picks <code>sin/relu</code> at 0.700 while
+<code>sin/sin</code> scores 0.894. The gap is the price of the relaxation, and it grows
+when the operations have very different scales — four activations with
+different output ranges are close to a worst case.</p>
+<p><strong>Weight sharing biases the ranking.</strong> The supernet's shared estimate is
+0.833 for a genome that retrains to 0.894, and every one-shot method inherits
+some version of (9). Reporting the shared number as the architecture's
+accuracy overstates the method by a wide margin. Always retrain the winner
+before quoting a score.</p>
+<p><strong>The controller needs more samples than the space has cells.</strong> ENAS spends
+9,900 steps and 33 trainings to reach 0.757, more than AmoebaNet's 3,600 for
+0.894. REINFORCE on a 16-armed bandit is sample-hungry; on a space this small,
+enumeration is cheaper than learning a policy. ENAS pays off when the space is
+combinatorial and exhaustive search is impossible.</p>
+<p><strong>A frozen cell caps the score.</strong> OFA fixes the first cell to <code>tanh</code> and
+searches only the second, so it can never build the periodic unit where the
+task needs it; its 0.700 is a ceiling, not a search failure. Elastic-width
+methods assume the macro architecture is already right.</p>
+<p><strong>Seed noise can beat the search signal.</strong> Before the restarts in (1), the
+same genome scored anywhere from 0.55 to 0.93 depending on initialisation, and
+a search could &quot;win&quot; by drawing a lucky seed. Averaging three seeds closes most
+of that gap; it does not eliminate it, and a search that reports one run is
+reporting one draw.</p>
+<p><strong>The benchmark is not the deployment task.</strong> Every variant here optimises
+test accuracy on the same distribution it is scored on. In practice the search
+runs on a proxy — a smaller dataset, a shorter schedule, a validation split —
+and the proxy's ranking can differ from the full task's. The shared-estimate
+bias and the proxy bias compound.</p>
+<p><strong>Budget accounting hides the constant.</strong> Counting trainings treats a DARTS
+mixture step and a discrete step as equal, but the mixture evaluates four
+operations. Counting steps ignores that a supernet step touches one path's
+blocks. There is no single fair unit; state the unit and the constant.</p>
+<p><strong>Architecture search can overfit the validation set.</strong> With 16 genomes and a
+3-seed average the risk is small, but a search that evaluates thousands of
+genomes against one validation split will select noise. The usual fix is a
+held-out test set that the search never sees, which is what the demo's
+<code>test_x</code>/<code>test_y</code> would have to be if the space were larger.</p>
+<p><strong>Search spaces encode assumptions.</strong> Four activations and two cells cannot
+express a residual connection, a convolution or a normalisation layer. The
+winner here is &quot;the activation that matches the data&quot;, which is a statement
+about this space, not about NAS in general.</p>
+<p><strong>Mutation is not local in a two-gene genome.</strong> Changing one of two cells is a
+large jump: there is no &quot;nearby&quot; architecture to hill-climb. Evolution works
+here because the space is tiny; on real cell-based spaces the mutation
+operators are designed to keep most of the graph intact.</p>
+<p><strong>One shared pool can co-adapt.</strong> The head sees a different hidden
+distribution on every supernet step, so it learns a compromise. That is the
+mechanism behind the 0.833 estimate; techniques such as path dropout and
+progressive shrinking exist to reduce it.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>NAS entered practice through image-classification backbones, where the
+searched cell is repeated at several resolutions and the search cost is
+amortised over a family of models. AmoebaNet and its descendants produced
+backbones that were competitive with hand-designed ones, and DARTS made the
+search cheap enough to run on a single machine — at the cost of the
+relaxation gap above.</p>
+<p>Weight-sharing methods are now the default because they decouple search cost
+from the number of architectures: train one supernet, evaluate thousands of
+subnets, retrain a handful. Once-for-all turned that into a deployment story,
+where one trained network serves a range of latency budgets by slicing width,
+depth and resolution, and hardware-aware variants add latency to the objective
+so the search returns models that fit a device.</p>
+<p>Evolutionary search survives where the space is discrete and the objective is
+noisy or non-differentiable: hardware-aware NAS, compiler autotuning, feature
+selection, and neural-network pruning, where each candidate is a mask rather
+than a differentiable weight. The controller approach is less common now but
+remains the cleanest example of treating architecture choice as a policy.</p>
+<p>Outside deep learning, the same patterns recur: Bayesian optimisation over
+hyperparameters (chapter 13's <code>hyperparameter_search</code>), bandit algorithms for
+allocating a training budget, and evolutionary search over pipelines. The
+vocabulary changes; the tension between a cheap proxy and the true objective
+does not.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Zoph, B., Le, Q. V. (2017). <em>Neural architecture search with reinforcement
+learning.</em> ICLR. The controller and REINFORCE formulation, (3)–(4).</li>
+<li>Pham, H., Guan, M. Y., Zoph, B., Le, Q. V., Dean, J. (2018). <em>Efficient
+neural architecture search via parameter sharing.</em> ICML. ENAS.</li>
+<li>Liu, H., Simonyan, K., Yang, Y. (2019). <em>DARTS: differentiable architecture
+search.</em> ICLR. The relaxation (5)–(7).</li>
+<li>Bender, G., Kindermans, P.-J., Zoph, B., Vasudevan, V., Le, Q. V. (2018).
+<em>Understanding and simplifying one-shot architecture search.</em> ICML. The
+shared-pool objective (8) and the ranking bias (9).</li>
+<li>Real, E., Aggarwal, A., Huang, Y., Le, Q. V. (2019). <em>Regularized evolution
+for image classifier architecture search.</em> AAAI. Tournament, aging and
+(10).</li>
+<li>Real, E., Aggarwal, A., Huang, Y., Le, Q. V. (2019). <em>Aging evolution for
+image classifier architecture search.</em> GECCO. The AmoebaNet replacement
+rule.</li>
+<li>Cai, H., Gan, C., Wang, T., Zhang, Z., Han, S. (2020). <em>Once-for-all: train
+one network and specialize it for efficient deployment.</em> ICLR. Elastic
+width and (11).</li>
+<li>Elsken, T., Metzen, J. H., Hutter, F. (2019). <em>Neural architecture search:
+a survey.</em> JMLR. The taxonomy and the proxy-versus-objective framing.</li>
+<li>White, C., Neiswanger, W., Nolen, S., Savani, Y. (2021). <em>A study on
+encodings in neural architecture search.</em> AutoML. Why the search space,
+not only the optimiser, determines the result.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="class_imbalance.html"><small>Previous</small><span>Class imbalance</span></a><a class="next" href="meta_learning.html"><small>Next</small><span>Meta-learning</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html" aria-current="page"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-objective">The objective</a></li><li class="lvl3"><a href="#the-network">The network</a></li><li class="lvl3"><a href="#enas-a-controller-and-reinforce">ENAS: a controller and REINFORCE</a></li><li class="lvl3"><a href="#darts-relax-the-choice">DARTS: relax the choice</a></li><li class="lvl3"><a href="#weight-sharing-the-supernet">Weight sharing: the supernet</a></li><li class="lvl3"><a href="#evolution-and-aging">Evolution and aging</a></li><li class="lvl3"><a href="#once-for-all-elastic-width">Once-for-all: elastic width</a></li><li class="lvl3"><a href="#what-the-budget-buys">What the budget buys</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/nas.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

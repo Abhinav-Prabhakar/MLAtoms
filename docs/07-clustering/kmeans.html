@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>k-means · MLAtoms</title>
+<meta name="description" content="Lloyd&#x27;s algorithm and the details that decide whether it works. k-means partitions n points into k groups by minimising the total squared distance from each…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/kmeans.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="k-means">
+<meta property="og:description" content="Lloyd&#x27;s algorithm and the details that decide whether it works. k-means partitions n points into k groups by minimising the total squared distance from each…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/kmeans.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="k-means">
+<meta name="twitter:description" content="Lloyd&#x27;s algorithm and the details that decide whether it works. k-means partitions n points into k groups by minimising the total squared distance from each…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "k-means", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/kmeans.html", "description": "Lloyd's algorithm and the details that decide whether it works. k-means partitions n points into k groups by minimising the total squared distance from each\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">07 · Clustering</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="kmeans.py.html">source</a></p><h1>k-means</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>k-means partitions <code>n</code> points into <code>k</code> groups by minimising the total squared
+distance from each point to its group's centre:</p>
+<div class="math block">
+\[J(C,z) = \sum_{i=1}^n \|x_i - c_{z_i}\|^2\]
+</div>
+<p>Two facts make this easy to optimise approximately. If the centres are fixed, the
+best assignment sends each point to its nearest centre. If the assignments are
+fixed, the best centre is the mean of its points. Alternating the two never
+increases <code>J</code>, so the algorithm descends to a local minimum — always a local one,
+never guaranteed global, because the problem is NP-hard in general.</p>
+<p>Everything else in this file is a response to one of k-means' practical weaknesses:</p>
+<ul>
+<li>the result depends on initialisation → <code>kmeans_plusplus</code></li>
+<li>every iteration touches every point → <code>mini_batch</code>, <code>elkan</code></li>
+<li>the number of clusters must be chosen → <code>bisecting</code></li>
+<li>squared Euclidean distance assumes isotropic blobs → <code>spherical</code></li>
+<li>a centre can end up with no points → <code>empty_cluster_fix</code></li>
+</ul>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">What changes</th>
+<th style="text-align:left">When it wins</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>lloyd</code></td>
+<td style="text-align:left">alternate assign / mean</td>
+<td style="text-align:left">the reference; small <code>n</code>, small <code>k</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kmeans_plusplus</code></td>
+<td style="text-align:left"><code>D²</code> seeding, multiple restarts</td>
+<td style="text-align:left">unbalanced cluster sizes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mini_batch</code></td>
+<td style="text-align:left">centres updated from 64-row batches</td>
+<td style="text-align:left">large <code>n</code>, streaming data</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>elkan</code></td>
+<td style="text-align:left">triangle-inequality bounds skip distances</td>
+<td style="text-align:left">many clusters, low dimension</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bisecting</code></td>
+<td style="text-align:left">recursive 2-means splits</td>
+<td style="text-align:left">a hierarchy is wanted, or <code>k</code> grows</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>spherical</code></td>
+<td style="text-align:left">cosine assignment, normalised centres</td>
+<td style="text-align:left">direction data (text, embeddings)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>empty_cluster_fix</code></td>
+<td style="text-align:left">re-seed empty clusters at worst-fit points</td>
+<td style="text-align:left">degenerate <code>k</code>, duplicate points</td>
+</tr>
+</tbody>
+</table>
+<p><code>lloyd</code> is the algorithm everyone means by &quot;k-means&quot;. <code>kmeans_plusplus</code> is the same
+loop with a better start: the demo's unbalanced dataset gives a mean inertia of
+<code>326</code> against <code>341</code> for random seeding, and the worst random run is much worse than
+the worst <code>++</code> run. <code>elkan</code> returns <em>identical</em> labels to Lloyd — it is an exact
+accelerator, not an approximation — with <code>1380</code> distance evaluations instead of
+<code>2700</code>. <code>mini_batch</code> reaches the same inertia after visiting <code>6840</code> rows instead of
+<code>9000</code>, and the gap widens with <code>n</code> because each batch costs <code>O(batch·k)</code>
+regardless of the dataset size.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Assignment step.</strong> For fixed centres, <code>J</code> separates over points:</p>
+<div class="math block">
+\[z_i = \arg\min_j \|x_i-c_j\|^2\]
+</div>
+<p>so the optimal assignment is independent per point. This is why the distance
+computation can be blocked, cached, or bounded — the decision is local.</p>
+<p><strong>Update step.</strong> For a fixed partition, <code>J = Σ_j Σ_{i∈S_j} ||x_i−c_j||²</code>, and each
+<code>c_j</code> appears in its own term only. Setting the gradient to zero gives</p>
+<div class="math block">
+\[\frac{\partial}{\partial c_j}\sum_{i\in S_j}\|x_i-c_j\|^2 = -2\sum_{i\in S_j}(x_i-c_j) = 0
+\implies c_j = \frac{1}{|S_j|}\sum_{i\in S_j} x_i\]
+</div>
+<p><strong>Monotone descent.</strong> The assignment step can only decrease <code>J</code> (each point moves to
+a centre at least as close), and the update step can only decrease it (the mean is the
+minimiser of the within-cluster sum). So <code>J</code> is non-increasing and bounded below by
+zero; the algorithm converges in finitely many steps because there are finitely many
+partitions. It converges to a <em>local</em> optimum, and the fixed point satisfies both
+first-order conditions: every point is closer to its own centre than to any other, and
+every centre is the mean of its cluster.</p>
+<p><strong>k-means++.</strong> Choose the first centre uniformly, then choose each subsequent centre
+<code>x</code> with probability proportional to <code>D(x)²</code>, the squared distance to the nearest
+chosen centre. The <code>D²</code> weighting makes a point that is far from everything already
+chosen very likely to be picked, so the initial centres are spread out. The
+approximation guarantee is</p>
+<div class="math block">
+\[\mathbb{E}[J_{\text{++}}] \le 8(\ln k + 2)\,J_{\text{opt}}\]
+</div>
+<p>which is why the seeding is worth its cost: random seeding has no such bound and can
+place two centres inside the same cluster, from which no local move escapes.</p>
+<p><strong>Elkan's bounds.</strong> Let <code>a_i</code> be the current centre of <code>x_i</code>, <code>u_i</code> an upper bound on
+<code>d(x_i, c_{a_i})</code>, and <code>l_i</code> a lower bound on <code>min_{j≠a_i} d(x_i, c_j)</code>. If
+<code>u_i ≤ l_i</code>, no centre can beat the current one and the point can be skipped. After
+the centres move by <code>δ_j = d(c_j, c_j')</code>, the triangle inequality gives</p>
+<div class="math block">
+\[u_i \leftarrow u_i + \delta_{a_i},
+\qquad
+l_i \leftarrow l_i - \max_j \delta_j\]
+</div>
+<p>and only points with <code>u_i &gt; l_i</code> recompute distances. The bounds are loose compared
+with the full per-centre Elkan bounds, but they preserve exactness and still skip most
+points once the centres settle.</p>
+<p><strong>Mini-batch update.</strong> For a batch <code>B</code> and cluster <code>j</code> with <code>m_j</code> batch points, the
+centre moves toward the batch mean with a decaying step:</p>
+<div class="math block">
+\[c_j \leftarrow c_j + \eta_j\,(\bar x_{j,B} - c_j),
+\qquad
+\eta_j = \frac{m_j}{N_j}\]
+</div>
+<p>where <code>N_j</code> is the total number of points assigned to <code>j</code> so far (including this
+batch). This is Robbins–Monro stochastic approximation: <code>Ση = ∞</code> and <code>Ση² &lt; ∞</code>, so the
+centres converge to a fixed point of the full-batch iteration. The initial <code>N_j = 0</code>
+makes the first update jump straight to the batch mean, which is what lets the method
+converge in a few dozen batches.</p>
+<p><strong>Bisecting k-means.</strong> Start with one cluster. Repeatedly take the cluster with the
+largest SSE, run 2-means on it, and replace it with the two children. This is a greedy
+hierarchy: it produces a dendrogram as a by-product, and with <code>O(k log k)</code> 2-means runs
+it is often faster than <code>k</code>-means on large <code>n</code> because each split works on a subset.
+The result is not the same local optimum as Lloyd's, and the demo's inertia (<code>271.5</code>
+vs <code>261.8</code>) is slightly worse for that reason.</p>
+<p><strong>Spherical k-means.</strong> Replace squared Euclidean distance with cosine:</p>
+<div class="math block">
+\[d_{\cos}(x,c) = 1 - \frac{x^\top c}{\|x\|\|c\|}\]
+</div>
+<p>Assign by maximum cosine, and after the mean update renormalise each centre to unit
+length. This is k-means on the unit sphere: it clusters by direction and ignores
+magnitude, which is exactly right for normalised embeddings and term-frequency
+vectors. The demo's data has radii spanning <code>25×</code>; Euclidean k-means splits by radius
+(<code>0.700</code> accuracy) while spherical recovers the three directions (<code>1.000</code>).</p>
+<p><strong>Empty clusters.</strong> A centre can lose all its points when <code>k</code> exceeds the number of
+distinct points, or when two centres coincide. The mean of an empty set is undefined,
+so the usual fix is to re-seed: pick the points with the largest distance to their
+current centre and make them the new centres. The repair keeps the partition valid and
+<code>J</code> finite; it does not guarantee <code>k</code> non-empty clusters when the data has fewer than
+<code>k</code> distinct points, which is a pigeonhole limit, not a bug.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The distance matrix is computed by expanding the square, never by broadcasting an
+<code>n×k×d</code> tensor:</p>
+<pre class="highlight"><code>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sq_dists</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">C</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span> <span class="o">*</span> <span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">X</span> <span class="o">@</span> <span class="n">C</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="p">(</span><span class="n">C</span> <span class="o">*</span> <span class="n">C</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="kc">None</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p><code>||x−c||² = ||x||² − 2xᵀc + ||c||²</code> is one matrix multiply plus two rank-1 terms,
+which is the standard <code>O(nkd)</code> implementation and the one BLAS accelerates. The
+<code>maximum(..., 0)</code> guards the small negative values that cancellation produces when a
+point is very close to a centre; a negative distance would win an <code>argmin</code> and corrupt
+the assignment.</p>
+<p>The <code>++</code> seeding is a loop of weighted draws:</p>
+<pre class="highlight"><code>        <span class="n">C</span> <span class="o">=</span> <span class="p">[</span><span class="n">X</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="n">n</span><span class="p">))]]</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">((</span><span class="n">X</span> <span class="o">-</span> <span class="n">C</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">):</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">total</span> <span class="o">&lt;=</span> <span class="n">EPS</span><span class="p">:</span>
+                <span class="n">C</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="n">n</span><span class="p">))])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">C</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">d</span> <span class="o">/</span> <span class="n">total</span><span class="p">))])</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="p">((</span><span class="n">X</span> <span class="o">-</span> <span class="n">C</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+</code></pre>
+<p><code>d</code> always holds the squared distance to the <em>nearest</em> centre so far, updated with
+<code>np.minimum</code> after each pick — that is the <code>D²</code> in the name. The <code>total &lt;= EPS</code> branch
+handles the case where every point coincides with a chosen centre: the distribution is
+all zeros and <code>choice(p=...)</code> would raise, so a uniform pick is the sensible fallback.
+Drawing with <code>p=d/total</code> rather than sampling the largest <code>d</code> is what makes the seeding
+randomised and gives the approximation guarantee; deterministic farthest-point seeding
+is a different algorithm.</p>
+<p>Lloyd's loop is five lines because both steps are functions:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">):</span>
+            <span class="n">new_labels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_assign</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">C</span><span class="p">)</span>
+            <span class="n">newC</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_means</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">new_labels</span><span class="p">,</span> <span class="n">C</span><span class="p">)</span>
+            <span class="n">shift</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(((</span><span class="n">newC</span> <span class="o">-</span> <span class="n">C</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">newC</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_updates_</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">converged</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">new_labels</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="n">new_labels</span>
+            <span class="k">if</span> <span class="n">converged</span> <span class="ow">and</span> <span class="n">shift</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span><span class="p">:</span>
+                <span class="k">break</span>
+</code></pre>
+<p>The stop test requires <em>both</em> stable labels and a small centre shift. Labels alone are
+enough in exact arithmetic, but floating-point means can drift by <code>1e-16</code> forever,
+and a shift-only test can stop while assignments still oscillate between two tied
+centres. Checking both is the cheap, robust choice.</p>
+<p>Elkan's version maintains the two bounds:</p>
+<pre class="highlight"><code>            <span class="n">u</span> <span class="o">=</span> <span class="n">u</span> <span class="o">+</span> <span class="n">delta</span><span class="p">[</span><span class="n">labels</span><span class="p">]</span>
+            <span class="n">lo</span> <span class="o">=</span> <span class="n">lo</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">delta</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+            <span class="n">changed</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">lo</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+                    <span class="k">continue</span>
+                <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(((</span><span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">C</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n_evals_</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span>
+                <span class="n">j</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">dist</span><span class="p">))</span>
+                <span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                <span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+                <span class="n">lo</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+</code></pre>
+<p><code>u</code> grows by the movement of the point's own centre and <code>lo</code> shrinks by the largest
+movement of <em>any</em> centre; that asymmetry is what keeps the test conservative. When a
+point must be recomputed, <code>dist[j] = inf</code> before <code>min</code> extracts the second-smallest
+distance, which becomes the new lower bound. Everything is in Euclidean distance, not
+squared, because the triangle inequality does not hold for squares. The result is
+bit-identical to Lloyd's (the demo asserts <code>array_equal</code> on labels) because the skipped
+points provably cannot change their assignment.</p>
+<p>Mini-batch replaces the full mean with a decaying step:</p>
+<pre class="highlight"><code>            <span class="n">labels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_assign</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">C</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">):</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">labels</span> <span class="o">==</span> <span class="n">j</span>
+                <span class="n">cnt</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+                <span class="k">if</span> <span class="n">cnt</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">counts</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">cnt</span>
+                <span class="n">eta</span> <span class="o">=</span> <span class="n">cnt</span> <span class="o">/</span> <span class="n">counts</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                <span class="n">C</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">eta</span> <span class="o">*</span> <span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="n">C</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+</code></pre>
+<p><code>counts[j]</code> is the cumulative number of rows ever assigned to <code>j</code>, so <code>eta</code> decays like
+<code>1/N_j</code> — the Robbins–Monro schedule. Starting <code>counts</code> at zero makes <code>eta = 1</code> on the
+first batch, so the centre jumps to the batch mean instead of creeping toward it.
+<code>if cnt == 0: continue</code> leaves the centre where it is; the empty-cluster repair is a
+separate variant because silently moving centres changes the algorithm.</p>
+<p>Bisecting repeats 2-means on the worst cluster:</p>
+<pre class="highlight"><code>        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">clusters</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">:</span>
+            <span class="n">sizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">sse</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">clusters</span><span class="p">])</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">sizes</span><span class="p">))</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">clusters</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</code></pre>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="n">sub</span> <span class="o">=</span> <span class="n">KMeans</span><span class="p">(</span><span class="s2">"lloyd"</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
+                             <span class="n">tol</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="s2">"kmeans++"</span><span class="p">,</span>
+                             <span class="n">random_state</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">31</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)))</span>
+                <span class="n">C2</span><span class="p">,</span> <span class="n">lab</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">_lloyd</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">sub</span><span class="o">.</span><span class="n">_init_centres</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">idx</span><span class="p">]))</span>
+</code></pre>
+<p>Splitting the largest-SSE cluster is the greedy choice that most reduces the objective
+per split, and three restarts guard against a bad 2-means split. The sub-problem is a
+full <code>KMeans</code> instance so the same Lloyd code is reused; its counters are folded into
+the parent's so the demo's evaluation count is honest.</p>
+<p>The empty-cluster repair picks distinct worst-fit points:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">empty</span><span class="p">:</span>
+            <span class="c1"># Re-seed each empty cluster at a distinct worst-fit point.</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="p">((</span><span class="n">X</span> <span class="o">-</span> <span class="n">C</span><span class="p">[</span><span class="n">labels</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">d</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"mergesort"</span><span class="p">)</span>
+            <span class="n">taken</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">empty</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">order</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">taken</span><span class="p">:</span>
+                        <span class="n">taken</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+                        <span class="n">C</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
+                        <span class="k">break</span>
+</code></pre>
+<p><code>taken</code> is what makes the repair work when several clusters are empty at once: without
+it, every empty centre would be seeded at the same farthest point, recreating the
+duplicate-centre problem the repair is meant to fix. <code>mergesort</code> makes the tie order
+deterministic.</p>
+<p>Spherical assignment normalises both sides:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"spherical"</span><span class="p">:</span>
+            <span class="n">Xn</span> <span class="o">=</span> <span class="n">X</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">EPS</span><span class="p">)</span>
+            <span class="n">Cn</span> <span class="o">=</span> <span class="n">C</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">C</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">EPS</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_evals_</span> <span class="o">+=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">C</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">Xn</span> <span class="o">@</span> <span class="n">Cn</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>Cosine similarity is the dot product of unit vectors, so the whole assignment is one
+matrix multiply and an <code>argmax</code>. Normalising <code>C</code> on every call (not just at update
+time) keeps <code>predict</code> correct even if a caller overwrites <code>cluster_centers_</code>. The <code>EPS</code>
+denominator guards the zero vector, which has no direction and would otherwise produce
+<code>nan</code> that propagates into every comparison.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Time per iteration</th>
+<th style="text-align:left">Extra memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>lloyd</code></td>
+<td style="text-align:left"><code>O(n k d)</code></td>
+<td style="text-align:left"><code>O(n k)</code> for the distance block</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>kmeans_plusplus</code></td>
+<td style="text-align:left"><code>O(n k d)</code> per restart, <code>n_init</code> restarts</td>
+<td style="text-align:left"><code>O(n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>elkan</code></td>
+<td style="text-align:left"><code>O(n k d)</code> worst case, often <code>O(n d + k²d)</code></td>
+<td style="text-align:left"><code>O(n k)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>mini_batch</code></td>
+<td style="text-align:left"><code>O(batch · k d)</code></td>
+<td style="text-align:left"><code>O(batch · k)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bisecting</code></td>
+<td style="text-align:left"><code>O(n k d log k)</code> total</td>
+<td style="text-align:left"><code>O(n + k)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>spherical</code></td>
+<td style="text-align:left"><code>O(n k d)</code></td>
+<td style="text-align:left"><code>O(n k)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The number of Lloyd iterations is not bounded by a useful function of <code>n</code>: it is
+finite but can be exponential in the worst case, and <code>O(log n)</code> in practice. In <code>d</code>
+dimensions each iteration is a matrix multiply, which is why k-means is one of the few
+classical algorithms where BLAS matters more than the asymptotics. <code>elkan</code>'s worst
+case is no better than Lloyd's — it is a constant-factor accelerator — but its typical
+case skips most points once the centres stabilise.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Local minima.</strong> Every variant except <code>elkan</code> (which is exact but still local)
+can land in a bad partition. Restart (<code>n_init</code>) and keep the best inertia; the demo
+does this everywhere except the deliberate single-run comparisons.</li>
+<li><strong>Choosing <code>k</code>.</strong> Inertia decreases monotonically with <code>k</code>, so it cannot select
+<code>k</code>. Use an elbow plot, silhouette, or BIC on a Gaussian mixture — the <code>gmm.py</code>
+atom has the model-based version.</li>
+<li><strong>Non-spherical clusters.</strong> Squared Euclidean distance implies isotropic,
+equal-variance blobs. Elongated or nested clusters need GMM, DBSCAN, or a kernel.
+The spherical variant fixes the <em>magnitude</em> part of the problem, not the shape.</li>
+<li><strong>Scale.</strong> A feature in the thousands dominates one in the tenths. Standardise
+before fitting; k-means is not invariant to affine rescaling.</li>
+<li><strong>Empty clusters.</strong> With duplicate points or <code>k</code> larger than the number of distinct
+points, some centres get no rows. <code>empty_cluster_fix</code> repairs the numeric failure,
+but the pigeonhole case (<code>k &gt;</code> distinct points) still cannot produce <code>k</code> non-empty
+clusters.</li>
+<li><strong>Outliers.</strong> A single far point drags its centre and can consume a whole cluster.
+Trim, use k-medoids, or a robust criterion.</li>
+<li><strong><code>mini_batch</code> learning rate.</strong> The <code>1/N_j</code> schedule is right for stationary data.
+If the data distribution drifts, the decaying rate stops adapting; reset <code>counts</code>
+or use a floor on <code>eta</code>.</li>
+<li><strong><code>elkan</code> in high dimensions.</strong> The bound test costs <code>O(k)</code> per point and the
+pruning rate falls as <code>d</code> grows; above roughly <code>d=20</code>, plain Lloyd with a blocked
+distance matrix is usually faster.</li>
+<li><strong>Spherical with zero vectors.</strong> A zero row has no direction; the <code>EPS</code> guard
+assigns it to an arbitrary centre. Filter or impute zero rows before fitting.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Customer and user segmentation.</strong> The canonical use: group users by spend,
+frequency and recency into <code>k</code> personas, then treat each segment differently.</li>
+<li><strong>Vector quantisation and compression.</strong> Codebook learning for product quantisation
+in nearest-neighbour search; <code>mini_batch</code> is the standard variant at index-build
+scale.</li>
+<li><strong>Colour quantisation.</strong> Pixels as 3-D points, <code>k=16</code> or <code>256</code> for a palette; the
+spherical variant is not used here, but <code>bisecting</code> gives a palette hierarchy.</li>
+<li><strong>Document and embedding clustering.</strong> Spherical k-means on TF-IDF or normalised
+sentence embeddings is the standard topic-grouping baseline.</li>
+<li><strong>Anomaly pre-screening.</strong> Distance to the nearest centre is a cheap outlier score;
+<code>local_outlier_factor</code> refines it with local density.</li>
+<li><strong>Initialisation for other models.</strong> GMM, RBF networks, and vector-quantised VAEs
+all use k-means to place their components before a finer EM or gradient fit.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Lloyd, <em>Least Squares Quantization in PCM</em>, 1982, IEEE Transactions on Information
+Theory — the original alternation (written in 1957, published in 1982).</li>
+<li>MacQueen, <em>Some Methods for Classification and Analysis of Multivariate
+Observations</em>, 1967, Berkeley Symposium — the name &quot;k-means&quot;.</li>
+<li>Arthur &amp; Vassilvitskii, <em>k-means++: The Advantages of Careful Seeding</em>, 2007, SODA —
+the <code>D²</code> seeding and its <code>O(log k)</code> guarantee.</li>
+<li>Elkan, <em>Using the Triangle Inequality to Accelerate k-Means</em>, 2003, ICML — the
+bound-based pruning implemented here.</li>
+<li>Sculley, <em>Web-Scale k-Means Clustering</em>, 2010, WWW — the mini-batch algorithm and
+its <code>1/N</code> schedule.</li>
+<li>Steinbach, Karypis &amp; Kumar, <em>A Comparison of Document Clustering Techniques</em>, 2000,
+KDD Workshop — bisecting k-means and spherical k-means for text.</li>
+<li>Kanungo et al., <em>A Local Search Approximation Algorithm for k-Means Clustering</em>,
+2002, Computational Geometry — the swap-based local search and its guarantees.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="index.html"><small>Previous</small><span>07 · Clustering</span></a><a class="next" href="gmm.html"><small>Next</small><span>Gaussian mixture</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">07 · Clustering</p><ul class="rail-list"><li><a href="kmeans.html" aria-current="page"><span class="tick">✓</span><span>k-means</span></a></li><li><a href="gmm.html"><span class="tick">✓</span><span>Gaussian mixture</span></a></li><li><a href="dbscan.html"><span class="tick">✓</span><span>DBSCAN</span></a></li><li><a href="hdbscan.html"><span class="tick">✓</span><span>HDBSCAN</span></a></li><li><a href="spectral_clustering.html"><span class="tick">✓</span><span>Spectral clustering</span></a></li><li><a href="agglomerative.html"><span class="tick">✓</span><span>Hierarchical clustering</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>k-medoids</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>OPTICS</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Mean shift</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Fuzzy c-means</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Cluster validity</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BIRCH</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Affinity propagation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Density peaks</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Self-organising maps</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Subspace clustering</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../06-latent-factorization/index.html"><span class="jump">← 06 · Latent structure &amp; factorisation</span></a></li><li><a href="../08-manifold/index.html"><span class="jump">08 · Manifolds &amp; embeddings&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/07-clustering/kmeans.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

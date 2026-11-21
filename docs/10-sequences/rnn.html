@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recurrent networks · MLAtoms</title>
+<meta name="description" content="Vanilla recurrence, backprop through time and clipping. A recurrent network is a feedforward network applied to a moving window of history, with the window…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/rnn.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Recurrent networks">
+<meta property="og:description" content="Vanilla recurrence, backprop through time and clipping. A recurrent network is a feedforward network applied to a moving window of history, with the window…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/rnn.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Recurrent networks">
+<meta name="twitter:description" content="Vanilla recurrence, backprop through time and clipping. A recurrent network is a feedforward network applied to a moving window of history, with the window…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Recurrent networks", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/rnn.html", "description": "Vanilla recurrence, backprop through time and clipping. A recurrent network is a feedforward network applied to a moving window of history, with the window\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">10 · Sequences</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="rnn.py.html">source</a></p><h1>Recurrent networks — backpropagation through time, by hand</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A recurrent network is a feedforward network applied to a moving window of
+history, with the window replaced by a state. At every step the same cell reads
+the current input and the previous state, writes a new state, and emits a
+prediction. The weights are shared across time, so the network has one set of
+parameters regardless of how long the sequence is.</p>
+<pre class="highlight"><code>   x_0      x_1      x_2            x_T
+    │        │        │              │
+    ▼        ▼        ▼              ▼
+  ┌────┐   ┌────┐   ┌────┐        ┌────┐
+  │ h0 │──▶│ h1 │──▶│ h2 │── . . .▶│ hT │
+  └────┘   └────┘   └────┘        └────┘
+    │        │        │              │
+    ▼        ▼        ▼              ▼
+   p_0      p_1      p_2            p_T
+</code></pre>
+<p>Training this is not a new algorithm. Unroll the loop into a chain of copies,
+share the weights, and run ordinary backpropagation on the resulting graph. The
+only thing that makes it &quot;through time&quot; is that the chain is as long as the
+sequence, and the same parameter appears at every link. Everything difficult
+about recurrent networks follows from that length.</p>
+<p>The seven variants are one cell and one schedule. The cell is the Elman
+recurrence, the same with a learned initial state, Jordan's output recurrence,
+or a layer-normalised cell. The schedule is full backpropagation, windows that
+cut the gradient at their boundaries, or two passes in opposite directions.
+They are independent axes, which is why the file has one backward routine with
+flags rather than seven copies of the chain rule.</p>
+<p>The numbers in this doc are the demo's output. Analytic gradients agree with
+central differences to between <span class="math inline">\(10^{-9}\)</span> and <span class="math inline">\(3.4\times10^{-9}\)</span> for every cell,
+including the layer-normalised and bidirectional branches. Cumulative parity is
+learned to <span class="math inline">\(0.980\)</span> on held-out sequences. A next-symbol target is at chance
+(<span class="math inline">\(0.257\)</span>) for a forward network and <span class="math inline">\(0.937\)</span> for a bidirectional one. And the
+recurrent Jacobian loses <span class="math inline">\(11.75\)</span> orders of magnitude over thirty-two steps,
+which is the vanishing gradient measured directly rather than inferred from a
+training curve.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">cell</th>
+<th style="text-align:left">schedule</th>
+<th style="text-align:left">extra parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>vanilla</code></td>
+<td style="text-align:left">Elman, zero start</td>
+<td style="text-align:left">full BPTT</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>elman</code></td>
+<td style="text-align:left">Elman, learned start</td>
+<td style="text-align:left">full BPTT</td>
+<td style="text-align:left"><code>h0_</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>jordan</code></td>
+<td style="text-align:left">output recurrence</td>
+<td style="text-align:left">full BPTT</td>
+<td style="text-align:left"><code>W_y_</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bptt</code></td>
+<td style="text-align:left">Elman, zero start</td>
+<td style="text-align:left">full BPTT</td>
+<td style="text-align:left">none; exposes Jacobian norms</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>truncated_bptt</code></td>
+<td style="text-align:left">Elman, zero start</td>
+<td style="text-align:left">windows of <code>chunk</code></td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>layer_norm_rnn</code></td>
+<td style="text-align:left">normalised pre-activation</td>
+<td style="text-align:left">full BPTT</td>
+<td style="text-align:left"><code>ln_gain_</code>, <code>ln_bias_</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bidirectional</code></td>
+<td style="text-align:left">two Elman passes</td>
+<td style="text-align:left">full BPTT, both directions</td>
+<td style="text-align:left">second cell</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>vanilla</code></strong> is the reference: the tanh recurrence of Elman with a zero initial
+state, trained by full backpropagation through time with global-norm clipping.</p>
+<p><strong><code>elman</code></strong> makes the initial state a parameter instead of a constant. This is
+the cleanest way to give the network a learned &quot;resting&quot; context, and it is the
+part of Elman's original model that survives when the context units are folded
+into the recurrence. In the demo the learned norm is <span class="math inline">\(1.50\)</span>, far from the
+<span class="math inline">\(0.1\)</span>-scale initialisation.</p>
+<p><strong><code>jordan</code></strong> feeds the previous <em>output</em> back into the hidden layer instead of
+(or as well as) the previous state. It is the natural cell when the task is
+autoregressive — the next symbol is predicted from the last emitted symbol — and
+it needs a softmax Jacobian in the backward pass, which is the extra branch the
+gradient check covers.</p>
+<p><strong><code>bptt</code></strong> is the same cell and the same descent as <code>vanilla</code>, with the
+diagnostic surface turned on: <code>jacobian_norms</code> returns
+<span class="math inline">\(\lVert \partial h_{T-1}/\partial h_t\rVert\)</span> for every <span class="math inline">\(t\)</span>. The two variants
+train identically; the point of the separate name is that the vanishing
+gradient is a property of the recurrence, not of the optimiser.</p>
+<p><strong><code>truncated_bptt</code></strong> runs the forward pass over the whole sequence but cuts the
+backward pass at window boundaries of length <code>chunk</code>. The state is carried
+forward as a constant, so the model can still use long-range information; what
+it cannot do is attribute credit across a boundary.</p>
+<p><strong><code>layer_norm_rnn</code></strong> normalises the pre-activation before the tanh and learns a
+gain and a bias for it. It changes the conditioning of the optimisation, not the
+functional family, and the demo's gains move from <span class="math inline">\(1\)</span> to a range of
+<span class="math inline">\(0.24\)</span>–<span class="math inline">\(3.54\)</span>, so the extra parameters are doing work.</p>
+<p><strong><code>bidirectional</code></strong> runs one cell left-to-right and another right-to-left,
+concatenates the two states at every step, and reads the output from the
+concatenation. It is the right model whenever the whole sequence is available at
+prediction time, and it is the only variant here that can exploit a dependency
+on the future.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-cell">The cell <a class="header-anchor" href="#the-cell">#</a></h3>
+<p>For a batch of <span class="math inline">\(B\)</span> sequences of length <span class="math inline">\(T\)</span>, with inputs
+<span class="math inline">\(x_t\in\mathbb{R}^{F}\)</span> and states <span class="math inline">\(h_t\in\mathbb{R}^{H}\)</span>,</p>
+<div class="math block">
+\[a_t = W_x x_t + W_h h_{t-1} + b_h, \qquad h_t = \tanh(a_t),
+\qquad (1)\]
+</div>
+<p>with <span class="math inline">\(h_{-1}=0\)</span> for <code>vanilla</code> and <span class="math inline">\(h_{-1}=h_0\)</span> (a parameter) for <code>elman</code>.</p>
+<p>The code computes the whole batch at once. One step is two matrix products and
+a broadcast bias:</p>
+<pre class="highlight"><code>        <span class="n">pre</span> <span class="o">=</span> <span class="n">x</span> <span class="o">@</span> <span class="n">W_x</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">h_prev</span> <span class="o">@</span> <span class="n">W_h</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">b_h</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"jordan"</span><span class="p">:</span>
+            <span class="n">pre</span> <span class="o">=</span> <span class="n">pre</span> <span class="o">+</span> <span class="n">y_prev</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_y_</span><span class="o">.</span><span class="n">T</span>
+</code></pre>
+<p>The state is stored in a <code>(batch, length, hidden)</code> array, so no Python loop
+over sequences is needed — only over time:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span><span class="p">):</span>
+            <span class="n">state</span><span class="p">,</span> <span class="n">caches</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cell</span><span class="p">(</span><span class="n">features</span><span class="p">[:,</span> <span class="n">t</span><span class="p">],</span> <span class="n">state</span><span class="p">,</span> <span class="n">previous_y</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
+            <span class="n">hidden</span><span class="p">[:,</span> <span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span>
+</code></pre>
+<p>Each step keeps the pre-activation, the normalised value, the standard
+deviation and the previous state. That cache is the entire backward pass's
+input; without it the chain rule would have to be re-derived numerically.</p>
+<h3 id="jordans-cell">Jordan's cell <a class="header-anchor" href="#jordans-cell">#</a></h3>
+<p>Jordan's cell adds the previous output distribution to the pre-activation, on
+top of the hidden recurrence:</p>
+<div class="math block">
+\[a_t = W_x x_t + W_h h_{t-1} + W_y y_{t-1} + b_h, \qquad
+y_{t-1}=\mathrm{softmax}(W_o h_{t-1}+b_o).
+\qquad (2)\]
+</div>
+<p>The gradient with respect to <span class="math inline">\(y_{t-1}\)</span> is <span class="math inline">\(W_y^{\top}d_t\)</span>, and it has to pass
+through the softmax that produced <span class="math inline">\(y_{t-1}\)</span>. The Jacobian of the softmax is
+<span class="math inline">\(J=\mathrm{diag}(p)-pp^{\top}\)</span>, so the feedback into the logits at <span class="math inline">\(t-1\)</span> is
+<span class="math inline">\(J\,W_y^{\top}d_t\)</span>. That contribution has two effects: it is a gradient for
+<span class="math inline">\(W_o\)</span> through <span class="math inline">\(h_{t-1}\)</span>, and it adds to the gradient reaching <span class="math inline">\(h_{t-1}\)</span>:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_jordan_feedback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dpre</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">probs</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Push a gradient on ``y_(t-1)`` back through its softmax."""</span>
+        <span class="n">dy</span> <span class="o">=</span> <span class="n">dpre</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_y_</span>
+        <span class="n">jacobian</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"nc,nd-&gt;ncd"</span><span class="p">,</span> <span class="n">probs</span><span class="p">,</span> <span class="n">probs</span><span class="p">)</span>
+        <span class="n">jacobian</span> <span class="o">=</span> <span class="o">-</span><span class="n">jacobian</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"nc,cd-&gt;ncd"</span><span class="p">,</span> <span class="n">probs</span><span class="p">,</span>
+                                         <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_classes_</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"ncd,nd-&gt;nc"</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
+</code></pre>
+<p>The <code>einsum</code> calls build <span class="math inline">\(J\)</span> per sample without a Python loop, and the last
+one applies it. This is the one place where a cell couples two time steps
+through a non-linearity other than the tanh, and the finite-difference check is
+what makes it trustworthy.</p>
+<h3 id="the-loss">The loss <a class="header-anchor" href="#the-loss">#</a></h3>
+<p>The output layer reads the state at every step,</p>
+<div class="math block">
+\[p_t = \mathrm{softmax}(W_o h_t + b_o), \qquad
+L = -\frac{1}{BT}\sum_{b,t}\log p_{b,t}[y_{b,t}].
+\qquad (3)\]
+</div>
+<p>The mean over <span class="math inline">\(B\)</span> sequences and <span class="math inline">\(T\)</span> steps keeps the gradient scale independent
+of the batch size, which is the division by <code>labels.size</code> in <code>_loss_gradient</code>.</p>
+<h3 id="backpropagation-through-time">Backpropagation through time <a class="header-anchor" href="#backpropagation-through-time">#</a></h3>
+<p>Write <span class="math inline">\(d_t = \partial L/\partial a_t\)</span> for the gradient with respect to the
+pre-activation. The output layer contributes directly, and the next step
+contributes through <span class="math inline">\(W_h\)</span>:</p>
+<div class="math block">
+\[d_t = \Big(W_o^{\top}(p_t-e_t) + W_h^{\top} d_{t+1}\Big)\odot\big(1-h_t^{2}\big),
+\qquad (4)\]
+</div>
+<p>where <span class="math inline">\(e_t\)</span> is the one-hot label and <span class="math inline">\(d_{T}=0\)</span>, so the recursion runs backwards
+from <span class="math inline">\(T-1\)</span>. The parameter gradients are then sums over time and over the batch:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial W_x}=\sum_{t} d_t x_t^{\top}, \qquad
+\frac{\partial L}{\partial W_h}=\sum_{t} d_t h_{t-1}^{\top}, \qquad
+\frac{\partial L}{\partial b_h}=\sum_{t} d_t.\]
+</div>
+<p>The implementation is that recursion with the batch axis kept and a <code>carry</code>
+variable standing in for <span class="math inline">\(W_h^{\top}d_{t+1}\)</span>:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">normalised</span><span class="p">,</span> <span class="n">centred</span><span class="p">,</span> <span class="n">deviation</span><span class="p">,</span> <span class="n">h_prev</span> <span class="o">=</span> <span class="n">caches</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="n">dh</span> <span class="o">=</span> <span class="n">dh_out</span><span class="p">[:,</span> <span class="n">t</span><span class="p">]</span> <span class="o">+</span> <span class="n">carry</span>
+</code></pre>
+<p>and the parameter updates are outer products averaged over the batch:</p>
+<pre class="highlight"><code>            <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s2">"W_x_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dpre</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">features</span><span class="p">[:,</span> <span class="n">t</span><span class="p">]</span>
+            <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s2">"W_h_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dpre</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">h_prev</span>
+            <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s2">"b_h_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dpre</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="o">...</span>
+            <span class="n">carry</span> <span class="o">=</span> <span class="n">dpre</span> <span class="o">@</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"W_h_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre>
+<p>The <code>carry</code> that comes back from the loop is the gradient with respect to the
+start state. For <code>elman</code> it is summed over the batch and becomes <code>grads[&quot;h0_&quot;]</code>,
+which is exactly what a parameter shared by every sequence should receive.</p>
+<h3 id="layer-normalisation">Layer normalisation <a class="header-anchor" href="#layer-normalisation">#</a></h3>
+<p>The normalised cell computes, per sample and per step,</p>
+<div class="math block">
+\[c_t=\frac{a_t-\mu_t}{\sigma_t+\epsilon}, \qquad
+z_t=g\odot c_t+\beta, \qquad h_t=\tanh(z_t),
+\qquad (5)\]
+</div>
+<p>with <span class="math inline">\(\mu_t\)</span> and <span class="math inline">\(\sigma_t\)</span> the mean and standard deviation over the hidden
+axis. Backpropagation through the normalisation uses the standard identity</p>
+<div class="math block">
+\[\frac{\partial L}{\partial a_t}
+=\frac{1}{\sigma_t+\epsilon}\Big(
+\delta_t-\overline{\delta}_t-c_t\,\overline{\delta_t c_t}\Big),
+\qquad \delta_t=\frac{\partial L}{\partial c_t},\]
+</div>
+<p>where the bar is the mean over the hidden axis. The code writes it out in one
+expression, with the tanh derivative folded in:</p>
+<pre class="highlight"><code>                <span class="n">dz</span> <span class="o">=</span> <span class="n">dh</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">normalised</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="n">grads</span><span class="p">[</span><span class="s2">"ln_gain_"</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span><span class="n">dz</span> <span class="o">*</span> <span class="n">centred</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">grads</span><span class="p">[</span><span class="s2">"ln_bias_"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dz</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">dcentred</span> <span class="o">=</span> <span class="n">dz</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ln_gain_</span>
+                <span class="n">dpre</span> <span class="o">=</span> <span class="p">(</span><span class="n">dcentred</span> <span class="o">-</span> <span class="n">dcentred</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="o">-</span> <span class="n">centred</span> <span class="o">*</span> <span class="p">(</span><span class="n">dcentred</span> <span class="o">*</span> <span class="n">centred</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">deviation</span> <span class="o">+</span> <span class="n">EPS</span><span class="p">)</span>
+</code></pre>
+<p>The gain and bias are shared across time and the batch, so their gradients are
+sums over both axes. The demo's worst relative error for this branch is
+<span class="math inline">\(3.4\times10^{-9}\)</span>.</p>
+<h3 id="truncation">Truncation <a class="header-anchor" href="#truncation">#</a></h3>
+<p>Full BPTT differentiates through every boundary. Truncated BPTT partitions the
+sequence into windows <span class="math inline">\([s,s+k)\)</span> and, for each window, treats the incoming state
+as a constant:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial\theta}
+\approx\sum_{\text{windows}}\frac{\partial L_{\text{window}}}{\partial\theta},
+\qquad \frac{\partial h_s}{\partial\theta}=0.
+\qquad (6)\]
+</div>
+<p>The forward pass still carries <span class="math inline">\(h_s\)</span> into the next window; only the gradient is
+cut. The code makes the cut explicit by starting each window from the previous
+window's last state and never backpropagating through it:</p>
+<pre class="highlight"><code>                <span class="n">hidden</span><span class="p">,</span> <span class="n">probs</span><span class="p">,</span> <span class="n">caches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_forward</span><span class="p">(</span><span class="n">window</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">state</span><span class="p">)</span>
+                <span class="n">dlogits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loss_gradient</span><span class="p">(</span><span class="n">labels</span><span class="p">[</span><span class="n">n</span><span class="p">:</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">begin</span><span class="p">:</span><span class="n">end</span><span class="p">],</span> <span class="n">probs</span><span class="p">)</span>
+                <span class="n">grads</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backward_direction</span><span class="p">(</span>
+                    <span class="n">window</span><span class="p">,</span> <span class="n">probs</span><span class="p">,</span> <span class="n">hidden</span><span class="p">,</span> <span class="n">caches</span><span class="p">,</span> <span class="n">dlogits</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_o_</span><span class="p">,</span> <span class="n">dlogits</span><span class="p">)</span>
+                <span class="o">...</span>
+                <span class="n">state</span> <span class="o">=</span> <span class="n">hidden</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</code></pre>
+<p>The demonstration is exact: a window that covers the whole sequence
+reproduces the full gradient to <span class="math inline">\(3\times10^{-17}\)</span>, and shorter windows differ
+only by the terms that cross a boundary.</p>
+<h3 id="bidirectional-passes">Bidirectional passes <a class="header-anchor" href="#bidirectional-passes">#</a></h3>
+<p>Two independent cells read the sequence from opposite ends:</p>
+<div class="math block">
+\[h_t^{f}=\phi(h_{t-1}^{f},x_t), \qquad
+h_t^{b}=\phi(h_{t+1}^{b},x_t), \qquad
+p_t=\mathrm{softmax}\big(W_o[h_t^{f};h_t^{b}]+b_o\big).
+\qquad (7)\]
+</div>
+<p>At prediction time, step <span class="math inline">\(t\)</span> can use information from both sides, so a target
+that depends on the future becomes learnable. The gradient of the output layer
+splits into a forward block and a reverse block, and each block is fed to its
+own backward pass:</p>
+<pre class="highlight"><code>        <span class="n">split</span> <span class="o">=</span> <span class="n">dlogits</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_o_</span>
+        <span class="n">first</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backward_direction</span><span class="p">(</span>
+            <span class="n">features</span><span class="p">,</span> <span class="n">probs</span><span class="p">,</span> <span class="n">forward</span><span class="p">,</span> <span class="n">cache_f</span><span class="p">,</span> <span class="n">split</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">second</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backward_direction</span><span class="p">(</span>
+            <span class="n">features</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">probs</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">backward</span><span class="p">,</span> <span class="n">cache_b</span><span class="p">,</span>
+            <span class="n">split</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">:][:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="kc">None</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">"b_"</span><span class="p">)</span>
+</code></pre>
+<p>The two directions share no recurrent parameters (the second cell is
+<code>W_x_b_</code>, <code>W_h_b_</code>, <code>b_h_b_</code>), and only the output layer is shared. The demo's
+next-symbol task is the clean separation: the forward pass is at chance because
+the label is independent of everything it has seen, while the bidirectional
+model reaches <span class="math inline">\(0.937\)</span>.</p>
+<h3 id="the-recurrent-jacobian">The recurrent Jacobian <a class="header-anchor" href="#the-recurrent-jacobian">#</a></h3>
+<p>The gradient of the last state with respect to an earlier one is a product of
+single-step Jacobians:</p>
+<div class="math block">
+\[\frac{\partial h_{T-1}}{\partial h_t}
+=\prod_{s=t+1}^{T-1} D_s W_h, \qquad D_s=\mathrm{diag}\big(1-h_s^{2}\big).
+\qquad (8)\]
+</div>
+<p>Its norm is what limits how far credit can travel. If every factor had norm one
+the product would be neutral; with <span class="math inline">\(\tanh'\le 1\)</span> and a spectral radius near one,
+the product typically decays geometrically. <code>jacobian_norms</code> accumulates the
+product from the end, so it measures exactly this quantity:</p>
+<pre class="highlight"><code>        <span class="n">steps</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">hidden</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">t</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_h_</span>
+                 <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span><span class="p">)]</span>
+        <span class="n">product</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">)</span>
+        <span class="n">norms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">length</span><span class="p">)</span>
+        <span class="n">norms</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">product</span> <span class="o">=</span> <span class="n">product</span> <span class="o">@</span> <span class="n">steps</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="n">norms</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">product</span><span class="p">))</span>
+</code></pre>
+<p>On a fitted parity model of length <span class="math inline">\(32\)</span>, the norm at the first step is
+<span class="math inline">\(1.78\times10^{-12}\)</span> against <span class="math inline">\(1\)</span> at the last: <span class="math inline">\(11.75\)</span> orders of magnitude, or
+one order every <span class="math inline">\(2.64\)</span> steps. That is the phenomenon, not a training artefact.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="one-cell-one-batch">One cell, one batch <a class="header-anchor" href="#one-cell-one-batch">#</a></h3>
+<pre class="highlight"><code>        <span class="n">pre</span> <span class="o">=</span> <span class="n">x</span> <span class="o">@</span> <span class="n">W_x</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">h_prev</span> <span class="o">@</span> <span class="n">W_h</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">b_h</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"jordan"</span><span class="p">:</span>
+            <span class="n">pre</span> <span class="o">=</span> <span class="n">pre</span> <span class="o">+</span> <span class="n">y_prev</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">W_y_</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"layer_norm_rnn"</span><span class="p">:</span>
+</code></pre>
+<p>Every variant differs only in these few lines: an extra term for Jordan, a
+normalisation for <code>layer_norm_rnn</code>, and the choice of parameter suffix for the
+second direction. The shape is <code>(batch, hidden)</code> throughout, so the batch is
+never a loop.</p>
+<h3 id="starting-state">Starting state <a class="header-anchor" href="#starting-state">#</a></h3>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">start</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"elman"</span> <span class="ow">and</span> <span class="n">suffix</span> <span class="o">==</span> <span class="s2">""</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">h0_</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">batch</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">batch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hidden</span><span class="p">))</span>
+</code></pre>
+<p>The <code>start</code> branch is what makes truncation possible: a window can be given the
+previous state without pretending it is the beginning of a sequence. The
+<code>self.repeat</code> is the learned context of <code>elman</code>, broadcast over the batch. In
+the backward pass it receives the sum of the per-sequence start gradients,
+because the parameter is shared.</p>
+<h3 id="clipped-adam">Clipped Adam <a class="header-anchor" href="#clipped-adam">#</a></h3>
+<pre class="highlight"><code>        <span class="n">norm</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">))</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">grads</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">CLIP</span> <span class="o">/</span> <span class="n">norm</span> <span class="k">if</span> <span class="n">norm</span> <span class="o">&gt;</span> <span class="n">CLIP</span> <span class="k">else</span> <span class="mf">1.0</span>
+</code></pre>
+<p>The global norm is clipped at <span class="math inline">\(5\)</span> before the Adam update. Recurrent gradients
+can explode when the spectral radius of the recurrence exceeds one, and clipping
+is the cheapest guard. It is also a diagnostic risk: a model that only trains
+with clipping has a recurrence that wants to explode, and the clip hides the
+symptom. <code>jacobian_norms</code> is the instrument that shows which regime the fitted
+model is in.</p>
+<h3 id="windowing">Windowing <a class="header-anchor" href="#windowing">#</a></h3>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">begin</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk</span><span class="p">):</span>
+                <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">begin</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk</span><span class="p">)</span>
+                <span class="n">window</span> <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="n">n</span><span class="p">:</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">begin</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+</code></pre>
+<p>The window loop is the only place where the batch is indexed one sequence at a
+time. It has to be: each sequence has its own carry state, and the state is the
+thing that must not be differentiated across the boundary. Window gradients are
+summed and divided by the batch size, so an epoch is still one step on one
+objective, with each window contributing only its local term.</p>
+<h3 id="the-jacobian-product">The Jacobian product <a class="header-anchor" href="#the-jacobian-product">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">product</span> <span class="o">=</span> <span class="n">product</span> <span class="o">@</span> <span class="n">steps</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="n">norms</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">product</span><span class="p">))</span>
+</code></pre>
+<p><code>steps[t]</code> is the Jacobian of step <span class="math inline">\(t\)</span> with respect to step <span class="math inline">\(t-1\)</span>. Multiplying
+on the right accumulates the product in the correct order, and the norm at each
+<span class="math inline">\(t\)</span> is the influence of <span class="math inline">\(h_t\)</span> on the final state. The loop is <span class="math inline">\(O(TH^3)\)</span>, which
+is why it is a diagnostic and not part of training.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(B\)</span> be the batch size, <span class="math inline">\(T\)</span> the sequence length, <span class="math inline">\(H\)</span> the hidden width, <span class="math inline">\(F\)</span>
+the input width, <span class="math inline">\(C\)</span> the number of classes and <span class="math inline">\(I\)</span> the number of epochs.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">one epoch, forward</td>
+<td style="text-align:left"><span class="math inline">\(O(BT(HF+H^2+HC))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(BTH)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">one epoch, backward</td>
+<td style="text-align:left">same, with a larger constant</td>
+<td style="text-align:left"><span class="math inline">\(O(BTH)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>fit</code></td>
+<td style="text-align:left"><span class="math inline">\(O(I\,BT(HF+H^2+HC))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(BTH)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">truncated, per epoch</td>
+<td style="text-align:left">same asymptotics, <span class="math inline">\(BT/k\)</span> windows</td>
+<td style="text-align:left"><span class="math inline">\(O(BkH)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">bidirectional</td>
+<td style="text-align:left">twice the forward and backward work</td>
+<td style="text-align:left"><span class="math inline">\(O(BTH)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>jacobian_norms</code></td>
+<td style="text-align:left"><span class="math inline">\(O(TH^3)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(H^2)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The quadratic term in <span class="math inline">\(H\)</span> is the recurrence; the <span class="math inline">\(HF\)</span> term is the input
+projection. For long sequences the memory is the binding constraint: the cache
+stores every intermediate state, so training memory grows linearly in <span class="math inline">\(T\)</span> even
+though the parameters do not. Truncation bounds that memory as well as the
+gradient horizon, which is the practical reason it is used on long streams.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Vanishing gradients.</strong> The demo measures <span class="math inline">\(11.75\)</span> orders of magnitude over
+thirty-two steps. A dependency a hundred steps back contributes a gradient
+smaller than floating-point noise, so the model cannot learn it no matter how
+long it trains. The gated cells of <code>lstm_gru</code> and the state-space models of
+<code>ssm</code> are the two standard fixes; layer normalisation is not one of them, since
+it rescales the pre-activation but leaves the product of Jacobians in place.</p>
+<p><strong>Exploding gradients.</strong> The other side of the same product: a spectral radius
+above one makes the norm grow exponentially, and one bad batch produces a step
+that destroys the weights. Global-norm clipping at <span class="math inline">\(5\)</span> prevents the destruction
+but not the underlying instability. If a model only trains with clipping, check
+the Jacobian norms before trusting the result.</p>
+<p><strong>Memorisation instead of generalisation.</strong> With a small batch, a vanilla cell
+will fit the training sequences by encoding their identities in the state rather
+than by learning the rule. The demo's parity task is chosen because it
+generalises (<span class="math inline">\(0.980\)</span> held-out); a delayed-copy task with the same model and
+thirty-two sequences reaches high training accuracy and near-chance held-out
+accuracy. The cure is more data or a smaller model, not more epochs.</p>
+<p><strong>Truncation is a bias, not a bug.</strong> A window that covers the sequence
+reproduces the exact gradient (<span class="math inline">\(3\times10^{-17}\)</span>), and a window of four changes
+it by twice the gradient scale. On parity the truncated model is not worse
+(<span class="math inline">\(0.873\)</span> against <span class="math inline">\(0.729\)</span>) because the forward state carries the answer; on a
+task where the difficulty is attributing credit to an early step, the bias is
+exactly what fails.</p>
+<p><strong>One direction cannot see the future.</strong> On the next-symbol task the forward
+model is at <span class="math inline">\(0.257\)</span> — chance — while the bidirectional model is at <span class="math inline">\(0.937\)</span>. If
+a target depends on later inputs, no amount of training will help a causal
+model; the model class, not the optimiser, is wrong. The price of the
+bidirectional fix is that it cannot be used for streaming or autoregressive
+decoding, where the future is not available.</p>
+<p><strong>Saturation.</strong> <span class="math inline">\(\tanh\)</span> saturates, so a large pre-activation has a derivative
+near zero and the state stops responding. Orthogonal initialisation and
+normalisation reduce the chance of starting there, but a learning rate that is
+too high can drive the cell into saturation in a few steps. The symptom is a
+loss that stalls while the gradients are small but not vanishing with depth.</p>
+<p><strong>Padding and boundaries.</strong> Every sequence in a batch is assumed to start at
+step <span class="math inline">\(0\)</span> and to have a label at every step. Real batches contain padding, and
+the loss must mask it; otherwise the model learns to predict the pad symbol and
+the state is polluted at the boundary. The code refuses ragged labels rather
+than guessing an alignment, which is the honest default for a single-file
+implementation.</p>
+<p><strong>Layer normalisation is not a memory fix.</strong> It improves the conditioning of
+the optimisation and the demo's gains move a long way from one, but it does not
+change the Jacobian product of (8). A layer-normalised vanilla RNN still cannot
+learn a dependency of a hundred steps.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Speech recognition.</strong> Before CTC and attention, hybrid systems used recurrent
+networks over acoustic frames, and the bidirectional variant was standard
+because the whole utterance is available at transcription time. The <code>ctc</code> atom
+in this chapter is the alignment-free successor, and the <code>hmm</code> atom is the
+generative model it replaced.</p>
+<p><strong>Language modelling.</strong> A recurrent network trained to predict the next token is
+the direct ancestor of the transformer. The <code>ngram_lm</code> atom is the counting
+baseline, and the <code>attention</code> atom is the architecture that removed the
+recurrence — but the training objective, next-token cross-entropy, is the same
+one in (3).</p>
+<p><strong>Time series and sensor streams.</strong> A state that carries history is the natural
+model for a stream, and the truncated schedule is how it is trained when the
+stream is longer than memory. The <code>tcn</code> and <code>ssm</code> atoms are the convolutional
+and state-space answers to the same problem.</p>
+<p><strong>Control and reinforcement learning.</strong> A policy with memory is a recurrent
+network whose input is the observation and whose output is an action
+distribution; the <code>actor-critic</code> and <code>PPO</code> atoms in the reinforcement chapter use
+exactly this cell when the environment is partially observed.</p>
+<p><strong>Handwriting and gesture recognition.</strong> Pen trajectories are variable-length
+sequences with long-range style, and bidirectional recurrent models were the
+state of the art before sequence-to-sequence attention. The <code>dtw</code> atom is the
+template-matching alternative for the same data.</p>
+<p><strong>Clinical and industrial monitoring.</strong> A patient's observations arrive as an
+irregular stream, and a recurrent model with a carried state is the standard
+baseline for deterioration and fault detection. Truncation and masking are the
+two engineering details that decide whether it works.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Rumelhart, D. E., Hinton, G. E. &amp; Williams, R. J. (1986). Learning
+representations by back-propagating errors. <em>Nature</em> 323, 533–536. The
+backpropagation algorithm that BPTT unrolls.</li>
+<li>Jordan, M. I. (1986). Attractor dynamics and parallelism in a connectionist
+sequential machine. <em>Proceedings of the Eighth Annual Conference of the
+Cognitive Science Society</em>, 531–546. The output recurrence.</li>
+<li>Elman, J. L. (1990). Finding structure in time. <em>Cognitive Science</em> 14(2),
+179–211. The hidden recurrence and the context units.</li>
+<li>Werbos, P. J. (1990). Backpropagation through time: what it does and how to do
+it. <em>Proceedings of the IEEE</em> 78(10), 1550–1560. The name and the derivation.</li>
+<li>Bengio, Y., Simard, P. &amp; Frasconi, P. (1994). Learning long-term dependencies
+with gradient descent is difficult. <em>IEEE Transactions on Neural Networks</em>
+5(2), 157–166. Why the Jacobian product decays.</li>
+<li>Hochreiter, S. &amp; Schmidhuber, J. (1997). Long short-term memory. <em>Neural
+Computation</em> 9(8), 1735–1780. The gated fix, implemented in <code>lstm_gru</code>.</li>
+<li>Pascanu, R., Mikolov, T. &amp; Bengio, Y. (2013). On the difficulty of training
+recurrent neural networks. <em>ICML</em>, 1310–1318. Clipping and the Jacobian
+analysis.</li>
+<li>Sutskever, I. (2013). <em>Training Recurrent Neural Networks</em>. PhD thesis,
+University of Toronto. Truncation, momentum and the practical schedule.</li>
+<li>Cho, K. et al. (2014). Learning phrase representations using RNN
+encoder–decoder for statistical machine translation. <em>EMNLP</em>, 1724–1734. The
+gated recurrent unit and the sequence-to-sequence setting.</li>
+<li>Ba, J. L., Kiros, J. R. &amp; Hinton, G. E. (2016). Layer normalization.
+<em>arXiv:1607.06450</em>. The normalised cell of (5).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="dtw.html"><small>Previous</small><span>Dynamic time warping</span></a><a class="next" href="lstm_gru.html"><small>Next</small><span>LSTM &amp; GRU</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">10 · Sequences</p><ul class="rail-list"><li><a href="markov_chain.html"><span class="tick">✓</span><span>Markov chains</span></a></li><li><a href="hmm.html"><span class="tick">✓</span><span>Hidden Markov models</span></a></li><li><a href="dtw.html"><span class="tick">✓</span><span>Dynamic time warping</span></a></li><li><a href="rnn.html" aria-current="page"><span class="tick">✓</span><span>Recurrent networks</span></a></li><li><a href="lstm_gru.html"><span class="tick">✓</span><span>LSTM &amp; GRU</span></a></li><li><a href="attention.html"><span class="tick">✓</span><span>Attention</span></a></li><li><a href="crf.html"><span class="tick">✓</span><span>Conditional random fields</span></a></li><li><a href="ctc.html"><span class="tick">✓</span><span>Connectionist temporal classification</span></a></li><li><a href="tcn.html"><span class="tick">✓</span><span>Temporal convnets</span></a></li><li><a href="beam_search.html"><span class="tick">✓</span><span>Beam search</span></a></li><li><a href="ngram_lm.html"><span class="tick">✓</span><span>N-gram language models</span></a></li><li><a href="ssm.html"><span class="tick">✓</span><span>State-space models</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../09-density-and-anomaly/index.html"><span class="jump">← 09 · Density &amp; anomaly</span></a></li><li><a href="../11-time-series/index.html"><span class="jump">11 · Time series&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-cell">The cell</a></li><li class="lvl3"><a href="#jordans-cell">Jordan&#x27;s cell</a></li><li class="lvl3"><a href="#the-loss">The loss</a></li><li class="lvl3"><a href="#backpropagation-through-time">Backpropagation through time</a></li><li class="lvl3"><a href="#layer-normalisation">Layer normalisation</a></li><li class="lvl3"><a href="#truncation">Truncation</a></li><li class="lvl3"><a href="#bidirectional-passes">Bidirectional passes</a></li><li class="lvl3"><a href="#the-recurrent-jacobian">The recurrent Jacobian</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#one-cell-one-batch">One cell, one batch</a></li><li class="lvl3"><a href="#starting-state">Starting state</a></li><li class="lvl3"><a href="#clipped-adam">Clipped Adam</a></li><li class="lvl3"><a href="#windowing">Windowing</a></li><li class="lvl3"><a href="#the-jacobian-product">The Jacobian product</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/10-sequences/rnn.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support vector machine · MLAtoms</title>
+<meta name="description" content="Max-margin classification from the primal to a working SMO solver. Among all hyperplanes that separate two classes, infinitely many do the job. The SVM picks…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/svm.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Support vector machine">
+<meta property="og:description" content="Max-margin classification from the primal to a working SMO solver. Among all hyperplanes that separate two classes, infinitely many do the job. The SVM picks…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/svm.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Support vector machine">
+<meta name="twitter:description" content="Max-margin classification from the primal to a working SMO solver. Among all hyperplanes that separate two classes, infinitely many do the job. The SVM picks…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Support vector machine", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/03-kernels-and-instance/svm.html", "description": "Max-margin classification from the primal to a working SMO solver. Among all hyperplanes that separate two classes, infinitely many do the job. The SVM picks\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">03 · Kernels &amp; instance-based</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>12 variants</span><span class="page-meta__sep">/</span><a href="svm.py.html">source</a></p><h1>Support vector machines</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Among all hyperplanes that separate two classes, infinitely many do the job.
+The SVM picks the one with the widest empty street between them. That single
+choice buys a lot: the solution is unique, it depends on only the points that
+touch the street's edge, and — once you write the problem in its dual form — the
+data enters only through inner products, so you can replace the inner product
+with a kernel and get nonlinear boundaries for free.</p>
+<pre class="highlight"><code>        y = +1            │
+      o   o   o           │
+        o   o  o  ─ ─ ─ ─ ─┤  margin = 2/‖w‖
+    ───────────────────────┼─────────────── wᵀφ(x) + b = 0
+      x   x  x  ─ ─ ─ ─ ─ ─┤
+        x   x              │
+        y = −1             │
+        ↑                    ↑
+      support vectors: the only points with α &gt; 0
+</code></pre>
+<p>Three claims carry the whole chapter. The <em>street width</em> is <code>2/‖w‖</code>, so
+maximising it is minimising <code>‖w‖</code>. The <em>weights</em> <code>α</code> are zero for every point
+that is safely outside the street, so the model is a sparse subset of the
+training set. And when the data cannot be separated, replacing &quot;outside the
+street&quot; by a <em>hinge penalty</em> keeps the whole derivation intact, with <code>C</code>
+controlling how much a violator pays.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">What changes</th>
+<th style="text-align:left">Why you would pick it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>hard_margin</code></td>
+<td style="text-align:left"><code>C = ∞</code>; no slack</td>
+<td style="text-align:left">only legal on separable data; exposes the geometry</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>soft_margin</code></td>
+<td style="text-align:left">box bound <code>0 ≤ α ≤ C</code></td>
+<td style="text-align:left">the default; the hinge absorbs overlap</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dual</code></td>
+<td style="text-align:left">first-order working set (maximal violating pair)</td>
+<td style="text-align:left">simplest correct solver, easy to read</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>smo</code></td>
+<td style="text-align:left">second-order working set (Fan–Chen–Lin)</td>
+<td style="text-align:left">same solution, far fewer iterations</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>linear</code></td>
+<td style="text-align:left"><code>K = X Zᵀ</code></td>
+<td style="text-align:left"><code>d</code> large, <code>n</code> large; supports are the classifier</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>polynomial</code></td>
+<td style="text-align:left"><code>K = (γ X Zᵀ + r)^p</code></td>
+<td style="text-align:left">interactions of order <code>p</code>, exact and finite-dimensional</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rbf</code></td>
+<td style="text-align:left"><code>K = exp(−γ‖x − z‖²)</code></td>
+<td style="text-align:left">smooth, universal; the default for tabular data</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sigmoid</code></td>
+<td style="text-align:left"><code>K = tanh(γ X Zᵀ + r)</code></td>
+<td style="text-align:left">historical (it is <em>not</em> a kernel — see failure modes)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nu_svm</code></td>
+<td style="text-align:left">parameterise by SV fraction <code>ν</code>, not by <code>C</code></td>
+<td style="text-align:left">when you can say &quot;≈10% of points may violate&quot;</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>class_weight</code></td>
+<td style="text-align:left">per-class box bound</td>
+<td style="text-align:left">imbalanced data, where accuracy hides the minority</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ovo</code></td>
+<td style="text-align:left"><code>k(k−1)/2</code> duels, one vote each</td>
+<td style="text-align:left">the standard multiclass reduction</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ovr</code></td>
+<td style="text-align:left"><code>k</code> one-against-rest machines, max score</td>
+<td style="text-align:left"><code>k</code> large, or when per-class scores are wanted</td>
+</tr>
+</tbody>
+</table>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="hard-margin">Hard margin <a class="header-anchor" href="#hard-margin">#</a></h3>
+<p>With <code>φ(x)</code> a feature map and labels <code>y_i ∈ {±1}</code>, the primal is</p>
+<div class="math block">
+\[\min_{w,b}\ \tfrac12\|w\|^2 \quad \text{s.t.}\quad y_i\big(w^\top φ(x_i) + b\big) \ge 1 .\]
+</div>
+<p>The constraint is two statements at once: every point sits on its correct side,
+and at least <code>1/‖w‖</code> away from the plane, because the distance from <code>x</code> to the
+plane is <code>|wᵀφ(x)+b| / ‖w‖</code>. Two parallel planes at that distance give a street
+of width <code>2/‖w‖</code>. Minimising <code>‖w‖</code> is therefore literally maximising the margin.</p>
+<p>With multipliers <code>α_i ≥ 0</code> and <code>L = ½‖w‖² − Σ α_i[y_i(wᵀφ_i + b) − 1]</code>:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial w} = 0 \;\Rightarrow\; w = \sum_i α_i y_i φ(x_i),
+\qquad
+\frac{\partial L}{\partial b} = 0 \;\Rightarrow\; \sum_i α_i y_i = 0 .\]
+</div>
+<p>Substituting back gives the dual</p>
+<div class="math block">
+\[\max_{α}\ \sum_i α_i - \tfrac12 α^\top Q α
+\quad\text{s.t.}\quad α \ge 0,\ \ y^\top α = 0,
+\qquad Q_{ij} = y_i y_j K(x_i, x_j).\]
+</div>
+<p><code>Q</code> is the label-signed Gram matrix. Only the inner products survived, which is
+the entire reason kernels work: swap <code>K</code> and the hypothesis space changes, but
+the optimiser does not.</p>
+<p>The KKT conditions are the model's table of contents:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Where <code>α_i</code> sits</th>
+<th style="text-align:left">What it means</th>
+<th style="text-align:left">Value of <code>y_i f(x_i)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>α_i = 0</code></td>
+<td style="text-align:left">safely outside the street</td>
+<td style="text-align:left"><code>≥ 1</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>0 &lt; α_i &lt; C</code></td>
+<td style="text-align:left">on the street's edge — a <em>free</em> support vector</td>
+<td style="text-align:left"><code>= 1</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>α_i = C</code></td>
+<td style="text-align:left">inside the street or misclassified — a margin error</td>
+<td style="text-align:left"><code>≤ 1</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="soft-margin-and-the-hinge">Soft margin and the hinge <a class="header-anchor" href="#soft-margin-and-the-hinge">#</a></h3>
+<p>Slack variables <code>ξ_i ≥ 0</code> relax the constraint to <code>y_i f_i ≥ 1 − ξ_i</code>:</p>
+<div class="math block">
+\[\min_{w,b,ξ}\ \tfrac12\|w\|^2 + C\sum_i ξ_i .\]
+</div>
+<p>Eliminating <code>ξ</code> gives the same objective as</p>
+<div class="math block">
+\[\min_{w,b}\ \tfrac12\|w\|^2 + C \sum_i \max\big(0,\, 1 - y_i f(x_i)\big),\]
+</div>
+<p>so a soft-margin SVM <em>is</em> an L2-regularised linear model with the hinge loss.
+The dual is unchanged except that each <code>α_i</code> is capped: <code>0 ≤ α_i ≤ C</code>. <code>C → ∞</code>
+recovers the hard margin, and <code>C → 0</code> gives a street so wide that it ignores the
+data.</p>
+<h3 id="smo-two-variables-at-a-time">SMO: two variables at a time <a class="header-anchor" href="#smo-two-variables-at-a-time">#</a></h3>
+<p>The dual is a box-constrained QP with one equality. Coordinate descent cannot
+move a single <code>α_i</code> — it would violate <code>Σ α_i y_i = 0</code> — so the atom is a pair
+move. The code uses <code>α_i += y_i t</code>, <code>α_j −= y_j t</code>, which keeps the equality for
+<em>any</em> pair:</p>
+<div class="math block">
+\[y_i\,(y_i t) + y_j\,(-y_j t) = t - t = 0 .\]
+</div>
+<p>Write <code>W(α) = ½αᵀQα − Σα</code> and <code>f = K(α ⊙ y)</code>, so <code>(Qα)_i = y_i f_i</code> and
+<code>∂W/∂α_i = y_i f_i − 1</code>. Along the direction above,</p>
+<div class="math block">
+\[\frac{dW}{dt} = (f_i - y_i) - (f_j - y_j),
+\qquad
+\frac{d^2W}{dt^2} = K_{ii} + K_{jj} - 2K_{ij} \equiv a ,\]
+</div>
+<p>because the <code>y</code> factors cancel twice: <code>Q_{ii} y_i² = K_{ii}</code> and
+<code>Q_{ij} y_i y_j = K_{ij}</code>. The optimal step is the ratio</p>
+<div class="math block">
+\[t^\star = \frac{(y_i - y_j) - (f_i - f_j)}{a},\]
+</div>
+<p>clipped to the interval where both coordinates stay in <code>[0, C]</code>. This is the
+analytic two-variable subproblem; nothing is iterated inside it.</p>
+<p>The <em>incremental</em> update of <code>f</code> hides the same trap. Since <code>f = Σ_l α_l y_l K_l</code>,</p>
+<div class="math block">
+\[Δf = Δα_i\, y_i K_i + Δα_j\, y_j K_j = y_i t\, y_i K_i - y_j t\, y_j K_j = t\,(K_i - K_j).\]
+</div>
+<p>Writing <code>t (y_i K_i - y_j K_j)</code> — the tempting version, because the <code>y</code>'s are
+sitting right there — corrupts <code>f</code> on the first step and the objective diverges.
+The <code>y_i² = 1</code> cancellation has to happen in the code, not just on paper.</p>
+<p>Choosing the pair is where the two solver variants differ. Define
+<code>viol = y − f</code>, the signed amount by which a point violates its margin, let
+<code>up</code> be the indices allowed to grow (<code>y_i &gt; 0, α_i &lt; C</code> or <code>y_i &lt; 0, α_i &gt; 0</code>),
+and <code>low</code> those allowed to shrink. The first-order rule takes the largest
+<code>viol</code> in <code>up</code> and the smallest in <code>low</code> — the maximal violating pair. The
+second-order rule instead maximises the predicted decrease <code>b²/2a</code> with
+<code>b = viol_j − viol_i</code>, which is what libsvm does and typically cuts iterations
+by an order of magnitude on kernel problems.</p>
+<p>The subtlety: the second-order criterion <em>must</em> be restricted to pairs with
+<code>viol_j &lt; viol_i</code>. Otherwise it happily picks a <code>j</code> whose unconstrained step
+points the wrong way, the clip returns <code>t ≈ 0</code>, and the loop stops at a point
+that is not optimal — with no error message. The descent filter is a
+correctness condition, not a heuristic.</p>
+<p><code>b</code> comes from the free support vectors: for them <code>y_i f_i = 1</code>, so
+<code>b = mean_{free}(y_i − f_i)</code>.</p>
+<h3 id="ν-svm-parameterise-the-support-vectors-not-the-slack">ν-SVM: parameterise the support vectors, not the slack <a class="header-anchor" href="#ν-svm-parameterise-the-support-vectors-not-the-slack">#</a></h3>
+<p><code>C</code> has no units, so tuning it is guesswork. The ν parameterisation replaces it
+with a fraction you can state:</p>
+<div class="math block">
+\[\min_{w,b,ρ,ξ}\ \tfrac12\|w\|^2 + C\sum_i ξ_i - νρ
+\quad\text{s.t.}\quad y_i f_i \ge ρ - ξ_i,\ \ ξ_i ≥ 0,\ \ ρ ≥ 0 .\]
+</div>
+<p>The margin is now <code>ρ</code>, a variable, and <code>ν</code> prices it. The dual is</p>
+<div class="math block">
+\[\min_{α}\ \tfrac12 α^\top Q α
+\quad\text{s.t.}\quad 0 ≤ α_i ≤ 1/n,\ \ y^\top α = 0,\ \ \sum_i α_i = ν .\]
+</div>
+<p>Schölkopf's bounds follow in two lines. A margin error must satisfy <code>α_i = 1/n</code>
+and <code>Σ α_i = ν</code>, so <code>#{margin errors} / n ≤ ν</code>. Symmetrically, every support
+vector carries at most <code>1/n</code>, so <code>Σ α_i = ν</code> forces <code>#SV / n ≥ ν</code>. The single
+number <code>ν</code> brackets both counts.</p>
+<p>The tempting shortcut is to bisect <code>C</code> on a C-SVM until <code>Σα(C) = Cνn</code>, on the
+theory that the two problems coincide at the right <code>C</code>. They do not: the ν KKT
+condition is <code>Qα = ρ·1 − b·y</code> plus box terms, one <code>ρ·1</code> away from the C-SVM's
+<code>Qα = 1 − b·y</code>. Bisection converges to a solution of a <em>different</em> problem
+(measured: <code>max|Δα| ≈ 0.99</code> and an objective gap of 10 against a reference QP).</p>
+<p>Solving it directly is easier than it looks. The two equalities</p>
+<div class="math block">
+\[\sum_{y=+1} α - \sum_{y=-1} α = 0, \qquad \sum_{y=+1} α + \sum_{y=-1} α = ν\]
+</div>
+<p>imply <code>Σ_{+} α = Σ_{-} α = ν/2</code>: each class block carries exactly half the mass.
+So the feasible set is a <em>product</em> of two simplices, and every feasible
+direction is a same-class pair move <code>(α_i + t, α_j − t)</code> with <code>y_i = y_j</code>.
+The working set never crosses classes — that is the whole difference from the
+C-SVM solver. Within a block the KKT condition is a scalar <code>θ</code>:
+<code>α_i = 0 ⇒ g_i ≥ θ</code>, <code>0 &lt; α_i &lt; U ⇒ g_i = θ</code>, <code>α_i = U ⇒ g_i ≤ θ</code>, with
+<code>g = Qα</code>, so a maximum-violation pair rule works exactly as before.</p>
+<p>Recovery uses <code>y_i g_i = ρ − y_i b</code> on the free set, which separates because the
+free set contains both classes:</p>
+<div class="math block">
+\[ρ = \tfrac12 (g_{+} + g_{-}), \qquad b = \tfrac12 (g_{-} - g_{+}).\]
+</div>
+<h3 id="more-than-two-classes">More than two classes <a class="header-anchor" href="#more-than-two-classes">#</a></h3>
+<p>There is no canonical multiclass SVM, only reductions. <code>ovo</code> trains one machine
+per pair of classes on the <code>k(k−1)/2</code> subsets and gives one vote each — cheap per
+machine, expensive overall. <code>ovr</code> trains <code>k</code> machines, each against the rest,
+and takes the largest decision value — <code>k</code> fits, but each on the full data, and
+the scores are not comparable across machines.</p>
+<pre class="mermaid-source"><code class="language-mermaid">flowchart LR
+    subgraph ovo[&quot;ovo: k(k-1)/2 duels, votes&quot;]
+      A1[&quot;A vs B&quot;] --&gt; V1[&quot;vote&quot;]
+      A2[&quot;A vs C&quot;] --&gt; V1
+      A3[&quot;B vs C&quot;] --&gt; V1
+    end
+    subgraph ovr[&quot;ovr: k machines, max score&quot;]
+      B1[&quot;A vs rest&quot;] --&gt; S[&quot;argmax&quot;]
+      B2[&quot;B vs rest&quot;] --&gt; S
+      B3[&quot;C vs rest&quot;] --&gt; S
+    end
+</code></pre>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The kernel is a table, and the only design decision in it is the default for
+<code>γ</code>: <code>1/d</code> puts the typical squared distance <code>2d</code> (on standardised data) at
+<code>exp(−2)</code>, which is neither a step function nor a straight line.</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"linear"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">X</span> <span class="o">@</span> <span class="n">Z</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"polynomial"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">gamma</span> <span class="o">*</span> <span class="p">(</span><span class="n">X</span> <span class="o">@</span> <span class="n">Z</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">coef0</span><span class="p">)</span> <span class="o">**</span> <span class="n">degree</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"rbf"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">_sqdist</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Z</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">gamma</span> <span class="o">*</span> <span class="p">(</span><span class="n">X</span> <span class="o">@</span> <span class="n">Z</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">coef0</span><span class="p">)</span>
+</code></pre>
+<p>The solver loop is the derivation above, in order: find the violating pair,
+take the clipped analytic step, update <code>f</code> with the cancelled <code>y</code>'s.</p>
+<pre class="highlight"><code>        <span class="n">viol</span> <span class="o">=</span> <span class="o">-</span><span class="n">y</span> <span class="o">*</span> <span class="n">G</span>
+        <span class="n">gi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">up</span><span class="p">,</span> <span class="n">viol</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">gi</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">gi</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">viol</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="k">if</span> <span class="n">second_order</span><span class="p">:</span>                  <span class="c1"># Fan/Chen/Lin: minimise −b²/a</span>
+            <span class="c1"># only pairs with a feasible positive step: `viol[j] &lt; viol[i]`</span>
+            <span class="n">ok</span> <span class="o">=</span> <span class="n">low</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">viol</span> <span class="o">&lt;</span> <span class="n">gi</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">ok</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">break</span>
+            <span class="n">a_ij</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">diag</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">diag</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">K</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">EPS</span><span class="p">)</span>
+            <span class="n">b_ij</span> <span class="o">=</span> <span class="n">viol</span> <span class="o">-</span> <span class="n">gi</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">crit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ok</span><span class="p">,</span> <span class="o">-</span><span class="p">(</span><span class="n">b_ij</span> <span class="o">*</span> <span class="n">b_ij</span><span class="p">)</span> <span class="o">/</span> <span class="n">a_ij</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+</code></pre>
+<p><code>G</code> is the gradient of the dual objective, so <code>viol = −y ⊙ G = y − f</code> is the
+signed margin violation: positive means &quot;this point is on the wrong side of its
+own street&quot;. The stopping test compares the worst <code>up</code> violation against the
+best <code>low</code> one; when no pair can improve, the KKT table is satisfied.</p>
+<pre class="highlight"><code>        <span class="n">alpha</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">t</span>
+        <span class="n">alpha</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-=</span> <span class="n">y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">t</span>
+        <span class="c1"># f = Σ_l α_l y_l K_l, so Δf = Δα_i y_i K_i + Δα_j y_j K_j = t(K_i − K_j)</span>
+        <span class="n">f</span> <span class="o">+=</span> <span class="n">t</span> <span class="o">*</span> <span class="p">(</span><span class="n">K</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">K</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+        <span class="n">G</span> <span class="o">=</span> <span class="n">y</span> <span class="o">*</span> <span class="n">f</span> <span class="o">-</span> <span class="mf">1.0</span>
+</code></pre>
+<p><code>G</code> is recomputed from <code>f</code> each step rather than stored incrementally — the
+incremental form is cheap to get subtly wrong, and <code>f</code> is the only quantity that
+really needs to be exact.</p>
+<p>The ν solver is short because the block structure does all the work: the start
+is a feasible point with <code>ν/2</code> in each block, and the working set is restricted
+to same-class pairs.</p>
+<pre class="highlight"><code>    <span class="n">n</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">U</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">n</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">sign</span> <span class="ow">in</span> <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="n">sign</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">idx</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"nu_svm needs both classes"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">nu</span> <span class="o">&gt;</span> <span class="n">U</span> <span class="o">*</span> <span class="n">idx</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"nu too large for the class balance"</span><span class="p">)</span>
+        <span class="n">alpha</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">nu</span> <span class="o">/</span> <span class="n">idx</span><span class="o">.</span><span class="n">size</span>        <span class="c1"># a feasible interior start</span>
+</code></pre>
+<p>The guard is not cosmetic: <code>Σ_{+} α = ν/2</code> is infeasible if one block is too
+small to hold that mass under the <code>1/n</code> cap, and the error message says so.</p>
+<pre class="highlight"><code>            <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">up</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="n">up</span><span class="p">])])</span>
+            <span class="n">j</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">dn</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="n">dn</span><span class="p">])])</span>
+            <span class="k">if</span> <span class="n">g</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">g</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">best</span><span class="p">:</span>
+                <span class="n">best</span><span class="p">,</span> <span class="n">pair</span> <span class="o">=</span> <span class="n">g</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">g</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span>
+</code></pre>
+<p>Here <code>g = Qα</code>, so the steepest descent moves mass from the largest gradient to
+the smallest — the same rule as the C-SVM, applied inside one class.</p>
+<p>Multiclass voting is a scatter-add, not a loop over rows:</p>
+<pre class="highlight"><code>            <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"ovo"</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">coef</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">machines_</span><span class="p">:</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gram</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">X_</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span> <span class="o">@</span> <span class="n">coef</span> <span class="o">+</span> <span class="n">bias</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">d</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">a</span><span class="p">)),</span> <span class="mf">1.0</span><span class="p">)</span>
+</code></pre>
+<p><code>np.add.at</code> is required because the target column varies per row; fancy
+indexing alone would write each row once and silently drop duplicate votes.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <code>n</code> samples, <code>d</code> features and <code>s</code> support vectors:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Step</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Gram matrix</td>
+<td style="text-align:left"><code>O(n²d)</code></td>
+<td style="text-align:left"><code>O(n²)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">one SMO step</td>
+<td style="text-align:left"><code>O(n)</code> (two kernel rows)</td>
+<td style="text-align:left">—</td>
+</tr>
+<tr>
+<td style="text-align:left">to convergence</td>
+<td style="text-align:left"><code>O(n²)</code>–<code>O(n³)</code> steps in practice</td>
+<td style="text-align:left">—</td>
+</tr>
+<tr>
+<td style="text-align:left">predict</td>
+<td style="text-align:left"><code>O(s·d)</code> per point</td>
+<td style="text-align:left"><code>O(s·d)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The Gram matrix is the wall: <code>n = 10⁵</code> is 80 GB in float64. Past <code>n ≈ 10⁴</code> use
+the linear kernel in primal form (a hinge-loss SGD or dual coordinate descent
+touching one row at a time), the Nyström or random-feature approximations in
+this chapter, or accept that a neural network is the cheaper kernel machine.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Unscaled features.</strong> An RBF kernel sums squared distances over dimensions, so
+one feature in the thousands dominates nine features in the units. Standardise
+first; there is no <code>γ</code> that fixes it, because the kernel sees the sum.</p>
+<p><strong><code>γ</code> too large.</strong> Every training point becomes its own support vector, the
+margin collapses to zero, training accuracy is 1.0 and test accuracy is not. The
+diagnostic is <code>support_.size / n</code>: healthy RBF fits on tabular data sit well
+below 50%; at 95% you are memorising.</p>
+<p><strong>Imbalance.</strong> With 5% positives and <code>C</code> shared, the cheapest way to satisfy the
+box is to call everything negative. Accuracy looks fine (0.95) and the minority
+recall is 0. <code>class_weight=&quot;balanced&quot;</code> scales each sample's <code>C</code> by
+<code>n / (k · count)</code>; the demo shows recall going from 0.17 to 1.00 on the same
+data.</p>
+<p><strong>The sigmoid kernel is not a kernel.</strong> <code>tanh(γ⟨x,z⟩ + r)</code> is not positive
+semi-definite for most <code>(γ, r)</code>, so the dual is not convex and &quot;the margin&quot; has
+no meaning. The demo prints the negative eigenvalue to make the point concrete;
+use <code>rbf</code> or <code>polynomial</code> instead.</p>
+<p><strong>Tuning <code>C</code> blind.</strong> <code>C</code> has no units and interacts with <code>γ</code>. Grid-search on
+log scale over <code>(C, γ)</code> — or switch to <code>nu_svm</code> and state the violation fraction
+you are willing to pay for, which is the same decision in interpretable units.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Small-<code>n</code>, wide-<code>d</code> problems are the SVM's home: text classification with
+TF-IDF, gene-expression data, spectral data. There the kernel matrix is cheap
+and the margin is a genuine regulariser.</p>
+<p>It is also the right tool when the <em>support set</em> is the deliverable — the model
+is a compressed subset of the data, which matters for on-device inference and
+for one-class anomaly detection (<code>one_class.py</code>).</p>
+<p>It is a trap when you need calibrated probabilities (SVMs output distances, not
+probabilities; Platt scaling is a patch), when <code>n</code> is in the millions, or when
+you are mostly doing feature engineering — gradient boosting on the same
+features usually wins on tabular data and costs less tuning.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Cortes, C. &amp; Vapnik, V. (1995). Support-vector networks. <em>Machine Learning</em> 20(3).</li>
+<li>Boser, B., Guyon, I. &amp; Vapnik, V. (1992). A training algorithm for optimal margin classifiers. <em>COLT</em>.</li>
+<li>Schölkopf, B., Smola, A., Williamson, R. &amp; Bartlett, P. (2000). New support vector algorithms. <em>Neural Computation</em> 12(5).</li>
+<li>Platt, J. (1999). Fast training of support vector machines using sequential minimal optimization. In <em>Advances in Kernel Methods</em>.</li>
+<li>Fan, R.-E., Chen, P.-H. &amp; Lin, C.-J. (2005). Working set selection using second order information for training SVM. <em>JMLR</em> 6.</li>
+<li>Chang, C.-C. &amp; Lin, C.-J. (2011). LIBSVM: a library for support vector machines. <em>ACM TIST</em> 2(3).</li>
+<li>Smola, A. &amp; Schölkopf, B. (2004). A tutorial on support vector regression. <em>Statistics and Computing</em> 14(3).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="index.html"><small>Previous</small><span>03 · Kernels &amp; instance-based</span></a><a class="next" href="kernel_ridge.html"><small>Next</small><span>Kernel ridge</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">03 · Kernels &amp; instance-based</p><ul class="rail-list"><li><a href="svm.html" aria-current="page"><span class="tick">✓</span><span>Support vector machine</span></a></li><li><a href="kernel_ridge.html"><span class="tick">✓</span><span>Kernel ridge</span></a></li><li><a href="knn.html"><span class="tick">✓</span><span>k-nearest neighbours</span></a></li><li><a href="svr.html"><span class="tick">✓</span><span>Support vector regression</span></a></li><li><a href="rbf_network.html"><span class="tick">✓</span><span>RBF networks</span></a></li><li><a href="random_features.html"><span class="tick">✓</span><span>Random features</span></a></li><li><a href="one_class.html"><span class="tick">✓</span><span>One-class models</span></a></li><li><a href="nearest_centroid.html"><span class="tick">✓</span><span>Nearest centroid</span></a></li><li><a href="nystrom.html"><span class="tick">✓</span><span>Nystrom approximation</span></a></li><li><a href="metric_learning.html"><span class="tick">✓</span><span>Metric learning</span></a></li><li><a href="multiple_kernel.html"><span class="tick">✓</span><span>Multiple kernel learning</span></a></li><li><a href="mmd.html"><span class="tick">✓</span><span>MMD &amp; HSIC</span></a></li><li><a href="lvq.html"><span class="tick">✓</span><span>Learning vector quantisation</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../02-linear-models/index.html"><span class="jump">← 02 · Linear models</span></a></li><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">04 · Trees &amp; ensembles&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#hard-margin">Hard margin</a></li><li class="lvl3"><a href="#soft-margin-and-the-hinge">Soft margin and the hinge</a></li><li class="lvl3"><a href="#smo-two-variables-at-a-time">SMO: two variables at a time</a></li><li class="lvl3"><a href="#ν-svm-parameterise-the-support-vectors-not-the-slack">ν-SVM: parameterise the support vectors, not the slack</a></li><li class="lvl3"><a href="#more-than-two-classes">More than two classes</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/03-kernels-and-instance/svm.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

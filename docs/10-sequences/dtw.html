@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dynamic time warping · MLAtoms</title>
+<meta name="description" content="Aligning sequences that move at different speeds. Two recordings of the same word are not the same length, and no single shift makes them line up. One…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/dtw.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Dynamic time warping">
+<meta property="og:description" content="Aligning sequences that move at different speeds. Two recordings of the same word are not the same length, and no single shift makes them line up. One…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/dtw.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dynamic time warping">
+<meta name="twitter:description" content="Aligning sequences that move at different speeds. Two recordings of the same word are not the same length, and no single shift makes them line up. One…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Dynamic time warping", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/10-sequences/dtw.html", "description": "Aligning sequences that move at different speeds. Two recordings of the same word are not the same length, and no single shift makes them line up. One\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">10 · Sequences</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="dtw.py.html">source</a></p><h1>Dynamic time warping — align sequences that do not share a clock</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Two recordings of the same word are not the same length, and no single shift
+makes them line up. One speaker stretched the vowels, the other paused in the
+middle, and the samples therefore sit at different times. Comparing them point
+by point measures the clock, not the content. Dynamic time warping measures the
+content by allowing a monotone reparameterisation of time: point <span class="math inline">\(i\)</span> of one
+sequence may correspond to point <span class="math inline">\(j\)</span> of the other, as long as the correspondence
+never runs backwards.</p>
+<p>The object is a grid. Rows are the points of the first sequence, columns are the
+points of the second, and each cell holds the cost of pairing those two points.
+A path from the top-left corner to the bottom-right corner, moving only right,
+up or diagonally, is a valid alignment; the cost of the alignment is the sum of
+the cells it visits. DTW is the minimum over paths, and it is found by the same
+dynamic program as any shortest path on a grid.</p>
+<pre class="highlight"><code>        y:  0    1    2    3    4
+      x ┌────┬────┬────┬────┬────┐
+      0 │ 0  │ 1  │ 4  │ 9  │ 16 │
+      1 │ 1  │ 0  │ 1  │ 4  │ 9  │
+      2 │ 4  │ 1  │ 0  │ 1  │ 4  │
+      3 │ 9  │ 4  │ 1  │ 0  │ 1  │
+        └────┴────┴────┴────┴────┘
+             cost of pairing x_i with y_j
+</code></pre>
+<p>That grid is the whole algorithm. Everything else is a decision about which
+cells are legal. The unconstrained grid allows a path to match the beginning of
+one sequence with the end of the other, which is sometimes right (a query inside
+a reference) and usually wrong (two recordings of the same word). A band forbids
+the far cells, a parallelogram forbids the steep slopes, free endpoints on one
+axis allow the subsequence case, and a soft minimum replaces the hard choice
+with a differentiable one.</p>
+<p>The variants are those decisions, plus two operations built on top of the grid:
+averaging a set of sequences in the warped geometry, and approximating the grid
+on a coarser one.</p>
+<p>The demos make the trade-offs numerical. On a shape sampled through a known
+monotone warp, the recovered path pairs points that are a hundredth of a cycle
+apart at worst, and the distance is <span class="math inline">\(0.0675\)</span>. On a stronger warp, a Sakoe–Chiba
+band of three cells costs <span class="math inline">\(7.8\)</span> times the unconstrained distance, while a band
+of ten costs nothing because it contains the optimal path. Soft DTW's gradient
+matches finite differences to <span class="math inline">\(5\times10^{-10}\)</span>, and as the smoothing shrinks
+the soft distance converges to the hard one. The barycenter of twelve warped
+copies of a shape recovers it to a correlation of <span class="math inline">\(0.99987\)</span> and beats the
+pointwise mean, <span class="math inline">\(0.2577\)</span> against <span class="math inline">\(0.2839\)</span> in total distance.</p>
+<p>The one number to carry away is the cost of a wrong constraint. On the strongly
+warped pair the unconstrained path is worth <span class="math inline">\(0.100\)</span>; a band of three returns
+<span class="math inline">\(0.778\)</span>. A band is not an optimisation. It is a statement about which pairings
+are physically possible, and it is the part of the model that has to be right.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">grid</th>
+<th style="text-align:left">endpoints</th>
+<th style="text-align:left">returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>standard</code></td>
+<td style="text-align:left">all cells</td>
+<td style="text-align:left">fixed</td>
+<td style="text-align:left">exact path and cost</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sakoe_chiba</code></td>
+<td style="text-align:left">band of radius <span class="math inline">\(r\)</span></td>
+<td style="text-align:left">fixed</td>
+<td style="text-align:left">exact path and cost</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>itakura</code></td>
+<td style="text-align:left">parallelogram</td>
+<td style="text-align:left">fixed</td>
+<td style="text-align:left">exact path and cost</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>subsequence</code></td>
+<td style="text-align:left">all cells</td>
+<td style="text-align:left">free on the reference</td>
+<td style="text-align:left">best matching interval</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>soft_dtw</code></td>
+<td style="text-align:left">all cells</td>
+<td style="text-align:left">fixed</td>
+<td style="text-align:left">smoothed cost and gradient</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dtw_barycenter</code></td>
+<td style="text-align:left">all cells</td>
+<td style="text-align:left">fixed</td>
+<td style="text-align:left">an average sequence</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>fast_dtw</code></td>
+<td style="text-align:left">progressively refined band</td>
+<td style="text-align:left">fixed</td>
+<td style="text-align:left">approximate path and cost</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>standard</code></strong> is the classical algorithm: squared Euclidean local cost, all
+cells legal, both endpoints fixed. It is exact for its model and the reference
+against which the others are measured.</p>
+<p><strong><code>sakoe_chiba</code></strong> keeps a band of half-width <code>radius</code> around the diagonal. It is
+the right constraint when the two sequences are known to be roughly aligned —
+same gesture, same word, same heartbeat — and it reduces the work from <span class="math inline">\(nm\)</span> to
+about <span class="math inline">\(n\,r\)</span>.</p>
+<p><strong><code>itakura</code></strong> keeps a parallelogram defined by a maximum local slope. Instead of
+a fixed width, it allows the path to drift in the middle and forces it back at
+both ends, which is a different statement: the alignment may be locally steep
+but the global clocks cannot diverge.</p>
+<p><strong><code>subsequence</code></strong> frees the start and the end on the reference axis. The query
+must be matched completely, but it may begin and end anywhere in the longer
+sequence, which is the query-by-example problem: find this word in that
+recording, this pattern in that trace.</p>
+<p><strong><code>soft_dtw</code></strong> replaces <code>min</code> with a soft minimum controlled by a temperature
+<span class="math inline">\(\gamma\)</span>. The result is a smooth, differentiable function of both sequences,
+which is what makes it usable as a loss or a layer. It is not a distance: it is
+negative for large <span class="math inline">\(\gamma\)</span> and it depends on the path length.</p>
+<p><strong><code>dtw_barycenter</code></strong> computes DTW barycenter averaging: align every member to a
+running average, then average the points that landed at the same index. It is
+the correct notion of mean when the samples are misaligned in time.</p>
+<p><strong><code>fast_dtw</code></strong> aligns a coarsened copy of the pair, projects the coarse path
+back as a band, and refines. It is approximate, and its distance is never below
+the exact one because the band is a restriction of the grid.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-objective-and-the-recursion">The objective and the recursion <a class="header-anchor" href="#the-objective-and-the-recursion">#</a></h3>
+<p>Let <span class="math inline">\(x_{0:n-1}\)</span> and <span class="math inline">\(y_{0:m-1}\)</span> be the two sequences, and let
+<span class="math inline">\(C(i,j)=\lVert x_i-y_j\rVert^2\)</span> be the local cost. A warping path is a sequence
+of cells <span class="math inline">\(\pi=(\pi_0,\dots,\pi_L)\)</span> with <span class="math inline">\(\pi_0=(0,0)\)</span>, <span class="math inline">\(\pi_L=(n-1,m-1)\)</span>, and
+each step in <span class="math inline">\(\{(1,0),(0,1),(1,1)\}\)</span>. The distance is</p>
+<div class="math block">
+\[D(n-1,m-1) = \min_{\pi}\ \sum_{(i,j)\in\pi} C(i,j).
+\qquad (1)\]
+</div>
+<p>The path set is exponential, but the objective is additive and the constraint is
+local, so the principle of optimality applies: the best path to <span class="math inline">\((i,j)\)</span> ends
+with the best path to one of its three predecessors. Hence</p>
+<div class="math block">
+\[D(i,j) = C(i,j) + \min\big(D(i-1,j),\,D(i,j-1),\,D(i-1,j-1)\big),
+\qquad (2)\]
+</div>
+<p>with <span class="math inline">\(D(0,0)=C(0,0)\)</span> and the first row and column filled by a single
+predecessor each. The table is <span class="math inline">\(n\times m\)</span>, every cell is <span class="math inline">\(O(1)\)</span>, and the
+backtracking pass recovers the path that achieved the minimum.</p>
+<p>The code is (2) with the mask folded in, and with the free-start case handled by
+initialising the whole first row instead of its first cell:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">free_start</span><span class="p">:</span>
+            <span class="n">table</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cost</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">table</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">cost</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]:</span>
+                    <span class="k">continue</span>
+                <span class="n">best</span><span class="p">,</span> <span class="n">source</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">di</span><span class="p">,</span> <span class="n">dj</span> <span class="ow">in</span> <span class="n">STEPS</span><span class="p">:</span>
+                    <span class="n">pi</span><span class="p">,</span> <span class="n">pj</span> <span class="o">=</span> <span class="n">i</span> <span class="o">-</span> <span class="n">di</span><span class="p">,</span> <span class="n">j</span> <span class="o">-</span> <span class="n">dj</span>
+                    <span class="k">if</span> <span class="n">pi</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">pj</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">table</span><span class="p">[</span><span class="n">pi</span><span class="p">,</span> <span class="n">pj</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">best</span><span class="p">:</span>
+                        <span class="n">best</span><span class="p">,</span> <span class="n">source</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="n">pi</span><span class="p">,</span> <span class="n">pj</span><span class="p">],</span> <span class="p">(</span><span class="n">pi</span><span class="p">,</span> <span class="n">pj</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">best</span><span class="p">):</span>
+                    <span class="n">table</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">cost</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">best</span>
+                    <span class="n">back</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">source</span>
+</code></pre>
+<p>The <code>np.isfinite(best)</code> test is not defensive noise: a cell whose three
+predecessors are all outside the band must stay at infinity, and adding the cost
+to infinity would poison the comparison. The stored <code>source</code> is what makes
+backtracking possible without re-deriving the argmin.</p>
+<h3 id="bands-and-parallelograms">Bands and parallelograms <a class="header-anchor" href="#bands-and-parallelograms">#</a></h3>
+<p>The Sakoe–Chiba band of half-width <span class="math inline">\(r\)</span> keeps the cells within <span class="math inline">\(r\)</span> of the
+diagonal after accounting for the length ratio:</p>
+<div class="math block">
+\[|j - i\,(m-1)/(n-1)| \le r.
+\qquad (3)\]
+</div>
+<p>In code the diagonal is rounded to the nearest integer cell and the row is
+filled in one slice:</p>
+<pre class="highlight"><code>        <span class="n">slope</span> <span class="o">=</span> <span class="p">(</span><span class="n">m</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="n">centre</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="n">slope</span><span class="p">))</span>
+            <span class="n">low</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">centre</span> <span class="o">-</span> <span class="n">radius</span><span class="p">)</span>
+            <span class="n">high</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">m</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">centre</span> <span class="o">+</span> <span class="n">radius</span><span class="p">)</span>
+            <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+</code></pre>
+<p>The Itakura parallelogram is a different shape. In normalised coordinates
+<span class="math inline">\(u=i/(n-1)\)</span>, <span class="math inline">\(v=j/(m-1)\)</span>, it requires the local slope to lie between <span class="math inline">\(1/s\)</span> and
+<span class="math inline">\(s\)</span> at both ends of the path:</p>
+<div class="math block">
+\[v \le s u, \qquad v \ge u/s, \qquad 1-v \le s(1-u), \qquad 1-v \ge (1-u)/s.\]
+</div>
+<p>The first two bound the path near the start, the last two near the end, and
+their intersection is the parallelogram. It allows a band that is wide in the
+middle and narrow at the corners, which is the shape you want when the two
+clocks are allowed to drift but not to swap order.</p>
+<h3 id="free-endpoints">Free endpoints <a class="header-anchor" href="#free-endpoints">#</a></h3>
+<p>For the subsequence variant, the query <span class="math inline">\(x\)</span> must be matched in full and the
+reference <span class="math inline">\(y\)</span> may be entered and left anywhere. That is one line of
+initialisation and one line at the end:</p>
+<div class="math block">
+\[D(0,j) = C(0,j)\ \ \forall j, \qquad
+\text{distance} = \min_j D(n-1,j).
+\qquad (4)\]
+</div>
+<p>Freeing the whole first row lets the path start at any reference index; taking
+the minimum over the last row lets it stop at any reference index. The path's
+first cell carries the start index, which is the answer to &quot;where does this
+pattern begin&quot;. The suffix of the reference after the match is ignored, which is
+the point; the prefix before it is skipped by construction.</p>
+<p>The implementation keeps the start in the backtracked path rather than in a
+separate variable, so the interval is read off the alignment:</p>
+<pre class="highlight"><code>        <span class="n">end</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">ends</span><span class="p">))</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backtrack</span><span class="p">(</span><span class="n">back</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">end</span><span class="p">),</span> <span class="n">free_start</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre>
+<h3 id="soft-dtw">Soft DTW <a class="header-anchor" href="#soft-dtw">#</a></h3>
+<p>Hard DTW is a minimum, and a minimum is piecewise constant in the inputs, so its
+gradient is zero almost everywhere. Soft DTW replaces the minimum with the
+smooth minimum</p>
+<div class="math block">
+\[\mathrm{softmin}_\gamma(a_1,\dots,a_k) = -\gamma\log\sum_i e^{-a_i/\gamma},\]
+</div>
+<p>which tends to <span class="math inline">\(\min_i a_i\)</span> as <span class="math inline">\(\gamma\to0\)</span> and to the mean as <span class="math inline">\(\gamma\to\infty\)</span>.
+The recursion is otherwise identical:</p>
+<div class="math block">
+\[D(i,j) = C(i,j) + \mathrm{softmin}_\gamma\big(D(i-1,j), D(i,j-1), D(i-1,j-1)\big).
+\qquad (5)\]
+</div>
+<p>The implementation subtracts the smallest predecessor before exponentiating,
+which is the same log-sum-exp guard as everywhere else in this chapter:</p>
+<pre class="highlight"><code>                <span class="n">previous</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">j</span><span class="p">],</span> <span class="n">table</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">table</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="n">lowest</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">previous</span><span class="p">)</span>
+                <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">p</span> <span class="o">-</span> <span class="n">lowest</span><span class="p">)</span> <span class="o">/</span> <span class="n">gamma</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">previous</span><span class="p">)</span>
+                <span class="n">table</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">cost</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">lowest</span> <span class="o">-</span> <span class="n">gamma</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">total</span><span class="p">)</span>
+</code></pre>
+<p>The gradient follows from the same recursion run backwards. Differentiating (5)
+with respect to each predecessor gives the softmax of the negative predecessor
+values, so a reverse sweep accumulates an adjoint at each cell and the
+derivative with respect to a point of <span class="math inline">\(x\)</span> is twice the adjoint row times the
+residual:</p>
+<div class="math block">
+\[\frac{\partial D}{\partial x_i}
+= 2\sum_j \bar D(i,j)\,(x_i-y_j), \qquad
+\bar D(p) = \sum_{q} \bar D(q)\,\frac{\partial D(q)}{\partial D(p)}.\]
+</div>
+<p>That is the entire backward pass, and the demo checks it against finite
+differences.</p>
+<h3 id="barycenters">Barycenters <a class="header-anchor" href="#barycenters">#</a></h3>
+<p>The mean of a set of sequences is not their pointwise mean unless they are
+already aligned. DTW barycenter averaging alternates two steps: align every
+member to the current average, then set each average point to the mean of the
+member points that were warped onto it:</p>
+<div class="math block">
+\[\bar z_j = \frac{1}{|S_j|}\sum_{s\in S_j} z^{(s)}_i,
+\qquad S_j = \{(s,i) : (i,j)\in\pi^{(s)}\}.
+\qquad (6)\]
+</div>
+<p>The length of the barycenter is inherited from the initial average, which is the
+medoid — the member with the smallest total distance to the others. The
+iteration is not guaranteed to decrease the total distance monotonically, but it
+does in practice on well-behaved data, and the demo's history is non-increasing.</p>
+<h3 id="fastdtw">FastDTW <a class="header-anchor" href="#fastdtw">#</a></h3>
+<p>The exact table is <span class="math inline">\(O(nm)\)</span>, which is too much for sequences of ten thousand
+points. FastDTW exploits the fact that alignments are smooth at coarse scales:
+halve both sequences by averaging adjacent points, align the short pair, project
+the coarse path back to a band of radius <span class="math inline">\(r\)</span>, and run the exact recursion inside
+that band. Recurse until the sequences fit in a handful of points.</p>
+<p>Each level costs <span class="math inline">\(O(n_i r)\)</span> and the lengths halve, so the total is <span class="math inline">\(O(nr)\)</span> for a
+fixed radius, and the result is exact whenever the true path stays inside the
+projected band. When it does not, the answer is an upper bound, because the band
+is a subset of the grid.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="backtracking">Backtracking <a class="header-anchor" href="#backtracking">#</a></h3>
+<pre class="highlight"><code>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_backtrack</span><span class="p">(</span><span class="n">back</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">free_start</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="p">[</span><span class="n">end</span><span class="p">]</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">=</span> <span class="n">path</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">free_start</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">free_start</span> <span class="ow">and</span> <span class="n">path</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="k">break</span>
+            <span class="n">pi</span><span class="p">,</span> <span class="n">pj</span> <span class="o">=</span> <span class="n">back</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">pi</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"the backtracking table is incomplete"</span><span class="p">)</span>
+            <span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">int</span><span class="p">(</span><span class="n">pi</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">pj</span><span class="p">)))</span>
+        <span class="n">path</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+</code></pre>
+<p>The two stopping conditions are the two endpoint conventions: a fixed-start path
+ends at the origin, a free-start path ends anywhere in the first row. The
+<code>pi &lt; 0</code> guard catches the case where the table was filled with an inconsistent
+mask, which would otherwise walk to <code>(-1, -1)</code> and index out of bounds.</p>
+<h3 id="the-band-mask">The band mask <a class="header-anchor" href="#the-band-mask">#</a></h3>
+<pre class="highlight"><code>        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">slope</span> <span class="o">=</span> <span class="p">(</span><span class="n">m</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="n">centre</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="n">slope</span><span class="p">))</span>
+</code></pre>
+<p>The mask is built once per pair and passed to the same <code>_fill</code> routine that the
+unconstrained variant uses. That separation is what keeps seven variants from
+becoming seven copies of the recursion: only the mask, the endpoint convention,
+and the min-versus-softmin choice change.</p>
+<h3 id="the-coarse-pass">The coarse pass <a class="header-anchor" href="#the-coarse-pass">#</a></h3>
+<pre class="highlight"><code>        <span class="n">coarse_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reduce</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">coarse_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reduce</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">coarse_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fast_mask</span><span class="p">(</span><span class="n">coarse_x</span><span class="p">,</span> <span class="n">coarse_y</span><span class="p">,</span> <span class="n">radius</span><span class="p">)</span>
+        <span class="n">coarse_cost</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_costs</span><span class="p">(</span><span class="n">coarse_x</span><span class="p">,</span> <span class="n">coarse_y</span><span class="p">)</span>
+        <span class="n">coarse_path</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solve</span><span class="p">(</span><span class="n">coarse_cost</span><span class="p">,</span> <span class="n">coarse_mask</span><span class="p">)</span>
+</code></pre>
+<p><code>_reduce</code> averages adjacent pairs and duplicates the last point when the length
+is odd, so every level halves the length exactly. The recursion returns a mask,
+not a distance: the distance is only ever computed at full resolution, which is
+what keeps the approximation consistent with the exact algorithm's cost model.</p>
+<h3 id="accumulating-a-barycenter">Accumulating a barycenter <a class="header-anchor" href="#accumulating-a-barycenter">#</a></h3>
+<pre class="highlight"><code>                <span class="n">path</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exact</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">average</span><span class="p">)</span>
+                <span class="n">total</span> <span class="o">+=</span> <span class="n">value</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+                    <span class="n">accumulator</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">member</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="n">counts</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">1.0</span>
+</code></pre>
+<p>Every cell of the path contributes one member point to one average index, and
+the division by <code>counts</code> is the average. The <code>np.maximum(counts, 1.0)</code> in the
+next line protects an index that no path visited, which happens when the average
+is longer than the members; those indices keep their previous value instead of
+becoming NaN.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(n,m\)</span> be the sequence lengths, <span class="math inline">\(r\)</span> the band radius, <span class="math inline">\(L\)</span> the path length,
+<span class="math inline">\(S\)</span> the number of members in a barycenter, and <span class="math inline">\(I\)</span> the DBA iterations.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">operation</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>standard</code>, <code>subsequence</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sakoe_chiba</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nr)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nr)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>itakura</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span> worst case</td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>soft_dtw</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>soft_dtw</code> gradient</td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span> extra</td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dtw_barycenter</code></td>
+<td style="text-align:left"><span class="math inline">\(O(I\,S\,nm)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nm)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>fast_dtw</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nr)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nr)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The table is the memory bottleneck, and for long sequences it is the reason the
+banded variants exist: a radius of ten on a pair of length ten thousand is four
+orders of magnitude less work than the full grid. Both the table and the
+backpointer array are materialised here because backtracking needs them; if only
+the distance is wanted, two rows suffice and the memory drops to <span class="math inline">\(O(m)\)</span>.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Unconstrained warping can match anything.</strong> With no band, a path may map one
+point of <span class="math inline">\(x\)</span> to a long stretch of <span class="math inline">\(y\)</span> — or the reverse — whenever that lowers the
+sum. On sequences with slowly varying amplitude this produces alignments that
+are optimal under (1) and meaningless as correspondences. The constraint is the
+model; if the domain says the clocks cannot diverge by more than ten percent,
+the band should say so too.</p>
+<p><strong>A constraint can be infeasible on the integer grid.</strong> The Itakura
+parallelogram with a maximum slope close to the length ratio leaves less than one
+cell per row, and the rounding can then leave no monotone path at all. The code
+raises <code>no monotone path satisfies the constraint</code> rather than returning
+infinity. In the demo, a slope of <span class="math inline">\(1.3\)</span> on a <span class="math inline">\(60\times80\)</span> pair is refused while
+<span class="math inline">\(1.5\)</span> is accepted, and this is a property of the grid, not a bug.</p>
+<p><strong>The band can be tight enough to be wrong.</strong> The same demo's band of three
+costs <span class="math inline">\(7.8\)</span> times the unconstrained distance. A band is a bias-variance choice
+like any other: wide enough to contain the true path, narrow enough to exclude
+the spurious ones, and there is no way to know which without a validation set.</p>
+<p><strong>FastDTW is approximate, and coarsening is a low-pass filter.</strong> On smooth data
+a radius of two reproduces the exact answer and a radius of one is already
+<span class="math inline">\(3.5\)</span> times worse. On piecewise-constant data the coarse path is actively wrong:
+<span class="math inline">\(75\)</span> against an exact <span class="math inline">\(50\)</span>, a <span class="math inline">\(50\%\)</span> error. Averaging neighbours destroys the
+feature the alignment depends on. Use it when the sequences are smooth and the
+grid is large, and check it against exact DTW on a sample.</p>
+<p><strong>Soft DTW is not a distance.</strong> It is below the hard value for every positive
+<span class="math inline">\(\gamma\)</span>, it can be negative, and it grows with the path length, so two pairs of
+different lengths are not comparable. The demo's <span class="math inline">\(\gamma=10\)</span> value is <span class="math inline">\(-1159\)</span> on
+a pair whose hard distance is <span class="math inline">\(0.100\)</span>. Normalise by length, or compare only at
+matched lengths and a fixed <span class="math inline">\(\gamma\)</span>.</p>
+<p><strong>Squared Euclidean cost is scale-sensitive.</strong> A feature measured in thousands
+dominates one measured in fractions, and the alignment will be driven entirely
+by the first. Standardise the features before warping, or use a cost that is
+invariant to the units; there is no such thing as an unscaled DTW distance
+across heterogeneous channels.</p>
+<p><strong>DTW is not a metric.</strong> It is symmetric and non-negative, but the triangle
+inequality fails: <span class="math inline">\(d(x,z)\)</span> can exceed <span class="math inline">\(d(x,y)+d(y,z)\)</span> because the optimal
+alignment of <span class="math inline">\(x\)</span> to <span class="math inline">\(z\)</span> need not pass through the alignment of <span class="math inline">\(y\)</span>. Anything
+that assumes a metric — vantage-point trees, Lipschitz bounds, some clustering
+guarantees — must use the lower bound (LB_Keogh) or a different representation
+instead.</p>
+<p><strong>The barycenter depends on its starting length and its members.</strong> DBA cannot
+change the length of the average, so a set of sequences of very different
+lengths produces an average stuck at the medoid's length. It is also a local
+method: the medoid and the iteration order matter, and a bad initial average can
+trap the iteration. The demo's history is monotone, but that is a property of
+this data, not a guarantee.</p>
+<p><strong>Subsequence matching finds the best interval, not all of them.</strong> If the query
+occurs twice, only the cheaper occurrence is returned. Repeated patterns need
+either a sliding-window scan or a different formulation; the single-interval
+answer is what (4) optimises.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Speech recognition before HMMs.</strong> Isolated-word recognisers aligned a test
+utterance to a stored template with DTW and classified by the nearest template.
+The <code>sakoe_chiba</code> and <code>itakura</code> constraints come from that literature, and the
+<code>hmm</code> atom in this chapter is what replaced them once enough data existed to
+estimate a generative model.</p>
+<p><strong>Handwriting and shape matching.</strong> Online handwriting is a sequence of pen
+positions, and two copies of the same character differ by a monotone speed
+change, which is exactly the DTW model. The same machinery matches contours and
+skeleton curves in shape retrieval.</p>
+<p><strong>Human activity and gesture recognition.</strong> Accelerometer streams from wearables
+are warped by speed and style; DTW with a band is the classical nearest-neighbour
+classifier, and the barycenter is how prototypes are averaged.</p>
+<p><strong>Time-series classification and clustering.</strong> One-nearest-neighbour with DTW is
+a famously strong baseline on the UCR archive, and DTW barycenters are the
+centroids in DTW k-means. The <code>fast_dtw</code> variant exists because the archive's
+sequences are long enough for the quadratic cost to matter.</p>
+<p><strong>Query by humming and music retrieval.</strong> A hummed melody is a warped, noisy
+version of a score; subsequence DTW finds where it occurs. The <code>subsequence</code>
+variant is the direct implementation of that query.</p>
+<p><strong>Biomedical signal alignment.</strong> ECG beats, EEG epochs and gait cycles are
+compared after warping, both for clustering patients and for aligning trials
+before averaging evoked responses. The barycenter is the template that a patient
+is compared against.</p>
+<p><strong>Imitation learning and trajectory matching.</strong> A demonstrated trajectory and a
+reproduction are compared under DTW to score the imitation without penalising a
+different speed; the gradient of soft DTW is what lets the score be optimised
+through.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Itakura, F. (1975). Minimum prediction residual principle applied to speech
+recognition. <em>IEEE Transactions on Acoustics, Speech, and Signal Processing</em>
+23(1), 67–72. The parallelogram constraint.</li>
+<li>Sakoe, H. &amp; Chiba, S. (1978). Dynamic programming algorithm optimization for
+spoken word recognition. <em>IEEE Transactions on Acoustics, Speech, and Signal
+Processing</em> 26(1), 43–49. The band and the classical algorithm.</li>
+<li>Myers, C., Rabiner, L. &amp; Rosenberg, A. (1980). Performance tradeoffs in dynamic
+time warping algorithms for isolated word recognition. <em>IEEE Transactions on
+Acoustics, Speech, and Signal Processing</em> 28(6), 623–635. Local constraints and
+their costs.</li>
+<li>Berndt, D. J. &amp; Clifford, J. (1994). Using dynamic time warping to find
+patterns in time series. <em>KDD Workshop</em>, 359–370. Subsequence matching.</li>
+<li>Ratanamahatana, C. A. &amp; Keogh, E. (2004). Making time-series classification
+more accurate using learned constraints. <em>SIAM International Conference on Data
+Mining</em>, 250–258. Learned band widths and LB_Keogh.</li>
+<li>Salvador, S. &amp; Chan, P. (2007). Toward accurate dynamic time warping in linear
+time and space. <em>Intelligent Data Analysis</em> 11(5), 561–580. FastDTW.</li>
+<li>Müller, M. (2007). <em>Information Retrieval for Music and Motion</em>. Springer.
+The music and motion applications, with the constraint taxonomy.</li>
+<li>Petitjean, F., Ketterlin, A. &amp; Gançarski, P. (2011). A global averaging method
+for dynamic time warping, with applications to clustering. <em>Pattern
+Recognition</em> 44(3), 678–693. DTW barycenter averaging.</li>
+<li>Cuturi, M. &amp; Blondel, M. (2017). Soft-DTW: a differentiable loss function for
+time-series. <em>ICML</em>, 894–903. The smoothed recursion and its gradient.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="hmm.html"><small>Previous</small><span>Hidden Markov models</span></a><a class="next" href="rnn.html"><small>Next</small><span>Recurrent networks</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">10 · Sequences</p><ul class="rail-list"><li><a href="markov_chain.html"><span class="tick">✓</span><span>Markov chains</span></a></li><li><a href="hmm.html"><span class="tick">✓</span><span>Hidden Markov models</span></a></li><li><a href="dtw.html" aria-current="page"><span class="tick">✓</span><span>Dynamic time warping</span></a></li><li><a href="rnn.html"><span class="tick">✓</span><span>Recurrent networks</span></a></li><li><a href="lstm_gru.html"><span class="tick">✓</span><span>LSTM &amp; GRU</span></a></li><li><a href="attention.html"><span class="tick">✓</span><span>Attention</span></a></li><li><a href="crf.html"><span class="tick">✓</span><span>Conditional random fields</span></a></li><li><a href="ctc.html"><span class="tick">✓</span><span>Connectionist temporal classification</span></a></li><li><a href="tcn.html"><span class="tick">✓</span><span>Temporal convnets</span></a></li><li><a href="beam_search.html"><span class="tick">✓</span><span>Beam search</span></a></li><li><a href="ngram_lm.html"><span class="tick">✓</span><span>N-gram language models</span></a></li><li><a href="ssm.html"><span class="tick">✓</span><span>State-space models</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../09-density-and-anomaly/index.html"><span class="jump">← 09 · Density &amp; anomaly</span></a></li><li><a href="../11-time-series/index.html"><span class="jump">11 · Time series&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-objective-and-the-recursion">The objective and the recursion</a></li><li class="lvl3"><a href="#bands-and-parallelograms">Bands and parallelograms</a></li><li class="lvl3"><a href="#free-endpoints">Free endpoints</a></li><li class="lvl3"><a href="#soft-dtw">Soft DTW</a></li><li class="lvl3"><a href="#barycenters">Barycenters</a></li><li class="lvl3"><a href="#fastdtw">FastDTW</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#backtracking">Backtracking</a></li><li class="lvl3"><a href="#the-band-mask">The band mask</a></li><li class="lvl3"><a href="#the-coarse-pass">The coarse pass</a></li><li class="lvl3"><a href="#accumulating-a-barycenter">Accumulating a barycenter</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/10-sequences/dtw.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variational inference · MLAtoms</title>
+<meta name="description" content="Turn integration into optimisation. Integration is the bottleneck. The posterior is a ratio of two quantities, and the denominator — the evidence — is an…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/variational_inference.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Variational inference">
+<meta property="og:description" content="Turn integration into optimisation. Integration is the bottleneck. The posterior is a ratio of two quantities, and the denominator — the evidence — is an…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/variational_inference.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Variational inference">
+<meta name="twitter:description" content="Turn integration into optimisation. Integration is the bottleneck. The posterior is a ratio of two quantities, and the denominator — the evidence — is an…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Variational inference", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/variational_inference.html", "description": "Turn integration into optimisation. Integration is the bottleneck. The posterior is a ratio of two quantities, and the denominator \u2014 the evidence \u2014 is an\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="variational_inference.py.html">source</a></p><h1>Variational inference</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Integration is the bottleneck. The posterior is a ratio of two quantities, and
+the denominator — the evidence — is an integral over every parameter. MCMC
+sidesteps it by sampling; variational inference avoids it by <em>bounding</em> it.</p>
+<p>The bound comes from one line of algebra. For any density <span class="math inline">\(q(z)\)</span>,</p>
+<div class="math block">
+\[\log p(x) = \log \int q(z)\,\frac{p(z, x)}{q(z)}\,\mathrm{d}z \;\ge\; \int q(z) \log \frac{p(z, x)}{q(z)}\,\mathrm{d}z \;=\; \mathrm{ELBO}(q)\]
+</div>
+<p>which is Jensen's inequality, and it is an equality exactly when <span class="math inline">\(q\)</span> is the
+posterior. Turning the inequality around gives the reason the method works:</p>
+<div class="math block">
+\[\log p(x) - \mathrm{ELBO}(q) \;=\; \mathrm{KL}\!\left(q(z)\,\|\,p(z \mid x)\right) \;\ge\; 0 \qquad (1)\]
+</div>
+<p>The gap is not an abstraction. It is a distance between two distributions, it is
+computable in the conjugate cases, and it has exactly two sources:</p>
+<ul>
+<li><strong>the family.</strong> If the truth is not inside the set of <span class="math inline">\(q\)</span>'s you allow, no
+amount of optimisation closes the gap. This is the <em>approximation</em> gap.</li>
+<li><strong>the optimiser.</strong> Finite steps, finite samples, a step size that is too
+large. This is the <em>estimation</em> gap, and it is supposed to be small.</li>
+</ul>
+<p>Everything in this file is an attempt to move one of those two numbers, and the
+demo is built to separate them: a target with a known answer is fitted by a
+family that contains it (diagonal, 0.511 away from the truth; full covariance,
+0.002) and by a family that does not.</p>
+<p>The punchline of the mean-field story is a theorem you can see in two
+dimensions. A factorised <span class="math inline">\(q\)</span> is <em>always</em> too narrow: the marginal variance it
+reports is smaller than the true one. In the demo the truth has variance
+<span class="math inline">\(2.778\)</span> and the diagonal approximation reports <span class="math inline">\(1.000\)</span>. The means, remarkably,
+are exact — the correlation is thrown away only in the second moment.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<p>All five variants maximise the same objective. They differ in the family and in
+how the expectation under <span class="math inline">\(q\)</span> is differentiated.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Family <span class="math inline">\(q\)</span></th>
+<th style="text-align:left">Target it accepts</th>
+<th style="text-align:left">Gradient needed</th>
+<th style="text-align:left">Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>mean_field</code></td>
+<td style="text-align:left">diagonal Gaussian</td>
+<td style="text-align:left"><code>GaussianTarget</code></td>
+<td style="text-align:left">none (closed form)</td>
+<td style="text-align:left">the target is quadratic; you want the exact mean-field solution in one pass</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cavi</code></td>
+<td style="text-align:left"><span class="math inline">\(q(\mu)q(\tau)\)</span>, Gaussian × Gamma</td>
+<td style="text-align:left">array of observations</td>
+<td style="text-align:left">none (closed form)</td>
+<td style="text-align:left">the model is conjugate and the coordinate updates are derivable</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>reparameterization</code></td>
+<td style="text-align:left">diagonal Gaussian</td>
+<td style="text-align:left"><code>log_prob</code> + <code>grad</code></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">differentiable target, <span class="math inline">\(d\)</span> from 2 to 10⁶ — the default</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>structured_vi</code></td>
+<td style="text-align:left">full-covariance Gaussian via Cholesky</td>
+<td style="text-align:left"><code>log_prob</code> + <code>grad</code></td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">the posterior is strongly correlated and <span class="math inline">\(d\)</span> is small</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>black_box_vi</code></td>
+<td style="text-align:left">diagonal Gaussian</td>
+<td style="text-align:left"><code>log_prob</code> only</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">the density is a simulator, a compiled model, or has no usable gradient</td>
+</tr>
+</tbody>
+</table>
+<p>The three gradient variants are the same loop with a different estimator for
+<span class="math inline">\(\nabla_\phi \mathbb{E}_q[\log p]\)</span>. <code>mean_field</code> and <code>cavi</code> are the closed forms
+available when the expectation is analytic; they exist here so that the Monte
+Carlo estimators can be checked against something exact.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-bound-and-what-it-costs">1. The bound and what it costs <a class="header-anchor" href="#1-the-bound-and-what-it-costs">#</a></h3>
+<div class="math block">
+\[\mathrm{ELBO}(q) = \mathbb{E}_q[\log p(z, x)] + \mathbb{H}[q(z)] \qquad (2)\]
+</div>
+<p>Two terms, and the tension between them is the whole method. The first wants <span class="math inline">\(q\)</span>
+concentrated where the joint density is high; the second wants <span class="math inline">\(q\)</span> spread out.
+Their sum is maximised in between, at the posterior. Maximising (2) is therefore
+mode-seeking but entropy-regularised — the reason VI is never as sharp as a
+Laplace approximation at the mode, and never as confident as a point estimate.</p>
+<p>Because <span class="math inline">\(\log p(x)\)</span> does not depend on <span class="math inline">\(q\)</span>, any <span class="math inline">\(q\)</span> that raises (2) is closer to
+the posterior in KL. That is the licence to use <em>any</em> optimiser: the bound is a
+proper objective function.</p>
+<h3 id="2-mean-field-why-the-variance-is-pinned">2. Mean field: why the variance is pinned <a class="header-anchor" href="#2-mean-field-why-the-variance-is-pinned">#</a></h3>
+<p>Factorise <span class="math inline">\(q(z) = \prod_j q_j(z_j)\)</span> and take the target in information form,</p>
+<div class="math block">
+\[\log p(z) = -\tfrac12 z^{\top} P z + b^{\top} z \qquad (3)\]
+</div>
+<p>unormalised, since the ELBO only needs <span class="math inline">\(p\)</span> up to a constant. The optimal factor
+for coordinate <span class="math inline">\(j\)</span> is <span class="math inline">\(\log q_j^\star(z_j) = \mathbb{E}_{-j}[\log p(z)] + \text{const}\)</span>, and the
+expectation of a quadratic in <span class="math inline">\(z_j\)</span> is another quadratic:</p>
+<div class="math block">
+\[\log q_j^\star(z_j) = -\tfrac12 P_{jj} z_j^2 + z_j\Big(b_j - \sum_{k \ne j} P_{jk} m_k\Big) + \text{const} \qquad (4)\]
+</div>
+<p>Reading off the Gaussian gives both updates at once:</p>
+<div class="math block">
+\[v_j = \frac{1}{P_{jj}}, \qquad m_j = \frac{b_j - \sum_{k \ne j} P_{jk} m_k}{P_{jj}} \qquad (5)\]
+</div>
+<p>The variance is <em>not</em> the exact posterior variance <span class="math inline">\([P^{-1}]_{jj}\)</span>; it is fixed
+by the diagonal entry alone, and by Cauchy–Schwarz <span class="math inline">\([P^{-1}]_{jj} \ge 1/P_{jj}\)</span>.
+The means, however, solve <span class="math inline">\((Pm)_j = b_j\)</span> at the fixed point, i.e. <span class="math inline">\(m = P^{-1}b\)</span>
+— and <span class="math inline">\(P^{-1}b\)</span> is exactly the posterior mean. <strong>Mean field gets the means right
+and the variances wrong, whenever the target is Gaussian.</strong> That is not a
+coincidence: it is the reason VI is used for means, and the reason its
+uncertainties are unusable without a correction.</p>
+<p>In the demo, <span class="math inline">\(P = \begin{pmatrix}1 & 0.8\\ 0.8 & 1\end{pmatrix}\)</span> and <span class="math inline">\(b = (0.5, -0.25)^{\top}\)</span>.
+The means converge to <span class="math inline">\((1.944, -1.806)\)</span> to machine precision in 53 sweeps, the
+variances are reported as <span class="math inline">\((1.000, 1.000)\)</span> against a truth of <span class="math inline">\((2.778, 2.778)\)</span>,
+and the bound sits at <span class="math inline">\(2.550\)</span> against an evidence of <span class="math inline">\(3.061\)</span> — a KL of
+<span class="math inline">\(0.511\)</span>, all of it the discarded correlation.</p>
+<h3 id="3-cavi-on-a-conjugate-model">3. CAVI on a conjugate model <a class="header-anchor" href="#3-cavi-on-a-conjugate-model">#</a></h3>
+<p>The Normal–Gamma model is the smallest model where coordinate ascent is exact
+and the answer is known:</p>
+<div class="math block">
+\[x_i \mid \mu, \tau \sim N(\mu, \tau^{-1}), \qquad \mu \mid \tau \sim N\!\left(\mu_0, (\kappa_0\tau)^{-1}\right), \qquad \tau \sim \mathrm{Gamma}(a_0, b_0) \qquad (6)\]
+</div>
+<p>with <span class="math inline">\(q(\mu, \tau) = q(\mu)q(\tau)\)</span>. The two conditionals are Gaussian and Gamma,
+so every expectation in (2) is a closed form in <span class="math inline">\(\psi(a)\)</span>, <span class="math inline">\(\log b\)</span>, <span class="math inline">\(a/b\)</span>:</p>
+<div class="math block">
+\[a = a_0 + \frac{n+1}{2}, \qquad \mu = \frac{\kappa_0\mu_0 + n\bar x}{\kappa_0 + n} \qquad (7)\]
+</div>
+<div class="math block">
+\[v = \frac{b}{(\kappa_0+n)\,a}, \qquad b = b_0 + \tfrac12\kappa_0\left(v + (\mu - \mu_0)^2\right) + \tfrac12\left(\textstyle\sum_i (x_i-\mu)^2 + n v\right) \qquad (8)\]
+</div>
+<p>The <code>n+1</code> in (7) is the tell. The exact posterior for <span class="math inline">\(\tau\)</span> has shape
+<span class="math inline">\(a_0 + n/2\)</span>: the likelihood contributes <span class="math inline">\(n/2\)</span>, the prior on <span class="math inline">\(\mu\)</span> contributes
+<span class="math inline">\(\tfrac12\)</span> <em>through the integral</em> when you marginalise <span class="math inline">\(\mu\)</span> out. Coordinate
+ascent does not integrate <span class="math inline">\(\mu\)</span>; it replaces <span class="math inline">\(\mu\)</span> by its mean, so the
+<span class="math inline">\(\tfrac12\log\tau\)</span> from <span class="math inline">\(p(\mu \mid \tau)\)</span> survives as an extra half-degree. The
+variational factor is therefore a Gamma with the wrong shape — barely wrong at
+<span class="math inline">\(n=40\)</span> (<span class="math inline">\(22.5\)</span> against <span class="math inline">\(22.0\)</span>), catastrophic at <span class="math inline">\(n=0\)</span>.</p>
+<p>Substituting <span class="math inline">\(v\)</span> into <span class="math inline">\(b\)</span> makes the fixed point explicit, because the system is
+linear in <span class="math inline">\(b\)</span>:</p>
+<div class="math block">
+\[b = b_N + \frac{b}{2a} \quad\Longrightarrow\quad b = \frac{b_N}{1 - 1/(2a)}, \qquad b_N = b_0 + \tfrac12\left[\textstyle\sum_i (x_i - \bar x)^2 + \frac{\kappa_0 n}{\kappa_n}(\bar x - \mu_0)^2\right] \qquad (9)\]
+</div>
+<p>So <span class="math inline">\(q(\tau)\)</span> keeps the exact posterior's <em>rate</em>, inflated by <span class="math inline">\(1/(1 - 1/(2a))\)</span> —
+about 2% at <span class="math inline">\(a=22.5\)</span> — and the whole approximation is one number. The demo
+checks (9) to <span class="math inline">\(10^{-12}\)</span>, and checks the consequence: <span class="math inline">\(q(\mu)\)</span> reports a variance
+of <span class="math inline">\(0.1007\)</span> against the exact <span class="math inline">\(0.1055\)</span>, the same underestimate as Section 2.</p>
+<p>The evidence, computed by integrating (6) analytically, is</p>
+<div class="math block">
+\[\log p(x) = -\frac{n}{2}\log 2\pi + \tfrac12\log\frac{\kappa_0}{\kappa_n} + a_0\log b_0 - a_n\log b_n + \log\Gamma(a_n) - \log\Gamma(a_0) \qquad (10)\]
+</div>
+<p>with <span class="math inline">\(\kappa_n = \kappa_0 + n\)</span>, <span class="math inline">\(a_n = a_0 + n/2\)</span>, <span class="math inline">\(b_n = b_N\)</span>. Using
+<span class="math inline">\(a_0 + (n+1)/2\)</span> here instead of <span class="math inline">\(a_0 + n/2\)</span> — the variational shape, which is the
+tempting copy-paste — makes the &quot;ELBO&quot; exceed the evidence by <span class="math inline">\(0.7\)</span> nats on this
+demo. The bound is only a bound if both sides describe the same prior.</p>
+<h3 id="4-pathwise-gradients">4. Pathwise gradients <a class="header-anchor" href="#4-pathwise-gradients">#</a></h3>
+<p>For a reparameterisable family, <span class="math inline">\(z = m + L\varepsilon\)</span> with
+<span class="math inline">\(\varepsilon \sim N(0, I)\)</span> moves the randomness outside the parameters, so the
+gradient goes through the sample:</p>
+<div class="math block">
+\[\nabla_m \mathrm{ELBO} = \mathbb{E}\left[\nabla_z \log p(z)\right], \qquad \nabla_L \mathbb{E}_q[\log p] = \mathbb{E}\left[g(z)\,\varepsilon^{\top}\right], \quad g = \nabla_z\log p \qquad (11)\]
+</div>
+<p>Since <span class="math inline">\(L\)</span> is Cholesky, only the lower triangle is a free parameter; the upper
+triangle is noise and must be masked. The entropy of a Gaussian in <span class="math inline">\(L\)</span> is
+<span class="math inline">\(\tfrac12\log\det(2\pi e\,LL^{\top})\)</span>, whose derivative with respect to each
+diagonal entry is exactly <span class="math inline">\(1/L_{ii}\)</span> — a term with no sampling error at all.</p>
+<p>For the diagonal family, parameterise <span class="math inline">\(\log\sigma\)</span> (unconstrained, and the
+<span class="math inline">\(+1\)</span> in the entropy derivative becomes a literal <code>+ 1.0</code>):</p>
+<div class="math block">
+\[z = m + \sigma\odot\varepsilon, \qquad \nabla_m = \mathbb{E}[g], \qquad \nabla_{\log\sigma} = \mathbb{E}[g \odot \sigma\odot\varepsilon] + 1 \qquad (12)\]
+</div>
+<p>The reason this is the default is variance, not elegance. At a fixed <span class="math inline">\(q\)</span>, the
+demo measures the gradient of the logistic posterior and finds the score-function
+estimator 921× and 887× noisier in the two coordinates. The pathwise estimator
+costs one gradient evaluation per sample and has the variance of the gradient;
+the score-function estimator has the variance of the <em>density times</em> the score,
+which grows as <span class="math inline">\(1/\sigma^2\)</span> precisely when the fit is getting sharp.</p>
+<h3 id="5-score-function-gradients">5. Score-function gradients <a class="header-anchor" href="#5-score-function-gradients">#</a></h3>
+<p>When there is no gradient, the identity <span class="math inline">\(\nabla_\phi q = q\,\nabla_\phi\log q\)</span>
+still holds, so the derivative moves onto the log-density:</p>
+<div class="math block">
+\[\nabla_\phi \mathbb{E}_q[f(z)] = \mathbb{E}_q\left[f(z)\,\nabla_\phi \log q(z)\right] \qquad (13)\]
+</div>
+<p>For a diagonal Gaussian this is <span class="math inline">\(\nabla_m = f(z)\,(z-m)/\sigma^2\)</span> and
+<span class="math inline">\(\nabla_{\log\sigma} = f(z)\,(\varepsilon^2 - 1)\)</span>, plus the same entropy term.
+Subtracting a baseline <span class="math inline">\(B\)</span> is free — <span class="math inline">\(\mathbb{E}[\nabla\log q] = 0\)</span> — and it is
+the difference between usable and not: the estimator's variance is
+<span class="math inline">\(\mathrm{Var}(f)\)</span>, so centring <span class="math inline">\(f\)</span> removes the part of the noise that has nothing
+to do with the parameter.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The public API is one frozenset, and <code>fit</code> dispatches on it.</p>
+<pre class="highlight"><code><span class="n">VARIANTS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">[</span><span class="s2">"mean_field"</span><span class="p">,</span> <span class="s2">"cavi"</span><span class="p">,</span> <span class="s2">"reparameterization"</span><span class="p">,</span> <span class="s2">"structured_vi"</span><span class="p">,</span> <span class="s2">"black_box_vi"</span><span class="p">]</span>
+<span class="p">)</span>
+</code></pre>
+<p><code>fit</code> takes three different kinds of target because the variants genuinely
+consume different information: an array (a dataset, for <code>cavi</code>), a
+<code>GaussianTarget</code> (an information-form quadratic, for <code>mean_field</code>), or a callable
+pair. The <code>ValueError</code> in the last branch is deliberate — a <code>structured_vi</code> call
+with no gradient fails at the door with what to do instead.</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">grad</span><span class="p">:</span> <span class="n">Grad</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+            <span class="n">mean0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VariationalInference</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Run the variant. See the class docstring for what `target` must be."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"cavi"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_cavi</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"mean_field"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_mean_field</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"black_box_vi"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_gradient</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">mean0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">grad</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"variant </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">variant</span><span class="si">!r}</span><span class="s2"> needs grad=...; use 'black_box_vi' when only "</span>
+                <span class="s2">"the log density is available"</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_gradient</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">grad</span><span class="p">,</span> <span class="n">mean0</span><span class="p">)</span>
+</code></pre>
+<p>The mean-field loop is (5) written out. <code>off</code> is the off-diagonal contribution
+<span class="math inline">\(P_{j,\cdot}\,m\)</span> minus the term already owned by coordinate <span class="math inline">\(j\)</span>; recomputing it
+per coordinate is what makes a sweep <span class="math inline">\(O(d^2)\)</span> rather than a matrix inverse. The
+variance never appears in the loop at all — it is <code>1 / P_jj</code>, known before the
+first step.</p>
+<pre class="highlight"><code>        <span class="n">P</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">precision</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">linear</span>
+        <span class="n">lam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">P</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elbo_history_</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">n_done</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_iter</span><span class="p">):</span>
+            <span class="n">n_done</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">previous</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+                <span class="n">off</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">@</span> <span class="n">m</span> <span class="o">-</span> <span class="n">P</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                <span class="n">m</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">off</span><span class="p">)</span> <span class="o">/</span> <span class="n">lam</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elbo_history_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elbo_exact</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">lam</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">m</span> <span class="o">-</span> <span class="n">previous</span><span class="p">))</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span><span class="p">:</span>
+                <span class="k">break</span>
+</code></pre>
+<p>All four gradient variants share one optimiser loop and differ only in the
+estimator. <code>_pack</code> turns the free parameters into <code>(mean, covariance)</code> once per
+recorded step, so the ELBO is always evaluated at a valid Gaussian — the
+<code>log σ</code> and Cholesky parameterisations never produce a non-positive covariance.</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"black_box_vi"</span><span class="p">:</span>
+                <span class="n">grads</span><span class="p">,</span> <span class="n">baseline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_score_grads</span><span class="p">(</span><span class="n">log_prob</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">log_s</span><span class="p">,</span> <span class="n">rng</span><span class="p">,</span> <span class="n">baseline</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">structured</span><span class="p">:</span>
+                <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pathwise_grads</span><span class="p">(</span><span class="n">grad</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">rng</span><span class="p">,</span> <span class="n">L</span><span class="o">=</span><span class="n">L</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pathwise_grads</span><span class="p">(</span><span class="n">grad</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">rng</span><span class="p">,</span> <span class="n">log_s</span><span class="o">=</span><span class="n">log_s</span><span class="p">)</span>
+            <span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+</code></pre>
+<p>The pathwise estimator is (11) and (12). The structured branch's one subtle line
+is <code>np.tril</code>: the gradient of <span class="math inline">\(LL^{\top}\)</span> with respect to the upper triangle is
+zero, so any entry above the diagonal must be dropped or the factor slowly
+drifts out of the triangular family. The two branches then add the entropy
+derivative — <code>1 / diag(L)</code> for the Cholesky parameterisation, <code>1.0</code> for
+<span class="math inline">\(\log\sigma\)</span>.</p>
+<pre class="highlight"><code>        <span class="n">eps</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">L</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">m</span> <span class="o">+</span> <span class="n">eps</span> <span class="o">@</span> <span class="n">L</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">grad</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">z</span><span class="p">])</span>
+            <span class="n">g_m</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">g_L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tril</span><span class="p">((</span><span class="n">g</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">eps</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span><span class="p">)</span>
+            <span class="n">g_L</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">diag_indices_from</span><span class="p">(</span><span class="n">g_L</span><span class="p">)]</span> <span class="o">+=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">g_m</span><span class="p">,</span> <span class="n">g_L</span><span class="p">]</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_s</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">m</span> <span class="o">+</span> <span class="n">s</span> <span class="o">*</span> <span class="n">eps</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">grad</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">z</span><span class="p">])</span>
+        <span class="n">g_m</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">g_ls</span> <span class="o">=</span> <span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="p">(</span><span class="n">s</span> <span class="o">*</span> <span class="n">eps</span><span class="p">))</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1.0</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">g_m</span><span class="p">,</span> <span class="n">g_ls</span><span class="p">]</span>
+</code></pre>
+<p>The score-function estimator is (13). The baseline is an exponential moving
+average of <code>log p</code> at the current <span class="math inline">\(q\)</span>, which is the cheap choice: a single
+sample per step still produces a centred advantage, and the return value feeds
+the next step.</p>
+<pre class="highlight"><code>        <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_s</span><span class="p">)</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">m</span> <span class="o">+</span> <span class="n">s</span> <span class="o">*</span> <span class="n">eps</span>
+        <span class="n">lp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">log_prob</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">z</span><span class="p">])</span>
+        <span class="n">level</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">lp</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="k">if</span> <span class="n">baseline</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">baseline</span>
+        <span class="n">adv</span> <span class="o">=</span> <span class="n">lp</span> <span class="o">-</span> <span class="n">level</span>
+        <span class="n">g_m</span> <span class="o">=</span> <span class="p">(</span><span class="n">adv</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">m</span><span class="p">)</span> <span class="o">/</span> <span class="n">s</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">g_ls</span> <span class="o">=</span> <span class="p">(</span><span class="n">adv</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">eps</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1.0</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">g_m</span><span class="p">,</span> <span class="n">g_ls</span><span class="p">],</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">level</span> <span class="o">+</span> <span class="mf">0.1</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">lp</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+</code></pre>
+<p>The ELBO itself is estimated with <code>log q</code> analytic, because a Gaussian's log
+density is known in closed form even when <span class="math inline">\(p\)</span> is not. That halves the variance
+of the diagnostic: only the <span class="math inline">\(\log p\)</span> half is sampled.</p>
+<pre class="highlight"><code>        <span class="n">d</span> <span class="o">=</span> <span class="n">mean</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">+</span> <span class="n">eps</span> <span class="o">@</span> <span class="n">L</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">lp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">log_prob</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">z</span><span class="p">])</span>
+        <span class="n">solve</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">log_q</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">d</span> <span class="o">*</span> <span class="n">LOG2PI</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">L</span><span class="p">)))</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">solve</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">lp</span> <span class="o">-</span> <span class="n">log_q</span><span class="p">))</span>
+</code></pre>
+<p>CAVI is (7)–(9) in six lines. <code>mu</code> is computed once before the loop and never
+moves, because the update for <span class="math inline">\(\mu\)</span> contains <span class="math inline">\(\mathbb{E}[\tau]\)</span> in both numerator
+and denominator and it cancels — a fact worth noticing, since it is why the
+Normal–Gamma mean-field problem is one-dimensional even though it looks like two.</p>
+<pre class="highlight"><code>        <span class="n">a</span> <span class="o">=</span> <span class="n">a0</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="p">(</span><span class="n">kappa0</span> <span class="o">*</span> <span class="n">mu0</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">xbar</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">kappa0</span> <span class="o">+</span> <span class="n">n</span><span class="p">)</span>
+        <span class="n">var_mu</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">kappa0</span> <span class="o">+</span> <span class="n">n</span><span class="p">)</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">b0</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">x</span> <span class="o">-</span> <span class="n">xbar</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+</code></pre>
+<p>The convergence test is the one non-obvious line in the file. Near a fixed point
+the ELBO is <em>flat</em> — its gap is quadratic in the parameter error — so a threshold
+on <span class="math inline">\(\Delta\mathrm{ELBO}\)</span> retires the loop while <span class="math inline">\(b\)</span> is still wrong in the fifth
+digit. The loop therefore watches the parameter; the contraction factor is
+<span class="math inline">\(1/(2a)\)</span>, so seven sweeps are enough for twelve digits.</p>
+<pre class="highlight"><code>            <span class="bp">self</span><span class="o">.</span><span class="n">elbo_history_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cavi_elbo</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">var_mu</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span>
+            <span class="c1"># Stop when the *parameter* stops moving, not when the ELBO does:</span>
+            <span class="c1"># near a fixed point the bound is flat (its gap is quadratic in the</span>
+            <span class="c1"># error), so an ELBO threshold retires the loop while b is still</span>
+            <span class="c1"># wrong in the fifth digit. This fixed point contracts by 1/(2a).</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">previous</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">abs</span><span class="p">(</span><span class="n">b</span><span class="p">)):</span>
+                <span class="k">break</span>
+</code></pre>
+<p>Finally the evidence, (10), which the demo uses as the ceiling. The docstring
+records the half-degree, because that is the mistake this function exists to
+detect.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_normal_gamma_evidence</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">mu0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">kappa0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">a0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                           <span class="n">b0</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""`log p(x)` under the Normal-Gamma prior, in closed form.</span>
+
+<span class="sd">    The shape here is `a0 + n/2`, *not* the `a0 + (n+1)/2` that the variational</span>
+<span class="sd">    factor picks up: marginalising `μ` out of the joint is not the same as</span>
+<span class="sd">    averaging it out of `log p`, and the extra half-degree is exactly the</span>
+<span class="sd">    mean-field distortion in `q(τ)`.</span>
+<span class="sd">    """</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(d\)</span> parameters, <span class="math inline">\(n\)</span> observations, <span class="math inline">\(S\)</span> draws per step and <span class="math inline">\(T\)</span> steps, and
+letting <span class="math inline">\(c_p\)</span>, <span class="math inline">\(c_g\)</span> be the cost of one log-density and one gradient evaluation:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Per sweep/step</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:left">Sweeps or steps to converge</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>mean_field</code></td>
+<td style="text-align:left"><span class="math inline">\(O(d^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d^2)\)</span> for <span class="math inline">\(P\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d)\)</span> at worst, correlation-limited</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cavi</code></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(\sim\log(1/\epsilon)/\log(2a)\)</span> — seven here</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>reparameterization</code></td>
+<td style="text-align:left"><span class="math inline">\(O(S\,c_g + d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d)\)</span></td>
+<td style="text-align:left">thousands; set by the noise floor</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>structured_vi</code></td>
+<td style="text-align:left"><span class="math inline">\(O(S\,c_g + d^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d^2)\)</span></td>
+<td style="text-align:left">thousands, and the <span class="math inline">\(d^2\)</span> parameterisation dominates</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>black_box_vi</code></td>
+<td style="text-align:left"><span class="math inline">\(O(S\,c_p + d)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(d)\)</span></td>
+<td style="text-align:left">thousands more, for the same accuracy</td>
+</tr>
+</tbody>
+</table>
+<p>The asymmetry in the last column is the practical content of the file. Closed
+forms converge geometrically and exactly; stochastic gradients converge at
+<span class="math inline">\(O(1/\sqrt{T})\)</span> and stop moving at a noise floor set by
+<span class="math inline">\(\mathrm{lr} \times \sqrt{\mathrm{Var}(g) / S}\)</span>. That is why the demo's
+<code>structured_vi</code> recovers the covariance to <span class="math inline">\(0.097\)</span> rather than to machine
+precision: it is a Monte Carlo ELBO, and the last three percent are noise.</p>
+<p>Storing <code>elbo_history_</code> is <span class="math inline">\(O(T)\)</span>; the ELBO itself is evaluated every
+<code>n_iter // 100</code> steps, which is why the curve has 100 points regardless of <span class="math inline">\(T\)</span>.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The variance is too small and nobody notices.</strong> This is the signature failure,
+not an edge case: a factorised <span class="math inline">\(q\)</span> is under-dispersed by construction. The demo
+measures it three ways in one run — <code>1.000</code> against <code>2.778</code> on the quadratic
+target, a correlation of <span class="math inline">\(-0.81\)</span> forcing a diagonal <span class="math inline">\(q\)</span> to be 40% narrower than
+the Laplace approximation, and <span class="math inline">\(0.1007\)</span> against <span class="math inline">\(0.1055\)</span> in the conjugate model.
+Every credible interval built from <code>std_</code> is too short, and downstream decision
+rules that compare an uncertain quantity to a threshold will be overconfident.
+<em>Diagnostic:</em> fit a <code>structured_vi</code> to the same target; if the covariance changes
+the uncertainty, the diagonal family was the problem, not the data.</p>
+<p><strong>The bound exceeds the evidence.</strong> Impossible, so it means the two sides
+disagree about the model. In this file that happens exactly once, and it is
+instructive: using the variational shape <span class="math inline">\(a_0 + (n+1)/2\)</span> in (10) instead of the
+posterior's <span class="math inline">\(a_0 + n/2\)</span> reports an evidence of <span class="math inline">\(-93.209\)</span> against a bound of
+<span class="math inline">\(-92.512\)</span> — the bound stands <span class="math inline">\(0.70\)</span> nats <em>above</em> the ceiling it is supposed to
+respect. The same class of bug appears when the target is unnormalised and its
+constant is added back by hand. <em>Diagnostic:</em> evaluate at <span class="math inline">\(q = p\)</span>. The ELBO must
+come out equal to the evidence to numerical precision; if it does not, the two
+formulas are not describing the same model.</p>
+<p><strong>The step size is the accuracy.</strong> With <code>lr = 0.06</code> and 256 samples the
+<code>structured_vi</code> covariance is off by <span class="math inline">\(0.097\)</span>; quadrupling the samples and
+halving the step does not beat that by much, because the gradient's variance
+never goes away. Two failure shapes follow. Too large a step: the iterate
+oscillates around the optimum and the covariance jitters — visible as a
+non-monotone <code>elbo_history_</code> tail. Too small a step in <code>black_box_vi</code>: the fit
+stops short, and the reported <code>std_</code> <span class="math inline">\((0.277, 0.392)\)</span> sits below the pathwise
+fit's <span class="math inline">\((0.303, 0.416)\)</span> — under-dispersion that is the optimiser's fault, on top
+of the family's. <em>Diagnostic:</em> rerun with two seeds and one different step size.
+An answer that moves by more than the reported standard error is not converged.</p>
+<p><strong>The score-function gradient dies as the fit sharpens.</strong> The estimator's
+variance carries <span class="math inline">\(1/\sigma^2\)</span>; a tight posterior is exactly when
+<code>black_box_vi</code> stops being able to move. The demo needs 6,000 steps and 24
+samples to match what 2,000 steps and 8 samples achieve with gradients, ending
+<span class="math inline">\(0.03\)</span> away in the mean and narrower in both coordinates. <em>Fix:</em> a baseline
+(implemented), control variates, or a reparameterisable family.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Latent variable models at scale.</strong> The reparameterisation trick is what made
+the variational autoencoder possible: an amortised encoder <span class="math inline">\(q_\phi(z \mid x)\)</span>
+turns per-datapoint inference into a shared network, and (11) makes the gradient
+of the ELBO flow through the sample. Every VAE, and every normalising flow
+trained variationally, is this file's <code>reparameterization</code> variant plus a neural
+network for <span class="math inline">\(q\)</span>.</p>
+<p><strong>Topic models and mixture models.</strong> LDA and its descendants are fit by CAVI —
+the same coordinate ascent as <code>_fit_cavi</code>, with Dirichlet factors. When the
+corpus is too large to sweep, stochastic VI replaces the full-data expectation
+with a minibatch estimate and keeps the same bound; <a href="../07-clustering/gmm.py.html"><code>gmm.py</code></a>
+does the mixture-model version of this with a Dirichlet prior on the weights.</p>
+<p><strong>PPLs and general-purpose inference.</strong> Stan, PyMC and NumPyro all ship an ADVI
+mode that is <code>mean_field</code> with automatic differentiation supplying <code>grad</code>, plus
+<code>fullrank</code> (this file's <code>structured_vi</code> with a transformed Cholesky factor).
+It is the first thing to run on a new model because it is fast and gives a
+gradient of the bound — not because it gives a correct posterior.</p>
+<p><strong>Sparse Gaussian processes.</strong> Titsias' variational approximation to a GP
+posterior is an ELBO over inducing points, and it is the reason sparse GPs are
+cheap; <a href="gaussian_process.py.html"><code>gaussian_process.py</code></a>'s <code>sparse_gp</code> variant is the
+SoR form of the same idea.</p>
+<p>Where it is a trap: a low-dimensional, strongly correlated, or multimodal
+posterior. A diagonal Gaussian cannot represent a banana, and the KL it
+minimises is the <em>reverse</em> KL — it will happily put mass in a valley between two
+modes rather than commit to one. <a href="mcmc.py.html"><code>mcmc.py</code></a> exists for those cases,
+and a model small enough for MCMC should not be approximated.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Jordan, Ghahramani, Jaakkola &amp; Saul (1999). <em>An introduction to variational
+methods for graphical models.</em> Machine Learning 37, 183. The mean-field
+coordinate-ascent derivation, and the origin of the name CAVI.</li>
+<li>Wainwright &amp; Jordan (2008). <em>Graphical models, exponential families, and
+variational inference.</em> Foundations and Trends in ML 1, 1. The convex-analytic
+view: the ELBO as a dual function, the gap as a divergence.</li>
+<li>Blei, Kucukelbir &amp; McAuliffe (2017). <em>Variational inference: a review for
+statisticians.</em> JASA 112, 859. The best single survey; Sections 2–3 are this
+file.</li>
+<li>Hoffman, Blei, Wang &amp; Paisley (2013). <em>Stochastic variational inference.</em>
+JMLR 14, 1303. Minibatched coordinate ascent, and the natural-gradient step
+that replaces Adam.</li>
+<li>Kingma &amp; Welling (2014). <em>Auto-encoding variational Bayes.</em> ICLR. The
+reparameterisation trick, and the reason VAEs train at all.</li>
+<li>Rezende, Mohamed &amp; Wierstra (2014). <em>Stochastic backpropagation and
+approximate inference in deep latent Gaussian models.</em> ICML. The same
+estimator, derived independently.</li>
+<li>Ranganath, Gerrish &amp; Blei (2014). <em>Black box variational inference.</em> AISTATS.
+Score-function gradients with control variates — the <code>black_box_vi</code> variant.</li>
+<li>Kucukelbir, Tran, Ranganath, Gelman &amp; Blei (2017). <em>Automatic differentiation
+variational inference.</em> JMLR 18, 1. ADVI, the default first pass in every PPL.</li>
+<li>Titsias (2009). <em>Variational learning of inducing variables in sparse Gaussian
+processes.</em> AISTATS. The sparse-GP ELBO.</li>
+<li>Turner &amp; Sahani (2011). <em>Two problems with variational expectation
+maximisation for time-series models.</em> In <em>Bayesian Time Series Models.</em> Why
+the mean-field variance is too small, with the counterexamples that matter.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="mcmc.html"><small>Previous</small><span>MCMC</span></a><a class="next" href="kalman.html"><small>Next</small><span>Kalman filter</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html" aria-current="page"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-bound-and-what-it-costs">1. The bound and what it costs</a></li><li class="lvl3"><a href="#2-mean-field-why-the-variance-is-pinned">2. Mean field: why the variance is pinned</a></li><li class="lvl3"><a href="#3-cavi-on-a-conjugate-model">3. CAVI on a conjugate model</a></li><li class="lvl3"><a href="#4-pathwise-gradients">4. Pathwise gradients</a></li><li class="lvl3"><a href="#5-score-function-gradients">5. Score-function gradients</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/variational_inference.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

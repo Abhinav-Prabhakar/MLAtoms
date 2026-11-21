@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logistic regression · MLAtoms</title>
+<meta name="description" content="IRLS/Newton fitting, multinomial extension, separability handling. A linear model predicts a number; logistic regression turns that number into a probability…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/02-linear-models/logistic_regression.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Logistic regression">
+<meta property="og:description" content="IRLS/Newton fitting, multinomial extension, separability handling. A linear model predicts a number; logistic regression turns that number into a probability…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/02-linear-models/logistic_regression.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Logistic regression">
+<meta name="twitter:description" content="IRLS/Newton fitting, multinomial extension, separability handling. A linear model predicts a number; logistic regression turns that number into a probability…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Logistic regression", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/02-linear-models/logistic_regression.html", "description": "IRLS/Newton fitting, multinomial extension, separability handling. A linear model predicts a number; logistic regression turns that number into a probability\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">02 · Linear models</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="logistic_regression.py.html">source</a></p><h1>Logistic regression</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A linear model predicts a number; logistic regression turns that number into a
+probability by squashing it. For two classes,</p>
+<div class="math block">
+\[P(y=1\mid x) = \sigma(x^\top\beta + \beta_0),
+\qquad
+\log\frac{P(y=1\mid x)}{P(y=0\mid x)} = x^\top\beta + \beta_0\]
+</div>
+<p>so the model is <em>linear in the log-odds</em>. That is the whole assumption: each feature
+adds a constant amount to the log-odds, and the coefficients are interpretable as
+log odds ratios. Fitting is maximum likelihood, which is a smooth convex problem —
+the reason every solver in this file reaches the same answer.</p>
+<p>The eight variants are not eight models. They are the three likelihoods people
+actually need (binary, multi-class, ordered), three ways to move toward the optimum
+(gradient, Newton/IRLS, L-BFGS), and two practical fixes (a sparsity penalty, and a
+reweighting for imbalance). Keeping them in one file makes the shared likelihood
+visible: the solvers are interchangeable because they all minimise the same
+<code>(loss, grad)</code> closure.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Likelihood</th>
+<th style="text-align:left">Solver</th>
+<th style="text-align:left">Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>binomial</code></td>
+<td style="text-align:left">Bernoulli</td>
+<td style="text-align:left">gradient descent with backtracking</td>
+<td style="text-align:left">reference / debugging; small <code>d</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>multinomial</code></td>
+<td style="text-align:left">softmax over <code>K</code> classes</td>
+<td style="text-align:left">L-BFGS</td>
+<td style="text-align:left">more than two unordered classes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ordinal</code></td>
+<td style="text-align:left">cumulative logit</td>
+<td style="text-align:left">L-BFGS</td>
+<td style="text-align:left">classes are ordered (ratings, stages)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>irls</code></td>
+<td style="text-align:left">Bernoulli</td>
+<td style="text-align:left">Newton / Fisher scoring</td>
+<td style="text-align:left">small or medium <code>d</code>; the fastest exact solver</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lbfgs</code></td>
+<td style="text-align:left">Bernoulli</td>
+<td style="text-align:left">limited-memory BFGS</td>
+<td style="text-align:left">the default for large <code>d</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>elastic_net</code></td>
+<td style="text-align:left">Bernoulli + <code>L1</code>/<code>L2</code></td>
+<td style="text-align:left">proximal gradient (ISTA)</td>
+<td style="text-align:left">sparse coefficients, <code>p ≫ n</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>class_weight</code></td>
+<td style="text-align:left">Bernoulli, reweighted</td>
+<td style="text-align:left">gradient descent</td>
+<td style="text-align:left">imbalance; equalise class influence</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>separable_fix</code></td>
+<td style="text-align:left">Bernoulli + a tiny <code>L2</code></td>
+<td style="text-align:left">IRLS</td>
+<td style="text-align:left">separable data, where the MLE diverges</td>
+</tr>
+</tbody>
+</table>
+<p>The naming mixes likelihood and solver, which is honest about how people use it:
+&quot;logistic regression&quot; in practice means &quot;binomial with whatever solver my library
+uses&quot;. The table is the map; <code>binomial</code> and <code>lbfgs</code> fit the <em>same</em> model and return
+the same coefficients to <code>1e-6</code>, only with different iteration counts.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Bernoulli likelihood.</strong> With <code>z = xᵀβ + β₀</code> and <code>y ∈ {0,1}</code>:</p>
+<div class="math block">
+\[\ell(\beta) = -\sum_i \left[y_i z_i - \log(1+e^{z_i})\right]
+= \sum_i \left[\mathrm{softplus}(z_i) - y_i z_i\right]\]
+</div>
+<p>The gradient and Hessian are</p>
+<div class="math block">
+\[\nabla = X^\top(\sigma(z) - y),
+\qquad
+\nabla^2 = X^\top \mathrm{diag}\!\big(\sigma(z)(1-\sigma(z))\big) X\]
+</div>
+<p>The Hessian is positive semidefinite, so the problem is convex; it is positive
+definite unless the classes are separable, which is exactly when the Hessian
+degenerates and the MLE runs off to infinity.</p>
+<p><strong>IRLS = Newton with the Fisher information.</strong> At each iterate, solve</p>
+<div class="math block">
+\[\left(X^\top W X + \lambda D\right)\Delta = X^\top(\sigma(z) - y),
+\qquad W = \mathrm{diag}(p(1-p))\]
+</div>
+<p>and take a damped step <code>β ← β − tΔ</code>. Because <code>W</code> is recomputed each iteration, IRLS
+is Newton's method on the log-likelihood, with quadratic convergence near the
+optimum. <code>D</code> is the identity except at the intercept, which is never penalised.</p>
+<p><strong>Multinomial.</strong> With <code>W ∈ ℝ^{(d+1)×K}</code> and <code>z = XW</code>, the softmax NLL is</p>
+<div class="math block">
+\[\ell(W) = -\sum_i \sum_k Y_{ik}\log p_{ik},
+\qquad
+p_{ik} = \frac{e^{z_{ik}}}{\sum_j e^{z_{ij}}},
+\qquad
+\nabla_W = X^\top(P - Y)\]
+</div>
+<p>The parameterisation is redundant: adding the same vector to every column of <code>W</code>
+leaves <code>P</code> unchanged. The <code>L2</code> penalty on <code>W</code> (excluding the intercept row) picks a
+representative and makes the Hessian definite; with <code>λ=0</code> the problem is still
+convex but has a flat direction, and different solvers can return shifted <code>W</code> that
+predict identically.</p>
+<p><strong>Ordinal (cumulative logit).</strong> For ordered classes <code>0…K−1</code>, model the cumulative
+probabilities with shared slopes and <code>K−1</code> cut points <code>θ₀ &lt; … &lt; θ_{K−2}</code>:</p>
+<div class="math block">
+\[P(y \le k \mid x) = \sigma(\theta_k - x^\top\beta),
+\qquad
+P(y = k \mid x) = P(y \le k) - P(y \le k-1)\]
+</div>
+<p>with the conventions <code>P(y ≤ −1) = 0</code> and <code>P(y ≤ K−1) = 1</code>. To keep the thresholds
+ordered by construction, the code parameterises</p>
+<div class="math block">
+\[\theta_0 = c,\qquad \theta_k = \theta_{k-1} + \mathrm{softplus}(\delta_k)\]
+</div>
+<p>so <code>δ ∈ ℝ^{K−2}</code> is unconstrained and <code>θ</code> is strictly increasing. This is the
+proportional-odds model: one <code>β</code> for all cut points, so the effect of a feature is to
+slide the whole distribution along the ordered scale.</p>
+<p><strong>Elastic net.</strong> The <code>L1</code> term is handled by proximal gradient:</p>
+<div class="math block">
+\[\beta \leftarrow S_{t\lambda_1}\!\left(\beta - t\nabla\ell(\beta)\right),
+\qquad
+t = 1/L,
+\qquad
+L \le \tfrac14 \max_i w_i\,\|X\|_2^2 / n + \lambda_2\]
+</div>
+<p>The <code>1/4</code> is the maximum of <code>p(1−p)</code>, and the intercept coordinate is copied through
+without thresholding.</p>
+<p><strong>Class weights.</strong> For counts <code>n₀, n₁</code>, the weight for class <code>c</code> is <code>n/(2n_c)</code>, so
+the two classes contribute equal total weight. The weights are then normalised to
+mean 1, which keeps <code>λ</code> on the same scale.</p>
+<p><strong>Separability.</strong> If a hyperplane separates the classes, the likelihood has no
+finite maximiser: scaling <code>β</code> up by <code>t</code> sends the loss to zero as <code>t → ∞</code>. A tiny
+<code>L2</code> term makes the objective strictly convex and the solution finite; the demo's
+unpenalised IRLS reaches <code>‖β‖ ≈ 1531</code> with loss <code>1.4e-08</code>, while a <code>1e-3</code> penalty
+settles at <code>‖β‖ ≈ 8.8</code> with loss <code>0.13</code>.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>sigmoid</code> is branchwise for a reason:</p>
+<pre class="highlight"><code>    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">z</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+    <span class="n">out</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">z</span><span class="p">[</span><span class="n">pos</span><span class="p">]))</span>
+    <span class="n">ez</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="o">~</span><span class="n">pos</span><span class="p">])</span>
+    <span class="n">out</span><span class="p">[</span><span class="o">~</span><span class="n">pos</span><span class="p">]</span> <span class="o">=</span> <span class="n">ez</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">ez</span><span class="p">)</span>
+</code></pre>
+<p>For <code>z = −800</code>, <code>exp(-z)</code> overflows to <code>inf</code> and the first branch gives <code>0</code> correctly
+only by accident of <code>1/inf</code>; for <code>z = +800</code> the second branch is the safe one.
+Evaluating <code>1/(1+exp(-z))</code> on the whole array produces <code>inf/inf = nan</code> at one end, and
+the <code>nan</code> survives into the gradient. The two masks are exact for all finite <code>z</code>, and
+the same identity is used by <code>softplus</code>:</p>
+<pre class="highlight"><code>    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">)))</span>
+</code></pre>
+<p><code>max(z,0) + log1p(exp(-|z|))</code> equals <code>log(1+e^z)</code> and only exponentiates a
+non-positive number, so neither branch overflows.</p>
+<p><code>_design</code> appends the intercept <strong>last</strong>, and that convention is threaded through the
+entire file:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">fit_intercept</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">X</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">))])</span>
+    <span class="k">return</span> <span class="n">X</span>
+</code></pre>
+<p>So <code>theta[:-1]</code> is always the coefficient vector and <code>theta[-1]</code> the intercept, and
+every penalty is written as <code>theta[:-1]</code>:</p>
+<pre class="highlight"><code>    <span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">l2</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">theta</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">@</span> <span class="n">theta</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">grad</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">l2</span> <span class="o">*</span> <span class="n">theta</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</code></pre>
+<p>Putting the column first would work too, but then every <code>[:-1]</code> becomes <code>[1:]</code> and a
+single missed slice penalises the intercept — which shrinks the model toward
+<code>P(y=1) = 1/2</code> regardless of the data. The convention is the guard.</p>
+<p><code>gd</code> is backtracking gradient descent with an Armijo test:</p>
+<pre class="highlight"><code>            <span class="n">xn</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">t</span> <span class="o">*</span> <span class="p">(</span><span class="o">-</span><span class="n">g</span><span class="p">)</span>
+            <span class="n">fn</span><span class="p">,</span> <span class="n">gn</span> <span class="o">=</span> <span class="n">fun</span><span class="p">(</span><span class="n">xn</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">fn</span> <span class="o">&lt;=</span> <span class="n">f</span> <span class="o">+</span> <span class="mf">1e-4</span> <span class="o">*</span> <span class="n">t</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">g</span> <span class="o">@</span> <span class="p">(</span><span class="o">-</span><span class="n">g</span><span class="p">))</span> <span class="ow">or</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="mf">1e-14</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">t</span> <span class="o">*=</span> <span class="mf">0.5</span>
+</code></pre>
+<p><code>g @ (-g) = −‖g‖²</code>, so the sufficient-decrease condition is <code>fn ≤ f − 1e-4·t‖g‖²</code>.
+The <code>t &lt; 1e-14</code> escape prevents an infinite loop when the gradient is zero but
+floating-point noise makes <code>fn</code> slightly larger. After a step, <code>lr = min(2.0*t, 1.0)</code>
+lets the step grow again — without it, one hard iteration would permanently shrink
+the learning rate.</p>
+<p><code>lbfgs</code> is the two-loop recursion, and the reverse order is the whole algorithm:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">yv</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">S</span><span class="p">),</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">Y</span><span class="p">),</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">rho</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">yv</span> <span class="o">@</span> <span class="n">s</span><span class="p">)</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">rho</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">s</span> <span class="o">@</span> <span class="n">q</span><span class="p">)</span>
+            <span class="n">alphas</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">a</span><span class="p">,</span> <span class="n">rho</span><span class="p">))</span>
+            <span class="n">q</span> <span class="o">-=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">yv</span>
+        <span class="o">...</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">rho</span><span class="p">),</span> <span class="n">s</span><span class="p">,</span> <span class="n">yv</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">alphas</span><span class="p">),</span> <span class="n">S</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="n">rho</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">yv</span> <span class="o">@</span> <span class="n">r</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">+=</span> <span class="n">s</span> <span class="o">*</span> <span class="p">(</span><span class="n">a</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span>
+</code></pre>
+<p>The first loop walks the history backwards, storing <code>α</code> and subtracting <code>αy</code>; the
+second walks it forwards, adding <code>s(α−β)</code>. <code>gamma = sᵀy / yᵀy</code> scales the initial
+inverse-Hessian guess, which is what makes the first step have the right magnitude.
+If <code>g @ d ≥ 0</code> the recursion produced an ascent direction (possible after a bad
+curvature pair), and the code resets to steepest descent instead of taking it.</p>
+<p><code>_binomial_fun</code> is the likelihood, vectorised:</p>
+<pre class="highlight"><code>    <span class="n">z</span> <span class="o">=</span> <span class="n">Xa</span> <span class="o">@</span> <span class="n">theta</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">sw</span> <span class="o">*</span> <span class="p">(</span><span class="n">softplus</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">-</span> <span class="n">y</span> <span class="o">*</span> <span class="n">z</span><span class="p">)))</span> <span class="o">/</span> <span class="n">n</span>
+    <span class="n">grad</span> <span class="o">=</span> <span class="n">Xa</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">sw</span> <span class="o">*</span> <span class="p">(</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">-</span> <span class="n">y</span><span class="p">))</span> <span class="o">/</span> <span class="n">n</span>
+</code></pre>
+<p><code>softplus(z) − y z</code> is <code>log(1+e^z) − yz</code>, the stable form of <code>−[y log p + (1−y) log(1−p)]</code>; computing it from probabilities would take <code>log(0)</code> at saturation. The
+gradient is <code>Xᵀ(σ(z) − y)/n</code>, with no <code>σ'(z)</code> factor — the same cancellation as the
+<code>bce</code> loss in <code>00-primitives</code>. Sample weights multiply the per-row loss and gradient
+before the mean, which is why <code>sw</code> is normalised to mean 1 upstream.</p>
+<p><code>_irls_binomial</code> builds the Fisher information and damps the Newton step:</p>
+<pre class="highlight"><code>        <span class="n">s</span> <span class="o">=</span> <span class="n">sw</span> <span class="o">*</span> <span class="n">p</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span>
+        <span class="n">H</span> <span class="o">=</span> <span class="p">(</span><span class="n">Xa</span> <span class="o">*</span> <span class="n">s</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Xa</span> <span class="o">/</span> <span class="n">n</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">penalty</span><span class="p">)</span>
+        <span class="o">...</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">H</span> <span class="o">+</span> <span class="mf">1e-10</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">d1</span><span class="p">),</span> <span class="n">grad</span><span class="p">)</span>
+</code></pre>
+<p><code>(Xa * s[:,None]).T @ Xa</code> is <code>Xᵀ diag(s) X</code> without forming the diagonal matrix.
+<code>penalty[-1] = 0.0</code> leaves the intercept unpenalised, and the <code>1e-10 I</code> is a numerical
+floor for a component whose <code>p(1−p)</code> is zero — without it, <code>solve</code> raises for
+separable data before the line search ever runs. The damping loop then halves <code>t</code>
+until the loss does not increase; plain Newton can overshoot on flat likelihood
+regions, and the guard costs at most 20 function evaluations.</p>
+<p><code>_ista_binomial</code> is the proximal method:</p>
+<pre class="highlight"><code>    <span class="n">L</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">sw</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">Xa</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span> <span class="o">+</span> <span class="n">l2</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+    <span class="o">...</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">-</span> <span class="n">t</span> <span class="o">*</span> <span class="n">grad</span>
+        <span class="n">new</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">-</span> <span class="n">t</span> <span class="o">*</span> <span class="n">l1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">new</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>                   <span class="c1"># the intercept is never penalised</span>
+</code></pre>
+<p><code>0.25·max(sw)·‖X‖²/n</code> bounds the largest eigenvalue of the Hessian because
+<code>p(1−p) ≤ 1/4</code>; <code>t = 1/L</code> is therefore a safe step. <code>new[-1] = z[-1]</code> is the line that
+must not be forgotten: without it the intercept is soft-thresholded toward zero,
+which is a different model (and makes the fit systematically under-confident).
+<code>hist</code> is sampled every 25 iterations because storing the full 3000-entry loss curve
+is pointless.</p>
+<p><code>_multinomial_fun</code> mirrors the binary case with a matrix of weights:</p>
+<pre class="highlight"><code>        <span class="n">z</span> <span class="o">=</span> <span class="n">Xa</span> <span class="o">@</span> <span class="n">W</span>
+        <span class="n">z</span> <span class="o">-=</span> <span class="n">z</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">logp</span> <span class="o">=</span> <span class="n">z</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">z</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">sw</span> <span class="o">*</span> <span class="p">(</span><span class="n">Y</span> <span class="o">*</span> <span class="n">logp</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span> <span class="o">/</span> <span class="n">n</span>
+        <span class="n">G</span> <span class="o">=</span> <span class="n">Xa</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">sw</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">logp</span><span class="p">)</span> <span class="o">-</span> <span class="n">Y</span><span class="p">))</span> <span class="o">/</span> <span class="n">n</span>
+</code></pre>
+<p>The max subtraction is mandatory before <code>exp</code>; without it a logit of 1000 gives
+<code>inf</code> and a <code>nan</code> loss. <code>np.exp(logp)</code> is the softmax, recomputed instead of stored,
+and <code>G = Xᵀ(P − Y)/n</code> is one matmul. <code>G.ravel()</code> matches the flattened parameter
+vector that <code>lbfgs</code> expects, and <code>W = flat.reshape(d1, K)</code> is its inverse — the reshape
+order is C-order, so <code>flat</code> must be laid out column by column, which is what
+<code>flat.reshape</code> guarantees.</p>
+<p>The ordinal likelihood is the most intricate function in the file:</p>
+<pre class="highlight"><code>        <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="n">c</span><span class="p">],</span> <span class="n">c</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">sp</span><span class="p">)])</span>
+        <span class="o">...</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">theta</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">z</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])</span>       <span class="c1"># (n, K-1)</span>
+        <span class="n">p_ext</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">p</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">))],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">prob</span> <span class="o">=</span> <span class="n">p_ext</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">p_ext</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">y</span><span class="p">]</span>
+</code></pre>
+<p>The sentinels <code>0</code> and <code>1</code> at the two ends encode <code>P(y ≤ −1) = 0</code> and <code>P(y ≤ K−1) = 1</code>
+without a special case for the first and last class. <code>y + 1</code> shifts the label so that
+<code>p_ext[:, y+1] = P(y ≤ y)</code> and <code>p_ext[:, y] = P(y ≤ y−1)</code>. The probability of class
+<code>y</code> is their difference. If the sentinels are placed at the wrong end, the first and
+last classes get probabilities that do not sum to one — the demo's <code>predict_proba</code>
+rows would still sum to 1 for interior classes, so only a full check catches it.</p>
+<p>The threshold gradient uses the chain rule through <code>softplus</code>:</p>
+<pre class="highlight"><code>        <span class="n">tail</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">g_t</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>              <span class="c1"># tail[j] = Σ_{k ≥ j} gθ_k</span>
+        <span class="n">grad_delta</span> <span class="o">=</span> <span class="n">tail</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">*</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">delta</span><span class="p">)</span>         <span class="c1"># d softplus/dδ = σ(δ)</span>
+</code></pre>
+<p><code>θ_k</code> depends on <code>δ_j</code> for every <code>j ≤ k</code>, so the derivative of <code>δ_j</code> is the sum of
+the threshold gradients from <code>j</code> onward — a reverse cumulative sum. <code>tail[1:]</code> drops
+the derivative of <code>θ₀ = c</code>, which does not depend on any <code>δ</code>. The <code>sigmoid(delta)</code> is
+<code>d softplus/dδ</code>; omitting it still descends, but to a different parameterisation and
+with a different <code>δ</code> scale.</p>
+<p><code>logistic_regression</code> normalises the class weights before fitting:</p>
+<pre class="highlight"><code>            <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">sw</span><span class="p">[</span><span class="n">yb</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">sw</span><span class="p">[</span><span class="n">yb</span> <span class="o">==</span> <span class="mi">1</span><span class="p">])])</span>
+            <span class="n">per_class</span> <span class="o">=</span> <span class="n">n</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">counts</span><span class="p">)</span>          <span class="c1"># balanced: equal total weight</span>
+            <span class="n">sw</span> <span class="o">=</span> <span class="n">sw</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">yb</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="n">per_class</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">per_class</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">sw</span> <span class="o">=</span> <span class="n">sw</span> <span class="o">/</span> <span class="n">sw</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</code></pre>
+<p><code>n/(2n_c)</code> makes each class contribute <code>n/2</code> total weight. Dividing by <code>sw.mean()</code>
+afterwards keeps the <em>average</em> weight at 1, so the effective sample size — and hence
+the scale of <code>λ</code> and the gradient — is unchanged. Without that final normalisation,
+the weighted loss is <code>n/2</code> times larger or smaller and <code>λ</code> silently means something
+else.</p>
+<p><code>separable_fix</code> is not a different solver; it is a lower bound on the penalty:</p>
+<pre class="highlight"><code>            <span class="n">theta</span><span class="p">,</span> <span class="n">hist</span> <span class="o">=</span> <span class="n">_irls_binomial</span><span class="p">(</span><span class="n">Xa</span><span class="p">,</span> <span class="n">yb</span><span class="p">,</span> <span class="n">sw</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">l2</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">),</span>
+                                         <span class="n">iters</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">iters</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span>
+</code></pre>
+<p><code>max(l2, 1e-3)</code> means the fix cannot be accidentally disabled by passing <code>l2=0</code>. The
+demo's contrast between <code>‖β‖ = 1531</code> and <code>8.8</code> is the same fit at two penalties: the
+unpenalised loss is smaller, but only because the coefficients have run away.</p>
+<p><code>predict_proba</code> dispatches on the stored variant, not on the coefficient shape:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">fit</span><span class="p">[</span><span class="s2">"variant"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"ordinal"</span><span class="p">:</span>
+        <span class="o">...</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="o">...</span>
+    <span class="k">if</span> <span class="n">theta</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">p1</span> <span class="o">=</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">X</span> <span class="o">@</span> <span class="n">theta</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">p1</span><span class="p">,</span> <span class="n">p1</span><span class="p">])</span>
+</code></pre>
+<p>Ordinal probabilities are differences of cumulative probabilities, so they are
+non-negative by monotonicity and sum to one by telescoping — no clipping is needed.
+The binary branch returns <code>[1−p, p]</code> in the <strong>class order stored in <code>fit[&quot;classes&quot;]</code></strong>,
+which is why the fit records <code>classes</code> and why <code>classes[1]</code> is the positive class.
+Multinomial uses a max-subtracted softmax, so the rows sum to one even when the
+logits are large.</p>
+<p>One parameterisation detail is worth stating explicitly: the ordinal design appends
+the same ones column as the binary model, so <code>β</code> contains an intercept that is
+redundant with the location of the thresholds (<code>θ₀</code>). With <code>l2 &gt; 0</code> the penalty
+identifies the split by shrinking that coefficient; with the default <code>l2 = 0</code> the
+direction is flat and the optimiser returns whichever representative it reaches
+from the zero start. Predictions are unaffected, but <code>coef[-1]</code> and <code>thresholds[0]</code>
+should not be interpreted separately — only their combination is identified.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Per iteration</th>
+<th style="text-align:left">Iterations in practice</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>binomial</code> / <code>class_weight</code> (GD)</td>
+<td style="text-align:left"><code>O(nd)</code></td>
+<td style="text-align:left">hundreds to thousands</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>irls</code></td>
+<td style="text-align:left"><code>O(nd² + d³)</code></td>
+<td style="text-align:left">5–10</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lbfgs</code></td>
+<td style="text-align:left"><code>O(nd + m·d)</code></td>
+<td style="text-align:left">10–100</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>elastic_net</code> (ISTA)</td>
+<td style="text-align:left"><code>O(nd)</code></td>
+<td style="text-align:left">hundreds to thousands</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>multinomial</code></td>
+<td style="text-align:left"><code>O(ndK + m·dK)</code></td>
+<td style="text-align:left">20–200</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ordinal</code></td>
+<td style="text-align:left"><code>O(ndK)</code></td>
+<td style="text-align:left">20–200</td>
+</tr>
+</tbody>
+</table>
+<p>IRLS has the best iteration count and the worst per-iteration cost; L-BFGS is the
+compromise that wins for <code>d</code> in the thousands. Memory is <code>O(d)</code> for GD/ISTA, <code>O(d²)</code>
+for IRLS (the Hessian), and <code>O(m·d)</code> for L-BFGS with memory <code>m=10</code>. The multinomial
+and ordinal models multiply both by <code>K</code>.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Complete separation.</strong> The MLE does not exist; coefficients diverge and
+<code>‖β‖</code> grows with the iteration budget. Symptom: loss below <code>1e-6</code>, enormous
+coefficients, standard errors that explode. Fix: a small <code>L2</code> (<code>separable_fix</code>),
+or Firth's penalised likelihood.</li>
+<li><strong>Penalising the intercept.</strong> Shrinking <code>β₀</code> toward zero biases the predicted
+prevalence. Every penalty here slices <code>theta[:-1]</code>; custom code must do the same.</li>
+<li><strong>Unscaled features.</strong> The <code>L2</code>/<code>L1</code> penalties are in coefficient units, so a
+feature in thousands is penalised far less than one in fractions. Standardise, or
+use per-feature penalties.</li>
+<li><strong>Multinomial shift invariance.</strong> Without <code>L2</code>, <code>W</code> and <code>W + c1ᵀ</code> give identical
+probabilities. Comparing coefficients across runs requires fixing a reference
+class (drop one column) or accepting that only differences are identified.</li>
+<li><strong>Ordinal thresholds out of order.</strong> Fitting <code>θ</code> directly can produce
+<code>θ₀ &gt; θ₁</code>, which makes some class probabilities negative. The <code>softplus</code>
+parameterisation prevents this by construction; if you fit <code>θ</code> freely, check
+<code>np.diff(θ) &gt; 0</code> and reparameterise if not.</li>
+<li><strong>Class weights changing the meaning of <code>λ</code>.</strong> Reweighting without
+renormalising changes the effective sample size, so a penalty tuned before the
+reweight is no longer the same regulariser. Normalise the weights to mean 1.</li>
+<li><strong>IRLS on a singular Hessian.</strong> When <code>p(1−p) = 0</code> for every row, <code>W</code> is zero and
+the normal equations are singular. The <code>1e-10 I</code> floor keeps <code>solve</code> alive, but
+the resulting step is arbitrary; that is the signal that the data is separable.</li>
+<li><strong>Reading probabilities as decisions.</strong> <code>argmax</code> at 0.5 is a decision rule, not
+part of the model. With imbalance, tune the threshold on a validation set; the
+<code>class_weight</code> variant changes the model, not just the rule.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Credit scoring and risk.</strong> Coefficients are log odds ratios with confidence
+intervals; regulators accept the model because it is transparent. <code>irls</code> or
+<code>lbfgs</code> with <code>L2</code> is the standard.</li>
+<li><strong>Epidemiology.</strong> Odds ratios adjusted for confounders — the multivariate
+logistic model is the workhorse, and <code>separable_fix</code> matters for small strata.</li>
+<li><strong>Clinical staging and surveys.</strong> Ordered outcomes (stage I–IV, Likert scales)
+call for the ordinal variant, not a sequence of binary fits: it uses one slope per
+feature and respects the ordering.</li>
+<li><strong>Text classification.</strong> Sparse bag-of-words with <code>elastic_net</code>; the <code>L1</code> term
+selects tokens, the <code>L2</code> term shares weight among correlated n-grams.</li>
+<li><strong>Baselines for neural models.</strong> A one-layer softmax classifier is logistic
+regression; if a deep model cannot beat it, the features or the training are the
+problem.</li>
+<li><strong>Calibration.</strong> Logistic regression on a single score is the standard
+post-hoc calibrator (Platt scaling); the <code>binomial</code> variant with one feature is
+exactly that.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Cox, <em>The Regression Analysis of Binary Sequences</em>, 1958. JRSS-B.</li>
+<li>McCullagh, <em>Regression Models for Ordinal Data</em>, 1980. JRSS-B (cumulative logit).</li>
+<li>Nelder &amp; Wedderburn, <em>Generalized Linear Models</em>, 1972. JRSS-A.</li>
+<li>Green, <em>Iteratively Reweighted Least Squares for Maximum Likelihood Estimation</em>, 1984. JRSS-B.</li>
+<li>Liu &amp; Nocedal, <em>On the Limited Memory BFGS Method for Large Scale Optimization</em>, 1989. Math. Programming.</li>
+<li>Firth, <em>Bias Reduction of Maximum Likelihood Estimates</em>, 1993. Biometrika (separation).</li>
+<li>Pedregosa et al., <em>Scikit-learn: Machine Learning in Python</em>, 2011 (the API conventions this file follows).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="elastic_net.html"><small>Previous</small><span>Elastic net</span></a><a class="next" href="glm.html"><small>Next</small><span>Generalised linear models</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">02 · Linear models</p><ul class="rail-list"><li><a href="ols.html"><span class="tick">✓</span><span>Ordinary least squares</span></a></li><li><a href="ridge.html"><span class="tick">✓</span><span>Ridge</span></a></li><li><a href="lasso.html"><span class="tick">✓</span><span>Lasso</span></a></li><li><a href="elastic_net.html"><span class="tick">✓</span><span>Elastic net</span></a></li><li><a href="logistic_regression.html" aria-current="page"><span class="tick">✓</span><span>Logistic regression</span></a></li><li><a href="glm.html"><span class="tick">✓</span><span>Generalised linear models</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Robust regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Quantile regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Splines</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Additive models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Isotonic regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Bayesian linear regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Generalised least squares</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Partial least squares</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Tobit regression</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../01-optimization/index.html"><span class="jump">← 01 · Optimization</span></a></li><li><a href="../03-kernels-and-instance/index.html"><span class="jump">03 · Kernels &amp; instance-based&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/02-linear-models/logistic_regression.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

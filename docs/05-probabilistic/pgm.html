@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graphical models · MLAtoms</title>
+<meta name="description" content="Factor graphs, variable elimination and belief propagation. Every algorithm in this file is two operations: multiply two potentials, and sum one variable…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/pgm.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Graphical models">
+<meta property="og:description" content="Factor graphs, variable elimination and belief propagation. Every algorithm in this file is two operations: multiply two potentials, and sum one variable…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/pgm.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Graphical models">
+<meta name="twitter:description" content="Factor graphs, variable elimination and belief propagation. Every algorithm in this file is two operations: multiply two potentials, and sum one variable…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Graphical models", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/05-probabilistic/pgm.html", "description": "Factor graphs, variable elimination and belief propagation. Every algorithm in this file is two operations: multiply two potentials, and sum one variable\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">05 · Probabilistic models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="pgm.py.html">source</a></p><h1>Graphical models</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Every algorithm in this file is two operations: <strong>multiply two potentials</strong>, and
+<strong>sum one variable out</strong>. That is the whole subject.</p>
+<p>Take three variables and three factors:</p>
+<pre class="highlight"><code>  f₁(x₁)      f₂(x₁,x₂)      f₃(x₂,x₃)
+     │             │              │
+    (x₁)─────────(x₂)──────────(x₃)
+</code></pre>
+<p>The joint is the product of the factors divided by a constant,
+<span class="math inline">\(p(x) = \frac{1}{Z}\prod_a f_a(x_a)\)</span>. To find <span class="math inline">\(p(x_3)\)</span>, you could evaluate all
+<span class="math inline">\(k^3\)</span> assignments and add up the ones with each value of <span class="math inline">\(x_3\)</span>. Or you could
+notice that the multiplication distributes over addition:</p>
+<div class="math block">
+\[p(x_3) \propto \sum_{x_2} f_3(x_2,x_3)\underbrace{\sum_{x_1} f_1(x_1)f_2(x_1,x_2)}_{g(x_2)}\]
+</div>
+<p>The inner sum does not know about <span class="math inline">\(x_3\)</span>, so it is computed once and reused. That
+is variable elimination, and for a chain it turns <span class="math inline">\(k^3\)</span> into <span class="math inline">\(O(k^2)\)</span>.</p>
+<p>The catch is the intermediate factor <span class="math inline">\(g(x_2)\)</span>: it exists only because <span class="math inline">\(x_2\)</span> was
+shared by two factors. Eliminate a variable that appears in many factors and
+this new factor spans <em>all</em> of their other variables. On a graph with treewidth
+<span class="math inline">\(w\)</span>, the largest intermediate has <span class="math inline">\(w+1\)</span> variables and holds <span class="math inline">\(k^{w+1}\)</span> numbers.
+Inference is not exponential in the number of variables; it is exponential in
+the width of the graph, and the width depends on the order you eliminate them
+in.</p>
+<p>That single sentence explains the whole file. Variable elimination picks an
+order and pays once. Belief propagation reuses every message twice, which is
+exact on trees and wrong on anything with a cycle. A junction tree merges
+variables into cliques until the graph <em>is</em> a tree, and is exact everywhere it
+can afford to build one. Max-product swaps the sum for a max, at the same cost.
+Brute-force enumeration is the reference that cannot be wrong.</p>
+<p>The demo's cost comparison is the point in one line: on an 8-node fan, the
+natural order peaks at a clique of 8 (510 table entries), min-fill at 3 (54).
+Same answer, 10× less work. On the 3×3 Ising grid, loopy BP converges to a fixed
+point whose marginals are off by 0.064, while the junction tree is exact.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Entry point</th>
+<th style="text-align:left">Returns</th>
+<th style="text-align:left">Exact?</th>
+<th style="text-align:left">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>factor_graph</code></td>
+<td style="text-align:left"><code>marginals</code>, <code>maximum</code></td>
+<td style="text-align:left">everything, by enumeration</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left"><span class="math inline">\(O(k^n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>variable_elimination</code></td>
+<td style="text-align:left"><code>marginals</code></td>
+<td style="text-align:left">one marginal per query</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left"><span class="math inline">\(O(nk^{w+1})\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sum_product</code></td>
+<td style="text-align:left"><code>marginals</code></td>
+<td style="text-align:left">all marginals, two passes</td>
+<td style="text-align:left">yes, trees only</td>
+<td style="text-align:left"><span class="math inline">\(O(Ek^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>belief_propagation</code></td>
+<td style="text-align:left"><code>marginals</code></td>
+<td style="text-align:left">all marginals, iterated</td>
+<td style="text-align:left">no</td>
+<td style="text-align:left"><span class="math inline">\(O(TEk^2)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>junction_tree</code></td>
+<td style="text-align:left"><code>marginals</code></td>
+<td style="text-align:left">all marginals, calibrated</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left"><span class="math inline">\(O(\sum_C k^{\lvert C\rvert})\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>max_product</code></td>
+<td style="text-align:left"><code>maximum</code></td>
+<td style="text-align:left">MAP assignment + score</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left"><span class="math inline">\(O(nk^{w+1})\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The two exact all-marginal methods differ in what they are willing to assume.
+<code>sum_product</code> is the cheapest thing in the file and refuses a graph with a
+cycle, because on a cycle it would return a number without a meaning. The
+junction tree costs what the width costs and never refuses.</p>
+<p><code>belief_propagation</code> is the same message updates with the tree assumption
+dropped. It is the only approximate method here, and the only one whose output
+you should sanity-check against something exact on a smaller instance.</p>
+<p><code>factor_graph</code> is not an algorithm anyone would use: it is the definition of the
+model, evaluated the obvious way. Every assertion in the demo is ultimately
+against it.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-the-model-and-the-two-operations">1. The model and the two operations <a class="header-anchor" href="#1-the-model-and-the-two-operations">#</a></h3>
+<p>A factor graph over variables <span class="math inline">\(x_1,\dots,x_n\)</span> with cardinalities <span class="math inline">\(k_i\)</span> is a set
+of factors, each a non-negative table over a scope:</p>
+<div class="math block">
+\[p(x) = \frac{1}{Z}\prod_{a=1}^{m} f_a(x_{a}), \qquad Z = \sum_{x}\prod_{a=1}^{m} f_a(x_{a}) \qquad (1)\]
+</div>
+<p>A factor is not a distribution and its entries do not sum to one; the
+unnormalised joint is the product of all of them. Two operations are enough to
+do everything:</p>
+<ul>
+<li><strong>product</strong>: <span class="math inline">\(h(x_{A\cup B}) = f(x_A)g(x_B)\)</span> — align the two tables over the
+union of their scopes and multiply pointwise;</li>
+<li><strong>sum-out</strong>: <span class="math inline">\(h(x_{A\setminus\{v\}}) = \sum_{x_v} f(x_A)\)</span> — add along one axis.</li>
+</ul>
+<p>Marginals are a product followed by sums, the partition function is sums all the
+way down, and the MAP is the same with <span class="math inline">\(\max\)</span> in place of <span class="math inline">\(\sum\)</span>.</p>
+<h3 id="2-variable-elimination-and-the-induced-width">2. Variable elimination and the induced width <a class="header-anchor" href="#2-variable-elimination-and-the-induced-width">#</a></h3>
+<p>Eliminating <span class="math inline">\(v\)</span> from a set of factors means: collect every factor that mentions
+<span class="math inline">\(v\)</span> (its <em>bucket</em>), multiply them, and sum <span class="math inline">\(v\)</span> out of the result.</p>
+<div class="math block">
+\[g_v\big(B_v\big) = \sum_{x_v}\prod_{a \in \mathcal{B}(v)} f_a, \qquad B_v = \bigcup_{a\in\mathcal{B}(v)}\mathrm{scope}(a)\setminus\{v\} \qquad (2)\]
+</div>
+<p>The new factor lives on <span class="math inline">\(B_v\)</span>: every neighbour of <span class="math inline">\(v\)</span> in the <em>primal graph</em>
+(two variables joined when some factor contains both). Eliminating <span class="math inline">\(v\)</span> therefore
+makes all of <span class="math inline">\(B_v\)</span> a clique, whether or not those edges existed before — the
+fill-in. The cost of the step is proportional to <span class="math inline">\(k^{\lvert B_v\rvert+1}\)</span>, and
+the largest <span class="math inline">\(\lvert B_v\rvert\)</span> over the sweep is the <strong>induced width</strong> <span class="math inline">\(w\)</span> of
+that order. Total time is <span class="math inline">\(O(nk^{w+1})\)</span>, memory <span class="math inline">\(O(k^{w+1})\)</span>.</p>
+<p>The smallest achievable <span class="math inline">\(w\)</span> over all orders is the treewidth of the graph.
+Finding it is NP-hard, so real systems use a greedy heuristic; this file uses
+min-fill, which at each step eliminates the variable whose elimination adds the
+fewest new edges:</p>
+<div class="math block">
+\[\text{choose } v = \arg\min_{v}\ \#\{(a,b) : a,b \in N(v) \cap U,\ (a,b) \notin E\} \qquad (3)\]
+</div>
+<p>It is a heuristic, and on a fan it is dramatic: the hub touches everything, so
+eliminating it first makes its neighbours a clique of size <span class="math inline">\(n\)</span>; eliminating the
+leaves first never creates anything.</p>
+<p>To get <span class="math inline">\(p(x_q)\)</span>, eliminate every variable except <span class="math inline">\(x_q\)</span> and normalise the
+leftover factor. To get <span class="math inline">\(Z\)</span>, eliminate everything and keep the scalar.</p>
+<h3 id="3-sum-product-on-a-tree">3. Sum-product on a tree <a class="header-anchor" href="#3-sum-product-on-a-tree">#</a></h3>
+<p>On a tree, the same sums can be organised so that each one is computed once and
+sent in both directions. Factor <span class="math inline">\(a\)</span> with scope <span class="math inline">\(S_a\)</span> sends to <span class="math inline">\(x \in S_a\)</span>:</p>
+<div class="math block">
+\[m_{a\to x}(x) = \sum_{x_{S_a\setminus x}} f_a(x_{S_a})\prod_{y \in S_a\setminus x} m_{y\to a}(y) \qquad (4)\]
+</div>
+<p>and variable <span class="math inline">\(x\)</span> sends to factor <span class="math inline">\(a\)</span>:</p>
+<div class="math block">
+\[m_{x\to a}(x) = \prod_{b \in N(x)\setminus a} m_{b\to x}(x), \qquad b(x) \propto \prod_{a\in N(x)} m_{a\to x}(x) \qquad (5)\]
+</div>
+<p>Exactness is an induction. Root the tree anywhere. In (4), every message
+<span class="math inline">\(m_{y\to a}\)</span> is a sum over the subtree hanging off <span class="math inline">\(y\)</span>, which does not touch the
+subtree hanging off <span class="math inline">\(x\)</span> — so it is the exact partial sum of (1) over that
+subtree, and the full belief at the root is the exact sum over everything. The
+induction only works because &quot;the subtree hanging off <span class="math inline">\(y\)</span>&quot; and &quot;the subtree
+hanging off <span class="math inline">\(x\)</span>&quot; are disjoint, which is a statement about the graph having no
+cycles.</p>
+<p>Two passes suffice: one from the leaves to the root, one back. That is
+<code>sum_product</code>.</p>
+<h3 id="4-loopy-belief-propagation">4. Loopy belief propagation <a class="header-anchor" href="#4-loopy-belief-propagation">#</a></h3>
+<p>The equations (4)–(5) do not mention trees. Run them anyway on a graph with
+cycles, iterating until the messages stop changing, and you get a fixed point.
+It is not the answer to (1) in general. It is the stationary point of the Bethe
+free energy,</p>
+<div class="math block">
+\[F_{\text{Bethe}}(b) = \sum_a \sum_{x_{S_a}} b_a(x_{S_a})\log\frac{b_a(x_{S_a})}{f_a(x_{S_a})} - \sum_i (d_i-1)\sum_{x_i} b_i(x_i)\log b_i(x_i) \qquad (6)\]
+</div>
+<p>where <span class="math inline">\(d_i\)</span> is the degree of variable <span class="math inline">\(i\)</span>. On a tree the Bethe free energy is
+exact (the correction terms are zero by the running-intersection property), so
+its stationary point is the true posterior. On a cycle the approximation treats
+the two paths between a pair of variables as if they were independent, which is
+exactly the double-counting the correction term was supposed to remove.</p>
+<p>The error is not small in general and is not detectably small from the outside:
+on the demo's 3×3 Ising grid (coupling 1.4, field 0.3) the fixed point is off by
+0.064 per marginal, in probability, after 145 damped sweeps — and the messages
+converged cleanly. Convergence is not correctness. That is the whole reason
+<code>sum_product</code> raises instead of returning a number on a cyclic graph.</p>
+<h3 id="5-junction-trees">5. Junction trees <a class="header-anchor" href="#5-junction-trees">#</a></h3>
+<p>Here is the fix for loops: <strong>make the graph a tree by merging variables into
+cliques</strong>. Run the elimination order symbolically and keep, for each variable,
+the clique <span class="math inline">\(C_v = \{v\}\cup B_v\)</span> from (2). The set of these cliques, connected so
+that each one hangs off the first later clique containing its separator
+<span class="math inline">\(C_v \setminus \{v\}\)</span>, has the <strong>running intersection property</strong>:</p>
+<div class="math block">
+\[x \in C_i \cap C_k \implies x \in C_j \text{ for every } C_j \text{ on the path from } C_i \text{ to } C_k \qquad (7)\]
+</div>
+<p>which is precisely the property that made the tree induction in §3 work. To
+calibrate, attach each original factor to a clique containing its scope (the one
+where it was first eliminated), multiply the factors in each clique to get
+<span class="math inline">\(\psi_C\)</span>, and run the <em>same</em> sum-product messages between cliques. After
+calibration, the belief of clique <span class="math inline">\(C\)</span> is <span class="math inline">\(\prod \psi \times\)</span> all incoming
+messages, and marginalising a variable is a sum over its clique.</p>
+<p>The result is exact for any graph, at the price of tables of size
+<span class="math inline">\(k^{\lvert C\rvert}\)</span>. The junction tree is variable elimination with the
+intermediate factors reused instead of thrown away.</p>
+<h3 id="6-max-product-and-the-traceback">6. Max-product and the traceback <a class="header-anchor" href="#6-max-product-and-the-traceback">#</a></h3>
+<div class="math block">
+\[\log p(x) = \sum_a \log f_a(x_{a}) - \log Z \qquad (8)\]
+</div>
+<p>so the MAP is the assignment maximising a sum, and <span class="math inline">\(Z\)</span> is irrelevant to it. The
+elimination of §2 with <span class="math inline">\(\max\)</span> instead of <span class="math inline">\(\sum\)</span> works because <span class="math inline">\(\max\)</span> distributes
+over multiplication of positive numbers, and because in log space a product is a
+sum:</p>
+<div class="math block">
+\[\max_{x}\ \prod_a f_a = \exp\Big(\max_x \sum_a \log f_a\Big) \qquad (9)\]
+</div>
+<p>In code this is one boolean: combine factors by adding when logged, and take
+<code>max</code> along the eliminated axis instead of <code>sum</code>. Storing the <code>argmax</code> at each
+step gives the assignment back. Backtracking works in reverse elimination order
+because a variable's argmax depends only on variables eliminated <em>after</em> it, so
+by the time you need its scope, every value in it is known.</p>
+<p>The score returned is the joint at the assignment, not <span class="math inline">\(Z\)</span> plus a marginal. On
+the demo's grid the MAP is all-ones at <span class="math inline">\(\log p = 19.50\)</span>, and <span class="math inline">\(\log Z = 19.58\)</span>.</p>
+<h3 id="7-evidence">7. Evidence <a class="header-anchor" href="#7-evidence">#</a></h3>
+<p>Clamping <span class="math inline">\(x_e = e\)</span> is not conditioning on a marginal; it is restricting every
+factor that mentions <span class="math inline">\(x_e\)</span>:</p>
+<div class="math block">
+\[p(x \mid x_e = e) \propto \prod_a f_a(x_a)\,\mathbf{1}[x_e = e] \qquad (10)\]
+</div>
+<p>In the code that is a single axis dropped from each affected factor, and the
+normalising constant changes accordingly — which is why the demo's neighbour
+marginal moves from 0.936 to 0.9995 when the centre of the grid is pinned. A
+unary factor can collapse to a scalar; it still scales <span class="math inline">\(Z\)</span>, so its log is
+accumulated rather than discarded.</p>
+<p>This is a different operation from &quot;divide by <span class="math inline">\(p(x_e)\)</span>&quot;. Dividing only the
+unary factor of <span class="math inline">\(x_e\)</span> is the common bug, and it leaves the model with the wrong
+normalisation; the correct restriction touches every factor in the variable's
+scope.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The representation is a frozen dataclass: a scope, and a table whose shape <em>is</em>
+<code>cardinality[list(scope)]</code>. Everything downstream trusts that invariant, so
+<code>add</code> checks it and rejects negative entries.</p>
+<pre class="highlight"><code>        <span class="n">scope</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">scope</span><span class="p">)</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">want</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cardinality</span><span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">scope</span><span class="p">)])</span> <span class="k">if</span> <span class="n">scope</span> <span class="k">else</span> <span class="p">()</span>
+        <span class="k">if</span> <span class="n">table</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">want</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"factor over </span><span class="si">{</span><span class="n">scope</span><span class="si">}</span><span class="s2"> needs shape </span><span class="si">{</span><span class="n">want</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">table</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
+</code></pre>
+<p>Aligning two factors is the one piece of numpy that is easy to get subtly
+wrong. The table's axes follow its own scope, but the product's axes must follow
+the union, so the table is transposed into the shared order and then reshaped
+with <code>1</code>s in the missing slots:</p>
+<pre class="highlight"><code>    <span class="n">shared</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">scope</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="p">]</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">table</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">shared</span><span class="p">])</span> <span class="k">if</span> <span class="n">shared</span> <span class="k">else</span> <span class="n">f</span><span class="o">.</span><span class="n">table</span>
+    <span class="n">shape</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="p">[],</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">scope</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="p">:</span>
+            <span class="n">shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+            <span class="n">k</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+</code></pre>
+<p><code>_combine</code> is then two lines, and the <code>logged</code> flag is the entire difference
+between sum-product and max-product:</p>
+<pre class="highlight"><code>        <span class="n">scope</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">scope</span><span class="p">)</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">scope</span><span class="p">)))</span>
+        <span class="n">left</span><span class="p">,</span> <span class="n">right</span> <span class="o">=</span> <span class="n">_align</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">scope</span><span class="p">),</span> <span class="n">_align</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">scope</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Factor</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="n">left</span> <span class="o">+</span> <span class="n">right</span> <span class="k">if</span> <span class="n">logged</span> <span class="k">else</span> <span class="n">left</span> <span class="o">*</span> <span class="n">right</span><span class="p">)</span>
+</code></pre>
+<p>The elimination sweep is the atom's core. Note that <code>pairs</code> is rebuilt without
+the bucket <em>before</em> the new factor is pushed back — the new factor is on a
+smaller scope and must not be re-eliminated:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">order</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">ev</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">bucket</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">pairs</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">bucket</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">pairs</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">pairs</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="p">]</span>
+            <span class="n">prod</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_combine</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">logged</span><span class="o">=</span><span class="n">logged</span><span class="p">),</span>
+                          <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">bucket</span><span class="p">])</span>
+            <span class="n">axis</span> <span class="o">=</span> <span class="n">prod</span><span class="o">.</span><span class="n">scope</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+</code></pre>
+<p>An isolated variable — one no factor mentions — has an empty bucket and a
+uniform marginal; skipping it is right, and it is why the guard is there rather
+than an assertion.</p>
+<p>For max-product every table is logged once, up front. Logging the bucket product
+instead is the bug that looks fine on the first variable: the intermediate you
+push back would be in a different space from everything else in <code>pairs</code>.</p>
+<pre class="highlight"><code>            <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">divide</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">):</span>
+                <span class="n">pairs</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">Factor</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">table</span><span class="p">)))</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">pairs</span><span class="p">]</span>
+</code></pre>
+<p>Min-fill is (3) in six lines. Ties break on the index, so the order is
+deterministic, and the fill edges are added as they are created — the graph that
+the next choice sees is the one after the current elimination, not the original.</p>
+<pre class="highlight"><code>            <span class="n">best</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fill</span><span class="p">(</span><span class="n">adj</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">left</span><span class="p">),</span>
+                                            <span class="nb">len</span><span class="p">(</span><span class="n">adj</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">left</span><span class="p">),</span> <span class="n">v</span><span class="p">))</span>
+            <span class="n">nbrs</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">adj</span><span class="p">[</span><span class="n">best</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">left</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">combinations</span><span class="p">(</span><span class="n">nbrs</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+                <span class="n">adj</span><span class="p">[</span><span class="n">a</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+                <span class="n">adj</span><span class="p">[</span><span class="n">b</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+</code></pre>
+<p>A factor-to-variable message is (4): multiply the factor by every incoming
+variable message except the target's, then sum out every axis except the
+target's. The <code>reshape</code> with <code>-1</code> in one slot is the same alignment trick as
+<code>_align</code>, specialised to a 1-D message:</p>
+<pre class="highlight"><code>            <span class="n">f</span> <span class="o">=</span> <span class="n">pairs</span><span class="p">[</span><span class="n">src</span> <span class="o">-</span> <span class="n">n</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">table</span>
+            <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">u</span> <span class="o">!=</span> <span class="n">dst</span><span class="p">:</span>
+                    <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="o">*</span> <span class="n">msg</span><span class="p">[(</span><span class="n">u</span><span class="p">,</span> <span class="n">src</span><span class="p">)]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+                        <span class="p">[</span><span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">w</span> <span class="o">==</span> <span class="n">u</span> <span class="k">else</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="p">])</span>
+            <span class="n">axis</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">scope</span><span class="p">))</span> <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">axis</span><span class="p">))</span>
+</code></pre>
+<p>The two-pass schedule is what makes <code>sum_product</code> linear in the number of edges.
+A depth-first order from a root gives the tree; the reverse order computes every
+message pointing at the root, and the forward order every message pointing away:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">order</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+            <span class="n">msg</span><span class="p">[(</span><span class="n">node</span><span class="p">,</span> <span class="n">parent</span><span class="p">[</span><span class="n">node</span><span class="p">])]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">parent</span><span class="p">[</span><span class="n">node</span><span class="p">],</span> <span class="n">msg</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span>
+                                                      <span class="n">var_nbrs</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">order</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">msg</span><span class="p">[(</span><span class="n">parent</span><span class="p">[</span><span class="n">node</span><span class="p">],</span> <span class="n">node</span><span class="p">)]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="p">(</span><span class="n">parent</span><span class="p">[</span><span class="n">node</span><span class="p">],</span> <span class="n">node</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span>
+                                                      <span class="n">var_nbrs</span><span class="p">)</span>
+</code></pre>
+<p>The cycle check is the DFS itself: a node reached twice, other than through its
+parent, closes a cycle. Refusing loudly is the point — the same code would
+happily return a plausible wrong number.</p>
+<pre class="highlight"><code>                <span class="k">if</span> <span class="n">nxt</span> <span class="ow">in</span> <span class="n">parent</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"sum_product needs a tree; this graph has a cycle "</span>
+                                     <span class="s2">"— use belief_propagation or junction_tree"</span><span class="p">)</span>
+</code></pre>
+<p>The junction tree's structure is (7), built by asking, for each clique, which
+earlier-created clique first swallows its separator. Because cliques are created
+in elimination order, that question is answered by scanning forward:
+satisfying it guarantees running intersection, so no verification pass is
+needed.</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cliques</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">sep</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">cliques</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">sep</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="nb">set</span><span class="p">(</span><span class="n">cliques</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                    <span class="n">parent</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span>
+                    <span class="k">break</span>
+</code></pre>
+<p>Calibration messages must not include the message the destination already sent.
+That one condition is the difference between a fixed point and a feedback loop,
+and it is the classic junction-tree bug:</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">),</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">msg</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">b</span> <span class="o">==</span> <span class="n">src</span> <span class="ow">and</span> <span class="n">a</span> <span class="o">!=</span> <span class="n">dst</span><span class="p">:</span>
+                    <span class="n">prod</span> <span class="o">=</span> <span class="n">prod</span> <span class="o">*</span> <span class="n">_align</span><span class="p">(</span><span class="n">Factor</span><span class="p">(</span><span class="n">_join</span><span class="p">(</span><span class="n">cliques</span><span class="p">[</span><span class="n">a</span><span class="p">],</span> <span class="n">cliques</span><span class="p">[</span><span class="n">b</span><span class="p">]),</span> <span class="n">m</span><span class="p">),</span>
+                                         <span class="n">cliques</span><span class="p">[</span><span class="n">src</span><span class="p">])</span>
+</code></pre>
+<p>The traceback reverses the max-product sweep: the argmax arrays recorded during
+elimination are indexed by the values of variables eliminated later, all of which
+are already in <code>values</code> when the reverse loop reaches them.</p>
+<pre class="highlight"><code>        <span class="n">values</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">evidence</span> <span class="ow">or</span> <span class="p">{})</span>
+        <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">scope</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">trace</span><span class="p">):</span>
+            <span class="n">values</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">arg</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">scope</span><span class="p">)])</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(n\)</span> variables of cardinality <span class="math inline">\(k\)</span>, <span class="math inline">\(m\)</span> factors, induced width <span class="math inline">\(w\)</span>, and <span class="math inline">\(T\)</span>
+BP sweeps:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>factor_graph</code></td>
+<td style="text-align:left"><span class="math inline">\(O(k^n)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(k^n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>variable_elimination</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nk^{w+1})\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(k^{w+1})\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sum_product</code></td>
+<td style="text-align:left"><span class="math inline">\(O(\sum_a \lvert S_a\rvert k^{\lvert S_a\rvert})\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(mk)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>belief_propagation</code></td>
+<td style="text-align:left"><span class="math inline">\(O(Tmk^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(mk)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>junction_tree</code></td>
+<td style="text-align:left"><span class="math inline">\(O(2\sum_C k^{\lvert C\rvert})\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(\sum_C k^{\lvert C\rvert})\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>max_product</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nk^{w+1})\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nk^{w+1})\)</span> + traceback</td>
+</tr>
+</tbody>
+</table>
+<p>The width is a property of the graph, not of the algorithm, and it is the only
+thing that matters at scale:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Graph</th>
+<th style="text-align:right"><span class="math inline">\(n\)</span></th>
+<th style="text-align:right">Treewidth <span class="math inline">\(w\)</span></th>
+<th style="text-align:right">Largest table</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">chain</td>
+<td style="text-align:right"><span class="math inline">\(n\)</span></td>
+<td style="text-align:right">1</td>
+<td style="text-align:right"><span class="math inline">\(k^2\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">fan</td>
+<td style="text-align:right"><span class="math inline">\(n\)</span></td>
+<td style="text-align:right">2</td>
+<td style="text-align:right"><span class="math inline">\(k^3\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><span class="math inline">\(s\times s\)</span> grid</td>
+<td style="text-align:right"><span class="math inline">\(s^2\)</span></td>
+<td style="text-align:right"><span class="math inline">\(s\)</span></td>
+<td style="text-align:right"><span class="math inline">\(k^{s+1}\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left">complete</td>
+<td style="text-align:right"><span class="math inline">\(n\)</span></td>
+<td style="text-align:right"><span class="math inline">\(n-1\)</span></td>
+<td style="text-align:right"><span class="math inline">\(k^n\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The grid row is why exact inference stops being an option: a 100×100 Ising model
+has treewidth 100, so no elimination order produces a table smaller than
+<span class="math inline">\(k^{101}\)</span>. Loopy BP is what people use there, and its error is what §4 is about.</p>
+<p>For pairwise factors, <code>sum_product</code> is <span class="math inline">\(O(nk^2)\)</span> — the same as forward-backward
+on a chain — and that is the reason HMMs were tractable in 1960 and general
+graphical models were not.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Treewidth blow-up.</strong> The first thing to check on a new model is <code>cost()</code>: it
+returns the largest clique and the number of table entries for an order, before
+any time is spent. A model whose min-fill width is 25 is not slow, it is
+impossible — <span class="math inline">\(2^{26}\)</span> entries is 500 MB per factor. <em>Fix:</em> approximate (BP), or
+find structure (the graph is really a chain with a few long edges, so cut them
+and run exact inference per cut — the &quot;cutset conditioning&quot; trick).</p>
+<p><strong>Loopy BP converging to the wrong answer.</strong> On the 3×3 grid it converges in 145
+sweeps and is off by 0.064 per marginal; on a frustrated model it can oscillate
+and never converge at all. Convergence is a property of the iteration, not of
+the answer. <em>Diagnostic:</em> damping (the demo uses 0.3), the iteration count, and
+— always — a comparison against the junction tree on an instance small enough to
+solve exactly. On a tree, BP is exact and any error is a bug in the code.</p>
+<p><strong>Linear-space underflow.</strong> A 100-variable chain of factors with entries around
+0.1 multiplies down to <span class="math inline">\(10^{-100}\)</span> and then to zero, and every marginal becomes
+<code>nan</code>. The demo's models are small enough to hide this entirely. <em>Fix:</em> work in
+log space and normalise each message to sum to one — normalisation is free
+because beliefs are renormalised at the end, and it keeps the products at <span class="math inline">\(O(1)\)</span>.</p>
+<p><strong>Conditioning on a marginal instead of clamping.</strong> Dividing by <span class="math inline">\(p(x_e)\)</span> and
+leaving the factors intact is an easy mistake that gives a plausible but wrong
+normalisation, because the restriction has to touch every factor in the scope of
+<span class="math inline">\(x_e\)</span>. <em>Diagnostic:</em> the clamped variable's marginal should be a point mass, and
+the others should renormalise — the demo asserts both.</p>
+<p><strong>Confusing the MAP with the marginal mode.</strong> <code>max_product</code> returns the most
+probable <em>joint</em> assignment, not the assignment whose per-variable marginals are
+largest. The two differ whenever the joint is multimodal, and the MAP can put a
+variable at a value its own marginal dislikes. <em>Diagnostic:</em> compare
+<code>best[v]</code> against <code>argmax(marginals(v)[v])</code>; a disagreement is the phenomenon,
+not a bug.</p>
+<p><strong>Zeros in the potentials.</strong> A deterministic factor has zeros, <code>log(0)</code> is
+<span class="math inline">\(-\infty\)</span>, and a message whose every entry is <span class="math inline">\(-\infty\)</span> poisons the arithmetic.
+The code suppresses the warning (<code>np.errstate</code>) but not the consequence.
+<em>Diagnostic:</em> check for <code>nan</code> or <code>-inf</code> in the returned marginals; if a
+constraint is genuinely hard, keep the potentials strictly positive and let the
+numbers speak.</p>
+<p><strong>A disconnected graph under <code>sum_product</code>.</strong> A variable no factor mentions has
+no edge to anything, so the DFS never reaches it and the pass would silently
+skip it. The traversal counts its visits against <span class="math inline">\(n + m\)</span> and raises instead.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Hidden Markov models.</strong> A chain of latent states with transition and emission
+factors: <code>sum_product</code> is forward-backward, <code>max_product</code> is Viterbi, and the
+junction tree is the same algorithm with wider cliques for higher-order
+Markov chains. <a href="kalman.py.html"><code>kalman.py</code></a> is the continuous version of the same
+message passing, where Gaussian factors make every message a mean and a variance.</p>
+<p><strong>Conditional random fields and structured prediction.</strong> Sequence labelling,
+segmentation, and parsing are CRFs: the partition function is <code>log_partition</code>,
+the marginals are per-token posteriors, and the MAP is the decoded label
+sequence. The whole training loop is gradient descent on <span class="math inline">\(-\log Z\)</span> plus a
+per-token loss built from the marginals.</p>
+<p><strong>Error-correcting codes.</strong> LDPC and turbo decoding are loopy BP on a factor
+graph, run for a fixed number of iterations. The graph is sparse and loopy by
+construction, the messages are log-likelihood ratios, and the decoder works
+because the loops are long — the same approximation §4 describes, tuned until it
+is good enough.</p>
+<p><strong>Statistical physics.</strong> The Ising model is a pairwise factor graph, the
+partition function is the free energy, and loopy BP is the Bethe approximation
+of it. The demo's 3×3 grid is the smallest case where the approximation is
+visibly wrong, which is why it is there.</p>
+<p><strong>Causal inference and probabilistic programming.</strong> Variable elimination with
+observed variables clamped is the engine behind do-calculus, and it is the
+default inference backend in probabilistic programming systems — exact where the
+graph is small, with BP or sampling substituted when <code>cost()</code> says otherwise.</p>
+<p><strong>Where it is a trap.</strong> Dense graphs (a full covariance over 50 variables has
+treewidth 49), models whose factors span many variables (a clique factor over
+10 variables is a table of <span class="math inline">\(k^{10}\)</span>), and any graph where someone has already
+written &quot;we'll just use BP&quot; without checking the treewidth. The order matters
+more than the implementation: two implementations of VE differ by a constant,
+two orders differ by an exponent.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Pearl (1988). <em>Probabilistic Reasoning in Intelligent Systems.</em> Morgan
+Kaufmann. Belief propagation, and the tree case where it is exact.</li>
+<li>Lauritzen &amp; Spiegelhalter (1988). <em>Local computations with probabilities on
+graphical models and their application to expert systems.</em> JRSS-B 50, 157. The
+junction tree, and the running-intersection property (7).</li>
+<li>Dechter (1999). <em>Bucket elimination: a unifying framework for reasoning.</em>
+Artificial Intelligence 113, 41. Variable elimination as the one primitive
+behind dynamic programming, Viterbi and adaptive consistency.</li>
+<li>Kschischang, Frey &amp; Loeliger (2001). <em>Factor graphs and the sum-product
+algorithm.</em> IEEE Transactions on Information Theory 47, 498. The message
+equations (4)–(5), and why the same update covers decoding, HMMs and Kalman
+filtering.</li>
+<li>Yedidia, Freeman &amp; Weiss (2003). <em>Understanding belief propagation and its
+generalizations.</em> In <em>Exploring Artificial Intelligence in the New
+Millennium.</em> Bethe and Kikuchi free energies, and when BP is a variational
+approximation.</li>
+<li>Wainwright &amp; Jordan (2008). <em>Graphical models, exponential families, and
+variational inference.</em> Foundations and Trends in Machine Learning 1, 1. The
+Bethe free energy (6) in its proper variational setting, and the tree
+exactness proof.</li>
+<li>Koller &amp; Friedman (2009). <em>Probabilistic Graphical Models: Principles and
+Techniques.</em> MIT Press. Chapters 9–11: variable elimination, the clique tree,
+and the induced-width analysis.</li>
+<li>Bodlaender &amp; Koster (2010). <em>Treewidth computations I and II.</em> Information and
+Computation. Why the optimal order is hard, and what the heuristics achieve.</li>
+<li>Viterbi (1967). <em>Error bounds for convolutional codes and an asymptotically
+optimum decoding algorithm.</em> IEEE Transactions on Information Theory 13, 260.
+Max-product on a chain, four years before the general formulation.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="hierarchical_bayes.html"><small>Previous</small><span>Hierarchical Bayes</span></a><a class="next" href="gp_classification.html"><small>Next</small><span>GP classification</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">05 · Probabilistic models</p><ul class="rail-list"><li><a href="naive_bayes.html"><span class="tick">✓</span><span>Naive Bayes</span></a></li><li><a href="discriminant_analysis.html"><span class="tick">✓</span><span>Discriminant analysis</span></a></li><li><a href="gaussian_process.html"><span class="tick">✓</span><span>Gaussian process regression</span></a></li><li><a href="bayesian_inference.html"><span class="tick">✓</span><span>Bayesian inference</span></a></li><li><a href="mcmc.html"><span class="tick">✓</span><span>MCMC</span></a></li><li><a href="variational_inference.html"><span class="tick">✓</span><span>Variational inference</span></a></li><li><a href="kalman.html"><span class="tick">✓</span><span>Kalman filter</span></a></li><li><a href="particle_filter.html"><span class="tick">✓</span><span>Particle filter</span></a></li><li><a href="hierarchical_bayes.html"><span class="tick">✓</span><span>Hierarchical Bayes</span></a></li><li><a href="pgm.html" aria-current="page"><span class="tick">✓</span><span>Graphical models</span></a></li><li><a href="gp_classification.html"><span class="tick">✓</span><span>GP classification</span></a></li><li><a href="dirichlet_process.html"><span class="tick">✓</span><span>Dirichlet process</span></a></li><li><a href="laplace_approximation.html"><span class="tick">✓</span><span>Laplace approximation</span></a></li><li><a href="expectation_propagation.html"><span class="tick">✓</span><span>Expectation propagation</span></a></li><li><a href="copula.html"><span class="tick">✓</span><span>Copulas</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../04-trees-and-ensembles/index.html"><span class="jump">← 04 · Trees &amp; ensembles</span></a></li><li><a href="../06-latent-factorization/index.html"><span class="jump">06 · Latent structure &amp; factorisation&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-the-model-and-the-two-operations">1. The model and the two operations</a></li><li class="lvl3"><a href="#2-variable-elimination-and-the-induced-width">2. Variable elimination and the induced width</a></li><li class="lvl3"><a href="#3-sum-product-on-a-tree">3. Sum-product on a tree</a></li><li class="lvl3"><a href="#4-loopy-belief-propagation">4. Loopy belief propagation</a></li><li class="lvl3"><a href="#5-junction-trees">5. Junction trees</a></li><li class="lvl3"><a href="#6-max-product-and-the-traceback">6. Max-product and the traceback</a></li><li class="lvl3"><a href="#7-evidence">7. Evidence</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/05-probabilistic/pgm.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

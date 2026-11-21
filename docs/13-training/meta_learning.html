@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meta-learning · MLAtoms</title>
+<meta name="description" content="Learning to learn from a handful of examples. A classifier that has never seen a task cannot learn it from five examples. A meta-learner has seen hundreds of…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/meta_learning.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Meta-learning">
+<meta property="og:description" content="Learning to learn from a handful of examples. A classifier that has never seen a task cannot learn it from five examples. A meta-learner has seen hundreds of…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/meta_learning.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Meta-learning">
+<meta name="twitter:description" content="Learning to learn from a handful of examples. A classifier that has never seen a task cannot learn it from five examples. A meta-learner has seen hundreds of…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Meta-learning", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/meta_learning.html", "description": "Learning to learn from a handful of examples. A classifier that has never seen a task cannot learn it from five examples. A meta-learner has seen hundreds of\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="meta_learning.py.html">source</a></p><h1>Meta-learning — seven ways to learn from a handful of examples</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A classifier that has never seen a task cannot learn it from five examples.
+A meta-learner has seen hundreds of tasks drawn from the same family, so five
+examples are enough to identify <em>which</em> member of the family it is facing. The
+difference is the distribution, not the architecture.</p>
+<p>The family here is concentric rings: three classes, each a ring of random
+radius, with the radii resampled for every task. A ring's mean is the origin,
+so nearest-mean on the raw inputs is nearly useless — it scores 0.358, and a
+random encoder scores 0.454. A representation that encodes the radius can tell
+the rings apart, and learning that representation across tasks is the
+meta-learning problem.</p>
+<p>Seven algorithms attack it. <code>maml</code> adapts a copy of the parameters on the
+support set and differentiates through the adaptation to score the query set.
+<code>first_order_maml</code> drops the second-order term. <code>reptile</code> moves the
+initialisation toward the adapted parameters without ever touching the query
+set. <code>meta_sgd</code> learns a per-parameter inner learning rate. The three metric
+methods skip adaptation entirely: <code>prototypical</code> classifies by distance to the
+class means in embedding space, <code>matching</code> by a soft nearest-neighbour over
+the support set, and <code>relation</code> by a learned similarity module.</p>
+<p>After 400 meta-iterations the prototype head leads at 0.850, matching reaches
+0.838, the relation module 0.848, MAML 0.795, first-order MAML 0.788, meta-SGD
+0.755 and Reptile 0.684. The ordering is not a verdict on the algorithms: it
+says that this task family is metric, so a fixed nearest-prototype rule over a
+good embedding is exactly the right inductive bias, and adaptation on five
+points adds variance without adding information.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">adapts at test time</th>
+<th style="text-align:left">what moves</th>
+<th style="text-align:right">score</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>maml</code></td>
+<td style="text-align:left">yes, full second order</td>
+<td style="text-align:left">initialisation</td>
+<td style="text-align:right">0.795</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>first_order_maml</code></td>
+<td style="text-align:left">yes, first order</td>
+<td style="text-align:left">initialisation</td>
+<td style="text-align:right">0.788</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>reptile</code></td>
+<td style="text-align:left">yes, first order</td>
+<td style="text-align:left">initialisation</td>
+<td style="text-align:right">0.684</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>meta_sgd</code></td>
+<td style="text-align:left">yes, learned steps</td>
+<td style="text-align:left">initialisation and <span class="math inline">\(\alpha\)</span></td>
+<td style="text-align:right">0.755</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>prototypical</code></td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">encoder</td>
+<td style="text-align:right">0.850</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>matching</code></td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">encoder</td>
+<td style="text-align:right">0.838</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>relation</code></td>
+<td style="text-align:left">no</td>
+<td style="text-align:left">encoder and relation module</td>
+<td style="text-align:right">0.848</td>
+</tr>
+</tbody>
+</table>
+<p>The five learned variants share one encoder — a 2→64→16 ReLU network — and the
+three MAML-family variants add a linear head on top. The metric variants use
+the encoder alone. Every variant sees the same 400 meta-iterations of four
+tasks, each with three classes, five support points and fifteen query points.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-episodic-objective">The episodic objective <a class="header-anchor" href="#the-episodic-objective">#</a></h3>
+<p>A task <span class="math inline">\(\mathcal T=(\mathcal D_{\mathrm{sup}},\mathcal D_{\mathrm{qry}})\)</span> is
+drawn from a family <span class="math inline">\(p(\mathcal T)\)</span>. Meta-training minimises the query loss
+after adapting on the support set:</p>
+<div class="math block">
+\[\min_\theta\ \mathbb E_{\mathcal T\sim p(\mathcal T)}
+\left[L_{\mathrm{qry}}\big(\theta'(\theta,\mathcal D_{\mathrm{sup}})\big)
+\right],
+\qquad (1)\]
+</div>
+<p>and meta-testing repeats the same procedure on a task the learner has never
+seen. The number that matters is the expected query accuracy after adaptation,
+which is what <code>evaluate</code> measures over 200 fresh tasks.</p>
+<h3 id="maml">MAML <a class="header-anchor" href="#maml">#</a></h3>
+<p>The inner loop takes one or more gradient steps on the support loss:</p>
+<div class="math block">
+\[\theta'=\theta-\alpha\nabla_\theta L_{\mathrm{sup}}(\theta).
+\qquad (2)\]
+</div>
+<p>Differentiating (1) through (2) gives the meta-gradient</p>
+<div class="math block">
+\[\frac{\partial L_{\mathrm{qry}}(\theta')}{\partial\theta}
+=\left(I-\alpha\nabla^2_\theta L_{\mathrm{sup}}(\theta)\right)
+\nabla_{\theta'}L_{\mathrm{qry}}(\theta'),
+\qquad (3)\]
+</div>
+<p>so the outer update needs a Hessian-vector product at every inner step. The
+code computes it by finite difference,</p>
+<div class="math block">
+\[Hv\approx\frac{\nabla L_{\mathrm{sup}}(\theta+\epsilon v)
+-\nabla L_{\mathrm{sup}}(\theta)}{\epsilon},
+\qquad (4)\]
+</div>
+<p>which costs two support gradients and is exact to <span class="math inline">\(O(\epsilon)\)</span> without a
+second-order autodiff. The reverse pass then multiplies the factors in (3):</p>
+<div class="math block">
+\[v\leftarrow v-\alpha\,H_t\,v,\qquad t=T-1,\dots,0 .
+\qquad (5)\]
+</div>
+<p>First-order MAML drops the Hessian and uses
+<span class="math inline">\(\nabla_{\theta'}L_{\mathrm{qry}}\)</span> directly. On this task the difference is
+small — 0.795 against 0.788 — because the inner loop takes three small steps
+and the curvature term contributes little. On tasks where the inner loop moves
+far, the gap is larger, and (4) is what closes it.</p>
+<h3 id="reptile">Reptile <a class="header-anchor" href="#reptile">#</a></h3>
+<p>Reptile never evaluates the query loss during meta-training. It adapts on the
+support set and pulls the initialisation toward the adapted parameters:</p>
+<div class="math block">
+\[\theta\leftarrow\theta+\beta\big(\theta'-\theta\big).
+\qquad (6)\]
+</div>
+<p>With one inner step, (6) is <span class="math inline">\(\beta\alpha\nabla L_{\mathrm{sup}}\)</span>, an SGD step
+on the support loss; with several steps it approximates the gradient of a
+multi-step objective without the Hessian. The demo uses <span class="math inline">\(\beta=0.5\)</span> and gets
+0.684, the weakest of the seven — the price of ignoring the query set when the
+support set is only 15 points.</p>
+<h3 id="meta-sgd">Meta-SGD <a class="header-anchor" href="#meta-sgd">#</a></h3>
+<p>Meta-SGD replaces the scalar inner rate with a vector <span class="math inline">\(\alpha\)</span> of the same
+shape as <span class="math inline">\(\theta\)</span>:</p>
+<div class="math block">
+\[\theta'=\theta-\alpha\odot\nabla_\theta L_{\mathrm{sup}}(\theta),
+\qquad (7)\]
+</div>
+<p>and learns <span class="math inline">\(\alpha\)</span> alongside the initialisation. The gradient with respect to
+<span class="math inline">\(\alpha\)</span> follows from (7) and the chain rule:</p>
+<div class="math block">
+\[\frac{\partial L_{\mathrm{qry}}}{\partial\alpha}
+=-g_t\odot v_{t+1},
+\qquad (8)\]
+</div>
+<p>where <span class="math inline">\(g_t\)</span> is the support gradient at step <span class="math inline">\(t\)</span> and <span class="math inline">\(v_{t+1}\)</span> is the
+backpropagated query gradient at the next iterate. The code accumulates (8)
+while running the same reverse recursion as MAML, and clips <span class="math inline">\(\alpha\)</span> to
+<span class="math inline">\((10^{-3},1)\)</span> to keep the inner loop stable. Meta-SGD reaches 0.755: better
+than Reptile, worse than a plain MAML with a well-chosen scalar rate, because
+a second copy of every parameter is a lot to learn from 400 tasks.</p>
+<h3 id="prototypical-networks">Prototypical networks <a class="header-anchor" href="#prototypical-networks">#</a></h3>
+<p>The encoder maps each point to <span class="math inline">\(\mathbb R^{16}\)</span>. A class prototype is the mean
+of its support embeddings, and a query is classified by negative squared
+distance:</p>
+<div class="math block">
+\[p(y=c\mid q)=\mathrm{softmax}_c\left(-\|\phi(q)-\mu_c\|^2\right),\qquad
+\mu_c=\frac1K\sum_{k}\phi(s_{ck}).
+\qquad (9)\]
+</div>
+<p>There is no inner loop: the support set <em>is</em> the classifier. The demo reaches
+0.850, the best score, because the task family is metric — the rings are
+separable in a space where radius is a coordinate, and the mean is the right
+summary of a ring.</p>
+<h3 id="matching-networks">Matching networks <a class="header-anchor" href="#matching-networks">#</a></h3>
+<p>Matching replaces the mean with a soft nearest-neighbour over the support
+points of each class:</p>
+<div class="math block">
+\[\ell_{qc}=\log\sum_{k=1}^{K}
+\exp\left(-\frac{\|\phi(q)-\phi(s_{ck})\|^2}{\tau}\right),
+\qquad (10)\]
+</div>
+<p>which is a log-sum-exp of negative distances. As <span class="math inline">\(\tau\to0\)</span> it becomes
+1-nearest-neighbour; as <span class="math inline">\(\tau\to\infty\)</span> it becomes a class mean. The demo uses
+<span class="math inline">\(\tau=0.5\)</span> and reaches 0.838, slightly below prototypical, because five points
+per class make the attention noisy and the mean is the lower-variance summary.
+The original matching network also conditions on the whole support set with an
+LSTM; (10) is the attention-only core.</p>
+<h3 id="relation-networks">Relation networks <a class="header-anchor" href="#relation-networks">#</a></h3>
+<p>The relation module learns the similarity instead of fixing it:</p>
+<div class="math block">
+\[r(q,c)=f_\psi\big([\phi(q),\mu_c,|\phi(q)-\mu_c|]\big),
+\qquad (11)\]
+</div>
+<p>with a two-layer MLP <span class="math inline">\(f_\psi\)</span> over the concatenation of the query, the
+prototype and their absolute difference. The score replaces the distance in
+(9), and the encoder and the relation module are trained end-to-end on the
+episodic loss. It reaches 0.848, essentially tying prototypical: on a task
+where Euclidean distance is already the right metric, learning a metric buys
+nothing, and the extra parameters are pure variance.</p>
+<h3 id="shots-and-what-the-support-set-buys">Shots, and what the support set buys <a class="header-anchor" href="#shots-and-what-the-support-set-buys">#</a></h3>
+<p>The support set is the only supervision at test time, so its size sets the
+ceiling. Prototypical with the same encoder and 250 meta-iterations scores
+0.813 at one shot, 0.818 at three and 0.844 at five. The gain is small because
+the rings are well separated and one point already pins down a radius. On
+tasks where classes overlap more, the curve is steeper, and the difference
+between a good and a bad meta-learner is largest at one shot.</p>
+<h3 id="cost">Cost <a class="header-anchor" href="#cost">#</a></h3>
+<p>Let <span class="math inline">\(T\)</span> be the inner steps and <span class="math inline">\(G\)</span> the cost of one support gradient. MAML's
+per-task cost is</p>
+<div class="math block">
+\[C_{\mathrm{MAML}}=(T+1)G+2TG=(3T+1)G,
+\qquad (12)\]
+</div>
+<p>while prototypical costs one forward pass over support and query and no
+adaptation at all. At <span class="math inline">\(T=3\)</span> the second-order pass is about ten support
+gradients per task; the demo still runs in seconds because the network is
+tiny, but on a real backbone that factor decides whether the method is
+affordable. This is why first-order MAML and Reptile exist: they trade a small
+accuracy gap for a large constant.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The task generator is the whole inductive bias: rings of random radius, each
+one class, so the mean of every class is the origin.</p>
+<pre class="highlight"><code>    <span class="n">angles</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="p">(</span><span class="n">n_way</span><span class="p">,</span> <span class="n">n_shot</span> <span class="o">+</span> <span class="n">n_query</span><span class="p">))</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">radii</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angles</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angles</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">points</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.10</span><span class="p">,</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">points</span><span class="p">[:,</span> <span class="p">:</span><span class="n">n_shot</span><span class="p">],</span> <span class="n">points</span><span class="p">[:,</span> <span class="n">n_shot</span><span class="p">:]</span>
+</code></pre>
+<p>The encoder is two ReLU layers, and the head is linear; the same forward pass
+serves the MAML family and, through <code>_metric_logits</code>, the metric family.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_encode</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+    <span class="n">z1</span> <span class="o">=</span> <span class="n">x</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"b1"</span><span class="p">]</span>
+    <span class="n">a1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">z1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">z2</span> <span class="o">=</span> <span class="n">a1</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s2">"b2"</span><span class="p">]</span>
+    <span class="n">a2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">z2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">a2</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">z1</span><span class="p">,</span> <span class="n">a1</span><span class="p">,</span> <span class="n">z2</span><span class="p">)</span>
+</code></pre>
+<p>The inner loop saves every iterate, because the reverse pass of (5) needs the
+Hessian at each one:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_adapt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">sup</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">trail</span> <span class="o">=</span> <span class="p">[</span><span class="n">params</span><span class="p">]</span>
+        <span class="n">gradients</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+            <span class="n">grads</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_support_grads</span><span class="p">(</span><span class="n">trail</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">sup</span><span class="p">)</span>
+            <span class="n">gradients</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+            <span class="n">scaling</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"alpha"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">scaling</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">step</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_lr</span> <span class="o">*</span> <span class="n">grads</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">grads</span><span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">step</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">scaling</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*</span> <span class="n">grads</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">grads</span><span class="p">}</span>
+            <span class="n">trail</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="n">key</span><span class="p">:</span> <span class="n">trail</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">step</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">trail</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]})</span>
+        <span class="k">return</span> <span class="n">trail</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">trail</span><span class="p">,</span> <span class="n">gradients</span>
+</code></pre>
+<p>The Hessian-vector product of (4) is two support gradients, no second-order
+machinery:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_hessian_vector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">sup</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">vector</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">base</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_support_grads</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">sup</span><span class="p">)</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="mf">1e-4</span>
+        <span class="n">shifted</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+</span> <span class="n">eps</span> <span class="o">*</span> <span class="n">vector</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">params</span><span class="p">}</span>
+        <span class="n">moved</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_support_grads</span><span class="p">(</span><span class="n">shifted</span><span class="p">,</span> <span class="n">sup</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="p">(</span><span class="n">moved</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">])</span> <span class="o">/</span> <span class="n">eps</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">base</span><span class="p">}</span>
+</code></pre>
+<p>and the reverse pass applies (5) from the last inner step to the first:</p>
+<pre class="highlight"><code>            <span class="n">vector</span> <span class="o">=</span> <span class="n">query</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_steps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+                <span class="n">product</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hessian_vector</span><span class="p">(</span><span class="n">trail</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">sup</span><span class="p">,</span> <span class="n">vector</span><span class="p">)</span>
+                <span class="n">vector</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">vector</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_lr</span> <span class="o">*</span> <span class="n">product</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                          <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">vector</span><span class="p">}</span>
+            <span class="k">return</span> <span class="n">vector</span><span class="p">,</span> <span class="kc">None</span>
+</code></pre>
+<p>Reptile is the same inner loop with a different outer signal — the difference
+between the adapted and original parameters, with no query loss in sight:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"reptile"</span><span class="p">:</span>
+            <span class="n">adapted</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">sup</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_steps</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">({</span><span class="n">key</span><span class="p">:</span> <span class="n">adapted</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                     <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">},</span> <span class="kc">None</span><span class="p">)</span>
+</code></pre>
+<p>Meta-SGD accumulates the learning-rate gradient (8) during the same reverse
+recursion, then steps <span class="math inline">\(\alpha\)</span> with its own optimiser:</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_steps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+                <span class="n">d_alpha</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">d_alpha</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="n">gradients</span><span class="p">[</span><span class="n">index</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">*</span> <span class="n">vector</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                           <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">d_alpha</span><span class="p">}</span>
+                <span class="n">product</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hessian_vector</span><span class="p">(</span><span class="n">trail</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">sup</span><span class="p">,</span> <span class="n">vector</span><span class="p">)</span>
+                <span class="n">vector</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">vector</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*</span> <span class="n">product</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                          <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">vector</span><span class="p">}</span>
+            <span class="k">return</span> <span class="n">vector</span><span class="p">,</span> <span class="n">d_alpha</span>
+</code></pre>
+<p>The prototypical head is (9) in three lines, and its gradient is the chain rule
+through the mean:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"prototypical"</span><span class="p">:</span>
+        <span class="n">centre</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="o">-</span><span class="p">((</span><span class="n">q</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">centre</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">logits</span><span class="p">,</span> <span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">centre</span><span class="p">,</span> <span class="n">s_cache</span><span class="p">,</span> <span class="n">q_cache</span><span class="p">)</span>
+</code></pre>
+<p>Matching is the same idea with a log-sum-exp over the support points:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"matching"</span><span class="p">:</span>
+        <span class="n">pair</span> <span class="o">=</span> <span class="n">q</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">s</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:]</span>
+        <span class="n">similarity</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">pair</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">TAU</span>
+        <span class="n">shift</span> <span class="o">=</span> <span class="n">similarity</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">similarity</span> <span class="o">-</span> <span class="n">shift</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="n">weight</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="p">(</span><span class="n">shift</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">total</span><span class="p">))[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">logits</span><span class="p">,</span> <span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">pair</span><span class="p">,</span> <span class="n">weight</span> <span class="o">/</span> <span class="n">total</span><span class="p">,</span> <span class="n">s_cache</span><span class="p">,</span> <span class="n">q_cache</span><span class="p">)</span>
+</code></pre>
+<p>The relation module concatenates the query, the prototype and their gap, then
+scores the triple with a two-layer MLP; its gradients come from the same
+cross-entropy, backpropagated through the encoder.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(N\)</span> meta-iterations, <span class="math inline">\(B\)</span> tasks per iteration, <span class="math inline">\(K\)</span> shots, <span class="math inline">\(Q\)</span> queries,
+<span class="math inline">\(T\)</span> inner steps and an encoder of <span class="math inline">\(P\)</span> parameters:</p>
+<ul>
+<li><strong>Prototypical and matching:</strong> one encoder pass over <span class="math inline">\((K+Q)\,N_{\mathrm{way}}\)</span>
+points per task, <span class="math inline">\(O(NB(K+Q)P)\)</span> for the whole run. No adaptation.</li>
+<li><strong>Relation:</strong> the same plus <span class="math inline">\(N_{\mathrm{way}}^2\)</span> MLP evaluations per query;
+the module is small, so the encoder still dominates.</li>
+<li><strong>MAML:</strong> <span class="math inline">\((3T+1)\)</span> support or query gradients per task, from (12). The
+demo's <span class="math inline">\(T=3\)</span> means about ten gradient evaluations per task; the finite
+difference is two of them per inner step.</li>
+<li><strong>First-order MAML:</strong> <span class="math inline">\(T+1\)</span> gradients per task, roughly a third of the
+second-order cost.</li>
+<li><strong>Reptile:</strong> <span class="math inline">\(T\)</span> gradients per task, the cheapest of the adaptive family,
+because the query set is never evaluated during meta-training.</li>
+<li><strong>Meta-SGD:</strong> MAML's cost plus one extra parameter tensor of size <span class="math inline">\(P\)</span>; the
+inner loop is elementwise, so the arithmetic is nearly unchanged.</li>
+</ul>
+<p>The demo's 400 iterations × 4 tasks × 7 variants is a few seconds, dominated
+by the second-order variants. The constant that matters in practice is (12):
+the same search on a ResNet backbone is where MAML's Hessian becomes the
+reason people use first-order methods.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The support set can be too small for adaptation.</strong> MAML with three inner
+steps and 15 support points overfits the support loss: the adapted model fits
+the five points per class and the query accuracy falls. The demo's 0.795
+versus prototypical's 0.850 is that effect. Fewer steps, a smaller inner rate
+or a head-only inner loop are the usual fixes.</p>
+<p><strong>Meta-overfitting.</strong> With 400 tasks the encoder can memorise the family
+rather than learn a transferable representation. The tell is a large gap
+between two independent evaluations — here the demo's two 200-task runs agree
+to within 0.02, which is why its table is trustworthy. On a small task family,
+hold out task <em>parameters</em>, not just samples.</p>
+<p><strong>Second-order is not automatically better.</strong> First-order MAML scores 0.788
+against 0.795, a difference smaller than the task-to-task noise. The Hessian
+term matters when the inner loop moves far; with three small steps it is a
+rounding error at ten times the cost. Measure the gap before paying for it.</p>
+<p><strong>Reptile ignores the query set.</strong> Its outer signal is the support-adapted
+parameters, so it optimises for support-set performance, not query-set
+performance. When support and query are drawn from the same task that is fine;
+when the task has a distribution shift between the two splits, it is not.</p>
+<p><strong>Metric methods assume the right metric.</strong> Prototypical wins here because
+squared distance in a learned embedding is the correct inductive bias for
+rings. On a task where class membership depends on a relation between points
+rather than their position, a fixed metric fails and the relation module's
+learned similarity is the only one of the three that can recover.</p>
+<p><strong>The prototype is a mean, and means hide structure.</strong> A class with two modes
+has a prototype between them, in a region with no data. The same failure
+appears in the raw baseline: every ring's mean is the origin. Clustering the
+support before averaging, or using attention as in (10), is the usual remedy.</p>
+<p><strong>A learned inner rate can collapse or explode.</strong> Meta-SGD's <span class="math inline">\(\alpha\)</span> is
+clipped because the unclipped version drives some coordinates to zero and
+others past one within a few hundred iterations. The clip is part of the
+algorithm, not a detail.</p>
+<p><strong>Evaluation leaks through the task sampler.</strong> If meta-training and meta-test
+tasks share the same random radii drawn once, the test set is not fresh. The
+demo resamples the radii for every task; the <code>evaluate</code> loop draws new tasks
+from the same generator, which is the correct protocol but a subtle one to get
+right in a real pipeline.</p>
+<p><strong>The number of classes is fixed in the code.</strong> All heads have <code>N_WAY=3</code>
+outputs, so a four-way task would need a different network. Metric methods
+generalise to a new <span class="math inline">\(N_{\mathrm{way}}\)</span> at test time; MAML's linear head does
+not without resizing. That asymmetry is easy to miss when comparing scores.</p>
+<p><strong>Few-shot accuracy is a noisy statistic.</strong> With 15 queries per class and 200
+tasks the standard error is around 0.01, so a 0.005 gap between two methods is
+not a result. Report the interval, not the third decimal.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Few-shot image classification is the benchmark that drove the field: Omniglot
+and miniImageNet episodes with five classes and one or five shots. Prototypical
+and matching networks are still strong baselines there, and MAML-style
+adaptation is used when the task shift is large enough that a fixed metric
+fails.</p>
+<p>Meta-learning also appears wherever a model must be personalised from a few
+examples: user-specific keyboards and speech models, per-patient adaptation in
+medical imaging, per-robot calibration. In those settings the &quot;task&quot; is a
+user or a device, the support set is their history, and the meta-learner
+provides the initialisation that a few gradient steps can specialise.</p>
+<p>Reptile and first-order MAML are the practical choices for large backbones
+because they avoid the Hessian. Metric methods are popular in retrieval and
+open-set recognition, where the number of classes is not known in advance and
+a classifier head cannot be fixed. Relation modules appear in Siamese
+architectures for verification, where the learned similarity is the product.</p>
+<p>Outside supervised learning, the same episodic objective underlies meta-RL,
+where the inner loop is a policy update, and gradient-based hyperparameter
+search, where the inner loop is training and the outer loop scores validation
+loss — the connection to chapter 13's <code>hyperparameter_search</code>.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Thrun, S., Pratt, L. (1998). <em>Learning to Learn.</em> Springer. The framing of
+meta-learning as learning across a task distribution.</li>
+<li>Finn, C., Abbeel, P., Levine, S. (2017). <em>Model-agnostic meta-learning for
+fast adaptation of deep networks.</em> ICML. Equations (2)–(5).</li>
+<li>Nichol, A., Achiam, J., Schulman, J. (2018). <em>On first-order meta-learning
+algorithms.</em> arXiv. First-order MAML and Reptile, (6).</li>
+<li>Li, Z., Zhou, F., Chen, F., Li, H. (2017). <em>Meta-SGD: learning to learn
+quickly for few-shot learning.</em> arXiv. Equations (7)–(8).</li>
+<li>Snell, J., Swersky, K., Zemel, R. (2017). <em>Prototypical networks for
+few-shot learning.</em> NeurIPS. Equation (9).</li>
+<li>Vinyals, O., Blundell, C., Lillicrap, T., Wierstra, D. (2016). <em>Matching
+networks for one-shot learning.</em> NeurIPS. Attention over the support set,
+(10).</li>
+<li>Sung, F., Yang, Y., Zhang, L., Xiang, T., Torr, P. H. S., Hospedales, T. M.
+(2018). <em>Learning to compare: relation network for few-shot learning.</em>
+CVPR. Equation (11).</li>
+<li>Hospedales, T., Antoniou, A., Micaelli, P., Storkey, A. (2022).
+<em>Meta-learning in neural networks: a survey.</em> IEEE TPAMI. The taxonomy and
+the evaluation pitfalls.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="nas.html"><small>Previous</small><span>Neural architecture search</span></a><a class="next" href="continual_learning.html"><small>Next</small><span>Continual learning</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html" aria-current="page"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-episodic-objective">The episodic objective</a></li><li class="lvl3"><a href="#maml">MAML</a></li><li class="lvl3"><a href="#reptile">Reptile</a></li><li class="lvl3"><a href="#meta-sgd">Meta-SGD</a></li><li class="lvl3"><a href="#prototypical-networks">Prototypical networks</a></li><li class="lvl3"><a href="#matching-networks">Matching networks</a></li><li class="lvl3"><a href="#relation-networks">Relation networks</a></li><li class="lvl3"><a href="#shots-and-what-the-support-set-buys">Shots, and what the support set buys</a></li><li class="lvl3"><a href="#cost">Cost</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/meta_learning.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

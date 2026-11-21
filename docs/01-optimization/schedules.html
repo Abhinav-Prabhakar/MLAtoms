@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedules · MLAtoms</title>
+<meta name="description" content="Where to spend the learning rate over a training run. A schedule is a statement about how much you trust the current gradient. Early in training the gradient…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/schedules.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Schedules">
+<meta property="og:description" content="Where to spend the learning rate over a training run. A schedule is a statement about how much you trust the current gradient. Early in training the gradient…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/schedules.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Schedules">
+<meta name="twitter:description" content="Where to spend the learning rate over a training run. A schedule is a statement about how much you trust the current gradient. Early in training the gradient…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Schedules", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/schedules.html", "description": "Where to spend the learning rate over a training run. A schedule is a statement about how much you trust the current gradient. Early in training the gradient\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">01 · Optimization</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>13 variants</span><span class="page-meta__sep">/</span><a href="schedules.py.html">source</a></p><h1>Schedules</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A schedule is a statement about how much you trust the current gradient. Early in
+training the gradient is informative but the model is far from anything good, so
+you take large steps (after a brief warmup). Late in training the gradient is
+dominated by noise, and a large step means you never settle.</p>
+<p>So a schedule has two jobs: <strong>get through the transient safely</strong> (warmup) and
+<strong>shrink the noise floor</strong> (decay). Everything else — restarts, cycles, plateau —
+is a bet about where the transient ends.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Shape</th>
+<th style="text-align:left">Signal it uses</th>
+<th style="text-align:left">Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>constant</code></td>
+<td style="text-align:left">flat</td>
+<td style="text-align:left">nothing</td>
+<td style="text-align:left">debugging, RL, very short runs</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>step</code></td>
+<td style="text-align:left"><code>γ^(t//k)</code></td>
+<td style="text-align:left">step count</td>
+<td style="text-align:left">classic CNN training (30/60/90)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>multistep</code></td>
+<td style="text-align:left">drops at milestones</td>
+<td style="text-align:left">step count</td>
+<td style="text-align:left">hand-tuned vision recipes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>exponential</code></td>
+<td style="text-align:left"><code>γ^t</code></td>
+<td style="text-align:left">step count</td>
+<td style="text-align:left">smooth, rarely optimal</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cosine</code></td>
+<td style="text-align:left"><code>½(1+cos πt/T)</code></td>
+<td style="text-align:left">total budget</td>
+<td style="text-align:left">transformer default</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cosine_restarts</code></td>
+<td style="text-align:left">periodic cosine</td>
+<td style="text-align:left">cycle length</td>
+<td style="text-align:left">SGDR, ensembling snapshots</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>linear_warmup</code></td>
+<td style="text-align:left">ramp to 1, then flat</td>
+<td style="text-align:left">warmup length</td>
+<td style="text-align:left">prefix for any other shape</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>one_cycle</code></td>
+<td style="text-align:left">up then cosine down to a floor</td>
+<td style="text-align:left">total budget</td>
+<td style="text-align:left">fast single-run training</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cyclical</code></td>
+<td style="text-align:left">triangle</td>
+<td style="text-align:left">cycle length</td>
+<td style="text-align:left">exploring several minima</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>plateau</code></td>
+<td style="text-align:left"><code>×γ</code> when the metric stalls</td>
+<td style="text-align:left">validation metric</td>
+<td style="text-align:left">classical, small-data</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>polynomial</code></td>
+<td style="text-align:left"><code>(1−t/T)^p</code></td>
+<td style="text-align:left">total budget</td>
+<td style="text-align:left">BERT-style, <code>p=1</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>inv_sqrt</code></td>
+<td style="text-align:left"><code>1/√t</code></td>
+<td style="text-align:left">step count</td>
+<td style="text-align:left">the SGD theory default</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>wsd</code></td>
+<td style="text-align:left">flat then <code>1−√</code> decay</td>
+<td style="text-align:left">total budget</td>
+<td style="text-align:left">LLM pretraining</td>
+</tr>
+</tbody>
+</table>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Why <code>1/√t</code> is the theoretical default.</strong> For stochastic convex optimisation with
+<code>O(1/√T)</code> convergence, the optimal <em>averaged</em> iterate uses <code>η_t ∝ 1/√t</code>. The
+regret bound of online gradient descent is <code>O(GD√T)</code> with <code>η = D/(G√T)</code>, and the
+anytime version is <code>η_t = η₀/√t</code>. Cosine and step decays are heuristics that beat
+this in practice because deep learning is not convex; <code>1/√t</code> remains the shape to
+compare against.</p>
+<p><strong>Why warmup.</strong> Two separate reasons, and conflating them causes bugs:</p>
+<ol>
+<li><em>Adam's variance estimate is unreliable for the first few steps.</em> <code>v̂_t</code> is
+computed from <code>t</code> samples; its reciprocal is biased upward, so the first
+adaptive steps are too large. Bias correction helps but cannot fix the variance.</li>
+<li><em>At initialisation the loss surface is often sharp.</em> With random weights, the
+largest curvature can be orders of magnitude above the bulk, so the stability
+threshold <code>2/L</code> is tiny. Warmup keeps <code>η</code> below it until the iterate moves into
+a flatter region.</li>
+</ol>
+<p><code>linear_warmup</code> here is a prefix: it ramps to 1 and then applies whichever shape
+you asked for to the remaining budget. That composition is the one thing every
+implementation must get right — the cosine should be computed over
+<code>total − warmup</code>, not over <code>total</code>.</p>
+<p><strong>Cosine.</strong> <code>η(t) = η_min + (η_max − η_min)·½(1 + cos(πt/T))</code>. Its appeal is that
+it spends most of the budget near the top (the derivative is flat at <code>t=0</code>), then
+decelerates smoothly to the floor. It needs <code>T</code> up front, which is why
+<code>t_total</code>-dependent schedules and checkpoint resumption interact badly: resuming
+with a different <code>T</code> silently changes the whole curve.</p>
+<p><strong>Restarts (SGDR).</strong> Run cosine on a cycle of length <code>T_i</code>, then reset to
+<code>η_max</code>. Each restart kicks the iterate out of a narrow minimum; the snapshots at
+cycle ends are diverse and ensemble well. <code>T_i</code> is usually multiplied by 2 each
+cycle.</p>
+<p><strong>1cycle.</strong> Warm up from <code>η_max/25</code> to <code>η_max</code> over the first 30% of the budget,
+then cosine-anneal to <code>η_max/10⁴</code>. The large initial LR acts as regularisation
+(Smith's &quot;super-convergence&quot;): the model spends the high-LR phase exploring and
+the long anneal phase settling. It is the fastest known recipe for a <em>fixed</em>
+compute budget and a poor choice for anything you might extend.</p>
+<p><strong>WSD (warmup–stable–decay).</strong> Keep the LR flat for 80% of the run, then decay
+with <code>1−√((t−t_s)/(T−t_s))</code>. The flat phase means any checkpoint in it is a valid
+model, so you can decide to stop late; the short decay recovers the quality that a
+cosine schedule would have reached. This is why most LLM pretraining now uses it.</p>
+<p><strong>Plateau.</strong> The only non-anticipative schedule: it observes the validation metric
+and multiplies by <code>γ</code> after <code>patience</code> evaluations without improvement. It cannot
+be precomputed, it depends on the metric's noise level, and it is the right choice
+when you do not know <code>T</code> — which is the normal case for small-data problems.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>lr_multiplier</code> is a pure function of the step; <code>Plateau</code> is a small state machine.
+The pure part begins with the composition rule that every implementation has to get
+right:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">warmup_steps</span> <span class="ow">and</span> <span class="n">step</span> <span class="o">&lt;</span> <span class="n">warmup_steps</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">warmup_steps</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">step</span> <span class="o">-</span> <span class="n">warmup_steps</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">total_steps</span> <span class="o">-</span> <span class="n">warmup_steps</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>Warmup is a <strong>prefix</strong>, not an alternative shape: the selected schedule is evaluated
+on the remaining <code>T = total − warmup</code> steps via the shifted <code>t</code>. Two details carry
+the meaning. The <code>(step + 1)/warmup_steps</code> makes step 0 return <code>1/warmup_steps</code>
+instead of exactly zero — a zero first LR wastes a step and breaks optimisers that
+divide by it. And <code>T</code> is recomputed after the shift; a cosine over <code>total_steps</code>
+instead of <code>total_steps − warmup_steps</code> would finish its half-cosine early and then
+sit at the floor for the warmup duration.</p>
+<p>The discrete schedules index the <strong>global</strong> step, not the shifted <code>t</code>:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"step"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">gamma</span> <span class="o">**</span> <span class="p">(</span><span class="n">step</span> <span class="o">//</span> <span class="n">step_size</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"multistep"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">gamma</span> <span class="o">**</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">milestones</span> <span class="k">if</span> <span class="n">step</span> <span class="o">&gt;=</span> <span class="n">m</span><span class="p">)</span>
+</code></pre>
+<p>That is deliberate: milestones are absolute step numbers in every published recipe
+(&quot;drop at 30/60/90 epochs&quot;), so shifting them by the warmup would silently move the
+drops. The continuous, budget-based schedules below use <code>t/T</code>, because their shape
+depends on how much budget remains, not on an absolute calendar.</p>
+<p>Cosine is written with a clamp on the ratio:</p>
+<pre class="highlight"><code>        <span class="k">return</span> <span class="n">min_ratio</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">min_ratio</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="nb">min</span><span class="p">(</span><span class="n">t</span> <span class="o">/</span> <span class="n">T</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)))</span>
+</code></pre>
+<p>Without <code>min(t/T, 1.0)</code>, evaluating past the budget lets <code>cos</code> turn around and the
+LR starts <em>increasing</em> again — which happens whenever a run is extended past its
+planned <code>total_steps</code>. The clamp makes &quot;past the end&quot; mean &quot;stay at the floor&quot;.
+<code>min_ratio</code> is what keeps the final LR non-zero; the demo checks the endpoints at
+<code>1.0</code> and <code>0.0</code> for the default <code>min_ratio=0</code>.</p>
+<p><code>cosine_restarts</code> is the same formula on <code>t mod period</code>:</p>
+<pre class="highlight"><code>        <span class="n">period</span> <span class="o">=</span> <span class="n">cycle_steps</span> <span class="ow">or</span> <span class="n">T</span>
+        <span class="n">t_cur</span> <span class="o">=</span> <span class="n">t</span> <span class="o">%</span> <span class="n">period</span>
+        <span class="k">return</span> <span class="n">min_ratio</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">min_ratio</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">t_cur</span> <span class="o">/</span> <span class="n">period</span><span class="p">))</span>
+</code></pre>
+<p>Every cycle has the same length here; SGDR's doubling (<code>T_i = T_0·2^i</code>) is a
+one-line change to <code>period</code>, and the demo asserts the simple version returns to
+exactly 1.0 at each multiple of <code>cycle_steps</code>.</p>
+<p><code>wsd</code> is the LLM schedule and the shape is entirely in the branch point:</p>
+<pre class="highlight"><code>        <span class="n">decay_start</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">T</span> <span class="o">*</span> <span class="mf">0.8</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">decay_start</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">1.0</span>
+        <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span> <span class="o">-</span> <span class="n">decay_start</span><span class="p">)</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">T</span> <span class="o">-</span> <span class="n">decay_start</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">frac</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>Flat for 80%, then <code>1 − √frac</code>. The <code>max(·, 0)</code> is needed because <code>frac</code> can exceed 1
+by one step when <code>T</code> is not divisible; without it the multiplier goes negative and
+the optimiser climbs. The demo counts strictly decreasing steps and expects roughly
+20% of <code>T</code> — that is the invariant the schedule is sold on.</p>
+<p><code>cyclical</code> is a triangle, and the period is <code>2·cycle_steps</code>, not <code>cycle_steps</code>:</p>
+<pre class="highlight"><code>        <span class="n">s</span> <span class="o">=</span> <span class="n">cycle_steps</span> <span class="ow">or</span> <span class="nb">max</span><span class="p">(</span><span class="n">step_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">phase</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span> <span class="o">%</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">s</span><span class="p">))</span> <span class="o">/</span> <span class="n">s</span>
+        <span class="n">tri</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="nb">abs</span><span class="p">(</span><span class="n">phase</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+</code></pre>
+<p>At <code>t=0</code>, <code>phase=0</code>, <code>tri=0</code> → <code>min_ratio</code>; at <code>t=s</code>, <code>phase=1</code>, <code>tri=1</code> → peak; at
+<code>t=2s</code> it wraps. Using <code>t % s</code> instead gives a sawtooth that jumps from the peak
+straight back to the floor, which is a different (and much worse) schedule.</p>
+<p><code>one_cycle</code> is two pieces joined at <code>pct_start</code>:</p>
+<pre class="highlight"><code>        <span class="n">up</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">T</span> <span class="o">*</span> <span class="n">pct_start</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">up</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">start</span> <span class="o">+</span> <span class="p">(</span><span class="n">peak</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">t</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">up</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span> <span class="o">-</span> <span class="n">up</span><span class="p">)</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">T</span> <span class="o">-</span> <span class="n">up</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">end</span> <span class="o">+</span> <span class="p">(</span><span class="n">peak</span> <span class="o">-</span> <span class="n">end</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">frac</span><span class="p">))</span>
+</code></pre>
+<p><code>start = 1/div_factor</code>, <code>end = 1/final_div_factor</code>. The first piece is linear from
+<code>1/25</code> to <code>1</code>; the second is cosine from <code>1</code> to <code>1e-4</code>. The <code>max(up, 1)</code> and
+<code>max(T − up, 1)</code> guard degenerate budgets (<code>pct_start=0</code>, or <code>T=1</code>), which is the
+kind of input a unit test uses and a real run never does.</p>
+<p><code>Plateau</code> is the only stateful schedule:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">metric</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">best</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">best</span> <span class="o">=</span> <span class="n">metric</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bad</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bad</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bad</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">patience</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">factor</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_lr</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bad</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">reductions</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span>
+</code></pre>
+<p>The strict <code>&lt; best − threshold</code> means an improvement smaller than <code>threshold</code> counts
+as a stall — that is the noise filter, and setting <code>threshold=0</code> makes it fire on
+every wobble. <code>bad</code> resets to zero <em>after</em> a reduction, so the schedule needs another
+full <code>patience</code> window before dropping again; without that reset it would collapse to
+<code>min_lr</code> in <code>patience</code> consecutive bad evaluations. <code>min_lr</code> is a floor on the
+multiplied value, not on the factor, so <code>factor=0.1</code> can never take it below it.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><code>O(1)</code> time and memory per step: every schedule is a closed-form function of the
+step count (<code>plateau</code> is a few scalars of state). The real cost is that schedules
+constrain batching: to hit a target <code>T</code> you must fix the number of steps, hence the
+batch size and the dataset passes.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Warmup shorter than the sharp phase.</strong> Loss spikes at step ~200 and never
+recovers. Symptom: grad norm spikes first, then the loss. Fix: longer warmup,
+or gradient clipping while you diagnose.</li>
+<li><strong>Cosine to exactly zero.</strong> The final steps have <code>η ≈ 0</code>, which is fine for a
+loss but not for BatchNorm running statistics or for an EMA that needs to track
+a moving model. Keep a floor of 1–5% of peak.</li>
+<li><strong>Step decay with the wrong <code>total_steps</code>.</strong> The drops land at the wrong place;
+accuracy is 1–2 points below the tuned recipe. If you change the budget,
+re-tune the milestones or switch to cosine.</li>
+<li><strong>Restarts without resetting momentum.</strong> The optimiser's velocity still points
+into the old minimum; the first steps of the new cycle are wasted. Reset the
+momentum buffer at a restart.</li>
+<li><strong>Plateau on a noisy metric.</strong> Validation loss jitters by more than <code>threshold</code>,
+so the schedule fires constantly and the LR collapses to <code>min_lr</code> in the first
+third of training. Smooth the metric or raise <code>patience</code>.</li>
+<li><strong>Schedule/optimiser mismatch.</strong> <code>one_cycle</code> assumes SGD-like dynamics; with
+Adam, the peak LR is effectively multiplied again by the adaptive denominator
+and the run diverges. Scale the peak down by ~10× for Adam.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>LLM pretraining:</strong> linear warmup (0.1–1% of steps) + cosine or WSD; <code>η_peak</code>
+from a small sweep, often <code>3e-4</code> for ~1B parameters.</li>
+<li><strong>Vision CNNs:</strong> step decay at 50/75% of the budget, or cosine; SGD + momentum.</li>
+<li><strong>Small tabular data:</strong> <code>plateau</code> with <code>patience=5–10</code>, <code>factor=0.3</code>, because
+the number of useful epochs is unknown.</li>
+<li><strong>Fine-tuning:</strong> short warmup (~5% of steps) then linear or cosine decay to a
+small floor; never restart from a large LR.</li>
+<li><strong>Snapshot ensembles:</strong> cosine restarts, keep the checkpoint at each cycle end.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Smith, <em>Cyclical Learning Rates for Training Neural Networks</em>, 2017. arXiv:1506.01186</li>
+<li>Smith &amp; Topin, <em>Super-Convergence: Very Fast Training of Neural Networks Using Large Learning Rates</em>, 2018. arXiv:1708.07120</li>
+<li>Loshchilov &amp; Hutter, <em>SGDR: Stochastic Gradient Descent with Warm Restarts</em>, 2017. arXiv:1608.03983</li>
+<li>Goyal et al., <em>Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour</em>, 2017. arXiv:1706.02677</li>
+<li>Hu et al., <em>MiniCPM: Unveiling the Potential of Small Language Models</em> (WSD), 2024. arXiv:2404.06395</li>
+<li>Robbins &amp; Monro, <em>A Stochastic Approximation Method</em>, 1951 (the <code>1/√t</code> root).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="adaptive.html"><small>Previous</small><span>Adaptive methods</span></a><a class="next" href="em.html"><small>Next</small><span>EM / MM</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">01 · Optimization</p><ul class="rail-list"><li><a href="sgd.html"><span class="tick">✓</span><span>SGD</span></a></li><li><a href="adam.html"><span class="tick">✓</span><span>Adam / AdamW</span></a></li><li><a href="adaptive.html"><span class="tick">✓</span><span>Adaptive methods</span></a></li><li><a href="schedules.html" aria-current="page"><span class="tick">✓</span><span>Schedules</span></a></li><li><a href="em.html"><span class="tick">✓</span><span>EM / MM</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Second-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Proximal methods</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Weight averaging</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lion</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>LAMB</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Muon</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SOAP</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Natural gradient</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SAM</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Zeroth-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lookahead</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../00-primitives/index.html"><span class="jump">← 00 · Primitives</span></a></li><li><a href="../02-linear-models/index.html"><span class="jump">02 · Linear models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/01-optimization/schedules.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

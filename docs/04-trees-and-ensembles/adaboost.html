@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AdaBoost · MLAtoms</title>
+<meta name="description" content="Exponential loss, reweighting and the margin interpretation. Boosting answers a simple question: what should the next weak learner look at? The answer is…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/adaboost.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="AdaBoost">
+<meta property="og:description" content="Exponential loss, reweighting and the margin interpretation. Boosting answers a simple question: what should the next weak learner look at? The answer is…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/adaboost.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AdaBoost">
+<meta name="twitter:description" content="Exponential loss, reweighting and the margin interpretation. Boosting answers a simple question: what should the next weak learner look at? The answer is…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "AdaBoost", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/04-trees-and-ensembles/adaboost.html", "description": "Exponential loss, reweighting and the margin interpretation. Boosting answers a simple question: what should the next weak learner look at? The answer is\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">04 · Trees &amp; ensembles</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="adaboost.py.html">source</a></p><h1>AdaBoost</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Boosting answers a simple question: what should the next weak learner look at? The
+answer is <em>whatever the current ensemble gets wrong</em>. AdaBoost turns that into a
+reweighting scheme — after each learner, upweight the rows it misclassified, fit the
+next learner on the new weights, and combine everything in a weighted vote. No
+gradient is computed explicitly; the weights <em>are</em> the gradient.</p>
+<p>The surprising part is that reweighting is equivalent to gradient descent on the
+exponential loss <code>exp(−yF(x))</code>. That is why AdaBoost is the ancestor of every
+gradient-boosted tree: <code>gradient_boosting.py</code> is the same loop with the loss written
+down and the tree fitted to its negative gradient.</p>
+<p>The six variants are the historical answers to &quot;what does a weak learner return?&quot;.
+<code>discrete</code> returns a hard <code>±1</code> label. <code>real</code> returns the log-odds of its leaf, which is
+a confidence and converges faster. <code>gentle</code> returns the weighted regression fit
+directly, with no <code>log</code> and no <code>α</code>, which is the most numerically stable. <code>samme</code> and
+<code>samme_r</code> are the multiclass extensions, and <code>stagewise</code> makes the gradient-descent
+view explicit by line-searching the step.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Task</th>
+<th style="text-align:left">Weak learner output</th>
+<th style="text-align:left">Step</th>
+<th style="text-align:left">Weight update</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>discrete</code></td>
+<td style="text-align:left">binary</td>
+<td style="text-align:left">hard <code>±1</code></td>
+<td style="text-align:left"><code>α = ½ln((1−err)/err)</code></td>
+<td style="text-align:left"><code>∝ exp(−yαh)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>real</code></td>
+<td style="text-align:left">binary</td>
+<td style="text-align:left"><code>½ln(p/(1−p))</code> per leaf</td>
+<td style="text-align:left">none (<code>α=1</code>)</td>
+<td style="text-align:left"><code>∝ exp(−yh)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gentle</code></td>
+<td style="text-align:left">binary</td>
+<td style="text-align:left"><code>2p−1</code> per leaf</td>
+<td style="text-align:left">none (<code>α=1</code>)</td>
+<td style="text-align:left"><code>∝ exp(−yh)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>samme</code></td>
+<td style="text-align:left"><code>K</code> classes</td>
+<td style="text-align:left">hard class vote</td>
+<td style="text-align:left"><code>ln((1−err)/err) + ln(K−1)</code></td>
+<td style="text-align:left"><code>∝ exp(α·1[wrong])</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>samme_r</code></td>
+<td style="text-align:left"><code>K</code> classes</td>
+<td style="text-align:left"><code>(K−1)(log p_k − mean log p)</code></td>
+<td style="text-align:left">none</td>
+<td style="text-align:left"><code>∝ p_true^{−(K−1)/K}</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>stagewise</code></td>
+<td style="text-align:left">binary</td>
+<td style="text-align:left"><code>2p−1</code>, line-searched <code>γ</code></td>
+<td style="text-align:left"><code>γ</code> from Newton</td>
+<td style="text-align:left"><code>∝ exp(−yγh)</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>discrete</code> is the original Freund–Schapire algorithm and the one in every textbook.
+<code>real</code> and <code>gentle</code> are Friedman, Hastie and Tibshirani's confidence-rated
+refinements: the leaf probability is more informative than the leaf label, and using
+it removes the need for a separate <code>α</code>. <code>samme</code> generalises the <code>α</code> to <code>K</code> classes by
+adding <code>ln(K−1)</code>; without that term a weak learner at chance level
+(<code>err = 1−1/K</code>) would get a positive weight. <code>samme_r</code> replaces the hard vote with
+per-class log-probabilities, which is the multiclass analogue of <code>real</code>.</p>
+<p><code>stagewise</code> is the odd one out: it is the same exponential loss, but the step is
+chosen by a line search over <code>γ</code> instead of the closed-form <code>α</code>, and <code>learning_rate</code>
+multiplies it. It is the bridge to <code>gradient_boosting.py</code> — replace the exponential
+loss with any differentiable loss, fit the tree to the negative gradient, and the loop
+is identical.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Exponential loss and the additive model.</strong> With <code>y ∈ {−1, +1}</code> and
+<code>F(x) = Σ_t α_t h_t(x)</code>, AdaBoost minimises</p>
+<div class="math block">
+\[L(F) = \sum_i \exp\!\big(-y_i F(x_i)\big)\]
+</div>
+<p>One stage at a time, holding the previous <code>F</code> fixed:</p>
+<div class="math block">
+\[(\alpha, h) = \arg\min_{\alpha,h} \sum_i w_i \exp(-\alpha y_i h(x_i)),
+\qquad w_i = \exp(-y_i F_{m-1}(x_i))\]
+</div>
+<p><strong>Discrete case.</strong> For a hard <code>h ∈ {−1,+1}</code>, split the sum by whether <code>h</code> is right:</p>
+<div class="math block">
+\[\sum_i w_i e^{-\alpha y_i h_i}
+= e^{-\alpha} W_{\text{correct}} + e^{\alpha} W_{\text{wrong}}
+= e^{-\alpha}(W - W_{\text{err}}) + e^{\alpha} W_{\text{err}}\]
+</div>
+<p>with <code>W = Σw</code> and <code>W_err = Σ w·1[h wrong]</code>. Setting the derivative to zero gives</p>
+<div class="math block">
+\[\alpha^\* = \frac12 \ln\frac{W - W_{\text{err}}}{W_{\text{err}}}
+= \frac12\ln\frac{1-\text{err}}{\text{err}}\]
+</div>
+<p>This is why <code>err ≥ 0.5</code> is a stop condition: <code>α ≤ 0</code> means the learner is worse than
+chance, and flipping its sign would be a different learner. The best hard <code>h</code> at each
+stage is the one minimising <code>W_err</code>, which is exactly what a weighted classification
+tree finds — the weights enter the impurity, not the split search.</p>
+<p><strong>The normaliser.</strong> After the update, the total weight is</p>
+<div class="math block">
+\[Z_t = (1-\text{err}_t)e^{-\alpha_t} + \text{err}_t e^{\alpha_t}
+= 2\sqrt{\text{err}_t(1-\text{err}_t)}\]
+</div>
+<p>so the normalised weights are <code>w_i ← w_i e^{−α y h}/Z_t</code>, and the exponential loss of
+the final model is exactly</p>
+<div class="math block">
+\[\frac1n\sum_i e^{-y_i F(x_i)} = \prod_{t=1}^T Z_t\]
+</div>
+<p>The demo checks this identity to nine digits (<code>0.475614 == 0.475614</code>), which is a much
+stronger test than checking that the loss decreased. Since <code>Z_t ≤ 1</code>, the training
+error obeys</p>
+<div class="math block">
+\[\frac1n\#\{y_i \ne \mathrm{sign}F(x_i)\} \le \prod_t Z_t
+= \exp\!\Big(-2\sum_t \gamma_t^2\Big),
+\qquad \gamma_t = \tfrac12 - \text{err}_t\]
+</div>
+<p>so a weak learner with a constant edge <code>γ</code> drives the training error to zero
+exponentially fast — the margin explanation of why AdaBoost does not overfit as
+quickly as its training error suggests.</p>
+<p><strong>Real AdaBoost.</strong> Instead of a hard label, let the leaf return
+<code>h_j = ½ln(W_+^j/W_-^j)</code> for leaf <code>j</code>, where <code>W_±^j</code> are the weighted class masses in
+that leaf. This is the minimiser of the same objective when <code>h</code> is allowed to be any
+real number <em>within a leaf</em>, and it is the log-odds of the leaf's class probability.
+The <code>α</code> disappears because the log-odds already carries the confidence: a pure leaf
+gets a large step, a 50/50 leaf gets none. Friedman's analysis shows the stagewise
+fit converges faster than <code>discrete</code> and produces better-calibrated scores, which the
+demo reflects in the lower exponential loss (<code>0.292</code> vs <code>0.476</code> at the same 80 stumps,
+with test accuracies <code>0.927</code> vs <code>0.942</code> — the hard vote is not worse, just less
+confident).</p>
+<p><strong>Gentle AdaBoost.</strong> Replace the log-odds with the weighted least-squares fit
+<code>f_j = Σ_{i∈j} w_i y_i / Σ_{i∈j} w_i</code>, and add it directly. This is a Newton step for
+the exponential loss: the second derivative of <code>e^{−yF}</code> is <code>e^{−yF}</code>, so the local
+quadratic has the same weight in numerator and denominator, and the minimiser is the
+weighted mean of <code>y</code>. No <code>log</code>, no division by <code>err</code> — hence &quot;gentle&quot;: it cannot blow
+up when a leaf is nearly pure, and it is the recommended default in Friedman's
+comparison. The demo's depth-3 comparison (<code>0.372</code> vs <code>0.632</code> at stage 6) shows the
+other axis: stronger weak learners converge in fewer stages, at the cost of variance.</p>
+<p><strong>SAMME.</strong> For <code>K</code> classes, the weak learner returns a hard class <code>h(x) ∈ {1,…,K}</code> and
+the model is <code>F_k(x) = Σ α_t 1[h_t(x)=k]</code>, predicted by <code>argmax_k F_k</code>. The stage
+objective becomes</p>
+<div class="math block">
+\[\sum_i w_i \exp\!\big(-\alpha\, \mathbb{1}[y_i = h(x_i)]\big)\]
+</div>
+<p>because the multiclass exponential loss is <code>exp(−α)</code> for a correct vote and <code>1</code> for
+every wrong class. Minimising gives</p>
+<div class="math block">
+\[\alpha^\* = \ln\frac{1-\text{err}}{\text{err}} + \ln(K-1)\]
+</div>
+<p>The extra <code>ln(K−1)</code> is exactly the correction that makes random guessing
+(<code>err = 1−1/K</code>) give <code>α = 0</code>. That is why SAMME's stop condition is
+<code>err ≥ 1−1/K</code>, not <code>err ≥ 1/2</code>.</p>
+<p><strong>SAMME.R.</strong> Use the leaf's class probabilities <code>p_k(x)</code> and set</p>
+<div class="math block">
+\[h_k(x) = (K-1)\left(\log p_k(x) - \frac1K\sum_j \log p_j(x)\right)\]
+</div>
+<p>so the <code>K</code> outputs sum to zero and only their differences matter. The weight update is</p>
+<div class="math block">
+\[w_i \leftarrow w_i \, p_{y_i}(x_i)^{-(K-1)/K}\]
+</div>
+<p>which is the multiclass counterpart of <code>exp(−α y h)</code>: a row whose true class has low
+probability gets a large weight, and the exponent <code>(K−1)/K</code> is the factor that makes
+the update consistent with the <code>K</code>-class exponential loss. <code>samme_r</code> needs far fewer
+stages than <code>samme</code> for the same accuracy, which the demo shows as <code>0.983</code> vs <code>0.975</code>
+with 40 vs 60 trees.</p>
+<p><strong>Stagewise.</strong> Treat <code>F</code> as a vector and take a gradient step in function space:
+<code>F ← F + γh</code> where <code>h</code> is fitted to <code>−∂L/∂F = y·exp(−yF)</code> under the current weights.
+Choosing <code>γ</code> by minimising <code>Σ w_i exp(−γ y_i h_i)</code> is a one-dimensional Newton problem:</p>
+<div class="math block">
+\[\gamma \leftarrow \gamma + \frac{\sum_i w_i s_i e^{-\gamma s_i}}{\sum_i w_i s_i^2 e^{-\gamma s_i}},
+\qquad s_i = y_i h_i\]
+</div>
+<p>which is what <code>_line_search</code> does. With <code>γ</code> fixed to 1 and <code>h</code> a hard label, this
+reduces to <code>discrete</code>; with <code>h</code> a weighted mean, to <code>gentle</code>. <code>learning_rate &lt; 1</code>
+shrinks the step, which is the same shrinkage knob as in gradient boosting — the demo's
+<code>lr=0.3</code> run takes smaller steps (<code>0.369</code> on average) and reaches <code>0.943</code> accuracy in
+150 stages, while <code>lr=1.0</code> gets <code>0.932</code> in 25.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The weak learner is a weighted tree, and one line in the split search is the whole
+difference from an unweighted tree:</p>
+<pre class="highlight"><code>    <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">))</span>
+    <span class="n">counts</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="n">w</span>
+    <span class="n">parent</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(((</span><span class="n">counts</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">wsum</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+</code></pre>
+<p><code>counts</code> holds weighted class mass rather than row counts. The parent impurity is the
+gini of the weighted distribution, so a row with weight 0.1 contributes a tenth as much
+as a row with weight 1. Everything downstream — the cumulative sums, the child
+impurities, the gain — is the same arithmetic as CART, which is why the tree code is
+short.</p>
+<p><code>min_samples_leaf</code> is the exception, and it is the subtle one:</p>
+<pre class="highlight"><code>        <span class="n">wl</span> <span class="o">=</span> <span class="n">lc</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">wr</span> <span class="o">=</span> <span class="n">rc</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># min_samples_leaf counts rows, not weights.</span>
+        <span class="n">n_l</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">))[</span><span class="n">cut</span><span class="p">]</span>
+        <span class="n">n_r</span> <span class="o">=</span> <span class="n">n</span> <span class="o">-</span> <span class="n">n_l</span>
+        <span class="n">ok</span> <span class="o">=</span> <span class="p">(</span><span class="n">n_l</span> <span class="o">&gt;=</span> <span class="n">min_samples_leaf</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">n_r</span> <span class="o">&gt;=</span> <span class="n">min_samples_leaf</span><span class="p">)</span>
+</code></pre>
+<p>Weight sums shrink as boosting proceeds (they are normalised to 1), so a leaf limit
+applied to <code>wl</code> would reject every split after a few stages and the ensemble would stop
+learning. Row counts are tracked separately and never renormalised. Getting this wrong
+is the classic way to write an AdaBoost that looks correct and trains one tree.</p>
+<p>Leaves store weighted class frequencies, which is what every variant reads:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_leaf</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="n">proba</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="n">w</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">proba</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"leaf"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s2">"n"</span><span class="p">:</span> <span class="n">y</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+        <span class="s2">"proba"</span><span class="p">:</span> <span class="n">proba</span> <span class="o">/</span> <span class="n">total</span> <span class="k">if</span> <span class="n">total</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">k</span><span class="p">),</span>
+    <span class="p">}</span>
+</code></pre>
+<p><code>np.bincount(..., weights=w)</code> is the weighted histogram; normalising by <code>total</code> makes
+<code>proba</code> a distribution even when the incoming weights do not sum to 1. <code>discrete</code> uses
+<code>proba[:, 1] &gt; 0.5</code>, <code>real</code> uses its log-odds, <code>gentle</code> and <code>stagewise</code> use <code>2p−1</code>, and
+both multiclass variants use the whole vector. One leaf representation serves six
+algorithms.</p>
+<p>The discrete branch is the textbook formula, and its two guards are not optional:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"discrete"</span><span class="p">:</span>
+                <span class="n">pred</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="n">pred</span> <span class="o">!=</span> <span class="n">yi</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1e-10</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">err</span> <span class="o">&gt;=</span> <span class="mf">0.5</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">err</span><span class="p">)</span> <span class="o">/</span> <span class="n">err</span><span class="p">)</span>
+                <span class="n">h</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">pred</span> <span class="o">-</span> <span class="mf">1.0</span>
+                <span class="n">F</span> <span class="o">+=</span> <span class="n">alpha</span> <span class="o">*</span> <span class="n">h</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">alphas_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">alpha</span><span class="p">))</span>
+</code></pre>
+<p><code>err</code> is a weighted error, not a mean of booleans. The clip prevents <code>log(0)</code> on
+perfectly separable data, and the <code>err &gt;= 0.5</code> break stops the ensemble instead of
+adding a negatively weighted learner. Break happens <em>before</em> the tree is appended, so
+<code>estimators_</code>, <code>alphas_</code> and <code>errors_</code> stay aligned.</p>
+<p><code>real</code> replaces the hard label with the leaf log-odds:</p>
+<pre class="highlight"><code>            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"real"</span><span class="p">:</span>
+                <span class="n">p1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">p</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1e-10</span><span class="p">)</span>
+                <span class="n">h</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">p1</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">p1</span><span class="p">))</span>
+                <span class="n">F</span> <span class="o">+=</span> <span class="n">h</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">alphas_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+</code></pre>
+<p><code>alpha</code> is still recorded as 1 so the prediction loop is uniform, but the step size is
+inside <code>h</code>. The clip matters here too: a pure leaf would otherwise produce an infinite
+confidence and a saturated <code>F</code> after one stage.</p>
+<p>Weights are recomputed from <code>F</code> instead of being multiplied in place:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"samme"</span><span class="p">,</span> <span class="s2">"samme_r"</span><span class="p">):</span>
+                <span class="c1"># exp(-yF) underflows/overflows on separable data; the clip keeps</span>
+                <span class="c1"># the weights finite without changing the argmin.</span>
+                <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">y_signed</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="o">-</span><span class="mf">50.0</span><span class="p">,</span> <span class="mf">50.0</span><span class="p">))</span>
+                <span class="n">w</span> <span class="o">/=</span> <span class="n">w</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</code></pre>
+<p>This is algebraically identical to <code>w *= exp(−α y h)</code> and numerically better: the
+product of many small factors would underflow, and recomputing from the margin keeps
+the relative weights accurate. The clip is a guard for separable data, where <code>F</code> grows
+without bound; the exponential loss is flat enough there that the clipped weights pick
+the same splits.</p>
+<p>Multiclass hard votes add one class score at a time:</p>
+<pre class="highlight"><code>            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"samme"</span><span class="p">:</span>
+                <span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="n">pred</span> <span class="o">!=</span> <span class="n">yi</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1e-10</span><span class="p">))</span>
+                <span class="n">alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">err</span><span class="p">)</span> <span class="o">/</span> <span class="n">err</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">k</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">err</span> <span class="o">&gt;=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">k</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="n">F</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">pred</span><span class="p">]</span> <span class="o">+=</span> <span class="n">alpha</span>
+</code></pre>
+<p><code>F[np.arange(n), pred] += alpha</code> is a scatter-add: row <code>i</code>'s score for its predicted
+class increases. <code>argmax</code> of those scores is the vote, so the update is the multiclass
+analogue of <code>sign</code>. The <code>ln(K−1)</code> term is what makes <code>α</code> zero at chance level; omit it
+and SAMME keeps boosting a learner that knows nothing.</p>
+<p><code>samme_r</code> uses the log-probabilities directly, centred across classes:</p>
+<pre class="highlight"><code>            <span class="k">else</span><span class="p">:</span>                                     <span class="c1"># samme_r</span>
+                <span class="n">pk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+                <span class="n">logp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">pk</span><span class="p">)</span>
+                <span class="n">h</span> <span class="o">=</span> <span class="p">(</span><span class="n">k</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">logp</span> <span class="o">-</span> <span class="n">logp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+                <span class="n">F</span> <span class="o">+=</span> <span class="n">h</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">alphas_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="n">yi</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+                <span class="n">w</span> <span class="o">=</span> <span class="n">w</span> <span class="o">*</span> <span class="n">pk</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">yi</span><span class="p">]</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">k</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">k</span><span class="p">)</span>
+                <span class="n">w</span> <span class="o">/=</span> <span class="n">w</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</code></pre>
+<p><code>logp.mean(axis=1)</code> is the per-row mean over classes, so <code>h</code> sums to zero across
+classes and only the <em>relative</em> log-probabilities enter. The weight update indexes the
+true class's probability with <code>pk[np.arange(n), yi]</code> — a fixed <code>k=…</code> index would
+upweight every row by the same class's confidence and destroy the reweighting.</p>
+<p><code>stagewise</code> is the only variant whose step is computed numerically:</p>
+<pre class="highlight"><code>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_line_search</span><span class="p">(</span><span class="n">y_signed</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">h</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Minimise sum w exp(-gamma * y * h) over gamma &gt;= 0 by Newton steps."""</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">y_signed</span> <span class="o">*</span> <span class="n">h</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">):</span>
+            <span class="n">e</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span>
+            <span class="n">f1</span> <span class="o">=</span> <span class="o">-</span><span class="nb">float</span><span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="n">s</span> <span class="o">*</span> <span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+            <span class="n">f2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="n">s</span> <span class="o">*</span> <span class="n">s</span> <span class="o">*</span> <span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">f2</span> <span class="o">&lt;=</span> <span class="n">EPS</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mf">0.0</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">f1</span> <span class="o">/</span> <span class="n">f2</span>
+            <span class="n">gamma</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">gamma</span> <span class="o">-</span> <span class="n">step</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">step</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-9</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="n">gamma</span>
+</code></pre>
+<p><code>s = y·h</code> is the <em>signed</em> agreement, so a leaf that agrees with the label contributes a
+positive exponent. <code>f2</code> is the curvature and is always positive unless every <code>s</code> is
+zero; the <code>EPS</code> guard returns a zero step rather than dividing by it. The clip to
+<code>[0, 5]</code> keeps the line search in a sensible range — a negative <code>γ</code> would fit the
+learner backwards, which is <code>discrete</code>'s failure mode generalised.</p>
+<p>Prediction replays the stored <code>(tree, alpha)</code> pairs, and the discrete branch rebuilds
+the hard label from the stored probability:</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">tree</span><span class="p">,</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimators_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alphas_</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                <span class="n">p</span> <span class="o">=</span> <span class="n">_tree_proba</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"discrete"</span><span class="p">:</span>
+                    <span class="n">F</span> <span class="o">+=</span> <span class="n">alpha</span> <span class="o">*</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">p</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+</code></pre>
+<p>Storing probabilities rather than hard labels in the tree is what lets one tree serve
+all six variants; the <em>variant</em> decides how to read them at prediction time. <code>strict=True</code>
+on the <code>zip</code> turns an accidental mismatch between trees and alphas into an error instead
+of silently dropping stages.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Quantity</th>
+<th style="text-align:left">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">One weighted tree (stump)</td>
+<td style="text-align:left"><code>O(d n log n)</code> for the sort + <code>O(d n)</code> prefix sums</td>
+</tr>
+<tr>
+<td style="text-align:left">One weighted tree, depth <code>h</code></td>
+<td style="text-align:left"><code>O(d n h log n)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>T</code> stages</td>
+<td style="text-align:left"><code>T ×</code> the tree cost</td>
+</tr>
+<tr>
+<td style="text-align:left">Prediction, one row</td>
+<td style="text-align:left"><code>O(T · depth)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Memory</td>
+<td style="text-align:left"><code>O(T · nodes)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The weights add no asymptotic cost: they replace counts in the cumulative sums. The
+sort dominates, and it is repeated at every node. AdaBoost is sequential like gradient
+boosting — the next tree depends on the current weights — so the only parallelism is
+inside a tree's split search. Training a few hundred stumps on 400 rows is milliseconds,
+which is why AdaBoost is still a reasonable first baseline on small tabular problems.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Weak learners at chance.</strong> <code>discrete</code> stops when <code>err ≥ 0.5</code>. A stump on XOR is
+exactly at chance, so boosting stumps cannot learn XOR — the demo uses a circle for
+this reason. The fix is a deeper weak learner or a feature that carries signal.</li>
+<li><strong>Label noise.</strong> AdaBoost upweights misclassified rows, and a mislabelled row is
+permanently misclassified, so its weight grows without bound. After enough stages
+the ensemble fits the noise. The demo's 5% noise is survivable; 20% is not. Regularise
+with a depth cap and early stopping.</li>
+<li><strong>Unbounded margins on separable data.</strong> <code>err → 0</code> makes <code>α → ∞</code> and <code>F</code> grows
+without limit. The clip in the weight update keeps the code finite, but the
+probabilities saturate. Use <code>gentle</code> or <code>real</code> with shrinkage, or stop on a
+validation curve.</li>
+<li><strong><code>α</code> sign after clipping.</strong> Clipping <code>err</code> to <code>1e-10</code> on a perfect learner gives
+<code>α ≈ 11.5</code>, which is finite but large; the next stage sees a nearly uniform weight
+and stops. Do not read the number of stages as convergence — read <code>errors_</code>.</li>
+<li><strong><code>min_samples_leaf</code> on weights.</strong> As noted above, a row-count limit must not be
+applied to normalised weights, or every deep split becomes invalid. This is the most
+common implementation bug in hand-written AdaBoost.</li>
+<li><strong>Multiclass base rate.</strong> <code>samme</code> with <code>err = 1−1/K</code> gives <code>α = 0</code>, but the
+implementation must also <em>stop</em>: continuing adds zero-weight trees and wastes
+stages. The break tests the same threshold the <code>α</code> formula uses.</li>
+<li><strong><code>samme_r</code> with zero probabilities.</strong> <code>log(0)</code> is <code>−inf</code>; the clip at <code>1e-10</code>
+caps the confidence at about <code>23</code>, which is large enough to dominate the ensemble.
+Calibrate the weak learner (it is a weighted tree, so its leaves are smoothed by
+<code>min_samples_leaf</code>) or clip harder.</li>
+<li><strong>Stagewise step size.</strong> The line search assumes <code>h</code> is fixed while <code>γ</code> varies. With
+a deep tree, <code>h</code> is already a fitted function and a large <code>γ</code> moves far from the
+linearisation point; keep <code>learning_rate</code> small (0.1–0.3) and use more stages.</li>
+<li><strong>Probabilities are not calibrated.</strong> <code>sigmoid(2F)</code> is a convenient monotone map,
+not a fitted calibration. The demo checks that probabilities are ordered and sum to
+one, not that they match frequencies; use <code>isotonic</code> or Platt scaling if the
+probability itself is the product.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Face detection.</strong> Viola–Jones is AdaBoost over Haar-like features with a cascade;
+the reweighting is what selects the few hundred features that matter out of tens of
+thousands.</li>
+<li><strong>Small tabular classification.</strong> A few hundred stumps give a strong, interpretable
+baseline (each stump is a threshold on one feature) with no hyperparameter tuning
+beyond the stage count.</li>
+<li><strong>Feature selection.</strong> The stump chosen at each stage is the most useful single
+threshold given the current weights; the sequence of chosen features is a cheap
+importance ranking, and it is the mechanism behind Viola–Jones' cascade.</li>
+<li><strong>Class-imbalanced detection.</strong> The weight update naturally focuses on hard
+positives, which is useful for rare-event detection — but see failure mode 2, since
+label noise and rare positives look the same to the algorithm.</li>
+<li><strong>Teaching boosting.</strong> AdaBoost is the cleanest derivation of the exponential-loss
+view; <code>gradient_boosting.py</code> is the same loop with a pluggable loss, and reading the
+two side by side is the fastest way to understand modern GBDTs.</li>
+<li><strong>Multiclass baselines with weak learners.</strong> SAMME works with any classifier that
+accepts sample weights, so it is a wrapper for turning a binary or multiclass stump
+into a competitive ensemble.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Freund &amp; Schapire, <em>A Decision-Theoretic Generalization of On-Line Learning and an
+Application to Boosting</em>, 1997, JCSS — the original AdaBoost and the <code>α</code> formula.</li>
+<li>Schapire &amp; Singer, <em>Improved Boosting Algorithms Using Confidence-rated Predictions</em>,
+1999, Machine Learning — Real AdaBoost and the leaf log-odds.</li>
+<li>Friedman, Hastie &amp; Tibshirani, <em>Additive Logistic Regression: A Statistical View of
+Boosting</em>, 2000, Annals of Statistics — the exponential-loss derivation, Gentle
+AdaBoost and the <code>Z_t</code> analysis.</li>
+<li>Hastie, Tibshirani &amp; Friedman, <em>The Elements of Statistical Learning</em>, 2nd ed., 2009,
+ch. 10 — the margin bound and the comparison of discrete/real/gentle.</li>
+<li>Zhu, Zou, Rosset &amp; Hastie, <em>Multi-class AdaBoost</em>, 2009, Statistics and Its Interface
+— SAMME and SAMME.R, including the <code>ln(K−1)</code> correction.</li>
+<li>Viola &amp; Jones, <em>Rapid Object Detection using a Boosted Cascade of Simple Features</em>,
+2001, CVPR — the application that made AdaBoost famous.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="lightgbm.html"><small>Previous</small><span>LightGBM</span></a><a class="next" href="../05-probabilistic/index.html"><small>Next</small><span>05 · Probabilistic models</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">04 · Trees &amp; ensembles</p><ul class="rail-list"><li><a href="cart.html"><span class="tick">✓</span><span>CART</span></a></li><li><a href="random_forest.html"><span class="tick">✓</span><span>Random forest</span></a></li><li><a href="gradient_boosting.html"><span class="tick">✓</span><span>Gradient boosting</span></a></li><li><a href="xgboost.html"><span class="tick">✓</span><span>XGBoost</span></a></li><li><a href="lightgbm.html"><span class="tick">✓</span><span>LightGBM</span></a></li><li><a href="adaboost.html" aria-current="page"><span class="tick">✓</span><span>AdaBoost</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>C4.5</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Extremely randomised trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>CatBoost</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Stacking &amp; blending</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BART</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Oblique trees</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Rule lists</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Tsetlin machine</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../03-kernels-and-instance/index.html"><span class="jump">← 03 · Kernels &amp; instance-based</span></a></li><li><a href="../05-probabilistic/index.html"><span class="jump">05 · Probabilistic models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/04-trees-and-ensembles/adaboost.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

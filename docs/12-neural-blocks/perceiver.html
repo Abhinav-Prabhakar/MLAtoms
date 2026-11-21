@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perceiver · MLAtoms</title>
+<meta name="description" content="Cross-attention bottlenecks and set transformers. Attention costs O(T^2) when every token attends to every other. The Perceiver avoids that by reading the…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/perceiver.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Perceiver">
+<meta property="og:description" content="Cross-attention bottlenecks and set transformers. Attention costs O(T^2) when every token attends to every other. The Perceiver avoids that by reading the…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/perceiver.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Perceiver">
+<meta name="twitter:description" content="Cross-attention bottlenecks and set transformers. Attention costs O(T^2) when every token attends to every other. The Perceiver avoids that by reading the…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Perceiver", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/12-neural-blocks/perceiver.html", "description": "Cross-attention bottlenecks and set transformers. Attention costs O(T^2) when every token attends to every other. The Perceiver avoids that by reading the\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">12 · Neural blocks</a><span class="page-meta__sep">/</span><span class="pill pill--t3">tier 3</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="perceiver.py.html">source</a></p><h1>Latent bottlenecks — Perceiver, Set Transformer and the pieces between</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Attention costs <span class="math inline">\(O(T^2)\)</span> when every token attends to every other. The Perceiver
+avoids that by reading the input into a small, fixed array of latents: a
+cross-attention layer with <span class="math inline">\(L\)</span> queries and <span class="math inline">\(T\)</span> keys costs <span class="math inline">\(O(LT)\)</span>, and once the
+sequence is gone, all further processing is <span class="math inline">\(O(L^2)\)</span> — independent of how long
+the input was. The latents are the model's working memory, not its input.</p>
+<p>That single idea has several arrangements, and the four variants here differ in
+where the cross-attention happens. <code>perceiver</code> reads once and then runs a stack
+of latent self-attention blocks. <code>latent_array</code> reads again in every block, so
+the latents can revisit the input. <code>cross_attention_bottleneck</code> keeps only the
+read and a feed-forward update, which isolates what the latent stack buys.
+<code>set_transformer</code> goes the other way: it first processes the token set with
+self-attention, then pools it into learned seeds — attention as a pooling
+operator rather than as a compression step.</p>
+<p>All four return <code>(batch, latents, dim)</code> and are invariant to the order of the
+input tokens, because attention with a fixed query is a weighted average over
+keys. The demo checks that invariance, checks that permuting the latents
+permutes the output, and checks every gradient against finite differences.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">cross-attention</th>
+<th style="text-align:left">latent self-attention</th>
+<th style="text-align:left">extra</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>perceiver</code></td>
+<td style="text-align:left">once</td>
+<td style="text-align:left"><span class="math inline">\(N\)</span> shared blocks</td>
+<td style="text-align:left">cheapest to reason about</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>latent_array</code></td>
+<td style="text-align:left">every block</td>
+<td style="text-align:left"><span class="math inline">\(N\)</span> shared blocks</td>
+<td style="text-align:left">revisits the input</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>set_transformer</code></td>
+<td style="text-align:left">PMA at the end</td>
+<td style="text-align:left">SAB over tokens</td>
+<td style="text-align:left">set input, not a sequence</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cross_attention_bottleneck</code></td>
+<td style="text-align:left">once</td>
+<td style="text-align:left">none</td>
+<td style="text-align:left">the minimal read</td>
+</tr>
+</tbody>
+</table>
+<p>Every variant shares its projections and FFN across depth, so the depth is free
+in parameters. At <span class="math inline">\(d=4\)</span>, <span class="math inline">\(L=3\)</span>, two heads, hidden 8 and any depth: <code>perceiver</code>,
+<code>latent_array</code> and <code>set_transformer</code> cost 248 parameters, and the bottleneck
+costs 168.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="cross-attention-is-a-learned-read">Cross-attention is a learned read <a class="header-anchor" href="#cross-attention-is-a-learned-read">#</a></h3>
+<p>With latents <span class="math inline">\(Z\in\mathbb R^{L\times d}\)</span> and tokens <span class="math inline">\(X\in\mathbb R^{T\times d}\)</span>,
+per head of width <span class="math inline">\(d_h=d/H\)</span>:</p>
+<div class="math block">
+\[Q=ZW_q,\quad K=XW_k,\quad V=XW_v,\quad
+A=\mathrm{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d_h}}\right),
+\qquad (1)\]
+</div>
+<div class="math block">
+\[\tilde Z=Z+\bigl(AV\bigr)W_o.
+\qquad (2)\]
+</div>
+<p>The output row <span class="math inline">\(i\)</span> is a convex combination of the value rows: <span class="math inline">\(A_{ij}\ge 0\)</span> and
+<span class="math inline">\(\sum_j A_{ij}=1\)</span>. The demo runs one latent and one head and checks both facts,
+plus that the cached context is exactly <span class="math inline">\(AV\)</span>. Nothing in (1) depends on the
+order of the token axis, so <span class="math inline">\(\tilde Z\)</span> is unchanged by a permutation of <span class="math inline">\(X\)</span> —
+the first invariant.</p>
+<h3 id="four-arrangements">Four arrangements <a class="header-anchor" href="#four-arrangements">#</a></h3>
+<p>Write one latent block as self-attention (3) followed by a feed-forward update
+(4), both pre-norm and residual:</p>
+<div class="math block">
+\[Z\leftarrow Z+\mathrm{MHA}(Z,Z),\qquad
+Z\leftarrow Z+\mathrm{FFN}(\mathrm{LN}(Z)).
+\qquad (3)\]
+</div>
+<p>Then the variants are</p>
+<div class="math block">
+\[\text{perceiver}:\; Z_0=\mathrm{Cross}(Z,X),\quad
+Z_{n+1}=\mathrm{Block}(Z_n);
+\qquad (4)\]
+</div>
+<div class="math block">
+\[\text{latent\_array}:\quad
+Z_{n+1}=\mathrm{Block}\bigl(\mathrm{Cross}(Z_n,X)\bigr);
+\qquad (5)\]
+</div>
+<div class="math block">
+\[\text{bottleneck}:\quad
+Z_1=\mathrm{FFN}\bigl(\mathrm{Cross}(Z_0,X)\bigr);
+\qquad (6)\]
+</div>
+<p>where Cross includes the residual around the read. The difference between (4)
+and (5) is the difference between reading the input once and reading it at
+every step: (4) is cheaper and cannot recover a detail it missed; (5) pays
+<span class="math inline">\(O(NTLd)\)</span> and can.</p>
+<h3 id="set-transformer-attention-as-pooling">Set Transformer: attention as pooling <a class="header-anchor" href="#set-transformer-attention-as-pooling">#</a></h3>
+<p>For a set, the natural layer is self-attention with no positional term:</p>
+<div class="math block">
+\[\mathrm{SAB}(X)=X+\mathrm{MHA}(X,X),\qquad X\leftarrow X+\mathrm{FFN}(\mathrm{LN}(X)).
+\qquad (7)\]
+</div>
+<p>The output is permutation-equivariant, so it is still a set. To produce a fixed
+number of outputs, pooling by multi-head attention (PMA) uses <span class="math inline">\(L\)</span> learned seeds
+<span class="math inline">\(Z\)</span> as queries against the encoded set:</p>
+<div class="math block">
+\[Z\leftarrow Z+\mathrm{MHA}(Z,\,X_{\text{encoded}}).
+\qquad (8)\]
+</div>
+<p>That is exactly the cross-attention of (1) with the seeds in place of the
+latents, and it is why <code>set_transformer</code> shares the latent machinery: seeds and
+latents play the same role, one after the other. The demo permutes the seeds
+and confirms the output is permuted the same way.</p>
+<h3 id="permutation-invariance-precisely">Permutation invariance, precisely <a class="header-anchor" href="#permutation-invariance-precisely">#</a></h3>
+<p>For a permutation matrix <span class="math inline">\(P\)</span> acting on the token axis,</p>
+<div class="math block">
+\[\mathrm{Cross}(Z,PX)=\mathrm{Cross}(Z,X),\qquad
+\mathrm{SAB}(PX)=P\,\mathrm{SAB}(X).
+\qquad (9)\]
+</div>
+<p>The first holds because the softmax normalises over keys and the sum
+<span class="math inline">\(\sum_j A_{ij}V_{j:}\)</span> is over a set. The second holds because self-attention is
+applied identically to every token; composing the two, PMA is invariant. The
+demo's worst deviation over the four variants is <span class="math inline">\(6.2\times10^{-15}\)</span>, which is
+floating-point noise in the softmax sums.</p>
+<p>Note what invariance costs: no position information can enter, so these blocks
+are for sets and bags, not for sequences with order. The Perceiver adds
+position embeddings to the input when order matters; that is a separate,
+explicit choice, and it is not in this file.</p>
+<h3 id="parameter-counts-and-depth-sharing">Parameter counts and depth sharing <a class="header-anchor" href="#parameter-counts-and-depth-sharing">#</a></h3>
+<p>Each attention block owns four <span class="math inline">\(d\times d\)</span> projections with biases,
+<span class="math inline">\(4(d^2+d)\)</span>. The FFN owns <span class="math inline">\((dh+h)+(hd+d)\)</span>. The latent array owns <span class="math inline">\(Ld\)</span>. So</p>
+<div class="math block">
+\[P_{\text{perceiver}}=2\cdot4(d^2+d)+(dh+h)+(hd+d)+Ld,
+\qquad (10)\]
+</div>
+<p>with one attention block for the cross-attention and one for the shared latent
+self-attention; <code>latent_array</code> has the same count because its cross-attention
+is the same module reused. <code>set_transformer</code> swaps the self-attention for a SAB
+and adds a PMA, which is again <span class="math inline">\(4(d^2+d)\)</span> — hence the same total. The bottleneck
+drops the self-attention, which is the 80-parameter difference in the demo
+table.</p>
+<p>Because depth reuses these modules, a depth-6 Perceiver owns exactly the same
+248 parameters as a depth-1 one. The demo checks that and also checks that the
+two outputs differ, so the depth is doing something even though it costs
+nothing.</p>
+<h3 id="the-backward-pass">The backward pass <a class="header-anchor" href="#the-backward-pass">#</a></h3>
+<p>Only the attention block is new relative to the transformer chapter. For the
+softmax matrix <span class="math inline">\(A\)</span> and upstream <span class="math inline">\(dC\)</span> on the context,</p>
+<div class="math block">
+\[dA=dC\,V^{\top},\qquad dV=A^{\top}dC,\qquad
+dS=A\odot\Bigl(dA-\sum_j A_{ij}dA_{ij}\Bigr),
+\qquad (11)\]
+</div>
+<p>and then, since <span class="math inline">\(S=QK^{\top}/\sqrt{d_h}\)</span>,</p>
+<div class="math block">
+\[dQ=\frac{dS\,K}{\sqrt{d_h}},\qquad
+dK=\frac{dS^{\top}Q}{\sqrt{d_h}}.
+\qquad (12)\]
+</div>
+<p>The projections follow: <span class="math inline">\(dW_q=Q_{\text{in}}^{\top}dQ\)</span> and so on. When the query
+and key streams are the same tensor, as in self-attention, the two gradients
+add before the LayerNorm backward pass; when they differ, as in cross-attention
+and PMA, they go to different places. The demo's worst errors are
+<span class="math inline">\(2.7\times10^{-8}\)</span> for the three full variants and <span class="math inline">\(1.3\times10^{-9}\)</span> for the
+bottleneck.</p>
+<h3 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h3>
+<p>For <span class="math inline">\(T\)</span> tokens, <span class="math inline">\(L\)</span> latents, <span class="math inline">\(d\)</span> channels and <span class="math inline">\(N\)</span> blocks:</p>
+<ul>
+<li><strong>Perceiver:</strong> <span class="math inline">\(O(TLd)\)</span> for the one read, then <span class="math inline">\(O(NL^2d)\)</span> for the latent
+stack. Once <span class="math inline">\(L\)</span> is fixed, the cost is linear in the input length.</li>
+<li><strong>latent_array:</strong> <span class="math inline">\(O(NTLd)\)</span> for the repeated reads, plus the latent stack.
+Still linear in <span class="math inline">\(T\)</span>, with a larger constant.</li>
+<li><strong>bottleneck:</strong> <span class="math inline">\(O(TLd + Ldh)\)</span>; the cheapest variant and the least
+expressive.</li>
+<li><strong>set_transformer:</strong> <span class="math inline">\(O(NT^2d)\)</span> for the SAB stack, then <span class="math inline">\(O(TLd)\)</span> for PMA. It
+is the only variant that pays the quadratic token cost, which is the price of
+letting tokens interact before pooling.</li>
+<li><strong>The demo:</strong> 5 tokens, 3 latents, width 4 and depth 2, so every product is
+tiny; the finite-difference loops dominate, and the file runs in well under a
+second.</li>
+</ul>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The attention helper is the whole model in miniature. Queries and keys are
+projected separately, scores are scaled, and the context is merged before the
+output projection:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_attend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queries</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">keys</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_heads</span><span class="p">(</span><span class="n">queries</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.q.W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.q.b"</span><span class="p">])</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_heads</span><span class="p">(</span><span class="n">keys</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.k.W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.k.b"</span><span class="p">])</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_heads</span><span class="p">(</span><span class="n">keys</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.v.W"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.v.b"</span><span class="p">])</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="p">(</span><span class="n">q</span> <span class="o">@</span> <span class="n">k</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+        <span class="n">attention</span> <span class="o">=</span> <span class="n">_softmax</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="n">attention</span> <span class="o">@</span> <span class="n">v</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_merge</span><span class="p">(</span><span class="n">context</span><span class="p">)</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.o.W"</span><span class="p">]</span>
+               <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.o.b"</span><span class="p">])</span>
+</code></pre>
+<p>The Perceiver forward is then three lines of arrangement: one read, then the
+shared latent loop. The caches are per step because the parameters are shared
+but the activations are not:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"perceiver"</span><span class="p">:</span>
+            <span class="n">latent</span><span class="p">,</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"cross"</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cross_layer</span><span class="p">(</span><span class="n">latent</span><span class="p">,</span> <span class="n">tokens</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">depth</span><span class="p">):</span>
+                <span class="n">latent</span><span class="p">,</span> <span class="n">self_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_self_layer</span><span class="p">(</span><span class="n">latent</span><span class="p">,</span> <span class="s2">"self"</span><span class="p">)</span>
+                <span class="n">latent</span><span class="p">,</span> <span class="n">ffn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ffn</span><span class="p">(</span><span class="n">latent</span><span class="p">)</span>
+                <span class="n">cache</span><span class="p">[</span><span class="s2">"steps"</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">"self"</span><span class="p">:</span> <span class="n">self_cache</span><span class="p">,</span> <span class="s2">"ffn"</span><span class="p">:</span> <span class="n">ffn</span><span class="p">})</span>
+            <span class="k">return</span> <span class="n">latent</span><span class="p">,</span> <span class="n">cache</span>
+</code></pre>
+<p>PMA is the same attention call with two different normalised streams. Keeping
+the query and key caches separate is what lets the backward pass send the two
+gradients to the seeds and to the encoded set respectively:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_pool_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queries</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">keys</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""A sublayer whose query and key streams differ, as in PMA."""</span>
+        <span class="n">norm_q</span><span class="p">,</span> <span class="n">cache_q</span> <span class="o">=</span> <span class="n">_layer_norm</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span>
+        <span class="n">norm_k</span><span class="p">,</span> <span class="n">cache_k</span> <span class="o">=</span> <span class="n">_layer_norm</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">,</span> <span class="n">attention</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attend</span><span class="p">(</span><span class="n">norm_q</span><span class="p">,</span> <span class="n">norm_k</span><span class="p">,</span> <span class="s2">"pma"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">queries</span> <span class="o">+</span> <span class="n">out</span><span class="p">,</span> <span class="p">{</span><span class="s2">"norm_q"</span><span class="p">:</span> <span class="n">cache_q</span><span class="p">,</span> <span class="s2">"norm_k"</span><span class="p">:</span> <span class="n">cache_k</span><span class="p">,</span>
+                               <span class="s2">"attend"</span><span class="p">:</span> <span class="n">attention</span><span class="p">}</span>
+</code></pre>
+<p>The FFN caches both the normalised input and the LayerNorm statistics. The
+normalised tensor is what the weight gradient multiplies; the statistics are
+what the backward pass through the norm needs:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_ffn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="n">norm</span><span class="p">,</span> <span class="n">norm_cache</span> <span class="o">=</span> <span class="n">_layer_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">pre</span> <span class="o">=</span> <span class="n">norm</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"ffn.in"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"ffn.in.b"</span><span class="p">]</span>
+        <span class="n">hidden</span> <span class="o">=</span> <span class="n">_gelu</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">hidden</span> <span class="o">@</span> <span class="n">p</span><span class="p">[</span><span class="s2">"ffn.out"</span><span class="p">]</span> <span class="o">+</span> <span class="n">p</span><span class="p">[</span><span class="s2">"ffn.out.b"</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">out</span><span class="p">,</span> <span class="p">{</span><span class="s2">"norm"</span><span class="p">:</span> <span class="n">norm</span><span class="p">,</span> <span class="s2">"norm_cache"</span><span class="p">:</span> <span class="n">norm_cache</span><span class="p">,</span>
+                         <span class="s2">"pre"</span><span class="p">:</span> <span class="n">pre</span><span class="p">,</span> <span class="s2">"hidden"</span><span class="p">:</span> <span class="n">hidden</span><span class="p">}</span>
+</code></pre>
+<p>The softmax backward is (11) and (12) in four lines. The subtraction of the
+weighted mean is what makes the Jacobian act on the zero-sum subspace:</p>
+<pre class="highlight"><code>        <span class="n">d_attention</span> <span class="o">=</span> <span class="n">d_context</span> <span class="o">@</span> <span class="n">v</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">d_v</span> <span class="o">=</span> <span class="n">attention</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">@</span> <span class="n">d_context</span>
+        <span class="n">d_scores</span> <span class="o">=</span> <span class="n">attention</span> <span class="o">*</span> <span class="p">(</span>
+            <span class="n">d_attention</span> <span class="o">-</span> <span class="p">(</span><span class="n">attention</span> <span class="o">*</span> <span class="n">d_attention</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="n">d_scores</span> <span class="o">=</span> <span class="n">d_scores</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+</code></pre>
+<p>Walking the latent-array stack backwards requires accumulating the token
+gradient across blocks, because every block reads the same input:</p>
+<pre class="highlight"><code>        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"latent_array"</span><span class="p">:</span>
+            <span class="n">d_latent</span> <span class="o">=</span> <span class="n">gradient</span>
+            <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="s2">"steps"</span><span class="p">]):</span>
+                <span class="n">d_latent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ffn_backward</span><span class="p">(</span><span class="n">d_latent</span><span class="p">,</span> <span class="n">step</span><span class="p">[</span><span class="s2">"ffn"</span><span class="p">])</span>
+                <span class="n">d_latent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_same_backward</span><span class="p">(</span>
+                    <span class="n">d_latent</span><span class="p">,</span> <span class="n">step</span><span class="p">[</span><span class="s2">"self"</span><span class="p">],</span> <span class="s2">"self"</span><span class="p">)</span>
+                <span class="n">d_latent</span><span class="p">,</span> <span class="n">d_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cross_backward</span><span class="p">(</span>
+                    <span class="n">d_latent</span><span class="p">,</span> <span class="n">step</span><span class="p">[</span><span class="s2">"cross"</span><span class="p">])</span>
+                <span class="n">d_tokens</span> <span class="o">+=</span> <span class="n">d_step</span>
+</code></pre>
+<p>The latent parameter is shared across the batch, so its gradient is a sum over
+the batch axis, exactly as an embedding table sums over occurrences:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_scatter_latent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d_latent</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="s2">"latent"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">d_latent</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</code></pre>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The bottleneck can throw away the answer.</strong> A single read with <span class="math inline">\(L\)</span> latents is
+a projection onto an <span class="math inline">\(L\)</span>-dimensional summary; if the task depends on a detail
+that no latent query looks at, no later block can recover it. <code>latent_array</code>
+exists to mitigate this, at a linear cost in <span class="math inline">\(T\)</span> per block.</p>
+<p><strong>Fixed latents are a learned prior, not data.</strong> The initial latent array is a
+parameter, so it does not adapt per example. That is the point — it is a fixed
+set of queries — but it also means the model cannot decide, per input, how many
+latents to use.</p>
+<p><strong>Permutation invariance forbids order.</strong> Feeding a sequence to any of these
+blocks without adding positional information gives a bag-of-tokens model. The
+<code>set_transformer</code> is explicit about this; the Perceiver's input embedding is
+where positions must be added, and this file does not have one.</p>
+<p><strong>Softmax over many keys saturates.</strong> With <span class="math inline">\(T\)</span> large and scores of moderate
+scale, the attention rows can become nearly one-hot, and the gradient through
+the softmax shrinks. The demo's finite-difference errors of <span class="math inline">\(10^{-8}\)</span> rather
+than <span class="math inline">\(10^{-10}\)</span> are a hint of that flatness; a real model uses temperature or
+QK normalisation.</p>
+<p><strong>Depth sharing saves parameters and limits capacity.</strong> Reusing one block <span class="math inline">\(N\)</span>
+times gives a recurrent computation, not <span class="math inline">\(N\)</span> independent layers. That is
+cheaper and often enough, but it cannot represent a different function at each
+depth.</p>
+<p><strong>PMA's seeds are unordered.</strong> Permuting the seeds permutes the pooled output,
+which is fine when the output is a set but wrong if the caller assumes a fixed
+semantic order. Nothing in the layer assigns meaning to seed <span class="math inline">\(i\)</span>.</p>
+<p><strong>Cross-attention keys are unnormalised in this implementation.</strong> <code>_cross_layer</code>
+normalises the queries only. That matches the reference Perceiver, but it means
+the key stream must already be on a reasonable scale; adding a key norm is a
+one-line change and a different model.</p>
+<p><strong>LayerNorm over channels assumes the width is the feature axis.</strong> Every norm
+here reduces over <code>dim</code>. A layout with channels first would normalise the wrong
+axis and still run, producing plausible but wrong numbers.</p>
+<p><strong>A wrong gradient shape is the only guard on the output.</strong> The backward pass
+checks the latent shape but cannot check that the upstream gradient came from
+the right loss; a transposed or mis-broadcast gradient produces silent
+nonsense.</p>
+<p><strong>The number of latents is a hyperparameter with no schedule.</strong> Too few and the
+read is lossy; too many and the self-attention cost grows quadratically in <span class="math inline">\(L\)</span>.
+The demo's <span class="math inline">\(L=3\)</span> against <span class="math inline">\(T=5\)</span> compresses almost nothing, which is convenient
+for checking shapes and misleading as a capacity guide.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>The Perceiver family is used for modalities whose inputs are large and
+unstructured: images at high resolution, audio spectrograms, point clouds and
+multi-modal arrays, where the token count makes full self-attention
+prohibitive. Perceiver IO extends the same latent array to arbitrary outputs by
+cross-attending from latents to output queries.</p>
+<p>The Set Transformer is used wherever the input is genuinely a set — multiple
+instance learning, point-cloud classification, amortised clustering, and
+attention-based pooling in retrieval models. PMA in particular is a drop-in
+replacement for mean or max pooling when the pooled representation should be
+learned rather than fixed.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Jaegle, A., Gimeno, F., Brock, A., Vinyals, O., Zisserman, A., Carreira, J.
+(2021). <em>Perceiver: general perception with iterative attention.</em> ICML.
+Equations (1), (2) and the latent stack.</li>
+<li>Jaegle, A., Borgeaud, S., Alayrac, J.-B., Doersch, C., Ionescu, C., Ding, D.,
+Koppula, S., Zoran, D., Brock, A., Shelhamer, E., Hénaff, O.,
+Botvinick, M., Zisserman, A., Vinyals, O., Carreira, J. (2022).
+<em>Perceiver IO: a general architecture for structured inputs and outputs.</em>
+ICLR. The output-query extension of the same bottleneck.</li>
+<li>Lee, J., Lee, Y., Kim, J., Kosiorek, A. R., Choi, S., Teh, Y. W. (2019). <em>Set
+Transformer: a framework for attention-based permutation-invariant neural
+networks.</em> ICML. SAB, PMA, equations (7) and (8).</li>
+<li>Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N.,
+Kaiser, Ł., Polosukhin, I. (2017). <em>Attention is all you need.</em> NeurIPS. The
+attention block and its backward pass, equations (11) and (12).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="mixer.html"><small>Previous</small><span>MLP-Mixer</span></a><a class="next" href="convnext.html"><small>Next</small><span>ConvNeXt</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">12 · Neural blocks</p><ul class="rail-list"><li><a href="mlp.html"><span class="tick">✓</span><span>MLP</span></a></li><li><a href="conv.html"><span class="tick">✓</span><span>Convolution</span></a></li><li><a href="pooling.html"><span class="tick">✓</span><span>Pooling</span></a></li><li><a href="residual.html"><span class="tick">✓</span><span>Residual blocks</span></a></li><li><a href="transformer.html"><span class="tick">✓</span><span>Transformer block</span></a></li><li><a href="positional.html"><span class="tick">✓</span><span>Positional encoding</span></a></li><li><a href="moe.html"><span class="tick">✓</span><span>Mixture of experts</span></a></li><li><a href="dropout.html"><span class="tick">✓</span><span>Dropout family</span></a></li><li><a href="embedding_layers.html"><span class="tick">✓</span><span>Embedding layers</span></a></li><li><a href="gnn_blocks.html"><span class="tick">✓</span><span>Graph neural blocks</span></a></li><li><a href="mixer.html"><span class="tick">✓</span><span>MLP-Mixer</span></a></li><li><a href="perceiver.html" aria-current="page"><span class="tick">✓</span><span>Perceiver</span></a></li><li><a href="convnext.html"><span class="tick">✓</span><span>ConvNeXt</span></a></li><li><a href="hypernetwork.html"><span class="tick">✓</span><span>Hypernetworks</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../11-time-series/index.html"><span class="jump">← 11 · Time series</span></a></li><li><a href="../13-training/index.html"><span class="jump">13 · Training&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#cross-attention-is-a-learned-read">Cross-attention is a learned read</a></li><li class="lvl3"><a href="#four-arrangements">Four arrangements</a></li><li class="lvl3"><a href="#set-transformer-attention-as-pooling">Set Transformer: attention as pooling</a></li><li class="lvl3"><a href="#permutation-invariance-precisely">Permutation invariance, precisely</a></li><li class="lvl3"><a href="#parameter-counts-and-depth-sharing">Parameter counts and depth sharing</a></li><li class="lvl3"><a href="#the-backward-pass">The backward pass</a></li><li class="lvl3"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/12-neural-blocks/perceiver.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DLinear · MLAtoms</title>
+<meta name="description" content="Decomposition plus a linear layer: the transformer sanity check. In 2023 a paper asked whether Transformers are actually necessary for long-horizon…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/dlinear.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="DLinear">
+<meta property="og:description" content="Decomposition plus a linear layer: the transformer sanity check. In 2023 a paper asked whether Transformers are actually necessary for long-horizon…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/dlinear.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DLinear">
+<meta name="twitter:description" content="Decomposition plus a linear layer: the transformer sanity check. In 2023 a paper asked whether Transformers are actually necessary for long-horizon…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "DLinear", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/11-time-series/dlinear.html", "description": "Decomposition plus a linear layer: the transformer sanity check. In 2023 a paper asked whether Transformers are actually necessary for long-horizon\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">11 · Time series</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="dlinear.py.html">source</a></p><h1>DLinear — decomposition and a linear map, and why that is hard to beat</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>In 2023 a paper asked whether Transformers are actually necessary for
+long-horizon forecasting. Its answer was a one-layer linear map applied to a
+decomposed look-back window, and that map matched or beat the Transformer
+models on the standard benchmarks. The result is uncomfortable but simple:
+when the data are a smooth trend plus a repeating seasonal shape, a linear
+function of the recent past is already a good forecast, and most of the
+modelling effort in a deep architecture is spent relearning that structure.</p>
+<p>DLinear writes the assumption down explicitly. Take the last <span class="math inline">\(L\)</span> observations,
+split them into a moving-average trend and a residual seasonal part, and learn
+two linear maps from those <span class="math inline">\(L\)</span> values to the next <span class="math inline">\(H\)</span>. The sum is the forecast.
+The model has <span class="math inline">\(2LH\)</span> weights — a few thousand for typical settings — and fitting
+it is one ridge regression, not a training loop.</p>
+<p>The variants isolate the two ideas inside that recipe:</p>
+<ul>
+<li><strong><code>dlinear</code></strong> is the full model: decomposition plus a jointly fitted linear
+head on the concatenated trend and seasonal features.</li>
+<li><strong><code>nlinear</code></strong> removes the decomposition and instead subtracts the last
+observation from every input and from the target. The forecast is invariant
+to an additive level shift, which is its whole purpose.</li>
+<li><strong><code>moving_avg_decomp</code></strong> keeps the decomposition but replaces the learned
+trend head with an explicit least-squares line through the trend, so the
+trend forecast is extrapolation rather than regression.</li>
+<li><strong><code>channel_independent</code></strong> fits one pair of heads per channel instead of
+sharing a single map across channels, which is what the original paper does.</li>
+</ul>
+<p>The demo checks accuracy against naive and seasonal-naive baselines, verifies
+the decomposition identity, measures the shift-equivariance that separates
+<code>nlinear</code> from <code>dlinear</code>, and compares pooled against per-channel heads on a
+two-channel series whose scales differ by an order of magnitude.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">forecast</th>
+<th style="text-align:left">demo result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>dlinear</code></td>
+<td style="text-align:left">linear map on trend and seasonal</td>
+<td style="text-align:left">MAE 0.2545 against 1.7795</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nlinear</code></td>
+<td style="text-align:left">linear map on last-value differences</td>
+<td style="text-align:left">shift error 1.1e-13</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>moving_avg_decomp</code></td>
+<td style="text-align:left">line extrapolation and seasonal map</td>
+<td style="text-align:left">MAE 0.1989 vs 1.1324</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>channel_independent</code></td>
+<td style="text-align:left">one map per channel</td>
+<td style="text-align:left">MAE 0.1468 against 0.1518</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>dlinear</code></strong> fits 541 windows from a 600-point training segment of a series
+with a linear trend, two harmonics and noise. The in-sample MSE is <span class="math inline">\(0.0910\)</span>,
+and rolling one-step-ahead blocks give a mean absolute error of <span class="math inline">\(0.2545\)</span>
+against <span class="math inline">\(1.7795\)</span> for the naive forecast and <span class="math inline">\(0.5632\)</span> for seasonal naive with
+the correct period of 24. The gain over seasonal naive is the interesting one:
+the linear map is not just repeating yesterday, it is learning how the seasonal
+shape and the trend combine over the 48-step look-back.</p>
+<p><strong><code>nlinear</code></strong> is trained on a stationary series and then asked to forecast after
+the level jumps by <span class="math inline">\(+1000\)</span>. Its forecast is exactly equivariant: shifting the
+history by <span class="math inline">\(c\)</span> shifts every forecast by <span class="math inline">\(c\)</span>, with a numerical error of
+<span class="math inline">\(1.14\times10^{-13}\)</span>. <code>dlinear</code> is not equivariant; the same shift changes its
+forecast by <span class="math inline">\(1.3626\)</span> too little, because its intercept and weights were fitted
+to the old level. One full window after the break the rolling MAE is <span class="math inline">\(0.1847\)</span>
+for <code>nlinear</code> and <span class="math inline">\(0.9947\)</span> for <code>dlinear</code>. The difference is real but modest on
+this synthetic series — a linear model partially follows a level shift — so the
+equivariance check, not the MAE, is the honest demonstration of the mechanism.</p>
+<p><strong><code>moving_avg_decomp</code></strong> handles a trend whose slope changes halfway through the
+record. The trend component is smoothed with a 25-point kernel, a line is fitted
+to the last 60 trend values and extrapolated 12 steps, and a ridge head learns
+the residual. Its rolling MAE is <span class="math inline">\(0.1989\)</span> against <span class="math inline">\(1.1324\)</span> for naive. The
+explicit line is more interpretable than a learned trend head and is the right
+choice when the trend is locally linear by assumption.</p>
+<p><strong><code>channel_independent</code></strong> is fitted to two channels with very different scales
+and periods: one has amplitude 4 and period 12, the other amplitude 0.4 and
+period 7. Separate heads reach a two-channel MAE of <span class="math inline">\(0.1468\)</span> against <span class="math inline">\(0.1518\)</span>
+for a single shared head. The improvement is only 3%, which is itself a useful
+result: on short windows with standardised features, pooling is a mild
+regulariser rather than a disaster. On channels with genuinely different
+dynamics the gap widens.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-windowed-forecasting-problem">The windowed forecasting problem <a class="header-anchor" href="#the-windowed-forecasting-problem">#</a></h3>
+<p>Fix a look-back <span class="math inline">\(L\)</span> and a horizon <span class="math inline">\(H\)</span>. For every origin <span class="math inline">\(t\)</span> with enough history
+and future, form the pair</p>
+<div class="math block">
+\[x_{t-L+1:t}\in\mathbb R^{L},\qquad x_{t+1:t+H}\in\mathbb R^{H},
+\qquad (1)\]
+</div>
+<p>and choose a forecast function <span class="math inline">\(f\)</span> minimising squared error over the training
+origins:</p>
+<div class="math block">
+\[\min_{f}\sum_{t=L}^{n-H}
+\bigl\lVert f(x_{t-L+1:t})-x_{t+1:t+H}\bigr\rVert_2^2 .
+\qquad (2)\]
+</div>
+<p>The whole family differs only in how <span class="math inline">\(f\)</span> is parameterised. DLinear restricts
+<span class="math inline">\(f\)</span> to be affine after a fixed decomposition; NLinear applies an affine map
+after a fixed normalisation.</p>
+<h3 id="moving-average-decomposition">Moving-average decomposition <a class="header-anchor" href="#moving-average-decomposition">#</a></h3>
+<p>For an odd kernel <span class="math inline">\(k=2p+1\)</span>, the trend is the centred average</p>
+<div class="math block">
+\[\tau_t=\frac1k\sum_{j=-p}^{p}x_{t+j},
+\qquad (3)\]
+</div>
+<p>with the series extended by edge replication at both ends so that every
+observation has a full window. The seasonal residual is whatever is left:</p>
+<div class="math block">
+\[\sigma_t=x_t-\tau_t .
+\qquad (4)\]
+</div>
+<p>The identity (4) is exact by definition, which is why the demo can assert it to
+machine precision. The modelling assumption is not the identity but the claim
+that <span class="math inline">\(\tau\)</span> is smooth and <span class="math inline">\(\sigma\)</span> is periodic; a kernel much shorter than the
+period leaves seasonal variation in the trend, and a kernel much longer than
+the window flattens genuine changes.</p>
+<h3 id="dlinear">DLinear <a class="header-anchor" href="#dlinear">#</a></h3>
+<p>Apply (3)–(4) to the look-back window, giving vectors <span class="math inline">\(\tau\)</span> and <span class="math inline">\(\sigma\)</span> of
+length <span class="math inline">\(L\)</span>. The forecast is</p>
+<div class="math block">
+\[\hat x_{t+1:t+H}=W_\tau\tau+W_\sigma\sigma+b,
+\qquad (5)\]
+</div>
+<p>with <span class="math inline">\(W_\tau,W_\sigma\in\mathbb R^{H\times L}\)</span> and <span class="math inline">\(b\in\mathbb R^{H}\)</span>.
+Equation (5) is a single linear map on the concatenated feature vector
+<span class="math inline">\([\tau;\sigma]\)</span>, which is why the implementation fits one ridge regression
+rather than two independent heads. Fitting the two heads separately to the raw
+target would make each approximate the whole future and their sum double-count
+it; the demo's first version did exactly that and produced an in-sample MSE of
+<span class="math inline">\(273\)</span> instead of <span class="math inline">\(0.091\)</span>.</p>
+<h3 id="ridge-fitting">Ridge fitting <a class="header-anchor" href="#ridge-fitting">#</a></h3>
+<p>The features have different scales across lags and across channels, so the code
+standardises each column before solving. With <span class="math inline">\(z_i\)</span> the standardised
+concatenation and <span class="math inline">\(Y\)</span> the matrix of targets,</p>
+<div class="math block">
+\[\min_{b,W}\sum_{i}\lVert y_i-b-Wz_i\rVert_2^2+\lambda\lVert W\rVert_F^2,
+\qquad (6)\]
+</div>
+<p>where the intercept <span class="math inline">\(b\)</span> is not penalised. Stacking a column of ones in front of
+<span class="math inline">\(Z\)</span> and writing <span class="math inline">\(P=\mathrm{diag}(0,1,\dots,1)\)</span> gives the closed form</p>
+<div class="math block">
+\[\begin{bmatrix}b\\ W\end{bmatrix}
+=\bigl(Z^\top Z+\lambda P\bigr)^{-1}Z^\top Y .
+\qquad (7)\]
+</div>
+<p>The code solves (7) with <code>np.linalg.solve</code> and falls back to <code>lstsq</code> if the
+Gram matrix is singular, which happens when a channel is constant or when
+<span class="math inline">\(L\)</span> exceeds the number of windows. Standardisation is what makes a single
+<span class="math inline">\(\lambda\)</span> sensible across columns; without it the penalty would depend on the
+units of each lag.</p>
+<h3 id="nlinear">NLinear <a class="header-anchor" href="#nlinear">#</a></h3>
+<p>NLinear removes the level of each window before applying the map. Let
+<span class="math inline">\(\ell=x_t\)</span> be the last observed value. The normalised input and target are</p>
+<div class="math block">
+\[\tilde x_{i}=x_i-\ell,\qquad \tilde y_{h}=x_{t+h}-\ell,
+\qquad (8)\]
+</div>
+<p>and the model is a single affine map <span class="math inline">\(g\)</span> fitted to
+<span class="math inline">\((\tilde x,\tilde y)\)</span>. At prediction time the level is added back:</p>
+<div class="math block">
+\[\hat x_{t+1:t+H}=g(\tilde x)+\ell\,\mathbf 1 .
+\qquad (9)\]
+</div>
+<p>Substituting <span class="math inline">\(x_i+c\)</span> for every input shifts <span class="math inline">\(\tilde x\)</span> by nothing and <span class="math inline">\(\ell\)</span> by
+<span class="math inline">\(c\)</span>, so the forecast shifts by exactly <span class="math inline">\(c\)</span>. That is the equivariance the demo
+measures at <span class="math inline">\(10^{-13}\)</span>. DLinear lacks it because <span class="math inline">\(b\)</span> is fixed: its response to a
+uniform shift is <span class="math inline">\(c\)</span> times the sum of its weights, which is close to but not
+exactly one.</p>
+<p>NLinear handles an additive level break that happened before the window. It
+does not handle a break inside the look-back: the differences then contain the
+jump, and the linear map extrapolates it as if it were a trend. In the demo the
+transition window is excluded for that reason; a real deployment should detect
+the break and wait for a clean window, or model the break explicitly.</p>
+<h3 id="explicit-trend-extrapolation">Explicit trend extrapolation <a class="header-anchor" href="#explicit-trend-extrapolation">#</a></h3>
+<p>For <code>moving_avg_decomp</code>, the trend head is replaced by a line fitted to the
+trend values at positions <span class="math inline">\(0,\dots,L-1\)</span>:</p>
+<div class="math block">
+\[\hat\tau_{L+h}=\bar\tau+\hat\beta\,(L+h-\bar t),\qquad
+\hat\beta=\frac{\sum_{t=0}^{L-1}(t-\bar t)(\tau_t-\bar\tau)}
+{\sum_{t=0}^{L-1}(t-\bar t)^2},
+\qquad (10)\]
+</div>
+<p>and the ridge head is fitted to the residual target
+<span class="math inline">\(y-\hat\tau\)</span>. The trend forecast is now extrapolation, so it degrades
+gracefully on a locally linear trend and badly at a turning point. This is the
+classical decomposition-plus-extrapolation idea, with the seasonal part still
+learned.</p>
+<h3 id="channel-independence">Channel independence <a class="header-anchor" href="#channel-independence">#</a></h3>
+<p>For a series with <span class="math inline">\(C\)</span> channels, the pooled model stacks all windows from all
+channels into one design matrix and solves (7) once. The channel-independent
+model solves one problem per channel:</p>
+<div class="math block">
+\[\hat x^{(c)}_{t+1:t+H}=W^{(c)}_\tau\tau^{(c)}
++W^{(c)}_\sigma\sigma^{(c)}+b^{(c)},
+\qquad c=1,\dots,C .
+\qquad (11)\]
+</div>
+<p>Pooling assumes that the same linear combination of lags is useful for every
+channel. That is a strong assumption when scales or periods differ, and a mild
+regulariser when they do not. The original DLinear is channel-independent; the
+pooled option is useful as a cheaper model and as a diagnostic for how much the
+channels actually share.</p>
+<h3 id="evaluation">Evaluation <a class="header-anchor" href="#evaluation">#</a></h3>
+<p>All demo numbers are rolling-origin errors. For a set of origins <span class="math inline">\(\mathcal O\)</span>,</p>
+<div class="math block">
+\[\mathrm{MAE}=\frac{1}{\lvert\mathcal O\rvert H}
+\sum_{o\in\mathcal O}\sum_{h=1}^{H}
+\bigl\lvert\hat x_{o+h}-x_{o+h}\bigr\rvert,
+\qquad (12)\]
+</div>
+<p>with the model refitted once on the training prefix and only the forecast origin
+moved. A random train/test split would leak future information into the
+standardisation and into the window construction, and would flatter every
+variant.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The decomposition is a sliding-window mean. Padding by edge replication keeps
+the output length equal to the input, which is what lets the trend and residual
+be subtracted elementwise:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_moving_average</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">kernel</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Centred moving average along the last axis, edge-padded."""</span>
+    <span class="n">pad</span> <span class="o">=</span> <span class="n">kernel</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">padding</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">*</span> <span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="p">[(</span><span class="n">pad</span><span class="p">,</span> <span class="n">pad</span><span class="p">)]</span>
+    <span class="n">padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"edge"</span><span class="p">)</span>
+    <span class="n">view</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">lib</span><span class="o">.</span><span class="n">stride_tricks</span><span class="o">.</span><span class="n">sliding_window_view</span><span class="p">(</span><span class="n">padded</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">view</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p><code>sliding_window_view</code> returns a view, so the average is computed without
+materialising <code>m</code> copies of each window. Edge replication is a choice: it
+biases the trend toward the endpoint at the boundary, which is preferable to
+zero padding (which would introduce a fake jump) and simpler than fitting a
+local line there.</p>
+<p>Window construction is pure index arithmetic, vectorised over all origins:</p>
+<pre class="highlight"><code>    <span class="n">count</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">seq_len</span> <span class="o">-</span> <span class="n">horizon</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">count</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"need at least two training windows"</span><span class="p">)</span>
+    <span class="n">starts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+    <span class="n">left</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">starts</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">seq_len</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]]</span>
+    <span class="n">right</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">starts</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">seq_len</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">horizon</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]]</span>
+    <span class="k">return</span> <span class="n">left</span><span class="p">,</span> <span class="n">right</span>
+</code></pre>
+<p>The result is <code>(count, seq_len, channels)</code> and <code>(count, horizon, channels)</code>.
+Fancy indexing copies, so this is the memory hotspot: about <span class="math inline">\(nL\)</span> doubles for
+the design matrix. For very long series, the same windows can be generated in
+batches, but the closed-form fit needs the full Gram matrix anyway.</p>
+<p>The explicit trend head is a vectorised least-squares line. Centring the index
+grid avoids forming a design matrix and makes the slope a single dot product:</p>
+<pre class="highlight"><code>    <span class="n">length</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">centred</span> <span class="o">=</span> <span class="n">grid</span> <span class="o">-</span> <span class="n">grid</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="n">slope</span> <span class="o">=</span> <span class="n">values</span> <span class="o">@</span> <span class="n">centred</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">centred</span> <span class="o">@</span> <span class="n">centred</span><span class="p">)</span>
+    <span class="n">intercept</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">future</span> <span class="o">=</span> <span class="n">length</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">horizon</span><span class="p">)</span> <span class="o">-</span> <span class="n">grid</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">intercept</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">slope</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">future</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+</code></pre>
+<p>Each row of <code>values</code> is one window, so the same expression fits every window at
+once. The future grid starts at <code>length</code>, the first unobserved index, and runs
+to <code>length + horizon - 1</code>.</p>
+<p>The ridge solver is the only numerical machinery in the file. It standardises
+features, leaves the intercept out of the penalty, and solves the normal
+equations directly:</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">mean_</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">scale</span> <span class="o">&gt;</span> <span class="mf">1e-12</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">design</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">features</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="p">(</span><span class="n">features</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_</span><span class="p">])</span>
+        <span class="n">penalty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">design</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">penalty</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">gram</span> <span class="o">=</span> <span class="n">design</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">design</span> <span class="o">+</span> <span class="n">penalty</span>
+        <span class="n">moment</span> <span class="o">=</span> <span class="n">design</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">targets</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">gram</span><span class="p">,</span> <span class="n">moment</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">gram</span><span class="p">,</span> <span class="n">moment</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</code></pre>
+<p>The <code>scale &gt; 1e-12</code> guard turns a constant feature into a zero column instead
+of dividing by zero; the intercept then absorbs its mean. The fallback is not
+decorative: with <code>ridge=0</code> and more lags than windows the Gram matrix is
+singular, and <code>solve</code> raises rather than returning a least-norm solution.</p>
+<p>Fitting DLinear is three lines once the windows exist. The target is flattened
+in the same window-major, channel-minor order as the features, so row <span class="math inline">\(i\)</span> of the
+design always corresponds to row <span class="math inline">\(i\)</span> of the target:</p>
+<pre class="highlight"><code>            <span class="n">flat</span> <span class="o">=</span> <span class="n">left</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq_len_</span><span class="p">)</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">right</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span>
+            <span class="n">trend</span><span class="p">,</span> <span class="n">seasonal</span> <span class="o">=</span> <span class="n">_decompose</span><span class="p">(</span><span class="n">flat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"dlinear"</span><span class="p">:</span>
+                <span class="n">design</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">trend</span><span class="p">,</span> <span class="n">seasonal</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model_</span> <span class="o">=</span> <span class="n">_Ridge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ridge</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">design</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trend_future_train_</span> <span class="o">=</span> <span class="n">_line_forecast</span><span class="p">(</span><span class="n">trend</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">seasonal_model_</span> <span class="o">=</span> <span class="n">_Ridge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ridge</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span>
+                    <span class="n">seasonal</span><span class="p">,</span> <span class="n">target</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">trend_future_train_</span><span class="p">)</span>
+</code></pre>
+<p>The <code>column_stack</code> is (5) in code: the two heads share one solve, so the fit
+allocates the error between them however it likes. The <code>else</code> branch is the
+only place where the trend is not learned; there the target residual is
+<code>target - trend_future</code>, which is why the seasonal head is fitted to a
+detrended target.</p>
+<p>NLinear's normalisation is symmetric between fit and predict. The last column
+of each window is the reference, and <code>[:, None, :]</code> re-inserts the axis that
+broadcasting needs:</p>
+<pre class="highlight"><code>        <span class="n">last</span> <span class="o">=</span> <span class="n">left</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:][:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="p">(</span><span class="n">left</span> <span class="o">-</span> <span class="n">last</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+            <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq_len_</span><span class="p">)</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="p">(</span><span class="n">right</span> <span class="o">-</span> <span class="n">last</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+            <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">features</span><span class="p">,</span> <span class="n">targets</span>
+</code></pre>
+<p>Because the reference is subtracted from both sides, the learned map sees only
+within-window differences. The last feature column is identically zero, so the
+corresponding weight is unidentifiable; ridge drives it to zero, and the
+intercept carries the average change.</p>
+<p>Prediction inverts the same operation. The reshape restores the
+window/channel order before the level is added back, and the final transpose
+puts the horizon before the channels:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"nlinear"</span><span class="p">:</span>
+            <span class="n">last</span> <span class="o">=</span> <span class="n">left</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:][:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="p">(</span><span class="n">left</span> <span class="o">-</span> <span class="n">last</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+                <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq_len_</span><span class="p">)</span>
+            <span class="n">forecast</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nlinear_</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+            <span class="n">forecast</span> <span class="o">=</span> <span class="n">forecast</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">forecast</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">last</span>
+</code></pre>
+<p>The decomposition variants share a single <code>_predict_windows</code> path. The pooled
+model predicts all windows at once; the per-channel branch loops over channels
+and writes into a preallocated array:</p>
+<pre class="highlight"><code>        <span class="n">flat</span> <span class="o">=</span> <span class="n">left</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq_len_</span><span class="p">)</span>
+        <span class="n">trend</span><span class="p">,</span> <span class="n">seasonal</span> <span class="o">=</span> <span class="n">_decompose</span><span class="p">(</span><span class="n">flat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"dlinear"</span><span class="p">:</span>
+            <span class="n">forecast</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">trend</span><span class="p">,</span> <span class="n">seasonal</span><span class="p">]))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">forecast</span> <span class="o">=</span> <span class="p">(</span><span class="n">_line_forecast</span><span class="p">(</span><span class="n">trend</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span>
+                        <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">seasonal_model_</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">seasonal</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">forecast</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>Keeping the window axis in the reshape is what makes <code>predict</code> and the
+in-sample loss use the same function. The <code>train_loss_</code> reported by <code>fit</code> is
+computed by calling <code>_predict_windows</code> on the training windows, so it cannot
+silently disagree with the forecasts the model actually produces.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>With <span class="math inline">\(n\)</span> observations, <span class="math inline">\(C\)</span> channels, look-back <span class="math inline">\(L\)</span>, horizon <span class="math inline">\(H\)</span>, <span class="math inline">\(m=n-L-H+1\)</span>
+windows and <span class="math inline">\(k\)</span> the moving-average kernel:</p>
+<ul>
+<li><strong>Windowing:</strong> <span class="math inline">\(O(mLC)\)</span> time and memory, the dominant cost for long series.</li>
+<li><strong>Decomposition:</strong> <span class="math inline">\(O(mLC)\)</span> with the sliding-window view, plus <span class="math inline">\(O(mLC)\)</span> for
+the residual.</li>
+<li><strong>One ridge solve:</strong> <span class="math inline">\(O(m(2L)^2+(2L)^3)\)</span> time for pooled DLinear, with the
+same solve producing all <span class="math inline">\(H\)</span> target columns.</li>
+<li><strong><code>channel_independent</code>:</strong> <span class="math inline">\(C\)</span> solves, so <span class="math inline">\(O(C(mL^2+L^3))\)</span>.</li>
+<li><strong><code>nlinear</code>:</strong> one solve of the same size as DLinear without the doubled
+feature count.</li>
+<li><strong>Prediction:</strong> <span class="math inline">\(O(LC)\)</span> to prepare and <span class="math inline">\(O(HLC)\)</span> to apply the maps; a single
+forecast is a handful of dot products.</li>
+<li><strong>Memory:</strong> <span class="math inline">\(O(mLC)\)</span> for the training windows, <span class="math inline">\(O((2L)H)\)</span> for the weights.</li>
+</ul>
+<p>The demo's four fits on 720 points each take a few hundredths of a second. The
+model is small enough to run on a microcontroller, which is part of its appeal;
+the expensive part of a deployment is usually the windowing and the data
+plumbing, not the arithmetic.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A linear map cannot extrapolate a nonlinear trend.</strong> DLinear learns weights
+that combine lags, so it follows a straight trend well and a curve poorly. If
+the trend accelerates, the forecast lags behind it; the residual grows with the
+horizon. <code>moving_avg_decomp</code> does not fix this in general — it fits a line to
+the trend window — but it makes the assumption explicit so you can test it.
+Difference the series or model the trend separately when curvature matters.</p>
+<p><strong>The look-back must cover the longest period.</strong> A 48-step window sees only two
+cycles of a period-24 seasonal pattern. That is enough for the demo, but the
+weights are then estimated from few independent seasonal shapes. If the period
+is 168 (hourly data with a weekly cycle), a 48-step window is blind to it, and
+the model will fit noise. Set <span class="math inline">\(L\)</span> to at least several periods, or feed the model
+seasonal features explicitly.</p>
+<p><strong>Edge padding biases the decomposition.</strong> The moving average replicates the
+first and last values, so the trend at the boundary is pulled toward them and
+the residual there absorbs the error. The bias is <span class="math inline">\(O(k)\)</span> observations wide. In
+the demo the interior of a pure ramp is recovered to <span class="math inline">\(3.6\times10^{-15}\)</span>, but
+the first and last few trend values are not exact. Do not read the boundary
+residual as a change in seasonality.</p>
+<p><strong>NLinear's invariance is additive only.</strong> It handles a level shift, not a
+change in scale or in the seasonal amplitude. Multiply the series by three and
+the differences triple while the learned map still expects the old scale; the
+forecast is then too small by roughly a factor of three in the seasonal
+component. Detect scale changes separately, or normalise by a robust scale
+rather than by the last value alone.</p>
+<p><strong>A break inside the window breaks both models.</strong> NLinear subtracts the last
+value, but if the jump occurred 20 steps ago the differences still contain it
+and the linear map extrapolates the jump as a trend. In the demo the transition
+window has to be excluded. A real system should detect the break, discard the
+contaminated window, and only forecast once the look-back is clean.</p>
+<p><strong>Pooling channels can hide a bad channel.</strong> The pooled model minimises average
+error, so a high-variance channel dominates the fit and a low-variance channel
+is fitted almost by accident. In the demo the penalty is only 3%, but with
+channels whose scales differ by <span class="math inline">\(10^3\)</span> the pooled weights are effectively
+chosen for the largest channel. Standardise per channel or use
+<code>channel_independent</code>.</p>
+<p><strong>Random splits leak the future.</strong> Sliding windows overlap, so a random
+train/test split puts near-duplicate windows on both sides and the test error
+becomes an in-sample error in disguise. Always split by time and evaluate on
+rolling origins, as in (12). This is the single most common reason a DLinear
+result looks better than it is.</p>
+<p><strong>The benchmark claim is conditional.</strong> DLinear beat several Transformers on
+the long-horizon benchmarks used in the 2023 paper, but later work showed that
+those benchmarks reward trend extrapolation and that tuned transformers can
+close the gap. DLinear is best read as a strong, cheap baseline that any
+sequence model must beat — not as proof that attention is useless.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>DLinear is used as the default baseline in long-term forecasting benchmarks and
+as a sanity check before training a deep model: if a linear map on the
+decomposed window matches the candidate, the candidate's extra capacity is not
+buying anything on that dataset. Its parameter count makes it attractive for
+edge deployment — smart meters, weather stations, industrial sensors — where
+the forecast runs on the device and retraining must be cheap.</p>
+<p>The decomposition variant is useful in energy load forecasting, where the trend
+is driven by slow economic and demographic change and the seasonal component by
+daily and weekly routines. In traffic forecasting the same structure appears at
+the scale of a road network, and channel-independent heads let each sensor keep
+its own scale. In retail demand the series are intermittent and the linear
+assumption is weak; there a count model or Croston's method is a better fit, and
+DLinear's failure is informative rather than embarrassing.</p>
+<p>The model is the wrong choice when the target depends on interactions between
+lags that are not additive, when the horizon is much longer than the look-back
+and the trend is nonlinear, or when exogenous drivers (weather, promotions,
+holidays) carry most of the signal. In those cases add the covariates
+explicitly, use a model with a nonlinear link, or move to a sequence model —
+but keep DLinear as the baseline that the more complex model has to justify
+itself against.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Zeng, A., Chen, M., Zhang, L., Xu, Q. (2023). <em>Are Transformers effective for
+time series forecasting?</em> Proceedings of the AAAI Conference on Artificial
+Intelligence 37(9), 11121–11129. DLinear, NLinear and the decomposition
+baseline.</li>
+<li>Hoerl, A. E., Kennard, R. W. (1970). <em>Ridge regression: biased estimation for
+nonorthogonal problems.</em> Technometrics 12(1), 55–67. The penalty in (6)–(7).</li>
+<li>Hyndman, R. J., Athanasopoulos, G. (2021). <em>Forecasting: Principles and
+Practice</em>, 3rd ed., ch. 5. Rolling-origin evaluation and the baseline
+forecasts used in the demo.</li>
+<li>Cleveland, R. B., Cleveland, W. S., McRae, J. E., Terpenning, I. (1990).
+<em>STL: a seasonal-trend decomposition procedure based on loess.</em> Journal of
+Official Statistics 6(1), 3–73. The decomposition idea that DLinear
+simplifies to a moving average.</li>
+<li>Oreshkin, B. N., Carpov, D., Chapados, N., Bengio, Y. (2020). <em>N-BEATS:
+neural basis expansion analysis for interpretable time series forecasting.</em>
+International Conference on Learning Representations. The trend-plus-seasonal
+decomposition as a forecasting architecture.</li>
+<li>Nie, Y., Nguyen, N. H., Sinthong, P., Kalagnanam, J. (2023). <em>A time series is
+worth 64 words: long-term forecasting with Transformers.</em> International
+Conference on Learning Representations. PatchTST, the patching approach that
+followed the linear-model result.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="spectral_analysis.html"><small>Previous</small><span>Spectral analysis</span></a><a class="next" href="theta.html"><small>Next</small><span>Theta method</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">11 · Time series</p><ul class="rail-list"><li><a href="baselines.html"><span class="tick">✓</span><span>Naive baselines</span></a></li><li><a href="ets.html"><span class="tick">✓</span><span>ETS / Holt-Winters</span></a></li><li><a href="arima.html"><span class="tick">✓</span><span>ARIMA</span></a></li><li><a href="var.html"><span class="tick">✓</span><span>Vector autoregression</span></a></li><li><a href="garch.html"><span class="tick">✓</span><span>GARCH</span></a></li><li><a href="stl.html"><span class="tick">✓</span><span>STL decomposition</span></a></li><li><a href="spectral_analysis.html"><span class="tick">✓</span><span>Spectral analysis</span></a></li><li><a href="dlinear.html" aria-current="page"><span class="tick">✓</span><span>DLinear</span></a></li><li><a href="theta.html"><span class="tick">✓</span><span>Theta method</span></a></li><li><a href="croston.html"><span class="tick">✓</span><span>Croston&#x27;s method</span></a></li><li><a href="nbeats.html"><span class="tick">✓</span><span>N-BEATS</span></a></li><li><a href="nhits.html"><span class="tick">✓</span><span>N-HiTS</span></a></li><li><a href="patchtst.html"><span class="tick">✓</span><span>PatchTST</span></a></li><li><a href="tsmixer.html"><span class="tick">✓</span><span>TSMixer</span></a></li><li><a href="deepar.html"><span class="tick">✓</span><span>DeepAR</span></a></li><li><a href="tft.html"><span class="tick">✓</span><span>Temporal fusion transformer</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../10-sequences/index.html"><span class="jump">← 10 · Sequences</span></a></li><li><a href="../12-neural-blocks/index.html"><span class="jump">12 · Neural blocks&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-windowed-forecasting-problem">The windowed forecasting problem</a></li><li class="lvl3"><a href="#moving-average-decomposition">Moving-average decomposition</a></li><li class="lvl3"><a href="#dlinear">DLinear</a></li><li class="lvl3"><a href="#ridge-fitting">Ridge fitting</a></li><li class="lvl3"><a href="#nlinear">NLinear</a></li><li class="lvl3"><a href="#explicit-trend-extrapolation">Explicit trend extrapolation</a></li><li class="lvl3"><a href="#channel-independence">Channel independence</a></li><li class="lvl3"><a href="#evaluation">Evaluation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/11-time-series/dlinear.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

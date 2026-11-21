@@ -3,9 +3,10 @@
 The repository is the source of truth; the site is a projection of it.
 
 `tools/site.py` reads every `README.md`, every atom companion, every file under
-`docs/` and every implemented `.py`, and writes a static `_site/` with no
-framework, no client-side routing and no database. One Markdown file in, one
-HTML file out, at the same path:
+`docs/` and every implemented `.py`, and writes a static site into `docs/` with
+no framework, no client-side routing and no database. The Markdown sources stay
+where they are, so the site and the repository share one tree. One Markdown file
+in, one HTML file out, at the same path relative to the site root:
 
 ```
 05-probabilistic/mcmc.md       →  05-probabilistic/mcmc.html
@@ -28,11 +29,14 @@ the whole site in one pass.
 ## Commands
 
 ```bash
-uv run python tools/site.py build    # write _site/
+uv run python tools/site.py build    # write docs/
 uv run python tools/site.py check    # build, then fail on any broken link
 uv run python tools/site.py assets   # re-render only the icons and the OG card
-python3 -m http.server 8765 -d _site # preview at localhost:8765
+python3 -m http.server 8765 -d docs  # preview at localhost:8765
 ```
+
+`build` empties the output tree first, keeping the top-level `docs/*.md`
+sources, which are the input as well as part of the published tree.
 
 `check` is the contract, and CI runs it on every push:
 
@@ -65,7 +69,7 @@ sanitizer will not render.
 
 ## Assets
 
-Everything in `_site/assets/` comes from `tools/site_assets/` (stylesheet,
+Everything in `docs/assets/` comes from `tools/site_assets/` (stylesheet,
 script, favicon) or is drawn at build time by Pillow: the ICO, the Apple touch
 icon and the 1200×630 social card, whose figures are read from the catalog so it
 can never disagree with the site.
@@ -80,7 +84,8 @@ paint so the page never flashes.
 
 ## Deployment
 
-`.github/workflows/pages.yml` runs `check` and uploads `_site` as a Pages
-artifact on every push to `main`, then deploys it. The site is served from
-<https://abhinav-prabhakar.github.io/MLAtoms/>, and `.nojekyll` keeps Pages from
-running the output through Jekyll.
+GitHub Pages serves `main` / `docs` directly: no workflow, no deploy branch and
+no build step outside this repository. `uv run python tools/site.py check` must
+pass before the `docs/` tree is committed; `.nojekyll` keeps Pages from running
+the output through Jekyll. The site is served from
+<https://abhinav-prabhakar.github.io/MLAtoms/>.

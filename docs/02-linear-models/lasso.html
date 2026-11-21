@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lasso · MLAtoms</title>
+<meta name="description" content="L1 sparsity via coordinate descent and soft-thresholding, plus the full path. Ridge charges for the size of a coefficient (λβ²), which never quite reaches…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/02-linear-models/lasso.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Lasso">
+<meta property="og:description" content="L1 sparsity via coordinate descent and soft-thresholding, plus the full path. Ridge charges for the size of a coefficient (λβ²), which never quite reaches…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/02-linear-models/lasso.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Lasso">
+<meta name="twitter:description" content="L1 sparsity via coordinate descent and soft-thresholding, plus the full path. Ridge charges for the size of a coefficient (λβ²), which never quite reaches…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Lasso", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/02-linear-models/lasso.html", "description": "L1 sparsity via coordinate descent and soft-thresholding, plus the full path. Ridge charges for the size of a coefficient (\u03bb\u03b2\u00b2), which never quite reaches\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">02 · Linear models</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="lasso.py.html">source</a></p><h1>Lasso</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Ridge charges for the <em>size</em> of a coefficient (<code>λβ²</code>), which never quite reaches
+zero. The lasso charges for its <em>existence</em> (<code>λ|β|</code>): the same <code>λ</code> no matter how
+small the coefficient is, so a coefficient that only earns a little correlation
+with the residual is better off switching off entirely.</p>
+<p>That single change of exponent turns a shrinkage estimator into a <em>selector</em>. The
+price is that the problem is no longer differentiable at zero and has no closed
+form — hence six algorithms for one objective:</p>
+<div class="math block">
+\[\min_\beta \; \tfrac12\|y - X\beta\|_2^2 + \lambda\|\beta\|_1\]
+</div>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Algorithm</th>
+<th style="text-align:left">Selects?</th>
+<th style="text-align:left">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>coordinate_descent</code></td>
+<td style="text-align:left">cyclic exact 1-D updates</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left"><code>O(nd)</code> per sweep, few sweeps</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lars</code></td>
+<td style="text-align:left">exact piecewise-linear path</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left"><code>O(d³ + nd²)</code> for the whole path</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>homotopy</code></td>
+<td style="text-align:left">continuation on a <code>λ</code> grid</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">≈ one fit per grid point, warm-started</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>path</code></td>
+<td style="text-align:left">the full <code>β(λ)</code> curve</td>
+<td style="text-align:left">yes</td>
+<td style="text-align:left">≈ one fit total</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>positive_lasso</code></td>
+<td style="text-align:left">CD with <code>β ≥ 0</code></td>
+<td style="text-align:left">yes, sign-constrained</td>
+<td style="text-align:left">same as CD</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>group_lasso</code></td>
+<td style="text-align:left">proximal gradient, L2 block penalty</td>
+<td style="text-align:left">whole groups</td>
+<td style="text-align:left"><code>O(nd)</code> per iteration</td>
+</tr>
+</tbody>
+</table>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>One coordinate, exactly.</strong> Hold every other coefficient fixed and let
+<code>a = ‖x_j‖²</code>, <code>z = x_jᵀr_{−j}</code>. The subproblem is</p>
+<div class="math block">
+\[\min_\beta \; \tfrac12 a\beta^2 - z\beta + \lambda|\beta|\]
+</div>
+<p>whose subgradient is <code>aβ − z + λ·sign(β)</code> (with <code>[−λ, λ]</code> at zero). Hence</p>
+<div class="math block">
+\[\hat\beta_j =
+\begin{cases}
+(z - \lambda)/a & z > \lambda\\
+0 & |z| \le \lambda\\
+(z + \lambda)/a & z < -\lambda
+\end{cases}
+= \frac{1}{a}\,S_\lambda(z),
+\qquad
+S_\lambda(z) = \mathrm{sign}(z)\,(|z| - \lambda)_+\]
+</div>
+<p>This is the <strong>soft threshold</strong>: the ridge solution <code>z/a</code> shifted toward zero by a
+constant <code>λ/a</code>, not scaled. The shift is what creates exact zeros, and it is the
+proximal operator of <code>λ|·|</code>, so coordinate descent here <em>is</em> proximal coordinate
+descent. Each update is exact, so the objective decreases monotonically.</p>
+<p><strong>KKT.</strong> At the optimum, with <code>r = y − Xβ̂</code>:</p>
+<div class="math block">
+\[x_j^\top r = \lambda\,\mathrm{sign}(\hat\beta_j) \;\;(\hat\beta_j \neq 0),
+\qquad
+|x_j^\top r| \le \lambda \;\;(\hat\beta_j = 0)\]
+</div>
+<p>So the residual has <em>equal</em> correlation <code>λ</code> with every selected column and at most
+<code>λ</code> with every dropped one. Both halves are checked in the demo. Setting
+<code>β = 0</code> gives <code>x_jᵀy</code>, so the whole path starts at</p>
+<div class="math block">
+\[\lambda_{\max} = \|X_c^\top y_c\|_\infty\]
+</div>
+<p>and any <code>λ ≥ λ_max</code> returns the empty model — a fact worth knowing before you
+choose a <code>λ</code> grid, because a <code>λ</code> that is small relative to <code>λ_max</code> is not &quot;mild
+regularisation&quot;, it is &quot;no regularisation&quot;.</p>
+<p><strong>Why zero, geometrically.</strong> The constraint form is
+<code>min ‖y − Xβ‖² s.t. ‖β‖₁ ≤ t</code>. The level sets of the loss are ellipsoids centred at
+<code>β̂_OLS</code>; the constraint set is a diamond (a cross-polytope in <code>d</code> dimensions) with
+<em>corners on the coordinate axes</em>. The first contact between a growing diamond and
+an ellipsoid lands on a corner or edge with positive probability, and a corner has
+some coordinates exactly zero. For the <code>L2</code> ball (ridge) the boundary is smooth, so
+contact almost never lands on an axis — the coefficients are small but nonzero.</p>
+<p><strong>Why LARS is exact and piecewise linear.</strong> Define the active set <code>A</code>, the
+correlations <code>c = Xᵀr</code>, and <code>C = max|c_j|</code>. Move along
+<code>w_A = (X_AᵀX_A)⁻¹ s_A</code> (with <code>s_A = sign(c_A)</code>). Then for <code>k ∈ A</code></p>
+<div class="math block">
+\[\dot c_k = -x_k^\top X_A w_A = -(X_A^\top X_A w_A)_k = -s_k\]
+</div>
+<p>so every active correlation falls at <strong>unit rate</strong>, independently of the column
+scaling and of <code>|A|</code>: <code>C(t) = C − t</code>. That identity is the whole trick, and it is
+why the segment lengths are closed-form:</p>
+<ul>
+<li>a new column joins when <code>c_k(t) = ±C(t)</code>,
+<code>t = (C ∓ c_k)/(1 ± a_k)</code> with <code>a_k = x_kᵀX_A w_A</code>;</li>
+<li>an active coefficient hits zero when <code>t = −β_j / w_j</code>;</li>
+<li>you stop at the target when <code>t = C − λ</code>.</li>
+</ul>
+<p>The path is therefore a polyline whose breakpoints are those events; the demo
+checks that LARS and coordinate descent agree to <code>1e-12</code> at five values of <code>λ</code>.
+There is a subtlety that costs everyone an afternoon: the entering variable must
+be carried explicitly, not re-detected by <code>argmax</code> with a tolerance, or a
+floating-point tie stalls the path (or re-admits a variable that just dropped).</p>
+<p><strong>Warm starts and homotopy.</strong> The support is monotone in <code>λ</code> and the path is
+continuous, so solving <code>λ_{k+1}</code> starting from <code>β(λ_k)</code> takes a handful of
+coordinate sweeps instead of hundreds. This is the reason <code>glmnet</code> computes a
+40-point path in about the time of one fit, and it is what <code>path</code> and <code>homotopy</code>
+demonstrate: identical solutions to cold solves, <code>O(1)</code> fits of work.</p>
+<p><strong>Group lasso.</strong> With <code>‖β_g‖₂</code> instead of <code>|β_j|</code>, the proximal operator becomes a
+block shrink:</p>
+<div class="math block">
+\[\mathrm{prox}_{\lambda t\|\cdot\|_2}(z) =
+\Big(1 - \frac{\lambda t}{\|z\|_2}\Big)_+ z\]
+</div>
+<p>A whole group is scaled by one factor, so it is either all-in or exactly zero —
+never partly. That is what you want when features arrive in obligatory bundles
+(dummy levels of a categorical, polynomial terms, a filter bank): lasso would keep
+one level of a categorical and drop the others, which is rarely meaningful.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The file starts with the one nonlinearity that makes the lasso work:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">soft_threshold</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The lasso prox: sign(z)·max(|z| - t, 0)."""</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">-</span> <span class="n">t</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>This is the proximal operator of <code>λ|·|</code>, and it is a <em>shift</em>, not a scale. <code>np.sign(0)</code>
+is <code>0</code>, so the origin is handled without a branch. Every solver below either calls this
+directly or reproduces it in a block form.</p>
+<p><code>coordinate_descent</code> is the workhorse, and its residual bookkeeping is the part to
+read carefully:</p>
+<pre class="highlight"><code>            <span class="n">old</span> <span class="o">=</span> <span class="n">beta</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">rho</span> <span class="o">=</span> <span class="n">Xc</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">@</span> <span class="n">r</span>
+            <span class="n">rho</span> <span class="o">=</span> <span class="n">Xc</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">@</span> <span class="n">r</span> <span class="o">+</span> <span class="n">sq</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">old</span>          <span class="c1"># partial residual correlation</span>
+            <span class="n">new</span> <span class="o">=</span> <span class="n">soft_threshold</span><span class="p">(</span><span class="n">rho</span><span class="p">,</span> <span class="n">lam</span><span class="p">)</span> <span class="o">/</span> <span class="n">sq</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="o">...</span>
+            <span class="k">if</span> <span class="n">new</span> <span class="o">!=</span> <span class="n">old</span><span class="p">:</span>
+                <span class="n">beta</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">new</span>
+                <span class="n">r</span> <span class="o">-=</span> <span class="n">Xc</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">new</span> <span class="o">-</span> <span class="n">old</span><span class="p">)</span>
+</code></pre>
+<p><code>r</code> is the residual of the <em>full</em> current model, so <code>x_jᵀr</code> already includes
+<code>−β_j‖x_j‖²</code>; adding <code>sq[j]·old</code> back gives the correlation with the partial residual
+<code>r_{−j}</code> — the quantity the one-coordinate subproblem needs. Dropping that <code>+sq[j]*old</code>
+is the classic lasso bug: the update becomes <code>soft(x_jᵀr, λ)/a</code>, which shrinks the
+current coefficient again every sweep and converges to a too-sparse solution. The
+incremental residual update <code>r -= x_j(new−old)</code> is what makes a sweep <code>O(nd)</code> instead
+of <code>O(nd²)</code>.</p>
+<p>Two smaller guards matter:</p>
+<pre class="highlight"><code>    <span class="n">sq</span> <span class="o">=</span> <span class="p">(</span><span class="n">Xc</span> <span class="o">*</span> <span class="n">Xc</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">sq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">sq</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">sq</span><span class="p">)</span>
+</code></pre>
+<p>A constant column has zero centred norm; dividing by it is <code>nan</code>. Setting <code>1.0</code> makes
+its <code>rho</code> zero, so it gets coefficient zero — the right answer for an unidentifiable
+column. And the convergence test is <code>max |Δβ_j| &lt; tol</code>, not the objective change:
+coordinate descent can stall with a tiny objective change while a coefficient is still
+moving, and the KKT check in the demo would then fail intermittently.</p>
+<p><code>lars</code> follows the path exactly, and three lines encode the geometry:</p>
+<pre class="highlight"><code>        <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="n">A</span><span class="p">])</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="n">A</span><span class="p">]))</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">Xc</span><span class="p">[:,</span> <span class="n">A</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Xc</span><span class="p">[:,</span> <span class="n">A</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1e-12</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">s</span><span class="p">)</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">Xc</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">Xc</span><span class="p">[:,</span> <span class="n">A</span><span class="p">]</span> <span class="o">@</span> <span class="n">w</span><span class="p">)</span>          <span class="c1"># dc_k/dt = -a_k for every column</span>
+</code></pre>
+<p><code>w_A = (X_AᵀX_A)⁻¹s_A</code> is chosen so that the active correlations fall at unit rate:
+<code>dc_k/dt = −x_kᵀX_Aw = −s_k</code>. That is why the segment length to the next event is
+<code>(C − c_k)/(1 − a_k)</code> and not some ratio of norms. <strong>No column standardisation</strong> is
+applied: standardising changes the penalty (it reweights <code>λ|β_j|</code> by the column norm),
+so the path would no longer be the lasso path. The <code>1e-12</code> ridge is only to keep the
+solve defined when <code>A</code> is collinear; it is small enough not to move the answer at the
+demo's scale.</p>
+<p>The join and drop events are computed in the same loop:</p>
+<pre class="highlight"><code>            <span class="n">g_plus</span> <span class="o">=</span> <span class="p">(</span><span class="n">cmax</span> <span class="o">-</span> <span class="n">c</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">a</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="k">if</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">a</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">1e-12</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="n">g_minus</span> <span class="o">=</span> <span class="p">(</span><span class="n">cmax</span> <span class="o">+</span> <span class="n">c</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">a</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="k">if</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">a</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">1e-12</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">g_plus</span><span class="p">,</span> <span class="n">g_minus</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">g</span> <span class="o">&lt;</span> <span class="n">gamma</span> <span class="o">-</span> <span class="mf">1e-14</span><span class="p">:</span>
+                <span class="n">gamma</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">arg</span> <span class="o">=</span> <span class="n">g</span><span class="p">,</span> <span class="s2">"join"</span><span class="p">,</span> <span class="n">k</span>
+</code></pre>
+<p><code>c_k(t) = c_k − t·a_k</code> and the corridor is <code>±(cmax − t)</code>. Solving <code>c_k − ta_k = cmax − t</code> gives <code>t = (cmax − c_k)/(1 − a_k)</code>; the negative side gives `(cmax + c_k)/(1</p>
+<ul>
+<li>a_k)<code>. The guards </code>1 ∓ a_k &gt; 1e-12<code>avoid division by zero when a column is already perfectly aligned with the active set; those events are at infinity, not at</code>0`.</li>
+</ul>
+<p>The bookkeeping variables are what keep the path from stalling:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"drop"</span><span class="p">:</span>
+            <span class="n">dropped</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="p">{</span><span class="n">arg</span><span class="p">},</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"join"</span><span class="p">:</span>
+            <span class="n">dropped</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(),</span> <span class="n">arg</span>
+</code></pre>
+<p><code>pending</code> is the variable that just joined at this knot. On the next iteration it is
+added to <code>candidates</code> even if its correlation is one ulp below the maximum, because a
+floating-point tie would otherwise make <code>argmax</code> pick a different column and the
+algorithm would never make progress. <code>dropped</code> excludes a variable that just hit zero
+from being re-admitted in the <em>same</em> knot; without it, a drop can immediately re-join
+and loop forever. This is exactly the &quot;subtlety that costs everyone an afternoon&quot;
+named in the doc, and it is encoded rather than hidden in a tolerance.</p>
+<p><code>path</code> and <code>homotopy</code> are warm-start loops:</p>
+<pre class="highlight"><code>    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">lam</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lams</span><span class="p">):</span>
+        <span class="n">fit</span> <span class="o">=</span> <span class="n">coordinate_descent</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">positive</span><span class="o">=</span><span class="n">positive</span><span class="p">,</span>
+                                 <span class="n">fit_intercept</span><span class="o">=</span><span class="n">fit_intercept</span><span class="p">,</span> <span class="n">beta0</span><span class="o">=</span><span class="n">beta</span><span class="p">)</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">fit</span><span class="p">[</span><span class="s2">"coef"</span><span class="p">]</span>
+</code></pre>
+<p>The only difference from a cold solve is <code>beta0=beta</code>. Since the solution is
+continuous in <code>λ</code> and the support is monotone, a handful of sweeps per grid point is
+enough; a cold solve at each point would cost the full <code>5000</code>-iteration budget. The
+demo checks the warm-started path equals cold solves at every <code>λ</code> to <code>1e-8</code>, which is
+the property that makes the speed-up safe rather than approximate.</p>
+<p><code>group_lasso</code> is proximal gradient, with the step from the Lipschitz constant:</p>
+<pre class="highlight"><code>    <span class="n">L</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigvalsh</span><span class="p">(</span><span class="n">Xc</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Xc</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="o">+</span> <span class="mf">1e-12</span>
+    <span class="o">...</span>
+        <span class="n">grad</span> <span class="o">=</span> <span class="n">Xc</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">Xc</span> <span class="o">@</span> <span class="n">beta</span> <span class="o">-</span> <span class="n">yc</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">-</span> <span class="n">step</span> <span class="o">*</span> <span class="n">grad</span>
+        <span class="o">...</span>
+            <span class="n">nrm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">g</span><span class="p">])</span>
+            <span class="n">new</span><span class="p">[</span><span class="n">g</span><span class="p">]</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">g</span><span class="p">]</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">step</span> <span class="o">*</span> <span class="n">lam</span> <span class="o">/</span> <span class="n">nrm</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="k">if</span> <span class="n">nrm</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span>
+</code></pre>
+<p><code>step = 1/L</code> is the largest step for which the gradient step is guaranteed not to
+increase the smooth part, so the iteration is monotone without a line search.
+<code>max(1 − step·λ/‖z_g‖, 0)</code> is the block soft threshold: one scalar multiplies the whole
+group, so a group is either entirely zero or entirely nonzero. The <code>if nrm &gt; 0</code> branch
+avoids <code>0/0</code> for a group that is already at the origin; without it, NumPy emits a
+warning and produces <code>nan</code> that then propagates through every later gradient.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>coordinate_descent</code></td>
+<td style="text-align:left"><code>O(nd)</code> per sweep, <code>O(nd·sweeps)</code></td>
+<td style="text-align:left"><code>O(d)</code> (<code>O(nd)</code> if <code>X</code> is not cached)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lars</code></td>
+<td style="text-align:left"><code>O(d³ + nd²)</code> for the full path</td>
+<td style="text-align:left"><code>O(d²)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>path</code> (warm-started CD)</td>
+<td style="text-align:left">≈ <code>O(nd)</code> × total sweeps across all <code>λ</code></td>
+<td style="text-align:left"><code>O(n·n_lams)</code> for the curve</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>group_lasso</code></td>
+<td style="text-align:left"><code>O(nd)</code> per iteration, step <code>1/L</code></td>
+<td style="text-align:left"><code>O(d)</code></td>
+</tr>
+</tbody>
+</table>
+<p>For <code>d ≤ 10⁴</code> coordinate descent wins in practice; for <code>d</code> in the hundreds with a
+sparse answer, the whole LARS path is often cheaper than one CD fit at a small <code>λ</code>.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong><code>λ</code> without a scale.</strong> <code>λ</code> is in units of <code>Xᵀy</code>. Always start the grid at
+<code>λ_max = ‖Xᵀy‖∞</code> and use fractions of it; a hard-coded <code>0.1</code> means something
+different for every dataset. This implementation's demo reports <code>λ_max ≈ 227</code>
+for data whose coefficients are <code>O(1)</code>.</li>
+<li><strong>Unstandardised columns.</strong> <code>λ</code> is applied to <code>β_j</code> per unit of <code>x_j</code>, so a
+feature measured in small units gets a free pass. Standardise (and remember to
+unscale <code>β</code> for interpretation).</li>
+<li><strong>Correlated features.</strong> Lasso picks one of a collinear pair essentially at
+random and zeroes the other; refitting on a bootstrap sample changes <em>which</em>.
+<code>elastic_net</code> fixes this by mixing in an <code>L2</code> term, which shares the weight.</li>
+<li><strong><code>p &gt; n</code>.</strong> At most <code>n</code> coefficients can be nonzero (the support must be
+linearly independent, and you run out of directions). If you expected 500
+active genes from 100 samples, you are reading noise.</li>
+<li><strong>Inference after selection.</strong> Post-lasso <code>p</code>-values from a naïve OLS refit on
+the selected support are invalid — the support was chosen using <code>y</code>. Use
+sample splitting, the de-biased lasso, or a selective-inference procedure.</li>
+<li><strong>The intercept.</strong> It must not be penalised (centre <code>X</code> and <code>y</code> first). This
+implementation always centres, which is why <code>λ_max</code> is computed on centred data.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Genomics and compressed sensing.</strong> The original motivation: <code>p</code> in the
+thousands, <code>n</code> in the hundreds, and a sparse truth. Lasso is the baseline every
+new method is compared to.</li>
+<li><strong>Sparse linear models in production.</strong> Interpretable risk scores, credit
+models, and any place where &quot;which features matter&quot; is the deliverable.</li>
+<li><strong>Feature screening.</strong> Run lasso, keep the support, fit a flexible model on it
+(screening + refit is the standard two-stage recipe).</li>
+<li><strong>Grouped structures.</strong> <code>group_lasso</code> for categorical blocks, multi-task
+problems, and the <code>L2,1</code> norm in multi-output regression.</li>
+<li><strong>Compressed sensing theory.</strong> <code>λ</code>-regularised <code>L1</code> recovers an <code>s</code>-sparse signal
+from <code>O(s log d)</code> random measurements — the result that made sparsity a
+mainstream tool rather than a trick.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Tibshirani, <em>Regression Shrinkage and Selection via the Lasso</em>, 1996. JRSS-B.</li>
+<li>Efron, Hastie, Johnstone &amp; Tibshirani, <em>Least Angle Regression</em>, 2004. Ann. Stat. (LARS, and the lasso modification).</li>
+<li>Friedman, Hastie &amp; Tibshirani, <em>Regularization Paths for Generalized Linear Models via Coordinate Descent</em>, 2010. JSS (glmnet).</li>
+<li>Zou &amp; Hastie, <em>Regularization and Variable Selection via the Elastic Net</em>, 2005. JRSS-B (why lasso struggles with <code>p &gt; n</code> and groups).</li>
+<li>Yuan &amp; Lin, <em>Model Selection and Estimation in Regression with Grouped Variables</em>, 2006. JRSS-B.</li>
+<li>Candès &amp; Tao, <em>Decoding by Linear Programming</em>, 2005 (the compressed-sensing guarantee).</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="ridge.html"><small>Previous</small><span>Ridge</span></a><a class="next" href="elastic_net.html"><small>Next</small><span>Elastic net</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">02 · Linear models</p><ul class="rail-list"><li><a href="ols.html"><span class="tick">✓</span><span>Ordinary least squares</span></a></li><li><a href="ridge.html"><span class="tick">✓</span><span>Ridge</span></a></li><li><a href="lasso.html" aria-current="page"><span class="tick">✓</span><span>Lasso</span></a></li><li><a href="elastic_net.html"><span class="tick">✓</span><span>Elastic net</span></a></li><li><a href="logistic_regression.html"><span class="tick">✓</span><span>Logistic regression</span></a></li><li><a href="glm.html"><span class="tick">✓</span><span>Generalised linear models</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Robust regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Quantile regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Splines</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Additive models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Isotonic regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Bayesian linear regression</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Generalised least squares</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Partial least squares</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Tobit regression</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../01-optimization/index.html"><span class="jump">← 01 · Optimization</span></a></li><li><a href="../03-kernels-and-instance/index.html"><span class="jump">03 · Kernels &amp; instance-based&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/02-linear-models/lasso.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

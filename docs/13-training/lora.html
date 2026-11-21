@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoRA &amp; PEFT · MLAtoms</title>
+<meta name="description" content="Low-rank adapters, QLoRA and the variants that improved them. Fine-tuning a large model rewrites every weight, and the rewrite is usually small: the update…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/lora.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="LoRA &amp; PEFT">
+<meta property="og:description" content="Low-rank adapters, QLoRA and the variants that improved them. Fine-tuning a large model rewrites every weight, and the rewrite is usually small: the update…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/lora.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LoRA &amp; PEFT">
+<meta name="twitter:description" content="Low-rank adapters, QLoRA and the variants that improved them. Fine-tuning a large model rewrites every weight, and the rewrite is usually small: the update…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "LoRA & PEFT", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/lora.html", "description": "Low-rank adapters, QLoRA and the variants that improved them. Fine-tuning a large model rewrites every weight, and the rewrite is usually small: the update\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>9 variants</span><span class="page-meta__sep">/</span><a href="lora.py.html">source</a></p><h1>LoRA and parameter-efficient fine-tuning — nine ways to train a few numbers</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Fine-tuning a large model rewrites every weight, and the rewrite is usually
+small: the update lives in a much lower-dimensional subspace than the weight
+matrix itself. LoRA takes that observation literally and parameterises the
+update as a product of two thin matrices, so a <span class="math inline">\(d\times k\)</span> weight becomes
+<span class="math inline">\(r(d+k)\)</span> trainable numbers with <span class="math inline">\(r\ll\min(d,k)\)</span>.</p>
+<p>Everything else in this atom is a different answer to the same question — what
+should the small trainable part be? <code>dora</code> splits each weight into a magnitude
+and a direction and trains them separately. <code>adalora</code> gives every rank its own
+scale and prunes the useless ones. <code>rslora</code> fixes a scaling bug that appears as
+the rank grows. <code>loha</code> and <code>lokr</code> replace the product with a Hadamard or
+Kronecker product, which costs more parameters but represents different
+updates. <code>qlora</code> shrinks the frozen base to four bits so the adapter fits on a
+small device. <code>prefix_tuning</code> and <code>prompt_tuning</code> do not touch weights at all:
+they learn extra key-value pairs or extra input tokens.</p>
+<p>The demo freezes a small attention block trained on one three-class task,
+changes the class centres, and then trains each adapter on the new task. The
+frozen model scores 0.283. All seven weight adapters reach 1.000 with between
+74 and 460 trainable numbers against a base of 1091. The two token adapters
+reach 0.68: they can steer the frozen head but not rewrite it, which is the
+honest version of the PEFT trade.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">trains</th>
+<th style="text-align:left">update</th>
+<th style="text-align:left">parameters per matrix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>lora</code></td>
+<td style="text-align:left">two thin factors</td>
+<td style="text-align:left"><span class="math inline">\(BA\)</span></td>
+<td style="text-align:left"><span class="math inline">\(r(d+k)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>qlora</code></td>
+<td style="text-align:left">LoRA on a 4-bit base</td>
+<td style="text-align:left"><span class="math inline">\(BA\)</span></td>
+<td style="text-align:left"><span class="math inline">\(r(d+k)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dora</code></td>
+<td style="text-align:left">LoRA plus a magnitude</td>
+<td style="text-align:left"><span class="math inline">\(m\odot V/\lVert V\rVert\)</span></td>
+<td style="text-align:left"><span class="math inline">\(r(d+k)+d\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adalora</code></td>
+<td style="text-align:left">an SVD triple</td>
+<td style="text-align:left"><span class="math inline">\(P\Lambda Q\)</span></td>
+<td style="text-align:left"><span class="math inline">\(r(d+k)+r\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rslora</code></td>
+<td style="text-align:left">LoRA, scaled by <span class="math inline">\(\sqrt r\)</span></td>
+<td style="text-align:left"><span class="math inline">\(BA\)</span></td>
+<td style="text-align:left"><span class="math inline">\(r(d+k)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>loha</code></td>
+<td style="text-align:left">two products, Hadamard</td>
+<td style="text-align:left"><span class="math inline">\((B_1A_1)\odot(B_2A_2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(2r(d+k)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>lokr</code></td>
+<td style="text-align:left">two rank-one products</td>
+<td style="text-align:left"><span class="math inline">\((B_1A_1)\otimes(B_2A_2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(m_1+n_1+m_2+n_2\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>prefix_tuning</code></td>
+<td style="text-align:left">key and value prefixes</td>
+<td style="text-align:left"><span class="math inline">\([K_p;XW_k]\)</span></td>
+<td style="text-align:left"><span class="math inline">\(2Ld\)</span> in total</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>prompt_tuning</code></td>
+<td style="text-align:left">input tokens</td>
+<td style="text-align:left"><span class="math inline">\([P;X]\)</span></td>
+<td style="text-align:left"><span class="math inline">\(Ld\)</span> in total</td>
+</tr>
+</tbody>
+</table>
+<p>There is one class and one training loop. The adapter is selected by name and
+everything else — the frozen block, the loss, the optimiser — is shared. That
+is the property that matters in practice: swapping LoRA for DoRA is a
+constructor argument, not a rewrite.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="low-rank-updates">Low-rank updates <a class="header-anchor" href="#low-rank-updates">#</a></h3>
+<p>Let <span class="math inline">\(W_0\in\mathbb R^{d\times k}\)</span> be frozen and let the update be</p>
+<div class="math block">
+\[W=W_0+\frac{\alpha}{r}\,BA,\qquad B\in\mathbb R^{d\times r},\quad
+A\in\mathbb R^{r\times k},
+\qquad (1)\]
+</div>
+<p>with <span class="math inline">\(B\)</span> initialised to zero so training starts exactly at the base model. The
+trainable count is</p>
+<div class="math block">
+\[\underbrace{r(d+k)}_{\text{adapter}}\quad\text{instead of}\quad
+\underbrace{dk}_{\text{dense}},
+\qquad (2)\]
+</div>
+<p>which for <span class="math inline">\(d=k=4096\)</span> and <span class="math inline">\(r=8\)</span> is 65,536 against 16.7 million — a factor of
+256. For a loss <span class="math inline">\(L\)</span> and <span class="math inline">\(G=\partial L/\partial W\)</span>,</p>
+<div class="math block">
+\[\frac{\partial L}{\partial B}=\frac{\alpha}{r}\,GA^{\top},\qquad
+\frac{\partial L}{\partial A}=\frac{\alpha}{r}\,B^{\top}G,
+\qquad (3)\]
+</div>
+<p>so the backward pass costs one <span class="math inline">\(d\times r\)</span> and one <span class="math inline">\(r\times k\)</span> matmul on top of
+whatever produced <span class="math inline">\(G\)</span>.</p>
+<h3 id="why-the-scale-is--and-why-that-breaks">Why the scale is <span class="math inline">\(\alpha/r\)</span>, and why that breaks <a class="header-anchor" href="#why-the-scale-is--and-why-that-breaks">#</a></h3>
+<p>Take both factors to have entries of standard deviation <span class="math inline">\(\sigma\)</span>. Each entry of
+the product is a sum of <span class="math inline">\(r\)</span> products,</p>
+<div class="math block">
+\[\mathrm{Var}\!\left(\Delta W_{ij}\right)
+=\sum_{k=1}^{r}\mathrm{Var}(B_{ik}A_{kj})=r\sigma^4,\qquad
+\mathrm{std}=\sigma^2\sqrt r.
+\qquad (4)\]
+</div>
+<p>Dividing by <span class="math inline">\(r\)</span> leaves a magnitude of <span class="math inline">\(\sigma^2/\sqrt r\)</span>, which shrinks as the
+rank grows: doubling the rank halves the effective update. <code>rslora</code> divides by
+<span class="math inline">\(\sqrt r\)</span> instead, leaving <span class="math inline">\(\sigma^2\)</span> constant. The demo prints the two scales
+side by side: at <span class="math inline">\(r=16\)</span> with <span class="math inline">\(\alpha=8\)</span>, <span class="math inline">\(\alpha/r=0.5\)</span> and
+<span class="math inline">\(\alpha/\sqrt r=2.0\)</span>.</p>
+<h3 id="qlora-a-four-bit-base">QLoRA: a four-bit base <a class="header-anchor" href="#qlora-a-four-bit-base">#</a></h3>
+<p>QLoRA leaves <span class="math inline">\(W_0\)</span> in a 4-bit format and learns the same LoRA branch in 16-bit.
+The format is NF4, whose 16 levels are the quantiles of a standard normal, so
+the codebook is matched to weights rather than to a uniform grid. Each block of
+<span class="math inline">\(b\)</span> weights gets its own scale <span class="math inline">\(s=\max|w|\)</span>, and</p>
+<div class="math block">
+\[q(w)=\arg\min_{n\in\text{NF4}}\left|w/s-n\right|,\qquad
+\hat w=s\,n_{q(w)}.
+\qquad (5)\]
+</div>
+<p>The scales themselves are quantised again to 8 bits — double quantisation —
+which costs one byte per block instead of four. For a <span class="math inline">\(256\times256\)</span> matrix with
+<span class="math inline">\(b=64\)</span> the demo reports 33,800 bytes against 262,144, a factor of 7.76 and 4.13
+bits per weight. The dequantised base differs from the fp32 one by at most
+0.122 per weight, and it is frozen, so that error is a constant offset the
+adapter can absorb.</p>
+<h3 id="dora-magnitude-and-direction">DoRA: magnitude and direction <a class="header-anchor" href="#dora-magnitude-and-direction">#</a></h3>
+<p>DoRA writes the weight as a magnitude vector times a unit-norm direction:</p>
+<div class="math block">
+\[W=m\odot\frac{V}{\lVert V\rVert_c},\qquad V=W_0+\frac{\alpha}{r}BA,
+\qquad (6)\]
+</div>
+<p>where <span class="math inline">\(\lVert\cdot\rVert_c\)</span> is the norm of each column and <span class="math inline">\(m\)</span> is initialised
+to the column norms of <span class="math inline">\(W_0\)</span>, so <span class="math inline">\(W=W_0\)</span> at step zero. The gradients follow
+from the quotient rule:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial m_j}=\sum_i G_{ij}\,\hat W_{ij},\qquad
+\frac{\partial L}{\partial V_{ij}}
+=\frac{m_jG_{ij}-\hat W_{ij}\sum_l m_lG_{lj}\hat W_{lj}}
+{\lVert V_j\rVert}.
+\qquad (7)\]
+</div>
+<p>The demo verifies the invariant directly: after training, every column norm of
+every adapted matrix equals its learned magnitude to <span class="math inline">\(4.4\times10^{-16}\)</span>.</p>
+<h3 id="adalora-rank-as-a-budget">AdaLoRA: rank as a budget <a class="header-anchor" href="#adalora-rank-as-a-budget">#</a></h3>
+<p>AdaLoRA keeps an explicit SVD-like triple and a penalty that keeps the factors
+orthogonal:</p>
+<div class="math block">
+\[W=W_0+P\Lambda Q,\qquad
+\mathcal R=\lVert P^{\top}P-I\rVert_F^2+\lVert QQ^{\top}-I\rVert_F^2,
+\qquad (8)\]
+</div>
+<p>with <span class="math inline">\(P\in\mathbb R^{d\times r}\)</span>, <span class="math inline">\(\Lambda=\mathrm{diag}(\lambda)\)</span> and
+<span class="math inline">\(Q\in\mathbb R^{r\times k}\)</span>. Each rank gets an importance score</p>
+<div class="math block">
+\[s_i=|\lambda_i|\,\lVert P_{:,i}\rVert_2\,\lVert Q_{i,:}\rVert_2,
+\qquad (9)\]
+</div>
+<p>and ranks are pruned by zeroing the smallest. The demo's four scores are 1.82,
+1.71, 2.36 and 2.95; dropping the two lowest costs 0.042 of validation loss,
+dropping the two highest costs 0.344. Note that the check is on validation
+data, not the test set — a pruning decision made on test data is not a decision
+you can make in practice.</p>
+<h3 id="loha-and-lokr">LoHa and LoKr <a class="header-anchor" href="#loha-and-lokr">#</a></h3>
+<p>LoHa replaces the sum with a Hadamard product of two low-rank products:</p>
+<div class="math block">
+\[\Delta W=(B_1A_1)\odot(B_2A_2),
+\qquad (10)\]
+</div>
+<p>which costs <span class="math inline">\(2r(d+k)\)</span> and can represent interactions the single product cannot,
+because the elementwise product mixes the two rank spaces. LoKr goes further and
+uses a Kronecker product of rank-one factors:</p>
+<div class="math block">
+\[\Delta W=(B_1A_1)\otimes(B_2A_2),\qquad
+\Delta W_{i m_2+j,\,k n_2+l}=(B_1A_1)_{ik}(B_2A_2)_{jl},
+\qquad (11)\]
+</div>
+<p>with <span class="math inline">\(d=m_1m_2\)</span> and <span class="math inline">\(k=n_1n_2\)</span>. Its parameter count is <span class="math inline">\(m_1+n_1+m_2+n_2\)</span> —
+74 in the demo, the smallest weight adapter of the nine. The backward pass
+reshapes <span class="math inline">\(G\)</span> to <span class="math inline">\((m_1,m_2,n_1,n_2)\)</span> and contracts with the <em>other</em> factor:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial(B_1A_1)}
+=\sum_{j,l}G_{ijkl}\,(B_2A_2)_{jl},
+\qquad (12)\]
+</div>
+<p>which is the line that a plain <code>sum</code> over the reshaped tensor gets wrong.</p>
+<h3 id="prefix-and-prompt-tuning">Prefix and prompt tuning <a class="header-anchor" href="#prefix-and-prompt-tuning">#</a></h3>
+<p>These two change the sequence instead of the weights. Prompt tuning prepends
+<span class="math inline">\(L\)</span> learnable vectors to the input, and prefix tuning prepends learnable keys
+and values after the projection:</p>
+<div class="math block">
+\[X'=[P;X],\qquad
+K=[K_p;X'W_k],\qquad V=[V_p;X'W_v],
+\qquad (13)\]
+</div>
+<p>so attention runs over <span class="math inline">\(L+T\)</span> keys while the queries still come from the real
+tokens. The counts are <span class="math inline">\(Ld\)</span> and <span class="math inline">\(2Ld\)</span>, the smallest of the nine. Because the
+prompt is shared across the batch, its gradient is a sum over examples:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial P}=\sum_{b=1}^{B}
+\left.\frac{\partial L}{\partial X'_{b}}\right|_{1:L},
+\qquad (14)\]
+</div>
+<p>a reduction that is easy to forget when the prompt is stored as a batch of
+copies.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>Every weight adapter has the same shape of implementation: build the effective
+matrix, cache what the backward pass needs, and return it. LoRA is the
+three-line case:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"lora"</span><span class="p">,</span> <span class="s2">"qlora"</span><span class="p">,</span> <span class="s2">"rslora"</span><span class="p">):</span>
+            <span class="n">left</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainable</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.A"</span><span class="p">]</span>
+            <span class="n">right</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainable</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.B"</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"A"</span><span class="p">:</span> <span class="n">left</span><span class="p">,</span> <span class="s2">"B"</span><span class="p">:</span> <span class="n">right</span><span class="p">}</span>
+            <span class="k">return</span> <span class="n">base</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">right</span> <span class="o">@</span> <span class="n">left</span><span class="p">)</span>
+</code></pre>
+<p>Its backward pass is the pair of products in (3), with the scale applied once:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"lora"</span><span class="p">,</span> <span class="s2">"qlora"</span><span class="p">,</span> <span class="s2">"rslora"</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.A"</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="n">cached</span><span class="p">[</span><span class="s2">"B"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dweight</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.B"</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="n">dweight</span> <span class="o">@</span> <span class="n">cached</span><span class="p">[</span><span class="s2">"A"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+</code></pre>
+<p>DoRA adds the magnitude and its quotient-rule correction; note that the unit
+direction is what the gradients see, and the magnitude is a plain projection:</p>
+<pre class="highlight"><code>            <span class="n">unit</span><span class="p">,</span> <span class="n">norm</span> <span class="o">=</span> <span class="n">cached</span><span class="p">[</span><span class="s2">"unit"</span><span class="p">],</span> <span class="n">cached</span><span class="p">[</span><span class="s2">"norm"</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.m"</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span><span class="n">dweight</span> <span class="o">*</span> <span class="n">unit</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">dunit</span> <span class="o">=</span> <span class="n">dweight</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainable</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.m"</span><span class="p">]</span>
+            <span class="n">dv</span> <span class="o">=</span> <span class="p">(</span><span class="n">dunit</span> <span class="o">-</span> <span class="n">unit</span> <span class="o">*</span> <span class="p">(</span><span class="n">unit</span> <span class="o">*</span> <span class="n">dunit</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> <span class="o">/</span> <span class="n">norm</span>
+</code></pre>
+<p>AdaLoRA's three gradients are one contraction each, and the penalty term is the
+gradient of the orthogonality loss:</p>
+<pre class="highlight"><code>            <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.lam"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span>
+                <span class="s2">"ok,oi,ki-&gt;k"</span><span class="p">,</span> <span class="n">left</span><span class="p">,</span> <span class="n">dweight</span><span class="p">,</span> <span class="n">right</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.P"</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span><span class="n">dweight</span> <span class="o">@</span> <span class="n">right</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="n">middle</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gradients</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.Q"</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span><span class="n">left</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dweight</span><span class="p">)</span> <span class="o">*</span> <span class="n">middle</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre>
+<p>LoKr is where the reshape matters: the transposed four-dimensional view is
+contracted with the partner factor, not merely summed:</p>
+<pre class="highlight"><code>            <span class="n">shaped</span> <span class="o">=</span> <span class="n">dweight</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">rows</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">cols</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cols</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">first</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trainable</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.B1"</span><span class="p">]</span>
+                     <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainable</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.A1"</span><span class="p">])</span>
+            <span class="n">second</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trainable</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.B2"</span><span class="p">]</span>
+                      <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainable</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.A2"</span><span class="p">])</span>
+            <span class="n">dfirst</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"ijkl,jl-&gt;ik"</span><span class="p">,</span> <span class="n">shaped</span><span class="p">,</span> <span class="n">second</span><span class="p">)</span>
+            <span class="n">dsecond</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"ijkl,ik-&gt;jl"</span><span class="p">,</span> <span class="n">shaped</span><span class="p">,</span> <span class="n">first</span><span class="p">)</span>
+</code></pre>
+<p>The NF4 packer is the quantile search of (5) plus the second-level scale
+quantisation:</p>
+<pre class="highlight"><code>    <span class="n">blocks</span> <span class="o">=</span> <span class="n">flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">block</span><span class="p">)</span>
+    <span class="n">scales</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">blocks</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1.0</span>
+    <span class="n">scales</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">scales</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">scales</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">normalised</span> <span class="o">=</span> <span class="n">blocks</span> <span class="o">/</span> <span class="n">scales</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="n">codes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">normalised</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">NF4</span><span class="p">)</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>The block forward is where prefix tuning enters: the prefix is broadcast across
+the batch and concatenated in front of the projected keys and values:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">prefix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">prefix</span><span class="p">[</span><span class="s2">"K"</span><span class="p">],</span> <span class="p">(</span><span class="n">batch</span><span class="p">,)</span> <span class="o">+</span> <span class="n">prefix</span><span class="p">[</span><span class="s2">"K"</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+             <span class="n">keys</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">prefix</span><span class="p">[</span><span class="s2">"V"</span><span class="p">],</span> <span class="p">(</span><span class="n">batch</span><span class="p">,)</span> <span class="o">+</span> <span class="n">prefix</span><span class="p">[</span><span class="s2">"V"</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+             <span class="n">values</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre>
+<p>and the backward pass takes the prefix rows, reduces them over the batch, then
+removes them before the projection gradients are formed:</p>
+<pre class="highlight"><code>    <span class="n">left</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="s2">"prefix"</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">left</span><span class="p">:</span>
+        <span class="n">dprefix</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"K"</span><span class="p">:</span> <span class="n">dkeys</span><span class="p">[:,</span> <span class="p">:</span><span class="n">left</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+                   <span class="s2">"V"</span><span class="p">:</span> <span class="n">dvalues</span><span class="p">[:,</span> <span class="p">:</span><span class="n">left</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)}</span>
+        <span class="n">dkeys</span> <span class="o">=</span> <span class="n">dkeys</span><span class="p">[:,</span> <span class="n">left</span><span class="p">:]</span>
+        <span class="n">dvalues</span> <span class="o">=</span> <span class="n">dvalues</span><span class="p">[:,</span> <span class="n">left</span><span class="p">:]</span>
+</code></pre>
+<p>The shared training loop is small because every adapter exposes the same three
+methods — build, backward, step:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+            <span class="n">loss</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">lr</span><span class="p">)</span>
+            <span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For a batch <span class="math inline">\(B\)</span>, sequence <span class="math inline">\(T\)</span>, width <span class="math inline">\(d\)</span>, rank <span class="math inline">\(r\)</span> and a target matrix of shape
+<span class="math inline">\(d\times k\)</span>:</p>
+<ul>
+<li><strong>Adapter forward:</strong> an extra <span class="math inline">\(O(Brd)\)</span> and <span class="math inline">\(O(Brk)\)</span> matmul per adapted
+matrix, against <span class="math inline">\(O(Bdk)\)</span> for the frozen one. At <span class="math inline">\(r=8\)</span> and <span class="math inline">\(d=k=4096\)</span> the
+adapter is 0.4% of the matmul work.</li>
+<li><strong>Adapter backward:</strong> the same two matmuls again, so the same fraction.</li>
+<li><strong>Memory:</strong> <span class="math inline">\(r(d+k)\)</span> trainable numbers and their optimiser state; the frozen
+base in fp32, or 4.13 bits per weight for QLoRA.</li>
+<li><strong>Token adapters:</strong> <span class="math inline">\(Ld\)</span> or <span class="math inline">\(2Ld\)</span> parameters, and attention cost grows from
+<span class="math inline">\(O(T^2d)\)</span> to <span class="math inline">\(O(T(T+L)d)\)</span> — cheap in parameters, not in compute.</li>
+<li><strong>The demo:</strong> nine variants at 300 steps over 120 examples, a 1091-parameter
+base, plus a finite-difference check over about 1,600 adapter entries.
+The whole run is about a second, and the gradient check is most of it.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The rank can exceed the dense budget.</strong> At <span class="math inline">\(r=4\)</span> in the demo, LoRA already
+uses 460 parameters against 816 dense for four matrices, and at <span class="math inline">\(r=16\)</span> it is
+more than twice the dense count. The demo's table prints the crossover; the
+right rank is the smallest one that fits the task, not the largest that fits
+memory.</p>
+<p><strong>The <span class="math inline">\(\alpha/r\)</span> scale shrinks with the rank.</strong> Equation (4) is not a
+regularisation trick, it is a bug: the same learning rate produces smaller
+updates as <span class="math inline">\(r\)</span> grows. rslora's <span class="math inline">\(\alpha/\sqrt r\)</span> is the fix, and the demo's
+scale table is the check.</p>
+<p><strong>Zero initialisation freezes half the adapter for one step.</strong> With <span class="math inline">\(B=0\)</span> the
+gradient of <span class="math inline">\(A\)</span> is <span class="math inline">\(B^{\top}G=0\)</span>, so <span class="math inline">\(A\)</span> cannot move until <span class="math inline">\(B\)</span> does. The demo
+warms every adapter for five steps before its finite-difference check, which is
+also why a gradient check at initialisation would pass trivially.</p>
+<p><strong>Quantising the adapter as well as the base wastes the point.</strong> QLoRA keeps
+the LoRA branch in 16-bit precisely so the small, precise updates are not
+rounded. A four-bit adapter on a four-bit base has nowhere to put an update
+smaller than its own grid.</p>
+<p><strong>The NF4 block size is a range/resolution trade.</strong> Small blocks track outliers
+better and spend more bytes on scales; large blocks save memory and clip the
+tail. The demo's block of 64 is the QLoRA default, not a law.</p>
+<p><strong>Merging an adapter is a one-way door.</strong> <span class="math inline">\(W_0\leftarrow W_0+\Delta W\)</span> removes
+the parameter saving and makes the adapter indistinguishable from the base.
+Merging two adapters into one base is only exact when they act on the same
+subspace; otherwise the cross terms are lost.</p>
+<p><strong>DoRA's norm is over the wrong axis the moment you transpose a weight.</strong>
+Convolution weights are usually stored as (out, in, k, k), and the &quot;column
+norm&quot; of a flattened matrix is not the per-output-channel norm. The demo checks
+the invariant explicitly for this reason.</p>
+<p><strong>AdaLoRA collapses without the orthogonality penalty.</strong> The triple <span class="math inline">\(P\Lambda
+Q\)</span> is over-parameterised, so nothing stops <span class="math inline">\(P\)</span> and <span class="math inline">\(Q\)</span> from growing while
+<span class="math inline">\(\Lambda\)</span> shrinks. The penalty in (8) is what keeps the importance scores
+comparable across ranks.</p>
+<p><strong>Rank pruning must use validation data.</strong> The demo computes both the floor and
+the pruned loss on a held-out split; computing them on the test set turns the
+pruning decision into test-set tuning.</p>
+<p><strong>A random prefix is not neutral.</strong> Prefix tuning starts with random key-value
+vectors, which perturb attention from step zero, unlike the zero-initialised
+LoRA. That is a real difference in the optimisation landscape, not just in the
+parameter count.</p>
+<p><strong>A soft prompt cannot rewrite a frozen head.</strong> The demo's token adapters reach
+0.68 while the weight adapters reach 1.000. If the head's bias is the problem,
+only a weight update can fix it; if the task is a matter of conditioning, a
+prompt is enough. Choosing between them is a question about where the missing
+information lives.</p>
+<p><strong>Adapters on the wrong modules do nothing.</strong> LoRA on the attention projections
+and LoRA on the MLP learn different things; the usual recipe is to adapt every
+linear layer and check the parameter budget. The demo's <code>targets</code> argument is
+the same choice, exposed.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>LoRA is the default way to fine-tune open language models: one base in memory,
+one small adapter per task, and a serving stack that swaps adapters per request.
+QLoRA made 65-billion-parameter fine-tuning fit on a single 48 GB GPU, and the
+NF4 format of (5) is now a standard storage format for frozen weights.</p>
+<p>DoRA and AdaLoRA are refinements used when a plain low-rank update underfits:
+DoRA when the magnitude of the weights matters, AdaLoRA when the rank budget
+should be allocated per layer. LoHa and LoKr target convolutional and
+structured layers where a single low-rank product is a poor fit, and they are
+common in diffusion-model fine-tuning, where LoRA itself is the standard
+customisation mechanism.</p>
+<p>Prefix and prompt tuning sit at the other end: they change what the model sees
+rather than what it knows, which makes them cheap, composable, and easy to
+serve — a prompt is a row of numbers, not a weight file. They are weaker when
+the frozen model's decision boundary is wrong rather than merely misdirected,
+which is exactly the 0.68 against 1.000 in the demo.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L.,
+Chen, W. (2021). <em>LoRA: low-rank adaptation of large language models.</em> ICLR.
+Equations (1)–(3).</li>
+<li>Dettmers, T., Pagnoni, A., Holtzman, A., Zettlemoyer, L. (2023). <em>QLoRA:
+efficient finetuning of quantized LLMs.</em> NeurIPS. NF4, double quantisation
+and (5).</li>
+<li>Liu, S.-Y., Wang, C.-Y., Yin, H., Molchanov, P., Wang, Y.-C. F., Cheng,
+K.-T., Chen, M.-H. (2024). <em>DoRA: weight-decomposed low-rank adaptation.</em>
+ICML. Equations (6)–(7).</li>
+<li>Zhang, Q., Chen, M., Bukharin, A., He, P., Cheng, Y., Chen, W., Zhao, T.
+(2023). <em>AdaLoRA: adaptive budget allocation for parameter-efficient
+fine-tuning.</em> ICLR. The SVD parameterisation and (8)–(9).</li>
+<li>Kalajdzievski, D. (2023). <em>A rank stabilization scaling factor for
+fine-tuning with LoRA.</em> arXiv:2312.03732. Equation (4) and the
+<span class="math inline">\(\alpha/\sqrt r\)</span> scaling.</li>
+<li>Hyeon-Woo, N., Ye-Bin, M., Oh, T.-H. (2021). <em>FedPara: low-rank Hadamard
+product for parameter-efficient federated learning.</em> arXiv:2108.06098. The
+Hadamard parameterisation behind LoHa.</li>
+<li>Yeh, S.-Y., Hsieh, Y.-Y., Gao, Z., Yang, B. B., Oh, G., Gong, Y., Chang,
+Y.-C. (2023). <em>Navigating text-to-image customization: augmenting
+text-to-image diffusion models with fine-grained ID and attribute control.</em>
+ECCV. The Kronecker parameterisation behind LoKr.</li>
+<li>Li, X. L., Liang, P. (2021). <em>Prefix-tuning: optimizing continuous prompts
+for generation.</em> ACL. Equation (13) for keys and values.</li>
+<li>Lester, B., Al-Rfou, R., Constant, N. (2021). <em>The power of scale for
+parameter-efficient prompt tuning.</em> EMNLP. The input-token variant.</li>
+<li>Aghajanyan, A., Zettlemoyer, L., Gupta, S. (2021). <em>Intrinsic dimensionality
+explains the effectiveness of language model fine-tuning.</em> ACL. Why a
+low-rank update is enough in the first place.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="augmentation.html"><small>Previous</small><span>Augmentation</span></a><a class="next" href="pruning.html"><small>Next</small><span>Pruning</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html" aria-current="page"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#low-rank-updates">Low-rank updates</a></li><li class="lvl3"><a href="#why-the-scale-is--and-why-that-breaks">Why the scale is \alpha/r, and why that breaks</a></li><li class="lvl3"><a href="#qlora-a-four-bit-base">QLoRA: a four-bit base</a></li><li class="lvl3"><a href="#dora-magnitude-and-direction">DoRA: magnitude and direction</a></li><li class="lvl3"><a href="#adalora-rank-as-a-budget">AdaLoRA: rank as a budget</a></li><li class="lvl3"><a href="#loha-and-lokr">LoHa and LoKr</a></li><li class="lvl3"><a href="#prefix-and-prompt-tuning">Prefix and prompt tuning</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/lora.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

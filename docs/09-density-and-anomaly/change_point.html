@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Change-point detection · MLAtoms</title>
+<meta name="description" content="Finding where the process changed, not just that it is unusual. An anomaly detector asks whether a point is unusual. A change-point detector asks whether the…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/change_point.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Change-point detection">
+<meta property="og:description" content="Finding where the process changed, not just that it is unusual. An anomaly detector asks whether a point is unusual. A change-point detector asks whether the…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/change_point.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Change-point detection">
+<meta name="twitter:description" content="Finding where the process changed, not just that it is unusual. An anomaly detector asks whether a point is unusual. A change-point detector asks whether the…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Change-point detection", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/09-density-and-anomaly/change_point.html", "description": "Finding where the process changed, not just that it is unusual. An anomaly detector asks whether a point is unusual. A change-point detector asks whether the\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">09 · Density &amp; anomaly</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="change_point.py.html">source</a></p><h1>Change-point detection — where the process changed, not just that it is odd</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>An anomaly detector asks whether a point is unusual. A change-point detector
+asks whether the <em>process</em> that produced the points is still the same one. The
+two questions have different answers. A single spike is anomalous and is not a
+change point. A shift from mean <span class="math inline">\(0\)</span> to mean <span class="math inline">\(0.01\)</span> standard deviations is not
+anomalous at any single point, and it is a change point if it lasts long enough.</p>
+<pre class="highlight"><code>  x_t
+  2 ┤              ┌───────────┐
+    │              │           │
+  0 ┤──────────────┘           └──────────
+    └──────────────┬───────────┬──────────
+                   t₁          t₂
+</code></pre>
+<p>A spike is a point that does not belong to the segment it is in; a change point
+is a place where the segment ends. Fitting the first does not find the second:
+a robust anomaly detector will happily absorb a spike and see no change, and a
+change-point detector will happily report a change for a run of mildly unusual
+points that never rises to an anomaly.</p>
+<p>Every variant in this atom answers three questions:</p>
+<ol>
+<li><strong>What does one segment cost?</strong> A negative log-likelihood of the points in
+it, given a mean and a variance of its own.</li>
+<li><strong>What does a change cost?</strong> A penalty <span class="math inline">\(\beta\)</span> per change, or a threshold on
+a test statistic, or a prior hazard rate.</li>
+<li><strong>When do we decide?</strong> After seeing the whole series, or at each step with
+only the past.</li>
+</ol>
+<p>The answers to (1) and (2) are the offline methods, <code>pelt</code> and
+<code>binary_segmentation</code>. The answer to (3) splits the online pair, <code>cusum</code> and
+<code>bocpd</code>, from the rest. <code>window_based</code> is the cheap local test: compare two
+adjacent windows and ask whether they look like the same process.</p>
+<p>The demo's first series is four blocks of ninety points with means <span class="math inline">\(0\)</span>, <span class="math inline">\(2\)</span>,
+<span class="math inline">\(-1\)</span> and <span class="math inline">\(0.5\)</span>, unit noise, and true change points at <span class="math inline">\(90\)</span>, <span class="math inline">\(180\)</span>, <span class="math inline">\(270\)</span>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">method</th>
+<th style="text-align:left">change points</th>
+<th style="text-align:right">segments costed</th>
+<th style="text-align:right">objective</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>pelt</code>, Gaussian cost</td>
+<td style="text-align:left">89, 180, 270</td>
+<td style="text-align:right">20 800</td>
+<td style="text-align:right">545.63</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pelt</code>, mean-only cost</td>
+<td style="text-align:left">89, 180, 270</td>
+<td style="text-align:right">16 273</td>
+<td style="text-align:right">190.14</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>binary_segmentation</code></td>
+<td style="text-align:left">89, 180, 270</td>
+<td style="text-align:right">1 059</td>
+<td style="text-align:right">545.63</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>window_based</code>, <span class="math inline">\(w=40\)</span></td>
+<td style="text-align:left">89, 179, 270</td>
+<td style="text-align:right">360</td>
+<td style="text-align:right">—</td>
+</tr>
+</tbody>
+</table>
+<p>All four recover the truth to within two samples. The exact optimiser and the
+greedy one report the <em>same</em> objective, <span class="math inline">\(545.63\)</span>, which is the only direct
+evidence that the greedy recursion happened to be exact here. The window method
+is sixty times cheaper in work than the exact optimiser and the least precise:
+its resolution is its window, and at <span class="math inline">\(w=20\)</span> the same test reports only
+<code>[89, 180]</code>, losing the third change.</p>
+<p>The two objectives in the table are not comparable. The mean-only cost fixes one
+variance for the whole series and therefore reports a smaller number for the
+same segmentation; only differences within a column mean anything.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">decides</th>
+<th style="text-align:left">price of a change</th>
+<th style="text-align:center">online</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>pelt</code></td>
+<td style="text-align:left">exact minimisation of (2)</td>
+<td style="text-align:left">penalty <span class="math inline">\(\beta\)</span></td>
+<td style="text-align:center">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>binary_segmentation</code></td>
+<td style="text-align:left">greedy minimisation of (2)</td>
+<td style="text-align:left">penalty <span class="math inline">\(\beta\)</span></td>
+<td style="text-align:center">no</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cusum</code></td>
+<td style="text-align:left">sequential test on the running sum</td>
+<td style="text-align:left">threshold <span class="math inline">\(h\)</span></td>
+<td style="text-align:center">yes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bocpd</code></td>
+<td style="text-align:left">posterior over the run length</td>
+<td style="text-align:left">hazard <span class="math inline">\(H\)</span></td>
+<td style="text-align:center">yes</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>window_based</code></td>
+<td style="text-align:left">likelihood ratio between two windows</td>
+<td style="text-align:left"><span class="math inline">\(\chi^2_2\)</span> quantile</td>
+<td style="text-align:center">no</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pelt</code></strong> is the reference implementation. It computes the exact optimum of the
+penalised objective by dynamic programming, and prunes candidate change points
+that provably cannot be optimal later. The pruning is what brings the cost down
+to linear in <span class="math inline">\(n\)</span> when the number of changes grows with <span class="math inline">\(n\)</span>, instead of quadratic
+always. Use it when you want the answer and can afford to look at the whole
+series.</p>
+<p><strong><code>binary_segmentation</code></strong> optimises the same objective greedily: find the single
+best split, recurse on both halves while the gain pays for the penalty. It costs
+<span class="math inline">\(O(n \log n)\)</span> in the good case and it is not exact. The demo's five-level series
+shows the failure exactly: it reports <code>[149, 200]</code> and pays <span class="math inline">\(379.55\)</span> where the
+optimum <code>[56, 90, 149, 200]</code> pays <span class="math inline">\(369.81\)</span>. Use it when <span class="math inline">\(n\)</span> is large enough that
+PELT's bookkeeping matters, and check the answer against PELT on a subsample.</p>
+<p><strong><code>cusum</code></strong> is Page's cumulative sum. It accumulates the evidence for a shift of
+a given size and alarms when the accumulator crosses a threshold. It is the
+oldest detector here and still the one on the factory control chart: constant
+memory, one pass, and a threshold with a known average run length between false
+alarms. The cost is a detection delay and a blind spot for shifts much smaller
+than the one it was tuned for.</p>
+<p><strong><code>bocpd</code></strong> keeps a probability distribution over the <em>run length</em> — how many
+steps since the last change — and updates it with Bayes' rule at every step. It
+needs no threshold, returns a distribution rather than a point, and is the right
+choice when you want to say &quot;the change probably happened between 88 and 92&quot;
+rather than &quot;there is a change at 89&quot;. The price is <span class="math inline">\(O(n)\)</span> work per step, which
+makes it <span class="math inline">\(O(n^2)\)</span> over a series.</p>
+<p><strong><code>window_based</code></strong> slides two adjacent windows along the series and tests
+whether they come from the same distribution. It is the only variant here that
+reacts to a change in variance as readily as one in mean, and it needs no model
+of the segment cost. Its resolution is the window: two changes closer together
+than <span class="math inline">\(w\)</span> are one change.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-cost-of-one-segment">The cost of one segment <a class="header-anchor" href="#the-cost-of-one-segment">#</a></h3>
+<p>For a segment covering indices <span class="math inline">\(a+1\)</span> to <span class="math inline">\(b\)</span>, length <span class="math inline">\(m = b-a\)</span>, with its own mean
+and variance, the negative log-likelihood at the maximum-likelihood parameters is</p>
+<div class="math block">
+\[C(a,b) = \frac{m}{2}\left(\log 2\pi + 1 + \log\frac{\mathrm{SS}(a,b)}{m}\right)
+\qquad (1)\]
+</div>
+<p>where <span class="math inline">\(\mathrm{SS}(a,b) = \sum_{t=a+1}^{b}(x_t - \bar x)^2\)</span>. The derivation is
+three lines: the Gaussian negative log-likelihood is
+<span class="math inline">\(\frac{m}{2}\log(2\pi\sigma^2) + \mathrm{SS}/(2\sigma^2)\)</span>, the maximiser over
+<span class="math inline">\(\sigma^2\)</span> is <span class="math inline">\(\mathrm{SS}/m\)</span>, and substituting it gives (1). The <span class="math inline">\(+1\)</span> is the
+<span class="math inline">\(\log e\)</span> from <span class="math inline">\(\log(\mathrm{SS}/m)\)</span> replacing <span class="math inline">\(\log \sigma^2\)</span> at the optimum.</p>
+<p>Because the variance is profiled out, a segment that changes only its <em>spread</em>
+is charged for it: a variance that doubles over a segment of <span class="math inline">\(m\)</span> points costs
+about <span class="math inline">\(0.35m\)</span> nats, which is linear in the length and eventually pays any fixed
+penalty. That is why <code>model=&quot;gaussian&quot;</code> finds variance changes and
+<code>model=&quot;mean&quot;</code> cannot.</p>
+<p>Both sums in <span class="math inline">\(\mathrm{SS}\)</span> come from prefix sums, so a segment costs <span class="math inline">\(O(1)\)</span>
+rather than <span class="math inline">\(O(m)\)</span>:</p>
+<div class="math block">
+\[\mathrm{SS}(a,b) = S_2(b) - S_2(a) - \frac{(S_1(b)-S_1(a))^2}{b-a},
+\qquad S_1(t) = \sum_{s\le t} x_s,\quad S_2(t) = \sum_{s\le t} x_s^2\]
+</div>
+<p>This is the single most important implementation decision in the file: it turns
+every inner loop over a segment into two array lookups, and it is what lets PELT
+cost tens of thousands of candidate segments in a few milliseconds.</p>
+<p>The mean-only model is the same expression with the variance fixed at
+<span class="math inline">\(\sigma^2\)</span>, the robust estimate <span class="math inline">\(\hat\sigma^2 = \frac{1}{2}\mathbb{E}[(x_t -
+x_{t-1})^2]\)</span>. Successive differences are used because a change in the mean does
+not change them: the estimator is blind to the very thing being detected, so it
+is not inflated by the changes it is supposed to find.</p>
+<h3 id="the-objective-and-the-price-of-a-change">The objective and the price of a change <a class="header-anchor" href="#the-objective-and-the-price-of-a-change">#</a></h3>
+<p>A segmentation is a set of change points <span class="math inline">\(0 = t_0 < t_1 < \dots < t_m = n\)</span>, and
+the objective is</p>
+<div class="math block">
+\[\min_{t_1,\dots,t_{m-1}} \; \sum_{k=1}^{m} C(t_{k-1}, t_k) + \beta m
+\qquad (2)\]
+</div>
+<p>with the convention that the last segment ends at <span class="math inline">\(n\)</span>. The penalty is the whole
+model-selection problem in one number. Too small and every noise fluctuation is
+a change; too large and real changes are absorbed into their neighbours. The
+default is BIC, <span class="math inline">\(\beta = 2\log n\)</span>, because a change adds two parameters (a mean
+and a variance) and the likelihood-ratio gain of a spurious split is
+asymptotically <span class="math inline">\(\frac{1}{2}\chi^2_2\)</span>, whose maximum over <span class="math inline">\(n\)</span> positions is
+<span class="math inline">\(O(\log n)\)</span>. A real change of size <span class="math inline">\(\delta\)</span> over <span class="math inline">\(m\)</span> points gains
+<span class="math inline">\(m\delta^2/(2\sigma^2)\)</span>, which grows linearly in <span class="math inline">\(m\)</span> and therefore beats any
+<span class="math inline">\(\log n\)</span> penalty for long enough segments. That is the consistency argument, and
+it is why the penalty must be in nats and must grow with <span class="math inline">\(n\)</span>.</p>
+<p>The demo's penalty sweep makes the trade-off concrete on a <span class="math inline">\(300\)</span>-point series
+with three changes:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right"><span class="math inline">\(\beta\)</span></th>
+<th style="text-align:right">changes</th>
+<th style="text-align:right">penalised objective</th>
+<th style="text-align:right">fit only</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0.0</td>
+<td style="text-align:right">137</td>
+<td style="text-align:right">89.43</td>
+<td style="text-align:right">89.43</td>
+</tr>
+<tr>
+<td style="text-align:right">4.0</td>
+<td style="text-align:right">27</td>
+<td style="text-align:right">429.12</td>
+<td style="text-align:right">321.12</td>
+</tr>
+<tr>
+<td style="text-align:right">12.0</td>
+<td style="text-align:right">3</td>
+<td style="text-align:right">487.20</td>
+<td style="text-align:right">451.20</td>
+</tr>
+<tr>
+<td style="text-align:right">24.0</td>
+<td style="text-align:right">2</td>
+<td style="text-align:right">521.30</td>
+<td style="text-align:right">473.30</td>
+</tr>
+<tr>
+<td style="text-align:right">48.0</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">554.83</td>
+<td style="text-align:right">506.83</td>
+</tr>
+</tbody>
+</table>
+<p>At <span class="math inline">\(\beta = 0\)</span> the optimum is a segment every <code>min_size</code> points — 137 of
+them — because splitting can only reduce the fit. The fit-only column is
+monotone increasing in <span class="math inline">\(\beta\)</span> for the same reason, and the count falls
+monotonically — the only thing a penalty is supposed to do. The objective
+values themselves are not comparable across rows, because <span class="math inline">\(\beta\)</span> is part of
+the objective.</p>
+<h3 id="pelt-the-same-optimum-for-less-work">PELT: the same optimum for less work <a class="header-anchor" href="#pelt-the-same-optimum-for-less-work">#</a></h3>
+<p>Let <span class="math inline">\(F(t)\)</span> be the optimal objective for the prefix ending at <span class="math inline">\(t\)</span>. Then</p>
+<div class="math block">
+\[F(t) = \min_{s \in \mathcal{R}_t} \big[ F(s) + C(s,t) + \beta \big],
+\qquad F(0) = -\beta
+\qquad (3)\]
+</div>
+<p>and the optimal segmentation is recovered by following the argmin back from <span class="math inline">\(n\)</span>.
+The naive evaluation of (3) is <span class="math inline">\(O(n^2)\)</span>. PELT's observation is that most
+candidates <span class="math inline">\(s\)</span> can never be optimal again. Suppose at time <span class="math inline">\(t\)</span></p>
+<div class="math block">
+\[F(s) + C(s,t) > F(t).\]
+</div>
+<p>For any later <span class="math inline">\(T > t\)</span>, splitting a segment can only lower its cost, so
+<span class="math inline">\(C(s,T) \ge C(s,t) + C(t,T)\)</span>. Therefore</p>
+<div class="math block">
+\[F(s) + C(s,T) + \beta \;\ge\; F(s) + C(s,t) + C(t,T) + \beta
+\;>\; F(t) + C(t,T) \;\ge\; F(T) - \beta + \beta,\]
+</div>
+<p>so <span class="math inline">\(s\)</span> cannot be the minimiser at <span class="math inline">\(T\)</span> either, and it can be dropped for good.
+The inequality <span class="math inline">\(C(s,T) \ge C(s,t) + C(t,T)\)</span> is exactly why the cost must be a
+<em>profile</em> likelihood: two free segments fit at least as well as one, so the
+pruning is a theorem about this cost and not a heuristic that happens to work.</p>
+<p>The demo checks the theorem directly. On a <span class="math inline">\(300\)</span>-point series PELT costs <span class="math inline">\(18\,779\)</span>
+candidate segments and the unpruned recursion costs <span class="math inline">\(44\,850\)</span>, a factor of <span class="math inline">\(2.4\)</span>,
+and both return <code>[60, 139, 208]</code> with objectives equal to nine decimal places.
+PELT's advantage is asymptotic in the number of change points, not in <span class="math inline">\(n\)</span>: with
+three changes in three hundred points, most of the quadratic work is still
+being done.</p>
+<h3 id="binary-segmentation-and-its-failure">Binary segmentation and its failure <a class="header-anchor" href="#binary-segmentation-and-its-failure">#</a></h3>
+<p>Greedy splitting takes the segment <span class="math inline">\([a,b)\)</span>, finds the split <span class="math inline">\(t\)</span> maximising</p>
+<div class="math block">
+\[C(a,b) - C(a,t) - C(t,b) - \beta,\]
+</div>
+<p>and recurses while that gain is positive. The demo's five-level series has
+changes at <span class="math inline">\(60\)</span>, <span class="math inline">\(90\)</span>, <span class="math inline">\(150\)</span> and <span class="math inline">\(200\)</span> with levels <span class="math inline">\(0, 1.2, -0.6, 2.0, 0.3\)</span>. The
+first split is at <span class="math inline">\(149\)</span>, which is right, and the recursion then looks at
+<span class="math inline">\([0,149)\)</span>, which contains <em>two</em> changes. No single split of that half pays for
+itself — the two-level model fits neither side well — so the recursion stops and
+loses both. The exact optimiser pays <span class="math inline">\(369.81\)</span>; the greedy one pays <span class="math inline">\(379.55\)</span> and
+reports half the changes.</p>
+<p>That is masking, and it is the reason to prefer PELT. The failure is not about
+the penalty: the two missed changes are jointly worth more than <span class="math inline">\(2\beta\)</span> but
+neither is worth <span class="math inline">\(\beta\)</span> on its own in the presence of the other.</p>
+<h3 id="cusum-the-sequential-test">CUSUM: the sequential test <a class="header-anchor" href="#cusum-the-sequential-test">#</a></h3>
+<p>For a shift from <span class="math inline">\(\mu_0\)</span> to <span class="math inline">\(\mu_0 + \delta\)</span> with known unit variance, the
+log-likelihood ratio of the last <span class="math inline">\(m\)</span> points is</p>
+<div class="math block">
+\[\sum_{s=t-m+1}^{t}\Big[\delta\,(x_s - \mu_0) - \frac{\delta^2}{2}\Big],\]
+</div>
+<p>so the running maximum over all starting points is the recursion</p>
+<div class="math block">
+\[g_t = \max\Big(0,\; g_{t-1} + x_t - \mu_0 - k\Big), \qquad k = \delta/2
+\qquad (4)\]
+</div>
+<p>with an alarm when <span class="math inline">\(g_t > h\)</span>. The allowance <span class="math inline">\(k\)</span> is half the shift the test is
+tuned for, and it is the only tuning in the recursion: too small and noise
+accumulates, too large and the test is blind to the shift it was built for.</p>
+<p>The threshold controls the average run length between false alarms, which grows
+exponentially in <span class="math inline">\(h\)</span>. With a known mean and <span class="math inline">\(k = 0.5\)</span>, simulation gives a
+one-sided ARL of <span class="math inline">\(951\)</span> at <span class="math inline">\(h=5\)</span>, <span class="math inline">\(2\,556\)</span> at <span class="math inline">\(h=6\)</span>, <span class="math inline">\(16\,690\)</span> at <span class="math inline">\(h=8\)</span> and
+<span class="math inline">\(34\,451\)</span> at <span class="math inline">\(h=10\)</span>; the default here is <span class="math inline">\(h = 8\)</span>, so a two-sided test costs
+about one false alarm in <span class="math inline">\(8\,350\)</span> samples. The detection delay is roughly
+<span class="math inline">\(h/(\delta-k)\)</span>, which is <span class="math inline">\(16\)</span> samples for a one-sigma shift and <span class="math inline">\(5.3\)</span> for a
+two-sigma one; the demo measures <span class="math inline">\(13\)</span> and <span class="math inline">\(4.5\)</span>.</p>
+<p>Two details make the implementation usable. The reference mean is re-estimated
+from a warm-up window after each alarm, because a detector that keeps comparing
+against the original level will fire forever after one change. And the reported
+change point is the last index at which the winning statistic was zero — the
+start of the excursion that eventually crossed the threshold — not the alarm
+time. The alarm time is the change point plus the delay, and reporting it would
+bias every estimate late by exactly the quantity the test is worst at.</p>
+<h3 id="bocpd-a-posterior-over-the-run-length">BOCPD: a posterior over the run length <a class="header-anchor" href="#bocpd-a-posterior-over-the-run-length">#</a></h3>
+<p>Let <span class="math inline">\(r_t\)</span> be the number of steps since the last change, so <span class="math inline">\(r_t = 0\)</span> means a
+change happened at <span class="math inline">\(t\)</span>. With a constant hazard <span class="math inline">\(H\)</span>,</p>
+<div class="math block">
+\[p(r_t \mid x_{1:t}) \;\propto\; \sum_{r_{t-1}} p(r_t \mid r_{t-1})\,
+p(x_t \mid r_{t-1}, x_{1:t-1})\, p(r_{t-1} \mid x_{1:t-1})
+\qquad (5)\]
+</div>
+<p>where <span class="math inline">\(p(r_t = r_{t-1}+1 \mid r_{t-1}) = 1-H\)</span> and <span class="math inline">\(p(r_t = 0) = H\)</span>. The
+predictive <span class="math inline">\(p(x_t \mid r_{t-1}, \cdot)\)</span> is where the model lives. With a
+Normal-Inverse-Gamma prior on <span class="math inline">\((\mu, \sigma^2)\)</span> the posterior after <span class="math inline">\(r\)</span>
+observations is conjugate, and the predictive is a Student-t:</p>
+<div class="math block">
+\[x_t \mid r \;\sim\; t_{2\alpha_r}\Big(\mu_r,\;
+\frac{\beta_r(\kappa_r+1)}{\alpha_r\kappa_r}\Big)\]
+</div>
+<p>with the one-step updates</p>
+<div class="math block">
+\[\kappa_r = \kappa_{r-1}+1,\quad
+\mu_r = \frac{\kappa_{r-1}\mu_{r-1} + x_t}{\kappa_r},\quad
+\alpha_r = \alpha_{r-1}+\tfrac{1}{2},\quad
+\beta_r = \beta_{r-1} + \frac{\kappa_{r-1}(x_t-\mu_{r-1})^2}{2\kappa_r}.\]
+</div>
+<p>The Student-t is not decoration. Marginalising the unknown variance gives heavy
+tails, so one wild point does not by itself make a long run impossible — which
+is what stops the detector from restarting on every outlier. It damps the
+effect; it does not remove it (see failure modes).</p>
+<p>The branch <span class="math inline">\(r_t = 0\)</span> gets the prior predictive, not a flat weight. Without it
+the model would treat a restart as equally likely at every value, which is
+wrong and, worse, asymmetric: a value near the prior mean would look like a
+cheaper restart than one far from it. The prior is centred on the series mean
+rather than on <span class="math inline">\(x_0\)</span> for the same reason — a prior centred on the first point
+manufactures a change every time the series revisits its origin.</p>
+<p>The detector reports a change when the <em>maximum a posteriori</em> run length
+collapses, not when <span class="math inline">\(p(r_t = 0)\)</span> rises. A single surprising point lifts
+<span class="math inline">\(p(r_t=0)\)</span> for one step and then forgets it; the mode moves only when the
+evidence persists. In the demo the 3.8-sigma outlier at <span class="math inline">\(t=303\)</span> lifts the short
+mass from <span class="math inline">\(0.006\)</span> to <span class="math inline">\(0.1495\)</span> for one step while the mode stays at <span class="math inline">\(33\)</span>, and the
+mode only collapses six steps later, at <span class="math inline">\(309\)</span>, to a run length of <span class="math inline">\(6\)</span> — which
+points back at <span class="math inline">\(303\)</span>. The reported change is the outlier, not the true change at
+<span class="math inline">\(270\)</span>.</p>
+<h3 id="the-window-test">The window test <a class="header-anchor" href="#the-window-test">#</a></h3>
+<p>Two adjacent windows of length <span class="math inline">\(w\)</span>, with means <span class="math inline">\(m_L, m_R\)</span> and variances
+<span class="math inline">\(v_L, v_R\)</span>. Let <span class="math inline">\(v\)</span> be the variance of the <span class="math inline">\(2w\)</span> points pooled:</p>
+<div class="math block">
+\[v = \frac{v_L+v_R}{2} + \frac{(m_L-m_R)^2}{4},
+\qquad
+G = w\big[2\log v - \log v_L - \log v_R\big]
+\qquad (6)\]
+</div>
+<p>The second term in <span class="math inline">\(v\)</span> is the between-window mean difference converted to a
+variance, which is what makes the same statistic sensitive to a mean shift and
+to a spread change at once. Expanding (6) under no change, with
+<span class="math inline">\(a = \log v_L\)</span> and <span class="math inline">\(b = \log v_R\)</span>,</p>
+<div class="math block">
+\[G \;\approx\; \frac{w(m_L-m_R)^2}{2\sigma^2} + \frac{w}{4}(a-b)^2,\]
+</div>
+<p>two squares of standard normals, so <span class="math inline">\(G \sim \chi^2_2\)</span> asymptotically. That gives
+a threshold with no tuning: since <span class="math inline">\(P(\chi^2_2 > x) = e^{-x/2}\)</span>, the level-<span class="math inline">\(\alpha\)</span>
+quantile is <span class="math inline">\(-2\log\alpha\)</span>, Bonferroni-corrected over the number of window
+positions. For <span class="math inline">\(400\)</span> points and <span class="math inline">\(w=40\)</span> that is <span class="math inline">\(-2\log(0.05/321) = 16.8\)</span>, and
+the demo's twenty stationary series produce exactly one alarm over <span class="math inline">\(6\,420\)</span>
+positions against the one that <span class="math inline">\(\alpha = 0.05\)</span> predicts.</p>
+<p>The statistic is smeared over about one window either side of a change, because
+every window that straddles the change sees a mixture. Peaks are merged within
+<span class="math inline">\(w\)</span>, and the resolution is <span class="math inline">\(w\)</span>: at <span class="math inline">\(w=20\)</span> the statistic at the third change is
+<span class="math inline">\(14.7\)</span> against a threshold of <span class="math inline">\(17.5\)</span> and the change is lost.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="segment-costs-from-prefix-sums">Segment costs from prefix sums <a class="header-anchor" href="#segment-costs-from-prefix-sums">#</a></h3>
+<p>Everything in the file is built on these six lines:</p>
+<pre class="highlight"><code>    <span class="n">m</span> <span class="o">=</span> <span class="n">end</span> <span class="o">-</span> <span class="n">starts</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">s1</span><span class="p">[</span><span class="n">end</span><span class="p">]</span> <span class="o">-</span> <span class="n">s1</span><span class="p">[</span><span class="n">starts</span><span class="p">]</span>
+    <span class="n">total2</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[</span><span class="n">end</span><span class="p">]</span> <span class="o">-</span> <span class="n">s2</span><span class="p">[</span><span class="n">starts</span><span class="p">]</span>
+    <span class="n">ss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">total2</span> <span class="o">-</span> <span class="n">total</span> <span class="o">*</span> <span class="n">total</span> <span class="o">/</span> <span class="n">m</span><span class="p">,</span> <span class="mf">1e-300</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">model</span> <span class="o">==</span> <span class="s2">"mean"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ss</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">sigma2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="n">_LOG2PI</span> <span class="o">+</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">ss</span> <span class="o">/</span> <span class="n">m</span><span class="p">))</span>
+</code></pre>
+<p><code>starts</code> is an array, so this costs every candidate start for a fixed <code>end</code> in
+one vectorised pass. The <code>np.maximum(..., 1e-300)</code> is not cosmetic: a segment
+whose values are all equal has <span class="math inline">\(\mathrm{SS} = 0\)</span> and a cost of <span class="math inline">\(-\infty\)</span>, which
+would make the optimiser split every constant stretch into single points. The
+floor gives such a segment the cost of a very tight one instead.</p>
+<h3 id="the-pruning-loop">The pruning loop <a class="header-anchor" href="#the-pruning-loop">#</a></h3>
+<pre class="highlight"><code>        <span class="n">reach</span> <span class="o">=</span> <span class="n">best</span><span class="p">[</span><span class="n">starts</span><span class="p">]</span> <span class="o">+</span> <span class="n">_costs</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">starts</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">sigma2</span><span class="p">)</span>
+        <span class="n">evaluations</span> <span class="o">+=</span> <span class="n">starts</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">reach</span><span class="p">))</span>
+        <span class="n">best</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">reach</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+</span> <span class="n">penalty</span>
+        <span class="n">prev</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">starts</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+        <span class="c1"># keep s only while it can still beat the best segmentation ending here</span>
+        <span class="n">keep</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">ok</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">starts</span><span class="p">,</span> <span class="n">reach</span> <span class="o">&lt;=</span> <span class="n">best</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">if</span> <span class="n">ok</span><span class="p">}</span>
+        <span class="n">candidates</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">keep</span> <span class="ow">or</span> <span class="n">t</span> <span class="o">-</span> <span class="n">s</span> <span class="o">&lt;</span> <span class="n">min_size</span><span class="p">]</span>
+</code></pre>
+<p><code>reach</code> is <span class="math inline">\(F(s) + C(s,t)\)</span> for every candidate at once, and <code>best[t]</code> is <span class="math inline">\(F(t)\)</span>
+once the penalty is added. The set comprehension is the pruning test of the
+derivation: keep <span class="math inline">\(s\)</span> only if <span class="math inline">\(F(s)+C(s,t) \le F(t)\)</span>. The <code>or t - s &lt; min_size</code>
+keeps candidates that are not yet eligible, which matters because a candidate
+younger than <code>min_size</code> has not been tested and must not be discarded.</p>
+<h3 id="the-greedy-split">The greedy split <a class="header-anchor" href="#the-greedy-split">#</a></h3>
+<pre class="highlight"><code>        <span class="n">base</span> <span class="o">=</span> <span class="n">_costs</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">a</span><span class="p">]),</span> <span class="n">b</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">sigma2</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">left</span> <span class="o">=</span> <span class="n">_costs</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">starts</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">a</span><span class="p">),</span> <span class="n">starts</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">sigma2</span><span class="p">)</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="n">_costs</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">starts</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">starts</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">b</span><span class="p">),</span> <span class="n">model</span><span class="p">,</span> <span class="n">sigma2</span><span class="p">)</span>
+        <span class="n">evaluations</span> <span class="o">+=</span> <span class="n">starts</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">gain</span> <span class="o">=</span> <span class="n">base</span> <span class="o">-</span> <span class="n">left</span> <span class="o">-</span> <span class="n">right</span> <span class="o">-</span> <span class="n">penalty</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">gain</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">gain</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">continue</span>
+</code></pre>
+<p><code>np.full(starts.size, a)</code> is the vectorised way of saying &quot;every candidate has
+the same left edge&quot;. The recursion is an explicit stack rather than a Python
+recursion, which keeps deep segmentations from hitting the recursion limit and
+makes the order of the splits irrelevant to the result.</p>
+<h3 id="cusum">CUSUM <a class="header-anchor" href="#cusum">#</a></h3>
+<pre class="highlight"><code>            <span class="n">up</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">up</span> <span class="o">+</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">-</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">down</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">down</span> <span class="o">-</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">-</span> <span class="n">k</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">up</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="n">last_up</span> <span class="o">=</span> <span class="n">t</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">down</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="n">last_down</span> <span class="o">=</span> <span class="n">t</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">up</span> <span class="o">&gt;</span> <span class="n">h</span> <span class="ow">or</span> <span class="n">down</span> <span class="o">&gt;</span> <span class="n">h</span><span class="p">:</span>
+                <span class="n">hit</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">last_up</span> <span class="k">if</span> <span class="n">up</span> <span class="o">&gt;</span> <span class="n">h</span> <span class="k">else</span> <span class="n">last_down</span><span class="p">)</span>
+                <span class="k">break</span>
+</code></pre>
+<p>The two accumulators are the two-sided test: one for an upward shift, one for a
+downward one, each reset at zero. <code>last_up</code> records where the current excursion
+began, which is the change-point estimate, and it is updated whenever the
+accumulator returns to zero. Note that the reset is <code>t + 1</code>, not <code>t</code>: after
+processing <span class="math inline">\(x_t\)</span> the accumulator is zero, so an excursion starting at <span class="math inline">\(t+1\)</span> has
+not yet seen a point.</p>
+<h3 id="the-run-length-posterior">The run-length posterior <a class="header-anchor" href="#the-run-length-posterior">#</a></h3>
+<pre class="highlight"><code>        <span class="n">updated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">m</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">updated</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">hazard</span> <span class="o">*</span> <span class="n">prior_density</span>
+        <span class="n">updated</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">hazard</span><span class="p">)</span> <span class="o">*</span> <span class="n">grow</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">updated</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">total</span> <span class="o">&lt;=</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">total</span><span class="p">):</span>
+            <span class="n">mass</span><span class="p">[:</span><span class="n">m</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">mass</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="k">continue</span>
+        <span class="n">mass</span><span class="p">[:</span><span class="n">m</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">updated</span> <span class="o">/</span> <span class="n">total</span>
+</code></pre>
+<p>The whole recursion is those five lines. <code>grow</code> is the elementwise product of the
+old masses with the Student-t predictive, computed for every run length at once;
+the new mass at run length <span class="math inline">\(r+1\)</span> is <span class="math inline">\((1-H)\)</span> times that, and the mass at <span class="math inline">\(0\)</span> is
+<span class="math inline">\(H\)</span> times the prior predictive. Normalising by the total is Bayes' rule. The
+<code>total &lt;= 0</code> guard matters on long series: with a thousand run lengths the
+predictive densities underflow to zero and the normalisation becomes <span class="math inline">\(0/0\)</span>.</p>
+<p>The sufficient statistics are updated in the same loop, shifted by one so that
+row <span class="math inline">\(r+1\)</span> is the posterior after <span class="math inline">\(r+1\)</span> observations:</p>
+<pre class="highlight"><code>        <span class="n">kappa_new</span> <span class="o">=</span> <span class="n">kappa</span><span class="p">[:</span><span class="n">m</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1.0</span>
+        <span class="n">mu</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">m</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">kappa</span><span class="p">[:</span><span class="n">m</span><span class="p">]</span> <span class="o">*</span> <span class="n">mu</span><span class="p">[:</span><span class="n">m</span><span class="p">]</span> <span class="o">+</span> <span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">])</span> <span class="o">/</span> <span class="n">kappa_new</span>
+        <span class="n">kappa</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">m</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">kappa_new</span>
+        <span class="n">alpha</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">m</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">alpha</span><span class="p">[:</span><span class="n">m</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.5</span>
+        <span class="n">beta</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">m</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">beta</span><span class="p">[:</span><span class="n">m</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">kappa</span><span class="p">[:</span><span class="n">m</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">-</span> <span class="n">mu</span><span class="p">[:</span><span class="n">m</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span>
+                                          <span class="o">/</span> <span class="n">kappa_new</span><span class="p">)</span>
+</code></pre>
+<p>This is the conjugate update written incrementally. The <span class="math inline">\(\beta\)</span> update is the
+textbook <span class="math inline">\(\beta + \frac{\kappa(x-\mu)^2}{2(\kappa+1)}\)</span> with the new <span class="math inline">\(\kappa\)</span> in
+the denominator, and the shift <code>[1:m + 1]</code> is what lets the run length grow by
+one without recomputing anything from scratch.</p>
+<h3 id="deciding-where-the-change-is">Deciding where the change is <a class="header-anchor" href="#deciding-where-the-change-is">#</a></h3>
+<pre class="highlight"><code>    <span class="n">found</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+        <span class="n">previous</span> <span class="o">=</span> <span class="n">map_run</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">map_run</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">previous</span> <span class="ow">and</span> <span class="n">map_run</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="nb">max</span><span class="p">(</span><span class="n">min_size</span><span class="p">,</span> <span class="mf">0.2</span> <span class="o">*</span> <span class="n">previous</span><span class="p">):</span>
+            <span class="n">found</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">map_run</span><span class="p">[</span><span class="n">t</span><span class="p">])))</span>
+</code></pre>
+<p>A collapse is a drop to at most a fifth of the previous run length, with a floor
+at <code>min_size</code> so that the first few steps after a change do not count as a
+collapse from a run length of three. The reported index is <code>t - map_run[t]</code>,
+because a run length of <span class="math inline">\(r\)</span> at time <span class="math inline">\(t\)</span> means the last change was at <span class="math inline">\(t-r\)</span>. The
+<code>max(0, ...)</code> is needed at the start of the series, where the estimated change
+can point before the first sample.</p>
+<h3 id="the-penalty">The penalty <a class="header-anchor" href="#the-penalty">#</a></h3>
+<pre class="highlight"><code>        <span class="n">parameters</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">==</span> <span class="s2">"gaussian"</span> <span class="k">else</span> <span class="mf">1.0</span>
+        <span class="k">return</span> <span class="n">parameters</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+</code></pre>
+<p>Two parameters per change for the Gaussian cost, one for the mean-only cost, and
+<code>max(self.n_, 2)</code> so that a two-point series does not get a negative penalty.
+The penalty is in nats, like the cost, and that is the only thing that makes
+them addable.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(n\)</span> be the series length, <span class="math inline">\(m\)</span> the number of changes found and <span class="math inline">\(w\)</span> the window.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">time</th>
+<th style="text-align:left">memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>pelt</code></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span> expected, <span class="math inline">\(O(n^2)\)</span> worst</td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>binary_segmentation</code></td>
+<td style="text-align:left"><span class="math inline">\(O(n\log n)\)</span> typical, <span class="math inline">\(O(n^2)\)</span> worst</td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cusum</code></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span> per pass</td>
+<td style="text-align:left"><span class="math inline">\(O(1)\)</span> streaming</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>bocpd</code></td>
+<td style="text-align:left"><span class="math inline">\(O(n^2)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>window_based</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nw)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n)\)</span> or <span class="math inline">\(O(w)\)</span> streaming</td>
+</tr>
+</tbody>
+</table>
+<p>PELT's expected linearity is in the number of change points, not in <span class="math inline">\(n\)</span>: the
+pruning removes candidates at a rate that depends on how much better the
+segmentation gets with more changes. On data with no changes at all, nothing
+prunes and the recursion is fully quadratic — which is the honest worst case and
+the reason the demo reports evaluation counts rather than claiming linearity.</p>
+<p><code>bocpd</code> is the expensive one: every step touches every run length, so a
+thousand-point series costs a million predictive evaluations, vectorised into a
+thousand numpy calls. The file's largest series is <span class="math inline">\(360\)</span> points and the whole
+demo runs in a quarter of a second. For a long stream you would truncate the run
+length distribution or use the online variant of PELT instead.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>The penalty is in nats, and everything depends on it.</strong> <span class="math inline">\(\beta = 0\)</span> produces
+<span class="math inline">\(137\)</span> changes in <span class="math inline">\(300\)</span> points; <span class="math inline">\(\beta = 48\)</span> produces one. The default
+<span class="math inline">\(2\log n\)</span> is right for the Gaussian cost and is <em>not</em> right for the mean-only
+cost, which uses <span class="math inline">\(\log n\)</span> because it adds one parameter. Comparing objectives
+across models — <span class="math inline">\(190.14\)</span> against <span class="math inline">\(545.63\)</span> in the first table — is meaningless:
+they are different likelihoods, not different segmentations.</p>
+<p><strong>Greedy segmentation masks.</strong> The five-level series loses two of its four
+changes and <span class="math inline">\(9.74\)</span> nats. The mechanism is that a single split of a segment
+containing two changes fits neither, so the gain never clears the penalty and
+the recursion stops. The diagnostic is cheap: run PELT on the same series. If
+the objectives differ, the greedy answer is not the optimum.</p>
+<p><strong>CUSUM's calibration assumes a known reference.</strong> With a known mean and
+<span class="math inline">\(h=8\)</span>, the two-sided false-alarm rate is about one in <span class="math inline">\(8\,350\)</span> samples. The demo
+measures eight alarms in eight thousand stationary points, an order of magnitude
+more. The reference mean is estimated from a twenty-point warm-up, whose
+standard error is <span class="math inline">\(1/\sqrt{20} = 0.22\)</span> standard deviations — a fifth of the
+<span class="math inline">\(0.5\)</span>-sigma allowance. A reference that is off by <span class="math inline">\(0.22\sigma\)</span> turns the
+allowance into <span class="math inline">\(0.28\sigma\)</span> in one direction, and the ARL at <span class="math inline">\(0.28\)</span> is a
+fraction of the ARL at <span class="math inline">\(0.5\)</span>. Use a longer warm-up, or accept the rate and say
+so.</p>
+<p><strong>CUSUM's delay is not a property of the data.</strong> At <span class="math inline">\(h=8\)</span> and <span class="math inline">\(k=0.5\)</span> a
+half-sigma shift is caught <span class="math inline">\(13\)</span> times in twenty and takes <span class="math inline">\(21\)</span> samples when it
+is; a one-sigma shift is caught every time in <span class="math inline">\(13\)</span>; a three-sigma shift in <span class="math inline">\(3\)</span>.
+The threshold and the allowance set the delay, and the threshold sets the false
+alarms. There is no setting that is fast and quiet at once; that trade-off <em>is</em>
+the method.</p>
+<p><strong>BOCPD cannot tell an outlier from a change.</strong> The demo's series has one
+3.8-sigma point at <span class="math inline">\(t=303\)</span> and BOCPD reports a change there, six steps after the
+point, because the contaminated long run eventually loses to a fresh segment
+that also contains the outlier. The Student-t predictive damps this and does not
+prevent it. If your data has spikes, run an anomaly detector first and mask
+them, or use <code>pelt</code>, whose segment cost absorbs a single point into a long
+segment at a cost of a few nats.</p>
+<p><strong>The window method's resolution is its window.</strong> At <span class="math inline">\(w=20\)</span> the third change
+scores <span class="math inline">\(14.7\)</span> against a threshold of <span class="math inline">\(17.5\)</span> and is lost; at <span class="math inline">\(w=40\)</span> it scores
+<span class="math inline">\(26.3\)</span> and is found. Two changes closer together than <span class="math inline">\(w\)</span> merge into one, and a
+change in the first or last <span class="math inline">\(w\)</span> points cannot be seen at all.</p>
+<p><strong>A mean-only model on a variance change finds the wrong thing.</strong> The demo's
+series doubles its variance at <span class="math inline">\(150\)</span> and keeps its mean. <code>pelt/mean</code> reports
+<code>[231, 234]</code> — spurious changes inside the noisy half — and misses <span class="math inline">\(150\)</span>
+entirely, while the Gaussian cost finds <span class="math inline">\(150\)</span> exactly. If the spread can change,
+the cost must profile the variance.</p>
+<p><strong>Stationarity within a segment is assumed.</strong> Every variant here fits a constant
+mean and variance per segment. A slowly drifting series will be chopped into
+many segments by PELT, or produce a stream of alarms from CUSUM, because the
+model has no way to say &quot;drifting&quot;. Detrend or difference first.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Statistical process control.</strong> CUSUM was invented for manufacturing
+(Page, 1954) and is still the standard chart: one accumulator per quality
+variable, a threshold set from the ARL the plant can tolerate, and an alarm that
+means &quot;stop the line&quot;. The demo's delay table is the production trade-off in
+miniature.</p>
+<p><strong>Telemetry and operations.</strong> Offline, <code>pelt</code> segments a metric series for a
+postmortem — &quot;the latency changed at 14:32 and again at 15:10&quot;. Online, <code>bocpd</code>
+puts a posterior over the run length on a dashboard, which is more useful than a
+binary alarm because it degrades gracefully: an ambiguous point moves the
+distribution rather than firing.</p>
+<p><strong>Genomics.</strong> Copy-number segmentation is change-point detection on a
+log-ratio series along a chromosome, and circular binary segmentation (Olshen et
+al., 2004) is the standard tool. The segments are the answer; the individual
+probes are not.</p>
+<p><strong>Climate and hydrology.</strong> Regime shifts in temperature, rainfall and river
+flow are change points in a noisy series, and the penalty is the scientific
+claim: a segmentation with many changes says the climate is variable, one with
+few says it shifted.</p>
+<p><strong>Finance.</strong> Volatility regimes are variance changes, which is why the Gaussian
+cost and the window test matter more here than a mean-only detector. The
+distinction between &quot;a bad day&quot; and &quot;a new regime&quot; is exactly the anomaly versus
+change-point distinction.</p>
+<p><strong>As a preprocessing step.</strong> Segment first, then run an anomaly detector per
+segment. <code>hbos</code> or <code>kde</code> fitted on a series that spans a regime change will
+score the old regime as anomalous; fitted per segment, it will not. The two
+atoms compose, and the order matters.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Page, E. S. (1954). Continuous inspection schemes. <em>Biometrika</em> 41(1),
+100–115. The CUSUM.</li>
+<li>Lorden, G. (1971). Procedures for reacting to a change in distribution.
+<em>Annals of Mathematical Statistics</em> 42(6), 1897–1908. The average run length
+and the optimality of the CUSUM for a given delay.</li>
+<li>Killick, R., Fearnhead, P. &amp; Eckley, I. A. (2012). Optimal detection of
+changepoints with a linear computational cost. <em>JASA</em> 107(500), 1590–1598.
+PELT and the pruning theorem.</li>
+<li>Adams, R. P. &amp; MacKay, D. J. C. (2007). Bayesian online changepoint detection.
+arXiv:0710.3742. The run-length recursion in (5).</li>
+<li>Barry, D. &amp; Hartigan, J. A. (1993). A Bayesian analysis for change point
+problems. <em>JASA</em> 88(421), 309–319. The conjugate prior and the product
+partition.</li>
+<li>Olshen, A. B., Venkatraman, E. S., Lucito, R. &amp; Wigler, M. (2004). Circular
+binary segmentation for the analysis of array-based DNA copy number data.
+<em>Biostatistics</em> 5(4), 557–572. Binary segmentation as it is actually used.</li>
+<li>Scott, A. J. &amp; Knott, M. (1974). A cluster analysis method for grouping means
+in the analysis of variance. <em>Biometrics</em> 30(3), 507–512. The DP recursion
+that PELT prunes.</li>
+<li>Fearnhead, P. &amp; Liu, Z. (2011). On-line inference for multiple changepoint
+problems. <em>JRSS-B</em> 69(4), 589–605. Particle filters for the online problem,
+and why the exact recursion is quadratic.</li>
+<li>Truong, C., Oudre, L. &amp; Vayatis, N. (2020). Selective review of offline change
+point detection methods. <em>Signal Processing</em> 167, 107299. The survey that
+names the cost functions this file uses.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="autoencoder_anomaly.html"><small>Previous</small><span>Autoencoder anomaly</span></a><a class="next" href="elliptic_envelope.html"><small>Next</small><span>Elliptic envelope</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">09 · Density &amp; anomaly</p><ul class="rail-list"><li><a href="kde.html"><span class="tick">✓</span><span>Kernel density estimation</span></a></li><li><a href="isolation_forest.html"><span class="tick">✓</span><span>Isolation forest</span></a></li><li><a href="lof.html"><span class="tick">✓</span><span>Local outlier factor</span></a></li><li><a href="histogram_density.html"><span class="tick">✓</span><span>Histogram density</span></a></li><li><a href="mahalanobis.html"><span class="tick">✓</span><span>Mahalanobis / MCD</span></a></li><li><a href="hbos.html"><span class="tick">✓</span><span>HBOS</span></a></li><li><a href="autoencoder_anomaly.html"><span class="tick">✓</span><span>Autoencoder anomaly</span></a></li><li><a href="change_point.html" aria-current="page"><span class="tick">✓</span><span>Change-point detection</span></a></li><li><a href="elliptic_envelope.html"><span class="tick">✓</span><span>Elliptic envelope</span></a></li><li><a href="copod.html"><span class="tick">✓</span><span>COPOD</span></a></li><li><a href="extreme_value.html"><span class="tick">✓</span><span>Extreme value theory</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../08-manifold/index.html"><span class="jump">← 08 · Manifolds &amp; embeddings</span></a></li><li><a href="../10-sequences/index.html"><span class="jump">10 · Sequences&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-cost-of-one-segment">The cost of one segment</a></li><li class="lvl3"><a href="#the-objective-and-the-price-of-a-change">The objective and the price of a change</a></li><li class="lvl3"><a href="#pelt-the-same-optimum-for-less-work">PELT: the same optimum for less work</a></li><li class="lvl3"><a href="#binary-segmentation-and-its-failure">Binary segmentation and its failure</a></li><li class="lvl3"><a href="#cusum-the-sequential-test">CUSUM: the sequential test</a></li><li class="lvl3"><a href="#bocpd-a-posterior-over-the-run-length">BOCPD: a posterior over the run length</a></li><li class="lvl3"><a href="#the-window-test">The window test</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#segment-costs-from-prefix-sums">Segment costs from prefix sums</a></li><li class="lvl3"><a href="#the-pruning-loop">The pruning loop</a></li><li class="lvl3"><a href="#the-greedy-split">The greedy split</a></li><li class="lvl3"><a href="#cusum">CUSUM</a></li><li class="lvl3"><a href="#the-run-length-posterior">The run-length posterior</a></li><li class="lvl3"><a href="#deciding-where-the-change-is">Deciding where the change is</a></li><li class="lvl3"><a href="#the-penalty">The penalty</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/09-density-and-anomaly/change_point.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

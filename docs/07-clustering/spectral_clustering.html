@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spectral clustering · MLAtoms</title>
+<meta name="description" content="Clusters as cuts in a similarity graph. k-means and GMMs both assume that a cluster is a blob around a centre. Spectral clustering assumes something weaker…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/spectral_clustering.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Spectral clustering">
+<meta property="og:description" content="Clusters as cuts in a similarity graph. k-means and GMMs both assume that a cluster is a blob around a centre. Spectral clustering assumes something weaker…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/spectral_clustering.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Spectral clustering">
+<meta name="twitter:description" content="Clusters as cuts in a similarity graph. k-means and GMMs both assume that a cluster is a blob around a centre. Spectral clustering assumes something weaker…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Spectral clustering", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/07-clustering/spectral_clustering.html", "description": "Clusters as cuts in a similarity graph. k-means and GMMs both assume that a cluster is a blob around a centre. Spectral clustering assumes something weaker\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">07 · Clustering</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>5 variants</span><span class="page-meta__sep">/</span><a href="spectral_clustering.py.html">source</a></p><h1>Spectral clustering</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>k-means and GMMs both assume that a cluster is a blob around a centre. Spectral
+clustering assumes something weaker: <strong>points that belong together are connected by many
+short paths, and points in different clusters are connected by few long ones</strong>. All the
+geometry lives in a graph, and the clustering is a graph cut.</p>
+<p>The construction is:</p>
+<ol>
+<li>Build an affinity <code>W</code>, large when two points are similar. Here it is a k-NN graph
+with RBF weights.</li>
+<li>Form the graph Laplacian <code>L = D − W</code>, where <code>D</code> is the diagonal of weighted degrees.</li>
+<li>Take the <code>k</code> eigenvectors of <code>L</code> belonging to its smallest eigenvalues. Each row of
+that <code>n×k</code> matrix is a new coordinate vector for one point.</li>
+<li>Run k-means on those coordinates.</li>
+</ol>
+<p>Step 3 is the trick. Minimising the cut between two groups is NP-hard, but the relaxed
+version is an eigenproblem, and its solution embeds the graph so that a good cut becomes
+a <em>small distance</em> in <code>R^k</code>. On the demo's two interleaving moons, k-means on the raw
+coordinates scores <code>0.793</code> because the moons are not linearly separable, while spectral
+clustering on the same coordinates scores <code>1.000</code> — the graph already knows which points
+are neighbours along each moon.</p>
+<p>The variants differ in which Laplacian is used, how the embedding is normalised, how
+the affinity scale is chosen, and how <code>k</code> clusters are extracted.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Laplacian</th>
+<th style="text-align:left">Embedding</th>
+<th style="text-align:left">Why it exists</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>normalized</code></td>
+<td style="text-align:left"><code>L_rw = I − D⁻¹W</code></td>
+<td style="text-align:left">rows of <code>V = D^{-1/2}U</code></td>
+<td style="text-align:left">Shi–Malik; the standard choice</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>unnormalized</code></td>
+<td style="text-align:left"><code>L = D − W</code></td>
+<td style="text-align:left">rows of <code>U</code></td>
+<td style="text-align:left">the original; minimises <code>RatioCut</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ng_jordan_weiss</code></td>
+<td style="text-align:left"><code>L_sym = I − D^{-1/2}WD^{-1/2}</code></td>
+<td style="text-align:left"><code>U</code> with rows scaled to unit norm</td>
+<td style="text-align:left">Ng–Jordan–Weiss; best-conditioned</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>self_tuning</code></td>
+<td style="text-align:left"><code>L_sym</code> on a locally scaled affinity</td>
+<td style="text-align:left">unit rows</td>
+<td style="text-align:left">no global <code>σ</code> to choose</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>multiway</code></td>
+<td style="text-align:left"><code>L_sym</code> on each subgraph</td>
+<td style="text-align:left">Fiedler vector, recursively</td>
+<td style="text-align:left">avoids k-means entirely</td>
+</tr>
+</tbody>
+</table>
+<p>The first three are the same algorithm with different normalisations, and on easy data
+they agree; the demo's circles give <code>1.000</code> for both <code>unnormalized</code> and
+<code>ng_jordan_weiss</code>. Their differences show up in the <em>quality of the relaxation</em>:</p>
+<ul>
+<li><code>unnormalized</code> minimises the ratio cut, which divides by the <strong>number of points</strong> in
+each side. It therefore prefers splitting off small groups, which is a bias toward
+unbalanced clusters.</li>
+<li><code>normalized</code> minimises the normalised cut, which divides by the <strong>volume</strong> of each
+side. It is scale-free and prefers balanced clusters.</li>
+<li><code>ng_jordan_weiss</code> uses the symmetric Laplacian and then projects each row onto the unit
+sphere. The row normalisation removes the effect of the degree from the embedding, so
+k-means sees directions rather than magnitudes; it is the most numerically robust of
+the three and the one to reach for by default.</li>
+</ul>
+<p><code>self_tuning</code> replaces the single <code>σ</code> by a per-point scale <code>σ_i</code> (the distance to the
+<code>i</code>-th neighbour) and uses <code>exp(−d²/(σ_iσ_j))</code>. On the moons, a full RBF graph with
+<code>σ = 1</code> scores <code>0.777</code>, because one global width that large blurs the two moons into a
+single dense graph; local scaling scores <code>1.000</code> with no width parameter at all.</p>
+<p><code>multiway</code> never runs k-means. It splits the graph in two using the Fiedler vector (the
+eigenvector of the second-smallest eigenvalue), then recursively splits the largest
+piece until there are <code>k</code> clusters. Three concentric rings come out as <code>1.000</code> after
+exactly <code>2</code> Fiedler solves for <code>k = 3</code>.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>The cut objective.</strong> For a partition of the vertices into <code>A</code> and <code>Ā</code>, the cut is</p>
+<div class="math block">
+\[\text{cut}(A,\bar A) = \sum_{i\in A,\,j\in\bar A} W_{ij}\]
+</div>
+<p>Minimising <code>cut</code> alone has a trivial optimum: isolate one vertex. The two standard
+fixes are</p>
+<div class="math block">
+\[\text{RatioCut}(A,\bar A) = \frac{\text{cut}(A,\bar A)}{|A|} + \frac{\text{cut}(A,\bar A)}{|\bar A|},
+\qquad
+\text{Ncut}(A,\bar A) = \frac{\text{cut}(A,\bar A)}{\text{vol}(A)} + \frac{\text{cut}(A,\bar A)}{\text{vol}(\bar A)}\]
+</div>
+<p>with <code>vol(A) = Σ_{i∈A} d_i</code>.</p>
+<p><strong>Relaxation.</strong> Encode the partition by an indicator vector <code>f ∈ {−1,+1}ⁿ</code> (or <code>{0,1}</code>).
+For the unnormalised case,</p>
+<div class="math block">
+\[f^\top L f = \tfrac12\sum_{i,j} W_{ij}(f_i-f_j)^2 = \text{cut}(A,\bar A)\cdot 4\]
+</div>
+<p>because <code>(f_i − f_j)² = 4</code> exactly when the pair straddles the cut. So minimising
+<code>fᵀLf</code> subject to <code>fᵀ1 = 0</code> (balanced sizes) and <code>‖f‖ = √n</code> is RatioCut in relaxed form.
+<code>L</code> is symmetric positive semi-definite with <code>1</code> as its eigenvector for eigenvalue 0, so
+the minimum over the orthogonal complement is the <em>second</em> smallest eigenvalue, attained
+at the Fiedler vector. Dropping the integrality of <code>f</code> is the relaxation; rounding the
+Fiedler vector's sign is the rounding step.</p>
+<p>For <code>Ncut</code> the substitution <code>g = D^{1/2}f</code> gives</p>
+<div class="math block">
+\[\min_f \frac{f^\top L f}{f^\top D f}
+\quad\Longleftrightarrow\quad
+\min_g \frac{g^\top D^{-1/2} L D^{-1/2} g}{g^\top g}\]
+</div>
+<p>so the relaxed Ncut solution is the second eigenvector of the normalised Laplacian
+<code>L_sym = I − D^{-1/2}WD^{-1/2}</code>. The random-walk form is similar: <code>L_rw = D⁻¹L = I − D⁻¹W</code>
+has the same eigenvalues as <code>L_sym</code>, and its eigenvectors are <code>v = D^{-1/2}u</code>. Working
+with <code>L_rw</code> and then normalising rows by <code>D^{-1/2}</code> is the Shi–Malik recipe.</p>
+<p><strong>Why k eigenvectors for k clusters.</strong> The same argument applies to a <code>k</code>-way cut with an
+<code>n×k</code> indicator matrix <code>F</code> whose columns are the cluster indicators. The relaxation is
+<code>min tr(FᵀLF)</code> subject to <code>FᵀF = I</code>, whose solution is the matrix of the <code>k</code> smallest
+eigenvectors. k-means on the rows is a discrete approximation of that solution: it finds
+<code>k</code> centroids in <code>R^k</code>, i.e. an <code>n×k</code> indicator matrix of the required form. That is why
+the algorithm is &quot;spectral embedding, then k-means&quot; rather than &quot;spectral cut, then
+rounding&quot;.</p>
+<p><strong>Row normalisation (NJW).</strong> The theorem in Ng–Jordan–Weiss is about the matrix <code>U</code> of
+the first <code>k</code> eigenvectors of <code>L_sym</code>. Their algorithm normalises each row to unit norm
+before k-means, which makes the embedding invariant to the degree and turns the problem
+into clustering <em>directions</em>. The theoretical guarantee is stated for that normalised
+matrix: under a model with <code>k</code> well-separated clusters, the rows of <code>T = U/‖U‖</code> are close
+to <code>k</code> orthogonal vectors, so k-means recovers the partition.</p>
+<p><strong>Local scaling.</strong> Zelnik-Manor and Perona's affinity is</p>
+<div class="math block">
+\[W_{ij} = \exp\!\left(-\frac{d^2(x_i,x_j)}{\sigma_i\sigma_j}\right),
+\qquad \sigma_i = d(x_i, x_{K_i})\]
+</div>
+<p>The product <code>σ_iσ_j</code> is the geometric mean of the two local scales, so a pair inside a
+dense region is compared at a short scale and a pair inside a sparse region at a long
+one. The affinity between a dense and a sparse point is the geometric mean of the two,
+which is exactly the regime where a global <code>σ</code> fails: too small and the sparse region
+disconnects, too large and the dense region merges with everything.</p>
+<p><strong>Multiway / Fiedler splitting.</strong> For a subgraph with Laplacian <code>L_sym</code>, the Fiedler
+vector <code>v₂</code> minimises the relaxed Ncut of that subgraph, and its sign gives the split.
+Recursion approximates the <code>k</code>-way optimum by <code>k−1</code> binary decisions, which is cheaper
+than a full <code>k</code>-eigenvector decomposition on a large graph (<code>O(m log n)</code> per split with a
+Lanczos solver) and produces a hierarchy as a by-product.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The affinity is a k-NN mask over an RBF kernel, with the mask taking the union of both
+directions:</p>
+<pre class="highlight"><code>        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="p">:</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">mask</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">mask</span> <span class="o">|=</span> <span class="n">mask</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+</code></pre>
+<p><code>argpartition</code> finds the <code>k</code> nearest without sorting, and <code>k+1</code> columns include the point
+itself. <code>mask |= mask.T</code> symmetrises the <em>graph</em>, not just the weights: if <code>i</code> chose <code>j</code>
+but <code>j</code> did not choose <code>i</code>, the edge still exists. That is the standard &quot;union&quot; k-NN
+graph, and it matters for spectral clustering because a one-sided edge would make <code>W</code>
+asymmetric and the Laplacian's eigenvectors complex. <code>fill_diagonal(False)</code> removes
+self-loops, which would only shift every degree by one.</p>
+<p>The self-tuning branch needs the distance to the <em>local-scale</em> neighbour, not the graph
+neighbour:</p>
+<pre class="highlight"><code>            <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                <span class="n">d2</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">order</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_scale_neighbors</span><span class="p">]],</span> <span class="n">EPS</span><span class="p">))</span>
+            <span class="n">denom</span> <span class="o">=</span> <span class="n">scale</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">scale</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">W</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">d2</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">denom</span><span class="p">,</span> <span class="n">EPS</span><span class="p">))</span>
+</code></pre>
+<p><code>order[:, j]</code> is the index of the <code>j</code>-th nearest point for each row, and taking <code>d2</code> at
+that index gives the squared distance without a second sort. The outer product
+<code>scale[:, None] * scale[None, :]</code> is the <code>σ_iσ_j</code> in one expression — no loop over pairs.
+<code>full_graph</code> is forced on for this variant because the local scales are what make a dense
+affinity well behaved; sparsifying it would throw away the long-range edges that survive
+the scaling.</p>
+<p>The Laplacians are three lines each because <code>eigh</code> does the work:</p>
+<pre class="highlight"><code>        <span class="n">dinv</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">EPS</span><span class="p">))</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">-</span> <span class="n">dinv</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">W</span> <span class="o">*</span> <span class="n">dinv</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">vals</span><span class="p">,</span> <span class="n">vecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+</code></pre>
+<p><code>dinv[:, None] * W * dinv[None, :]</code> is <code>D^{-1/2}WD^{-1/2}</code> as two broadcast multiplies,
+never a matrix product with a diagonal matrix. <code>np.linalg.eigh</code> is the symmetric
+eigensolver: it returns eigenvalues in ascending order, so <code>vecs[:, :k]</code> is already the
+<code>k</code> smallest. <code>np.maximum(d, EPS)</code> protects isolated vertices — a point with no edges has
+degree 0, and without the guard the embedding row would be <code>nan</code> and poison k-means.</p>
+<p>The random-walk embedding is a rescale of the symmetric one:</p>
+<pre class="highlight"><code>        <span class="n">V</span> <span class="o">=</span> <span class="n">dinv</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">vecs</span><span class="p">[:,</span> <span class="p">:</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">vals</span><span class="p">,</span> <span class="n">V</span>
+</code></pre>
+<p>Because <code>L_rw = D^{-1/2}L_symD^{1/2}</code>, its eigenvectors are <code>D^{-1/2}u</code>. This is exactly
+why <code>normalized</code> and <code>ng_jordan_weiss</code> differ only in the row scaling: they use the same
+eigendecomposition, and the variant decides whether rows are left as <code>V</code> or normalised
+to unit length.</p>
+<p>The Fiedler solve for a subgraph reuses the same construction on the principal submatrix:</p>
+<pre class="highlight"><code>        <span class="n">sub</span> <span class="o">=</span> <span class="n">W</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">idx</span><span class="p">)]</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">dinv</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">EPS</span><span class="p">))</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">idx</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="o">-</span> <span class="n">dinv</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">sub</span> <span class="o">*</span> <span class="n">dinv</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">vecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_eig_</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">dinv</span> <span class="o">*</span> <span class="n">vecs</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">idx</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">vecs</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+</code></pre>
+<p><code>np.ix_(idx, idx)</code> extracts the principal submatrix in one operation, which is the whole
+&quot;run the algorithm on a subset&quot; step. <code>vecs[:, 1]</code> is the second eigenvector because the
+first is constant. The <code>dinv *</code> converts it to the random-walk eigenvector, which is the
+correct object for the normalised cut; using the symmetric eigenvector directly would
+still split reasonably but would bias the split toward low-degree vertices.</p>
+<p>The recursion always splits the biggest cluster:</p>
+<pre class="highlight"><code>        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">clusters</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">:</span>
+            <span class="n">j</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">clusters</span><span class="p">)),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="n">clusters</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">clusters</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fiedler</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="n">idx</span><span class="p">)</span>
+            <span class="n">left</span> <span class="o">=</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
+            <span class="k">if</span> <span class="n">left</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">left</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">left</span> <span class="o">=</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+</code></pre>
+<p>Splitting the largest cluster balances the recursion tree and is what makes &quot;k−1 splits&quot;
+meaningful — splitting the smallest would spend solves on already-small pieces. The sign
+test <code>v &gt; 0</code> fails when the vector is one-signed, which happens on a connected subgraph
+whose Fiedler value is tiny; the median fallback guarantees a non-empty split and keeps
+the loop from spinning. A truly unsplittable cluster (<code>idx.size &lt; 2</code>) is put back and the
+loop breaks, so <code>k</code> is an upper bound rather than a promise.</p>
+<p>The main dispatch is three lines:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"multiway"</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">labels_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_multiway</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">affinity_</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">embedding_</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues_</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_laplacian_eigen</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">affinity_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">)</span>
+</code></pre>
+<p>Setting <code>embedding_</code> and <code>eigenvalues_</code> to <code>None</code> for <code>multiway</code> is deliberate: there is
+no single embedding, and returning a stale one from a previous fit would be worse than
+returning nothing.</p>
+<p>k-means on the embedding is a sibling import, not a reimplementation:</p>
+<pre class="highlight"><code>            <span class="n">km</span> <span class="o">=</span> <span class="n">KMeans</span><span class="p">(</span><span class="s2">"lloyd"</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">,</span> <span class="n">n_init</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                        <span class="n">random_state</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">31</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">labels_</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">fit_predict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">embedding_</span><span class="p">)</span>
+</code></pre>
+<p><code>n_init=10</code> because the embedding can have clusters of very different sizes, and a single
+Lloyd run on a bad seed merges two of them. The RNG is seeded from this model's generator
+so the whole pipeline is reproducible from <code>random_state</code> alone.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Step</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Affinity matrix</td>
+<td style="text-align:left"><code>O(n² d )</code> (dense)</td>
+<td style="text-align:left"><code>O(n²)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">k-NN selection</td>
+<td style="text-align:left"><code>O(n²)</code> with <code>argpartition</code></td>
+<td style="text-align:left"><code>O(n²)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Eigendecomposition</td>
+<td style="text-align:left"><code>O(n³)</code> dense <code>eigh</code></td>
+<td style="text-align:left"><code>O(n²)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">k-means on <code>n×k</code></td>
+<td style="text-align:left"><code>O(n k² i)</code></td>
+<td style="text-align:left"><code>O(n k)</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Multiway, <code>k−1</code> splits</td>
+<td style="text-align:left"><code>O(k n³)</code> worst case</td>
+<td style="text-align:left"><code>O(n²)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The dense eigendecomposition is the wall: <code>O(n³)</code> with a small constant, fine to a few
+thousand points and hopeless beyond that. Real implementations never build <code>W</code>: they use
+a sparse k-NN graph and a Lanczos/LOBPCG solver for the few smallest eigenvectors, which
+is <code>O(m k)</code> per iteration with <code>m ≈ n·n_neighbors</code> edges. The affinity matrix is also the
+memory wall: <code>n = 100k</code> needs 80 GB. <code>multiway</code> looks worse in the worst case but each
+sub-solve is on a smaller matrix, so in practice it is competitive and uses less peak
+memory.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Choosing <code>k</code>.</strong> The eigengap heuristic — pick <code>k</code> where <code>λ_k</code> jumps — is the
+standard tool, and it fails when the graph has no clear gap. The demo's moons have
+<code>λ₀, λ₁ ≈ 0</code> and <code>λ₂ = 0.0025</code>: a gap, but a small absolute one. Try a few <code>k</code> and
+validate on a downstream task rather than trusting the spectrum alone.</li>
+<li><strong>The affinity width.</strong> With a dense RBF graph, <code>σ</code> decides everything; on the moons,
+<code>σ = 1</code> scores <code>0.777</code> while <code>σ</code> from the median neighbour distance scores <code>1.000</code>.
+With a k-NN graph the width matters much less because the <em>edges</em> are fixed by the
+neighbour count and <code>σ</code> only reweights them — which is why the k-NN graph is the
+default here.</li>
+<li><strong>Disconnected graphs.</strong> If the k-NN graph has more than <code>k</code> components, the first
+several eigenvalues are all zero and k-means splits arbitrary components. That is
+usually a correct answer (the data really is disconnected), but it is reported
+without warning. Check <code>λ_{k-1} ≈ 0</code> and whether the clusters are meaningful.</li>
+<li><strong>Very unbalanced cluster sizes.</strong> <code>unnormalized</code> minimises RatioCut, which prefers
+isolating small groups; on data with one dominant cluster it will carve off slivers.
+Use the normalised variants, which divide by volume.</li>
+<li><strong>Degree-0 vertices.</strong> An isolated point has <code>d = 0</code> and an undefined normalised
+Laplacian. The <code>EPS</code> guard gives it a zero row, so it lands wherever k-means puts the
+origin — usually noise. Drop isolated vertices before fitting if they matter.</li>
+<li><strong>Outliers.</strong> A far outlier is its own connected component in the k-NN graph, so it
+becomes a cluster of one and consumes a slot of <code>k</code>. Trim first, or increase
+<code>n_neighbors</code> so the outlier attaches to something.</li>
+<li><strong>Large <code>n</code>.</strong> The dense path is <code>O(n²)</code> memory and <code>O(n³)</code> time. Use a sparse graph
+and a Lanczos solver, or Nyström approximation; the algorithm's structure is fine,
+this implementation is the limit.</li>
+<li><strong><code>multiway</code> split degeneracy.</strong> A one-signed Fiedler vector on a well-connected
+subgraph forces the median fallback, which is an arbitrary split. The recursion then
+produces a cluster that does not correspond to a real cut. Prefer the <code>k</code>-eigenvector
+method when the subgraphs are not clearly separable.</li>
+<li><strong>Sign ambiguity of eigenvectors.</strong> <code>v</code> and <code>−v</code> are both valid, so labels can flip
+between runs. Cluster <em>labels</em> must be compared with a permutation-invariant metric;
+the demo's accuracy helper does exactly that.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Manifold-shaped clusters.</strong> Two moons, concentric circles, spirals: spectral
+clustering is the standard answer when k-means visibly fails, and the demo's
+<code>1.000</code> vs <code>0.793</code> is the canonical comparison.</li>
+<li><strong>Image segmentation.</strong> Pixels as vertices, colour/position similarity as edges; the
+normalised cut is the original Shi–Malik application.</li>
+<li><strong>Speaker diarisation.</strong> Segments as vertices, similarity of speaker embeddings as
+weights; the number of speakers is <code>k</code>, and the eigengap suggests it.</li>
+<li><strong>Community detection.</strong> Graph clustering with the normalised Laplacian is the
+spectral counterpart of modularity methods, and it scales when the graph is sparse.</li>
+<li><strong>Constrained and semi-supervised clustering.</strong> Setting <code>W_ij = 0</code> for must-not-link
+pairs and <code>W_ij = large</code> for must-link pairs turns constraints into graph edits, with
+no change to the algorithm.</li>
+<li><strong>As a feature map.</strong> The <code>k</code> eigenvectors are a non-linear embedding usable by any
+downstream model, not only by k-means.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Fiedler, <em>Algebraic Connectivity of Graphs</em>, 1973, Czechoslovak Mathematical Journal —
+the second eigenvector and its role in graph partitioning.</li>
+<li>Shi &amp; Malik, <em>Normalized Cuts and Image Segmentation</em>, 2000, IEEE TPAMI — the
+normalised cut, the random-walk Laplacian and the algorithm this file's <code>normalized</code>
+variant follows.</li>
+<li>Ng, Jordan &amp; Weiss, <em>On Spectral Clustering: Analysis and an Algorithm</em>, 2002, NeurIPS
+— the symmetric Laplacian with row normalisation and its guarantee.</li>
+<li>Zelnik-Manor &amp; Perona, <em>Self-Tuning Spectral Clustering</em>, 2004, NeurIPS — local scaling
+and the <code>self_tuning</code> variant.</li>
+<li>von Luxburg, <em>A Tutorial on Spectral Clustering</em>, 2007, Statistics and Computing — the
+clearest derivation of the relaxation, the three Laplacians and their equivalences.</li>
+<li>Meilă &amp; Shi, <em>A Random Walks View of Spectral Segmentation</em>, 2001, AISTATS — the
+recursive multiway splitting used by <code>multiway</code>.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="hdbscan.html"><small>Previous</small><span>HDBSCAN</span></a><a class="next" href="agglomerative.html"><small>Next</small><span>Hierarchical clustering</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">07 · Clustering</p><ul class="rail-list"><li><a href="kmeans.html"><span class="tick">✓</span><span>k-means</span></a></li><li><a href="gmm.html"><span class="tick">✓</span><span>Gaussian mixture</span></a></li><li><a href="dbscan.html"><span class="tick">✓</span><span>DBSCAN</span></a></li><li><a href="hdbscan.html"><span class="tick">✓</span><span>HDBSCAN</span></a></li><li><a href="spectral_clustering.html" aria-current="page"><span class="tick">✓</span><span>Spectral clustering</span></a></li><li><a href="agglomerative.html"><span class="tick">✓</span><span>Hierarchical clustering</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>k-medoids</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>OPTICS</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Mean shift</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Fuzzy c-means</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Cluster validity</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>BIRCH</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Affinity propagation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Density peaks</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Self-organising maps</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Subspace clustering</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../06-latent-factorization/index.html"><span class="jump">← 06 · Latent structure &amp; factorisation</span></a></li><li><a href="../08-manifold/index.html"><span class="jump">08 · Manifolds &amp; embeddings&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/07-clustering/spectral_clustering.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

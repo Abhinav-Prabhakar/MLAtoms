@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quantisation · MLAtoms</title>
+<meta name="description" content="Fewer bits, mostly without losing accuracy. Quantisation replaces a float by an integer code and a scale. That is the whole idea, and everything hard about…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/13-training/quantization.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Quantisation">
+<meta property="og:description" content="Fewer bits, mostly without losing accuracy. Quantisation replaces a float by an integer code and a scale. That is the whole idea, and everything hard about…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/13-training/quantization.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Quantisation">
+<meta name="twitter:description" content="Fewer bits, mostly without losing accuracy. Quantisation replaces a float by an integer code and a scale. That is the whole idea, and everything hard about…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Quantisation", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/13-training/quantization.html", "description": "Fewer bits, mostly without losing accuracy. Quantisation replaces a float by an integer code and a scale. That is the whole idea, and everything hard about\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">13 · Training</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>10 variants</span><span class="page-meta__sep">/</span><a href="quantization.py.html">source</a></p><h1>Quantisation — ten ways to store a weight in fewer bits</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Quantisation replaces a float by an integer code and a scale. That is the whole
+idea, and everything hard about it is in three follow-up questions: how wide is
+the grid, how many values share a grid, and how do you choose the grid once the
+weights are already trained.</p>
+<p>The grid is either symmetric about zero (a sign bit and a magnitude) or
+asymmetric with a zero point (so the codes cover an off-centre range exactly).
+The granularity is one scale for the whole tensor, one per output channel, or
+one per small group of input channels. The procedure is what changes at the low
+end: post-training quantisation rounds whatever the trained weights are, QAT
+trains through the rounding with a straight-through estimator, GPTQ chooses
+each rounding while compensating the weights it has not quantised yet, and AWQ
+rescales input channels so the ones that matter survive the grid.</p>
+<p>This atom is also about a result that surprises people: 4-bit <em>weights</em> are
+almost free. On the demo's model the 4-bit recipes lose 0.000 held-out accuracy
+against fp32 and use 4.8× fewer bytes. It is 4-bit <em>activations</em> that hurt —
+<code>int4</code> drops to 0.975 — and at 2 bits the procedure finally separates: QAT's
+loss is 0.113 against 0.148 for plain rounding. The hard part of quantisation
+is not the weights.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">grid</th>
+<th style="text-align:left">granularity</th>
+<th style="text-align:right">bits</th>
+<th style="text-align:left">procedure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>absmax</code></td>
+<td style="text-align:left">symmetric</td>
+<td style="text-align:left">tensor</td>
+<td style="text-align:right">8</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>zero_point</code></td>
+<td style="text-align:left">asymmetric</td>
+<td style="text-align:left">tensor</td>
+<td style="text-align:right">8</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>per_channel</code></td>
+<td style="text-align:left">symmetric</td>
+<td style="text-align:left">output channel</td>
+<td style="text-align:right">8</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>per_group</code></td>
+<td style="text-align:left">symmetric</td>
+<td style="text-align:left">group of 16</td>
+<td style="text-align:right">4</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ptq</code></td>
+<td style="text-align:left">symmetric</td>
+<td style="text-align:left">group of 16</td>
+<td style="text-align:right">4</td>
+<td style="text-align:left">percentile clipping</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>qat</code></td>
+<td style="text-align:left">symmetric</td>
+<td style="text-align:left">group of 16</td>
+<td style="text-align:right">4</td>
+<td style="text-align:left">straight-through training</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gptq</code></td>
+<td style="text-align:left">symmetric</td>
+<td style="text-align:left">group of 16</td>
+<td style="text-align:right">4</td>
+<td style="text-align:left">Hessian compensation</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>awq</code></td>
+<td style="text-align:left">symmetric</td>
+<td style="text-align:left">group of 16</td>
+<td style="text-align:right">4</td>
+<td style="text-align:left">activation-aware scaling</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>int4</code></td>
+<td style="text-align:left">symmetric</td>
+<td style="text-align:left">group of 16</td>
+<td style="text-align:right">4</td>
+<td style="text-align:left">weights and activations</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>int8</code></td>
+<td style="text-align:left">symmetric</td>
+<td style="text-align:left">output channel</td>
+<td style="text-align:right">8</td>
+<td style="text-align:left">weights and activations</td>
+</tr>
+</tbody>
+</table>
+<p>The first four are schemes; the next four are procedures layered on a scheme;
+the last two switch on activation quantisation and are the recipes people mean
+when they say &quot;int8&quot; or &quot;int4&quot; inference.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="codes-and-scales">Codes and scales <a class="header-anchor" href="#codes-and-scales">#</a></h3>
+<p>A uniform quantiser maps a weight to an integer and back:</p>
+<div class="math block">
+\[\hat w=s\left(\mathrm{clip}\!\left(\mathrm{round}\!\left(\frac{w}{s}\right)+z,
+0,L\right)-z\right),\qquad L=2^b-1,
+\qquad (1)\]
+</div>
+<p>with bit width <span class="math inline">\(b\)</span>, step <span class="math inline">\(s\)</span> and integer zero point <span class="math inline">\(z\)</span>. Symmetric
+quantisation sets <span class="math inline">\(z=0\)</span> and uses one sign-magnitude grid:</p>
+<div class="math block">
+\[s=\frac{\max|w|}{2^{b-1}-1},\qquad |w-\hat w|\le \frac{s}{2}.
+\qquad (2)\]
+</div>
+<p>Asymmetric quantisation spends the full <span class="math inline">\(2^b\)</span> codes on the observed range:</p>
+<div class="math block">
+\[s=\frac{\max w-\min w}{2^b-1},\qquad
+z=\mathrm{round}\!\left(-\frac{\min w}{s}\right).
+\qquad (3)\]
+</div>
+<p>Symmetric is cheaper (no zero point, and the multiply is a single integer
+instruction) and is what most weight-only kernels use. Asymmetric wins when the
+range is one-sided: the demo's values in <span class="math inline">\([0,2]\)</span> have an rmse of 0.071 with a
+symmetric grid and 0.033 with an asymmetric one, because half the symmetric
+codes describe negative numbers that never occur.</p>
+<h3 id="granularity">Granularity <a class="header-anchor" href="#granularity">#</a></h3>
+<p>One scale per row, and one per group of columns inside a row:</p>
+<div class="math block">
+\[s_i=\frac{\max_j|W_{ij}|}{2^{b-1}-1},\qquad
+s_{i,g}=\frac{\max_{j\in g}|W_{ij}|}{2^{b-1}-1}.
+\qquad (4)\]
+</div>
+<p>Under round-to-nearest the error in a block of step <span class="math inline">\(s\)</span> is roughly uniform on
+<span class="math inline">\([-s/2,s/2]\)</span>, so</p>
+<div class="math block">
+\[\mathbb E\!\left[(w-\hat w)^2\right]\approx\frac{s^2}{12},
+\qquad (5)\]
+</div>
+<p>which is the entire argument for finer granularity: the error is quadratic in
+the block's range. The demo makes the spread explicit with rows scaled from
+<span class="math inline">\(10^{-2}\)</span> to <span class="math inline">\(10^{2}\)</span>: per-tensor rmse 2.927, per-channel 1.629, per-group
+1.147. The cost is the scales themselves, stored in fp16:</p>
+<div class="math block">
+\[B=\frac{nb}{8}+2N_s,
+\qquad (6)\]
+</div>
+<p>so 4-bit groups of 16 cost 0.5 bytes per weight plus 0.125 bytes of scale —
+0.625 against 4, a factor of 6.4 before headers. The demo's end-to-end model
+reports 448 bytes against 2144, or 4.8×, because the biases and the per-matrix
+scales are not compressed.</p>
+<h3 id="bits-and-bytes">Bits and bytes <a class="header-anchor" href="#bits-and-bytes">#</a></h3>
+<p>The same error formula explains the bit-width sweep. Halving the number of
+levels doubles <span class="math inline">\(s\)</span> and quadruples the error, and the demo tracks it exactly:
+rmse 0.0065 at 8 bits, 0.0282 at 6, 0.1227 at 4, 0.2587 at 3, 0.7984 at 2,
+while the bytes fall from 266 to 74. Accuracy is a coarse instrument here; loss
+and output error are the sensitive ones.</p>
+<h3 id="post-training-quantisation-with-clipping">Post-training quantisation with clipping <a class="header-anchor" href="#post-training-quantisation-with-clipping">#</a></h3>
+<p>Percentile clipping picks a threshold below the maximum and saturates the tail:</p>
+<div class="math block">
+\[\tau_p=\mathrm{percentile}(|w|,p),\qquad
+\hat w=\mathrm{quantise}\big(\mathrm{clip}(w,-\tau_p,\tau_p)\big).
+\qquad (7)\]
+</div>
+<p>The bias from clipping the few largest weights buys a smaller step for
+everyone else, and for a Gaussian-ish weight distribution the optimum is
+usually around the 99.9th percentile. <code>ptq</code> uses 99.5 and the demo's loss
+improves from 0.053 to 0.052 — a small effect at 4 bits, a large one at 3.</p>
+<h3 id="qat-and-the-straight-through-estimator">QAT and the straight-through estimator <a class="header-anchor" href="#qat-and-the-straight-through-estimator">#</a></h3>
+<p>Rounding has zero derivative almost everywhere, so training through it needs a
+surrogate:</p>
+<div class="math block">
+\[\frac{\partial L}{\partial w}
+=\frac{\partial L}{\partial\hat w}\cdot
+\frac{\partial\hat w}{\partial w}
+\approx\frac{\partial L}{\partial\hat w}.
+\qquad (8)\]
+</div>
+<p>That is, the forward pass uses the quantised weight and the backward pass
+pretends the quantiser was the identity. The demo keeps the fp32 weights as the
+latent parameters and updates them with gradients evaluated at the quantised
+copy:</p>
+<div class="math block">
+\[w\leftarrow w-\eta\,\nabla_{\hat w}L,\qquad
+\hat w=\mathrm{quantise}(w).
+\qquad (9)\]
+</div>
+<p>The estimator is biased, but it optimises the objective that deployment
+actually sees, which is why it wins the 2-bit loss table: 0.113 against 0.148.</p>
+<h3 id="gptq-choose-the-rounding-not-just-the-grid">GPTQ: choose the rounding, not just the grid <a class="header-anchor" href="#gptq-choose-the-rounding-not-just-the-grid">#</a></h3>
+<p>GPTQ treats quantisation as a layer-wise reconstruction problem. With
+calibration inputs <span class="math inline">\(X\)</span> and a weight matrix <span class="math inline">\(W\)</span> stored as (output, input),</p>
+<div class="math block">
+\[\min_{\hat W}\;\lVert XW^{\top}-X\hat W^{\top}\rVert_F^2
+=\min_{\hat W}\;\mathrm{tr}\!\left((W-\hat W)H(W-\hat W)^{\top}\right),
+\qquad (10)\]
+</div>
+<p>where <span class="math inline">\(H=X^{\top}X\)</span> is the input Hessian. Quantising one output row at a time,
+the optimal update after committing element <span class="math inline">\(i\)</span> follows from the inverse
+Hessian:</p>
+<div class="math block">
+\[\hat w_i=\mathrm{quantise}(w_i),\qquad
+w_j\leftarrow w_j-\frac{w_i-\hat w_i}{[H^{-1}]_{ii}}\,[H^{-1}]_{ij},
+\quad j>i.
+\qquad (11)\]
+</div>
+<p>Every remaining weight absorbs a share of the error, so the row's <em>output</em>
+stays close even though individual weights are far from their fp32 values. The
+demo's correlated inputs make the effect visible: 9.3e-3 output error for
+round-to-nearest against 4.9e-3 for compensated rounding. The inverse is
+computed once per layer with damping, and the loop is sequential in the input
+dimension, which is why GPTQ is slower to apply than plain rounding.</p>
+<h3 id="awq-protect-the-channels-that-carry-signal">AWQ: protect the channels that carry signal <a class="header-anchor" href="#awq-protect-the-channels-that-carry-signal">#</a></h3>
+<p>AWQ observes that a few input channels have much larger activations than the
+rest, and that quantisation error in those channels matters more. It scales
+each input channel before rounding and divides the scale back out afterwards:</p>
+<div class="math block">
+\[\hat W=\mathrm{quantise}(W\,\mathrm{diag}(s))\,\mathrm{diag}(s)^{-1},\qquad
+s_j=\left(\mathbb E|X_j|\right)^{\alpha}.
+\qquad (12)\]
+</div>
+<p>The scale is normalised so its geometric mean is one, which keeps the overall
+dynamic range fixed. Setting <span class="math inline">\(s_j>1\)</span> for a large-activation channel divides its
+effective step by <span class="math inline">\(s_j\)</span>, buying resolution exactly where the error is
+multiplied by a large <span class="math inline">\(x_j\)</span>. On the demo's inputs spanning four orders of
+magnitude, plain 4-bit groups leave 5.52 output error and AWQ leaves 3.47.</p>
+<h3 id="activations-are-the-other-operand">Activations are the other operand <a class="header-anchor" href="#activations-are-the-other-operand">#</a></h3>
+<p><code>int8</code> and <code>int4</code> quantise the activations as well, per tensor and dynamically
+per batch:</p>
+<div class="math block">
+\[a=\mathrm{quantise}(x),\qquad \hat y=f(a;\hat W).
+\qquad (13)\]
+</div>
+<p>Weights are fixed and can be calibrated once; activations change with every
+input, so their scale must be computed at runtime, and their outliers are much
+harder to control. The demo shows the asymmetry: <code>int8</code> matches fp32 at 0.994,
+<code>int4</code> falls to 0.975 while weight-only 4-bit stays at 0.994. This is why
+&quot;4-bit LLM&quot; almost always means 4-bit weights with 16-bit activations, and why
+W4A4 is a research result rather than a default.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The quantiser builds one array of blocks — the whole tensor, one row per block,
+or one group per block — and then applies a single scale formula to it:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">"tensor"</span><span class="p">:</span>
+        <span class="n">blocks</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">"channel"</span><span class="p">:</span>
+        <span class="n">blocks</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">cols</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">"group"</span><span class="p">:</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="p">(</span><span class="n">cols</span> <span class="o">+</span> <span class="n">group</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="n">group</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">groups</span> <span class="o">*</span> <span class="n">group</span>
+        <span class="n">padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">rows</span><span class="p">,</span> <span class="n">width</span><span class="p">))</span>
+        <span class="n">padded</span><span class="p">[:,</span> <span class="p">:</span><span class="n">cols</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span>
+        <span class="n">blocks</span> <span class="o">=</span> <span class="n">padded</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">groups</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span>
+</code></pre>
+<p>The symmetric and asymmetric grids differ only in whether the range is centred,
+and the round-trip is the same expression in both cases:</p>
+<pre class="highlight"><code>    <span class="k">if</span> <span class="n">symmetric</span><span class="p">:</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">blocks</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">/</span> <span class="n">qmax</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">scale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">codes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">blocks</span> <span class="o">/</span> <span class="n">scale</span><span class="p">),</span> <span class="o">-</span><span class="n">qmax</span><span class="p">,</span> <span class="n">qmax</span><span class="p">)</span>
+        <span class="n">dequant</span> <span class="o">=</span> <span class="n">codes</span> <span class="o">*</span> <span class="n">scale</span>
+        <span class="n">zeros</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">low</span> <span class="o">=</span> <span class="n">blocks</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">high</span> <span class="o">=</span> <span class="n">blocks</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">high</span> <span class="o">-</span> <span class="n">low</span><span class="p">)</span> <span class="o">/</span> <span class="n">levels</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">scale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">zero</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="o">-</span><span class="n">low</span> <span class="o">/</span> <span class="n">scale</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">levels</span><span class="p">)</span>
+        <span class="n">codes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">blocks</span> <span class="o">/</span> <span class="n">scale</span><span class="p">)</span> <span class="o">+</span> <span class="n">zero</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">levels</span><span class="p">)</span>
+        <span class="n">dequant</span> <span class="o">=</span> <span class="p">(</span><span class="n">codes</span> <span class="o">-</span> <span class="n">zero</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span>
+        <span class="n">zeros</span> <span class="o">=</span> <span class="n">zero</span>
+</code></pre>
+<p>Storage is counted from the codes and the fp16 side information, because a
+quantised matrix is the codes plus whatever it takes to decode them:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">quantised_bytes</span><span class="p">(</span><span class="n">info</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Codes plus fp16 scales and zero points, plus a small header."""</span>
+    <span class="n">code</span> <span class="o">=</span> <span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">"count"</span><span class="p">]</span> <span class="o">*</span> <span class="n">info</span><span class="p">[</span><span class="s2">"bits"</span><span class="p">]</span> <span class="o">+</span> <span class="mi">7</span><span class="p">)</span> <span class="o">//</span> <span class="mi">8</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">code</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">"scale"</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span>
+    <span class="k">if</span> <span class="n">info</span><span class="p">[</span><span class="s2">"zero"</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">total</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">"zero"</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span>
+    <span class="k">return</span> <span class="n">total</span> <span class="o">+</span> <span class="mi">8</span>
+</code></pre>
+<p>GPTQ is the one procedure that cannot be written as a map over blocks. It walks
+the input dimension, commits one value at a time, and pushes the residual into
+the values it has not reached yet:</p>
+<pre class="highlight"><code>    <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+    <span class="n">work</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">row</span><span class="p">)):</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">scales</span><span class="p">[</span><span class="n">index</span> <span class="o">//</span> <span class="n">group</span><span class="p">]</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">work</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">/</span> <span class="n">scale</span><span class="p">),</span>
+                                <span class="o">-</span><span class="n">qmax</span><span class="p">,</span> <span class="n">qmax</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span>
+        <span class="n">error</span> <span class="o">=</span> <span class="p">(</span><span class="n">work</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">-</span> <span class="n">result</span><span class="p">[</span><span class="n">index</span><span class="p">])</span> <span class="o">/</span> <span class="n">inverse</span><span class="p">[</span><span class="n">index</span><span class="p">,</span> <span class="n">index</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
+            <span class="n">work</span><span class="p">[</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-=</span> <span class="n">error</span> <span class="o">*</span> <span class="n">inverse</span><span class="p">[</span><span class="n">index</span><span class="p">,</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]</span>
+</code></pre>
+<p>The layer version inverts the damped Hessian once and loops over output rows;
+damping is scaled by the mean diagonal so it does not depend on the input
+scale:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"gptq"</span><span class="p">:</span>
+            <span class="n">hessian</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">inputs</span> <span class="o">/</span> <span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="n">hessian</span><span class="p">)</span> <span class="o">/</span> <span class="n">hessian</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">hessian</span> <span class="o">=</span> <span class="n">hessian</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">damping</span> <span class="o">*</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">hessian</span><span class="p">))</span>
+            <span class="n">inverse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">hessian</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">weight</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">row</span><span class="p">]</span> <span class="o">=</span> <span class="n">_gptq_row</span><span class="p">(</span>
+                    <span class="n">weight</span><span class="p">[</span><span class="n">row</span><span class="p">],</span> <span class="n">inverse</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span>
+</code></pre>
+<p>AWQ is four lines because the scaling is an ordinary broadcast along the input
+axis, applied and then undone around the same <code>quantise</code> call:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"awq"</span><span class="p">:</span>
+            <span class="n">activation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">inputs</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">activation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">activation</span><span class="p">,</span> <span class="mf">1e-8</span><span class="p">)</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">activation</span> <span class="o">**</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">scale</span><span class="p">)))</span>
+            <span class="n">scaled</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">scale</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">quantise</span><span class="p">(</span><span class="n">scaled</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_scheme</span><span class="p">())</span>
+            <span class="k">return</span> <span class="n">info</span><span class="p">[</span><span class="s2">"values"</span><span class="p">]</span> <span class="o">/</span> <span class="n">scale</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+</code></pre>
+<p>The sequential calibration is what makes GPTQ and AWQ layer-aware: the second
+layer is quantised against the activations produced by the <em>already quantised</em>
+first layer, not against the fp32 activations:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">MATRIX_NAMES</span><span class="p">:</span>
+            <span class="n">inputs</span> <span class="o">=</span> <span class="n">values</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"W2"</span><span class="p">:</span>
+                <span class="n">hidden</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">values</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantised</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+                                 <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="s2">"b1"</span><span class="p">])</span>
+                <span class="n">inputs</span> <span class="o">=</span> <span class="n">hidden</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">quantised</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_quantise_layer</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+</code></pre>
+<p>QAT keeps the fp32 weights and swaps in a quantised copy only for the forward
+and backward pass, which is (8) written as code:</p>
+<pre class="highlight"><code>            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span> <span class="o">-</span> <span class="n">warmup</span><span class="p">):</span>
+                <span class="n">fake</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fake_weights</span><span class="p">()</span>
+                <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_loss_and_grads</span><span class="p">(</span><span class="n">fake</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">-=</span> <span class="n">lr</span> <span class="o">*</span> <span class="n">grads</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+</code></pre>
+<p>Activation quantisation lives in the forward pass, applied to the input and
+again to the hidden layer, so the network sees the same grid at every matmul:</p>
+<pre class="highlight"><code>    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">act_bits</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">quantise</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">bits</span><span class="o">=</span><span class="n">act_bits</span><span class="p">)[</span><span class="s2">"values"</span><span class="p">]</span>
+    <span class="n">pre</span> <span class="o">=</span> <span class="n">x</span> <span class="o">@</span> <span class="n">weights</span><span class="p">[</span><span class="s2">"W1"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">weights</span><span class="p">[</span><span class="s2">"b1"</span><span class="p">]</span>
+    <span class="n">hidden</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">act_bits</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">hidden</span> <span class="o">=</span> <span class="n">quantise</span><span class="p">(</span><span class="n">hidden</span><span class="p">,</span> <span class="n">bits</span><span class="o">=</span><span class="n">act_bits</span><span class="p">)[</span><span class="s2">"values"</span><span class="p">]</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">hidden</span> <span class="o">@</span> <span class="n">weights</span><span class="p">[</span><span class="s2">"W2"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">weights</span><span class="p">[</span><span class="s2">"b2"</span><span class="p">]</span>
+</code></pre>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>For a matrix with <span class="math inline">\(n\)</span> entries, <span class="math inline">\(d\)</span> input channels and <span class="math inline">\(c\)</span> output channels:</p>
+<ul>
+<li><strong>Uniform quantisation:</strong> one pass to find the block ranges, one to round —
+<span class="math inline">\(O(n)\)</span>, and the same again to dequantise. Every scheme in the first four rows
+of the table is linear.</li>
+<li><strong>GPTQ:</strong> the Hessian costs <span class="math inline">\(O(cd^2)\)</span> to form, its inverse <span class="math inline">\(O(d^3)\)</span>, and the
+sequential loop <span class="math inline">\(O(cd^2)\)</span>. For a 4096×4096 layer that is tens of billions of
+operations against 16.8 million weights — a calibration cost paid once per
+layer, not per token.</li>
+<li><strong>AWQ:</strong> one pass over the calibration activations plus the quantiser, <span class="math inline">\(O(n)\)</span>.
+The scale search over <span class="math inline">\(\alpha\)</span> adds a small constant factor.</li>
+<li><strong>QAT:</strong> two forward passes' worth of work per step (one for the loss, one
+implicit in the quantise/dequantise) and an unchanged backward pass. The
+cost is training time, not inference time.</li>
+<li><strong>The demo:</strong> ten recipes on a 4288-byte model, a 2-bit stress run, and four
+matrix-level studies. The whole thing is under a second; the 600-step dense
+training run is most of it.</li>
+<li><strong>Inference:</strong> the saving is bytes, not necessarily time. A fused integer
+kernel turns 4.8× fewer bytes into real speedup; a dequantise-then-matmul
+loop can be slower than fp32.</li>
+</ul>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>One outlier sets the per-tensor scale.</strong> A single large weight makes <span class="math inline">\(s\)</span> large
+and every other weight coarse. That is the strongest reason to move to
+per-channel or per-group, and the demo's row-scaled matrix shows the gap
+(2.93 against 1.15).</p>
+<p><strong>Grouping the wrong axis is silent and fatal.</strong> Weights are stored as
+(output, input); groups must run along the input dimension, because that is the
+axis whose error is weighted by activations. Grouping along outputs instead
+still produces valid-looking numbers and makes AWQ look useless — the mistake
+is easy to make and invisible unless a reconstruction-error check catches it.</p>
+<p><strong>Calibration data is part of the algorithm.</strong> GPTQ and AWQ both optimise
+against a sample of inputs. A calibration set that does not resemble
+deployment turns the Hessian and the activation scales into noise. The demo
+uses the training split for both training and calibration, which is convenient
+and not a recommendation.</p>
+<p><strong>GPTQ's inverse needs damping.</strong> <span class="math inline">\(X^{\top}X\)</span> is singular whenever the
+calibration set has fewer examples than input channels, and nearly singular
+when features are correlated. Too little damping makes the compensation
+explode; too much turns it back into plain rounding. The demo's correlated
+inputs are deliberately ill-conditioned for this reason.</p>
+<p><strong>Sequential compensation can accumulate error.</strong> Each committed rounding is
+final, so a bad early decision is compensated but never undone. This is why
+GPTQ improves over round-to-nearest rather than becoming exact, and why the
+gain shrinks as the bit width falls.</p>
+<p><strong>AWQ's scale must travel with the model.</strong> The per-channel factors have to be
+folded into the preceding layer or applied at runtime; forgetting to divide
+them back out produces a model that is scaled, not quantised. The demo divides
+immediately, which is the easy case.</p>
+<p><strong>The straight-through estimator is biased.</strong> Treating the quantiser as the
+identity in the backward pass is not the gradient of anything, and QAT can
+settle into a worse optimum than fp32 training. Its win is that it optimises
+the deployed objective, not that it is a better estimator.</p>
+<p><strong>Fake quantisation must match the kernel.</strong> Rounding mode, saturation,
+per-channel axis, and whether zero is exactly representable all differ between
+frameworks. A QAT model that matches the training simulator and not the
+deployment kernel is a model that gets worse when it ships.</p>
+<p><strong>Weight-only 4-bit is nearly free, so measure before adding machinery.</strong> The
+demo's four weight-only 4-bit recipes all score 0.994, the same as fp32. The
+gain from GPTQ or AWQ at this scale is in loss and reconstruction error, not
+accuracy; the same is true of many small models, where the procedures are
+insurance rather than a necessity.</p>
+<p><strong>Activation quantisation is the real constraint.</strong> <code>int4</code> drops to 0.975 while
+weight-only 4-bit stays at 0.994. The demo's 2-bit stress run is the same story
+one level down: QAT keeps the smallest loss (0.113) but GPTQ and AWQ do not
+convert their layer-level gains into downstream accuracy.</p>
+<p><strong>Accuracy hides the damage.</strong> A five-class task with 40 examples per class
+moves in steps of 0.005. The reconstruction error and the cross-entropy are the
+instruments that show a 20% improvement in a layer; accuracy is the headline
+that shows whether it mattered.</p>
+<p><strong>Bytes are not latency.</strong> The 4.8× model may run slower than fp32 if the
+kernel dequantises on the fly, and activation memory can dominate the weight
+saving at long sequence lengths. Count both, and benchmark the kernel you will
+actually deploy.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p>Int8 post-training quantisation is the default for CPU and edge inference:
+symmetric per-channel weights, asymmetric per-tensor activations, and an
+integer kernel that turns the byte saving into throughput. QAT is what mobile
+frameworks use when int8 post-training is not accurate enough, because it can
+recover most of the gap with a short fine-tune.</p>
+<p>GPTQ and AWQ are the two standard weight-only 4-bit recipes for serving large
+language models: one calibration pass, a few minutes per model, and 3–4× less
+memory with a small perplexity cost. They compose with LoRA — QLoRA keeps the
+frozen base in NF4, a 4-bit codebook quantiser, and trains 16-bit adapters on
+top, which is how a 65-billion-parameter model fits on one GPU.</p>
+<p>Activation quantisation is the frontier: W8A8 is routine on server hardware,
+W4A8 is common in recent accelerators, and W4A4 works with careful outlier
+handling and rotation-based methods. KV-cache quantisation applies the same
+codebook and group ideas to the attention cache, where the memory pressure is
+often worse than in the weights.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Jacob, B., Kligys, S., Chen, B., Zhu, M., Tang, M., Howard, A., Adam, H.,
+Kalenichenko, D. (2018). <em>Quantization and training of neural networks for
+efficient integer-arithmetic-only inference.</em> CVPR. Equations (1)–(3) and
+the integer-only recipe.</li>
+<li>Krishnamoorthi, R. (2018). <em>Quantizing deep convolutional networks for
+efficient inference: a whitepaper.</em> arXiv:1806.08342. Per-channel schemes
+and (4).</li>
+<li>Nagel, M., Fournarakis, M., Amjad, R. A., Bondarenko, Y., van Baalen, M.,
+Blankevoort, T. (2021). <em>A white paper on neural network quantization.</em>
+arXiv:2106.08295. The PTQ/QAT split and clipping, (7).</li>
+<li>Frantar, E., Ashkboos, S., Hoefler, T., Alistarh, D. (2023). <em>GPTQ:
+accurate post-training quantization for generative pre-trained
+transformers.</em> ICLR. Equations (10)–(11).</li>
+<li>Lin, J., Tang, J., Tang, H., Yang, S., Chen, W.-M., Wang, W.-C., Xiao, G.,
+Dang, X., Gan, C., Han, S. (2024). <em>AWQ: activation-aware weight
+quantization for on-device LLM compression and acceleration.</em> MLSys.
+Equation (12).</li>
+<li>Dettmers, T., Pagnoni, A., Holtzman, A., Zettlemoyer, L. (2023). <em>QLoRA:
+efficient finetuning of quantized LLMs.</em> NeurIPS. The NF4 codebook and
+double quantisation.</li>
+<li>Bengio, Y., Léonard, N., Courville, A. (2013). <em>Estimating or propagating
+gradients through stochastic neurons for conditional computation.</em>
+arXiv:1308.3432. The straight-through estimator, (8).</li>
+<li>Courbariaux, M., Bengio, Y., David, J.-P. (2015). <em>BinaryConnect: training
+deep neural networks with binary weights during propagations.</em> NeurIPS.
+The first modern QAT recipe.</li>
+<li>Choi, Y., El-Khamy, M., Lee, J. (2018). <em>Towards the limit of network
+quantization.</em> ICLR. Percentile clipping and the range/rounding trade.</li>
+<li>Esser, S. K., McKinstry, J. L., Bablani, D., Appuswamy, R., Modha, D. S.
+(2020). <em>Learned step size quantization.</em> ICLR. Making the scale a trained
+parameter.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="pruning.html"><small>Previous</small><span>Pruning</span></a><a class="next" href="hyperparameter_search.html"><small>Next</small><span>Hyperparameter search</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">13 · Training</p><ul class="rail-list"><li><a href="backprop.html"><span class="tick">✓</span><span>Backpropagation</span></a></li><li><a href="distillation.html"><span class="tick">✓</span><span>Knowledge distillation</span></a></li><li><a href="checkpointing.html"><span class="tick">✓</span><span>Gradient checkpointing</span></a></li><li><a href="mixed_precision.html"><span class="tick">✓</span><span>Mixed precision</span></a></li><li><a href="augmentation.html"><span class="tick">✓</span><span>Augmentation</span></a></li><li><a href="lora.html"><span class="tick">✓</span><span>LoRA &amp; PEFT</span></a></li><li><a href="pruning.html"><span class="tick">✓</span><span>Pruning</span></a></li><li><a href="quantization.html" aria-current="page"><span class="tick">✓</span><span>Quantisation</span></a></li><li><a href="hyperparameter_search.html"><span class="tick">✓</span><span>Hyperparameter search</span></a></li><li><a href="active_learning.html"><span class="tick">✓</span><span>Active learning</span></a></li><li><a href="semi_supervised.html"><span class="tick">✓</span><span>Semi-supervised learning</span></a></li><li><a href="class_imbalance.html"><span class="tick">✓</span><span>Class imbalance</span></a></li><li><a href="nas.html"><span class="tick">✓</span><span>Neural architecture search</span></a></li><li><a href="meta_learning.html"><span class="tick">✓</span><span>Meta-learning</span></a></li><li><a href="continual_learning.html"><span class="tick">✓</span><span>Continual learning</span></a></li><li><a href="label_smoothing.html"><span class="tick">✓</span><span>Label smoothing</span></a></li><li><a href="early_stopping.html"><span class="tick">✓</span><span>Early stopping</span></a></li><li><a href="federated.html"><span class="tick">✓</span><span>Federated averaging</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../12-neural-blocks/index.html"><span class="jump">← 12 · Neural blocks</span></a></li><li><a href="../14-generative/index.html"><span class="jump">14 · Generative models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#codes-and-scales">Codes and scales</a></li><li class="lvl3"><a href="#granularity">Granularity</a></li><li class="lvl3"><a href="#bits-and-bytes">Bits and bytes</a></li><li class="lvl3"><a href="#post-training-quantisation-with-clipping">Post-training quantisation with clipping</a></li><li class="lvl3"><a href="#qat-and-the-straight-through-estimator">QAT and the straight-through estimator</a></li><li class="lvl3"><a href="#gptq-choose-the-rounding-not-just-the-grid">GPTQ: choose the rounding, not just the grid</a></li><li class="lvl3"><a href="#awq-protect-the-channels-that-carry-signal">AWQ: protect the channels that carry signal</a></li><li class="lvl3"><a href="#activations-are-the-other-operand">Activations are the other operand</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/13-training/quantization.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

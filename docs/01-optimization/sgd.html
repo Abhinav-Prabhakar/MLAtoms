@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SGD · MLAtoms</title>
+<meta name="description" content="The base update and the three ideas that made it work. Gradient descent is Euler&#x27;s method on the gradient-flow ODE θ̇ = −∇f(θ), with the learning rate as the…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/sgd.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="SGD">
+<meta property="og:description" content="The base update and the three ideas that made it work. Gradient descent is Euler&#x27;s method on the gradient-flow ODE θ̇ = −∇f(θ), with the learning rate as the…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/sgd.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SGD">
+<meta name="twitter:description" content="The base update and the three ideas that made it work. Gradient descent is Euler&#x27;s method on the gradient-flow ODE θ̇ = −∇f(θ), with the learning rate as the…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "SGD", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/sgd.html", "description": "The base update and the three ideas that made it work. Gradient descent is Euler's method on the gradient-flow ODE \u03b8\u0307 = \u2212\u2207f(\u03b8), with the learning rate as the\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">01 · Optimization</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>8 variants</span><span class="page-meta__sep">/</span><a href="sgd.py.html">source</a></p><h1>SGD</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Gradient descent is Euler's method on the gradient-flow ODE <code>θ̇ = −∇f(θ)</code>, with the
+learning rate as the step size. Everything else in this file is a correction for
+the fact that Euler's method is a bad ODE solver:</p>
+<ul>
+<li><strong>Momentum</strong> adds inertia, so the iterate keeps moving through flat regions and
+averages out gradient noise.</li>
+<li><strong>Nesterov</strong> evaluates the gradient where the momentum is <em>about to take you</em>,
+which is what lets it brake before overshooting.</li>
+<li><strong>Dampening</strong> controls how fast the velocity builds.</li>
+<li><strong>Weight decay</strong> shrinks parameters that the loss does not care about.</li>
+<li><strong>Clipping</strong> puts a ceiling on the step when a single batch produces a huge
+gradient.</li>
+<li><strong>Restarts</strong> empty the velocity when it has become wrong.</li>
+</ul>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Update</th>
+<th style="text-align:left">Gains</th>
+<th style="text-align:left">Costs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>vanilla</code></td>
+<td style="text-align:left"><code>θ ← θ − ηg</code></td>
+<td style="text-align:left">nothing to tune, exact convergence theory</td>
+<td style="text-align:left">slow on ill-conditioned problems</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>momentum</code></td>
+<td style="text-align:left"><code>v ← μv + g</code>, <code>θ ← θ − ηv</code></td>
+<td style="text-align:left"><code>√κ</code> instead of <code>κ</code> iterations</td>
+<td style="text-align:left">one extra buffer per parameter</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nesterov</code></td>
+<td style="text-align:left">gradient at <code>θ − ημv</code></td>
+<td style="text-align:left">brakes earlier; better on convex problems</td>
+<td style="text-align:left">same memory, one more multiply</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>dampening</code></td>
+<td style="text-align:left"><code>v ← μv + (1−d)g</code></td>
+<td style="text-align:left">controls initial velocity, stabilises warmup</td>
+<td style="text-align:left">another hyper-parameter</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>weight_decay_l2</code></td>
+<td style="text-align:left"><code>g ← g + λθ</code></td>
+<td style="text-align:left">shrinks weights through the same path</td>
+<td style="text-align:left">decay is scaled by <code>1/√v</code> in adaptive methods</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>decoupled_wd</code></td>
+<td style="text-align:left"><code>θ ← θ − ηλθ − η·update</code></td>
+<td style="text-align:left">exact shrinkage, the AdamW fix</td>
+<td style="text-align:left">none</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>clipping</code></td>
+<td style="text-align:left"><code>g ← g·min(1, c/‖g‖)</code></td>
+<td style="text-align:left">survives a bad batch or an RNN</td>
+<td style="text-align:left">hides real gradient explosions</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>nesterov_restart</code></td>
+<td style="text-align:left">Nesterov, <code>v ← 0</code> on loss increase</td>
+<td style="text-align:left">recovers from overshoot</td>
+<td style="text-align:left">needs a loss value each step</td>
+</tr>
+</tbody>
+</table>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Momentum is an EMA.</strong> Unrolling <code>v_t = μv_{t−1} + g_t</code>:</p>
+<div class="math block">
+\[v_t = \sum_{k=0}^{t} \mu^{t-k} g_k\]
+</div>
+<p>so the update is a gradient average with effective horizon <code>1/(1−μ)</code> (10 steps at
+<code>μ=0.9</code>, 100 at <code>μ=0.99</code>). On a quadratic with condition number <code>κ</code>, heavy-ball
+momentum with the optimal <code>μ = ((√κ−1)/(√κ+1))²</code> reaches <code>ε</code> accuracy in
+<code>O(√κ log(1/ε))</code> steps instead of <code>O(κ log(1/ε))</code> — the single biggest reason
+momentum is on by default.</p>
+<p><strong>Nesterov is a lookahead.</strong> Classical momentum uses <code>g_t</code>, Nesterov uses
+<code>∇f(θ_t − ημv_t)</code>:</p>
+<div class="math block">
+\[v_{t+1} = \mu v_t + \eta\,\nabla f(\theta_t - \mu v_t),\qquad \theta_{t+1} = \theta_t - v_{t+1}\]
+</div>
+<p>which is a first-order approximation of the <em>implicit</em> update (<code>∇f</code> at the next
+iterate). For a quadratic it makes the overshoot correction exact, and it is the
+form that attains the <code>O(1/t²)</code> accelerated rate.</p>
+<p>The implementation uses the algebraically equivalent &quot;gradient + momentum&quot; form
+from PyTorch (<code>g_eff = g + μv</code>, then <code>θ ← θ − η·g_eff</code>), which is why the demo's
+first step equals <code>(1−dampening)·g</code>.</p>
+<p><strong>L2 vs decoupled decay.</strong> Adding <code>λθ</code> to the gradient is <em>not</em> the same as
+subtracting <code>ηλθ</code> from the parameter, unless the update is a plain multiple of the
+gradient. With momentum the decay term is also accumulated in <code>v</code>, so the effective
+decay is <code>ηλ/(1−μ)</code> — 10× the nominal coefficient at <code>μ = 0.9</code>. With an adaptive
+denominator the discrepancy is worse (see <code>adam.md</code>). Decoupling is the fix that
+made AdamW work.</p>
+<p><strong>Clipping as a trust region.</strong> <code>g ← g·min(1, c/‖g‖)</code> bounds the update norm by
+<code>ηc</code>. It is a cheap, first-order alternative to a line search: it does not change
+the direction, only the length, so it cannot fix a wrong direction — only a wrong
+scale.</p>
+<p><strong>Restarts.</strong> Momentum is only optimal for a fixed curvature. When the loss
+increases, the velocity is pointing uphill; zeroing it reverts to a fresh descent
+step. This is the simplest instance of the restart schedules that make accelerated
+methods work on non-convex objectives.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The class stores <code>params</code>, one velocity buffer per parameter, and a variant name;
+every variant is the same loop with a few flags switched on in <code>__init__</code>:</p>
+<pre class="highlight"><code>        <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">=</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">"vanilla"</span> <span class="k">else</span> <span class="n">momentum</span>
+        <span class="o">...</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nesterov</span> <span class="o">=</span> <span class="n">nesterov</span> <span class="ow">or</span> <span class="n">variant</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"nesterov"</span><span class="p">,</span> <span class="s2">"nesterov_restart"</span><span class="p">)</span>
+</code></pre>
+<p>That is why <code>vanilla</code> ignores a <code>momentum=0.9</code> argument silently: the variant, not
+the flag, decides. It also means <code>SGD(params, variant=&quot;nesterov&quot;)</code> works without
+passing <code>nesterov=True</code>, which is the ergonomic point of having variants at all.</p>
+<p><code>_clip</code> computes one norm over the concatenation of every parameter's gradient:</p>
+<pre class="highlight"><code>        <span class="n">norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="nb">float</span><span class="p">((</span><span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">grads</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">norm</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clip_norm</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">grads</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clip_norm</span> <span class="o">/</span> <span class="p">(</span><span class="n">norm</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">g</span> <span class="o">*</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">grads</span><span class="p">]</span>
+</code></pre>
+<p>Global-norm clipping, not per-tensor: the same <code>scale</code> multiplies <em>every</em> gradient,
+so the direction of the stacked vector is preserved. Per-tensor clipping changes the
+relative sizes of the layers' updates and is a different algorithm. The <code>+ 1e-12</code>
+only guards the division when <code>norm</code> is exactly zero, which cannot reach this branch
+because <code>norm &lt;= clip_norm</code> would have returned.</p>
+<p><code>step</code> applies the restart <em>before</em> touching the velocity:</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"nesterov_restart"</span> <span class="ow">and</span> <span class="n">loss</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">loss</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">best_loss</span><span class="p">:</span>
+                <span class="n">restart</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">buf</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">buf</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">best_loss</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">best_loss</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
+</code></pre>
+<p><code>best_loss</code> starts at <code>inf</code>, so the first step never restarts. The comparison is
+strict (<code>&gt;</code>), so a flat loss does not trigger a restart every step. Note that the
+buffer is replaced with fresh zeros rather than multiplied by zero: aliasing bugs in
+optimiser state are usually about <em>who else holds a reference</em> to the array, and a
+rebind is the safe form.</p>
+<p>The per-parameter body is five lines and the order matters:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_decay</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">!=</span> <span class="s2">"decoupled_wd"</span><span class="p">:</span>
+                <span class="n">g</span> <span class="o">=</span> <span class="n">g</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_decay</span> <span class="o">*</span> <span class="n">p</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span><span class="p">:</span>
+                <span class="n">v</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span>
+                <span class="n">v</span> <span class="o">+=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">dampening</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span>
+                <span class="n">g</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">nesterov</span> <span class="ow">or</span> <span class="n">restart</span><span class="p">)</span> <span class="k">else</span> <span class="n">g</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">*</span> <span class="n">v</span>
+            <span class="n">p</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">g</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_decay</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"decoupled_wd"</span><span class="p">:</span>
+                <span class="n">p</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_decay</span> <span class="o">*</span> <span class="n">p</span>
+</code></pre>
+<p>The decay is added <strong>before</strong> the momentum update, so it enters <code>v</code> and accumulates
+over steps — the doc's <code>ηλ/(1−μ)</code> effect. If the <code>g = g + wd*p</code> line were moved below
+the momentum block, <code>weight_decay_l2</code> would silently become decoupled and the demo's
+<code>l2 &lt; dw</code> assertion would flip. Decoupled decay is applied after the parameter step,
+directly to <code>p</code>, so it is a true multiplicative shrinkage <code>p ← p(1 − ηλ)</code>.</p>
+<p><code>v *= self.momentum</code> mutates the buffer in place, which is why <code>self.buf</code> can be
+created with <code>np.zeros_like</code> and never reallocated. <code>(1−dampening)</code> multiplies the
+<em>new</em> gradient only, not the accumulated velocity — that is PyTorch's convention and
+the reason the demo's first step is exactly <code>(1−d)·g</code>.</p>
+<p>The Nesterov line is the one that differs between the three published forms:</p>
+<pre class="highlight"><code>                <span class="n">g</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">nesterov</span> <span class="ow">or</span> <span class="n">restart</span><span class="p">)</span> <span class="k">else</span> <span class="n">g</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">*</span> <span class="n">v</span>
+</code></pre>
+<p>The <code>else</code> branch is the &quot;gradient + momentum&quot; form: <code>g_eff = g + μv</code>, with <code>v</code>
+already updated to include <code>g</code>. Substituting gives <code>g_eff = (1+μ)g + μ²v_old</code>, which
+is algebraically the same first step as <code>∇f(θ − ημv_old)</code> to <code>O(η²)</code>. The <code>if</code> branch
+covers both non-Nesterov momentum (use <code>v</code> directly) <em>and</em> the restart step. On a
+restart, <code>v</code> has just been set to <code>(1−d)g</code>; using <code>g + μv</code> there would add <code>μ(1−d)g</code>
+on top of <code>g</code> and take a step <code>(1+μ)</code> times too large at exactly the moment the
+optimiser is trying to recover. That <code>restart</code> term inside the conditional is the
+non-obvious part of the file and the demo (<code>restarted &lt; 0.1 * plain</code>) is what pins it.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><code>O(P)</code> time and <code>O(P)</code> extra memory per step for every variant (<code>P</code> = parameter
+count), because the velocity buffer is the same size as the parameters. Vanilla is
+<code>O(P)</code> time and <code>O(1)</code> extra. Nothing here is asymptotically expensive; the cost of
+momentum is memory bandwidth, which is why optimiser state often decides whether a
+model fits on a device.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Learning rate above <code>2/L</code>.</strong> For a quadratic with largest curvature <code>L</code>, SGD
+diverges for <code>η &gt; 2/L</code>. The symptom is a loss that decreases for a few steps and
+then explodes; the fix is a warmup or <code>η ≤ 2/L</code>.</li>
+<li><strong>Momentum + weight decay.</strong> As derived above, the decay is multiplied by
+<code>1/(1−μ)</code>. A recipe tuned with <code>μ=0</code> will over-regularise at <code>μ=0.9</code>.</li>
+<li><strong>Nesterov formula confusion.</strong> There are three common forms in the literature
+(lookahead gradient, gradient+momentum, and the two-step &quot;extrapolated point&quot;
+form) that differ by <code>O(η²μ)</code> terms. Copying half of one and half of another
+produces a scheme that is neither. Pick one and check its first step.</li>
+<li><strong>Clipping as a band-aid.</strong> If you need <code>clip_norm=1</code> on a transformer, the
+gradients are exploding for a reason (init, LR, or a missing normalisation);
+clipping makes training survive, not correct.</li>
+<li><strong>Restart on noise.</strong> With a noisy minibatch loss, restarts fire constantly and
+the effective momentum collapses. Compare smoothed losses, or restart only when
+the loss exceeds the best by a margin.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>CNNs / small models:</strong> vanilla SGD + momentum + <code>weight_decay_l2</code>, cosine or
+step schedule. Often generalises better than Adam at the same budget.</li>
+<li><strong>RNNs / any recurrent stack:</strong> global-norm clipping is not optional.</li>
+<li><strong>Fine-tuning:</strong> decoupled weight decay, small <code>lr</code>, no momentum warm restart.</li>
+<li><strong>Batch-size scaling:</strong> linear LR scaling + warmup; momentum stays fixed.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Polyak, <em>Some methods in the solution of optimization problems</em>, 1964 (heavy ball).</li>
+<li>Nesterov, <em>A method of solving a convex programming problem with convergence rate O(1/k²)</em>, 1983.</li>
+<li>Sutskever et al., <em>On the importance of initialization and momentum in deep learning</em>, ICML 2013.</li>
+<li>Loshchilov &amp; Hutter, <em>Decoupled Weight Decay Regularization</em>, 2019. arXiv:1711.05101</li>
+<li>Pascanu, Mikolov &amp; Bengio, <em>On the difficulty of training recurrent neural networks</em> (clipping), 2013.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="index.html"><small>Previous</small><span>01 · Optimization</span></a><a class="next" href="adam.html"><small>Next</small><span>Adam / AdamW</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">01 · Optimization</p><ul class="rail-list"><li><a href="sgd.html" aria-current="page"><span class="tick">✓</span><span>SGD</span></a></li><li><a href="adam.html"><span class="tick">✓</span><span>Adam / AdamW</span></a></li><li><a href="adaptive.html"><span class="tick">✓</span><span>Adaptive methods</span></a></li><li><a href="schedules.html"><span class="tick">✓</span><span>Schedules</span></a></li><li><a href="em.html"><span class="tick">✓</span><span>EM / MM</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Second-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Proximal methods</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Weight averaging</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lion</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>LAMB</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Muon</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SOAP</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Natural gradient</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SAM</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Zeroth-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lookahead</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../00-primitives/index.html"><span class="jump">← 00 · Primitives</span></a></li><li><a href="../02-linear-models/index.html"><span class="jump">02 · Linear models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/01-optimization/sgd.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Latent semantic analysis · MLAtoms</title>
+<meta name="description" content="Truncated SVD of weighted term-document matrices. A corpus is a matrix. Rows are documents, columns are terms, entries are counts. It is the least exotic…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/lsa.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Latent semantic analysis">
+<meta property="og:description" content="Truncated SVD of weighted term-document matrices. A corpus is a matrix. Rows are documents, columns are terms, entries are counts. It is the least exotic…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/lsa.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Latent semantic analysis">
+<meta name="twitter:description" content="Truncated SVD of weighted term-document matrices. A corpus is a matrix. Rows are documents, columns are terms, entries are counts. It is the least exotic…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Latent semantic analysis", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/06-latent-factorization/lsa.html", "description": "Truncated SVD of weighted term-document matrices. A corpus is a matrix. Rows are documents, columns are terms, entries are counts. It is the least exotic\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">06 · Latent structure &amp; factorisation</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="lsa.py.html">source</a></p><h1>Latent semantic analysis</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>A corpus is a matrix. Rows are documents, columns are terms, entries are counts.
+It is the least exotic data structure in machine learning, and it has one
+awkward property: it is <strong>sparse and literal</strong>. Two documents about the same
+subject can share no words at all.</p>
+<pre class="highlight"><code>   X (240 documents × 60 terms, 31% non-zero)
+
+   &quot;the car needs a new engine&quot;    →  the 3, car 1, need 1, new 1, engine 1
+   &quot;my automobile requires a motor&quot; →  my 1, automobile 1, require 1, motor 1
+
+   XᵀX for those two rows: 0.     No shared term, no similarity, no match.
+</code></pre>
+<p>LSA's answer is that the two sentences <em>do</em> share terms indirectly — <code>car</code> and
+<code>automobile</code> both co-occur with <code>drive</code>, <code>engine</code>, <code>motorway</code> — and that
+indirect sharing shows up as soon as the matrix is approximated by a low-rank
+one. Terms that never appear together get mapped to nearby points because they
+appear with the same third terms.</p>
+<div class="math block">
+\[\underbrace{X}_{n \times d} \;\approx\; \underbrace{U_k S_k}_{n \times k}\, \underbrace{V_k^\top}_{k \times d}, \qquad k \ll \min(n, d). \qquad (1)\]
+</div>
+<p>Each of the <span class="math inline">\(k\)</span> rows of <span class="math inline">\(V_k^\top\)</span> is a <strong>topic</strong>: a weighted list of terms. Each
+row of <span class="math inline">\(U_k S_k\)</span> says how much of each topic a document contains. A document is
+then a point in <span class="math inline">\(\mathbb{R}^k\)</span>, and similarity is a dot product there.</p>
+<p>The important thing about this atom is that (1) is the easy part. The SVD is
+exact, unique, and available in one library call; there is nothing to tune and
+nothing to get wrong. What <em>is</em> interesting is which matrix you hand it. Raw
+counts, <span class="math inline">\(\log(1 + \mathrm{tf})\)</span>, tf-idf and log-entropy all produce a different
+<span class="math inline">\(X\)</span> and therefore a different decomposition, and the demo measures the
+difference at the only place it shows up — retrieval accuracy on documents the
+model never saw:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"><span class="math inline">\(k\)</span></th>
+<th style="text-align:left">raw counts</th>
+<th style="text-align:left">tf-idf</th>
+<th style="text-align:left">log-entropy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">1</td>
+<td style="text-align:left">25%</td>
+<td style="text-align:left">25%</td>
+<td style="text-align:left">25%</td>
+</tr>
+<tr>
+<td style="text-align:left">2</td>
+<td style="text-align:left"><strong>55%</strong></td>
+<td style="text-align:left"><strong>90%</strong></td>
+<td style="text-align:left"><strong>72%</strong></td>
+</tr>
+<tr>
+<td style="text-align:left">3</td>
+<td style="text-align:left">88%</td>
+<td style="text-align:left">100%</td>
+<td style="text-align:left">100%</td>
+</tr>
+<tr>
+<td style="text-align:left">4</td>
+<td style="text-align:left">100%</td>
+<td style="text-align:left">100%</td>
+<td style="text-align:left">100%</td>
+</tr>
+</tbody>
+</table>
+<p>At the natural rank every model is perfect and the choice is invisible. Cut one
+step below it and the weighting is the entire model: raw counts get the topic
+right for barely half the held-out documents, tf-idf for nine in ten. Meanwhile
+the two <em>solvers</em> — exact SVD and a randomized sketch — give the same retrieval
+number to the last digit, because they compute the same decomposition. That
+asymmetry is the thesis of this file.</p>
+<p>Two further things are worth knowing before the derivation, because they are
+where implementations go wrong.</p>
+<p><strong>It is not PCA.</strong> PCA centres the columns before decomposing; LSA does not.
+The demo's mean count is <span class="math inline">\(0.67\)</span>, and subtracting it would be a modelling
+decision, not a cleanup — a row of zeros means &quot;empty document&quot;, not &quot;average
+document&quot;. Centring would make the first component the mean document, which
+for counts is mostly <em>document length</em>, precisely the nuisance the weighting
+exists to remove.</p>
+<p><strong>The weights are part of the model.</strong> <code>idf</code> and the entropy weight <span class="math inline">\(g\)</span> are
+fitted on the training corpus, stored, and reused verbatim for every query.
+Recomputing them on a batch of one gives <span class="math inline">\(\log(1/1) = 0\)</span> for every term in it,
+so the query vector is zero and it has no cosine with anything. The demo
+measures <span class="math inline">\(\lVert z \rVert = 0.87\)</span> for a single-document query with the fitted
+weights, and <span class="math inline">\(0\)</span> without — a failure that is silent, because a zero vector
+still returns <em>some</em> argmax.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Solver</th>
+<th style="text-align:left">Weighting</th>
+<th style="text-align:left">What it is for</th>
+<th style="text-align:left">Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>truncated_svd</code></td>
+<td style="text-align:left">full SVD</td>
+<td style="text-align:left">raw <span class="math inline">\(\mathrm{tf}\)</span></td>
+<td style="text-align:left">the reference, and the exact answer</td>
+<td style="text-align:left">residual <span class="math inline">\(= \sqrt{\Sigma_{i>k}\sigma_i^2}\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>randomized</code></td>
+<td style="text-align:left">sketch + power iteration</td>
+<td style="text-align:left">raw <span class="math inline">\(\mathrm{tf}\)</span></td>
+<td style="text-align:left">same answer, fewer flops on a large <span class="math inline">\(X\)</span></td>
+<td style="text-align:left">subspace gap <span class="math inline">\(10^{-9}\)</span> in 8 steps</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>tfidf_lsa</code></td>
+<td style="text-align:left">full SVD</td>
+<td style="text-align:left"><span class="math inline">\(\mathrm{tf}\cdot\log(n/\mathrm{df})\)</span></td>
+<td style="text-align:left">downweight ubiquitous terms</td>
+<td style="text-align:left">90% at <span class="math inline">\(k=2\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>log_entropy</code></td>
+<td style="text-align:left">full SVD</td>
+<td style="text-align:left"><span class="math inline">\(\log(1+\mathrm{tf})\cdot g\)</span></td>
+<td style="text-align:left">downweight evenly spread terms</td>
+<td style="text-align:left">72% at <span class="math inline">\(k=2\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The four ids are not four algorithms. There is one solver decision (exact or
+sketched) and one weighting decision (three choices), and the catalog exposes
+them as a <strong>T</strong> rather than a full cross:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"></th>
+<th style="text-align:left">raw <code>tf</code></th>
+<th style="text-align:left">tf-idf</th>
+<th style="text-align:left">log-entropy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">full SVD</td>
+<td style="text-align:left"><code>truncated_svd</code></td>
+<td style="text-align:left"><code>tfidf_lsa</code></td>
+<td style="text-align:left"><code>log_entropy</code></td>
+</tr>
+<tr>
+<td style="text-align:left">randomized</td>
+<td style="text-align:left"><code>randomized</code></td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">—</td>
+</tr>
+</tbody>
+</table>
+<p>Any two variants on the top row differ <em>only</em> in the weighting, and the left
+column differs <em>only</em> in the solver. That is enough to separate the two effects — the
+demo's randomized fit reproduces the raw-count accuracy to the last digit, and
+the weighting moves it by 35 points — but it does mean the solver comparison is
+always made under raw counts, and nobody has measured whether the sketch is as
+accurate on tf-idf'd data. It should be: the sketch approximates the range of
+whatever matrix it is given, and the weighting is applied before the solver.
+The table is encoded once so the two decisions cannot drift apart:</p>
+<pre class="highlight"><code><span class="n">WEIGHTING</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"truncated_svd"</span><span class="p">:</span> <span class="s2">"tf"</span><span class="p">,</span> <span class="s2">"randomized"</span><span class="p">:</span> <span class="s2">"tf"</span><span class="p">,</span>
+             <span class="s2">"log_entropy"</span><span class="p">:</span> <span class="s2">"log_entropy"</span><span class="p">,</span> <span class="s2">"tfidf_lsa"</span><span class="p">:</span> <span class="s2">"tfidf"</span><span class="p">}</span>
+</code></pre>
+<p><strong><code>truncated_svd</code></strong> is <code>numpy.linalg.svd</code> followed by a slice. It is the
+definition of the atom: the exact best rank-<span class="math inline">\(k\)</span> approximation in the Frobenius
+norm, computed directly. It is also the honest baseline every other variant has
+to be compared against, and the reason the demo can assert an identity
+(residual<span class="math inline">\(^2\)</span> equals the discarded spectrum) rather than a tolerance.</p>
+<p><strong><code>randomized</code></strong> is the Halko–Martinsson–Tropp range finder: draw a Gaussian
+sketch of the range, sharpen it with power iterations, orthonormalise, and
+solve the SVD on a matrix that is only <span class="math inline">\((k+p) \times d\)</span>. On a <span class="math inline">\(240 \times 60\)</span>
+matrix this is not faster than the exact SVD — the constant dominates — but it
+is the algorithm that makes LSA possible at <span class="math inline">\(n = 10^6\)</span>, where a full SVD is
+<span class="math inline">\(O(nd\min(n,d))\)</span> and out of reach. Its accuracy is a <em>choice</em> (<code>n_iter</code>), not a
+hope, and the demo measures the choice.</p>
+<p><strong><code>tfidf_lsa</code></strong> is what most people mean by &quot;LSA&quot;. The weighting is the
+model: it rescales each column by <span class="math inline">\(\log(n/\mathrm{df}_j)\)</span>, so a term that
+appears in every document gets weight zero and a term unique to one document
+gets <span class="math inline">\(\log n\)</span>. That is a statement about <em>informativeness</em>, and it is
+deliberately crude — it only asks whether a term appears, never how often or how
+the appearances are distributed.</p>
+<p><strong><code>log-entropy</code></strong> is Deerwester et al.'s original weighting, and it asks the
+second question. A term's distribution over documents has an entropy; if the
+entropy is maximal the term is spread perfectly evenly and cannot distinguish
+documents, so its weight is zero; if the term is concentrated, it can. The
+difference from tf-idf is visible on a term that appears in <em>every</em> document but
+mostly in one: tf-idf cannot see it, log-entropy can. The demo's tiny <span class="math inline">\(3 \times
+4\)</span> matrix is constructed to make that difference exact.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="1-eckartyoung-with-the-inequality-written-out">1. Eckart–Young, with the inequality written out <a class="header-anchor" href="#1-eckartyoung-with-the-inequality-written-out">#</a></h3>
+<p>Let <span class="math inline">\(X = U S V^\top\)</span> with <span class="math inline">\(\sigma_1 \ge \cdots \ge \sigma_r > 0\)</span>. For any matrix
+<span class="math inline">\(B\)</span> with <span class="math inline">\(\mathrm{rank}(B) \le k\)</span>,</p>
+<div class="math block">
+\[\lVert X - B \rVert_F^2 \;\ge\; \sum_{i>k} \sigma_i^2, \qquad (2)\]
+</div>
+<p>with equality at <span class="math inline">\(B = U_k S_k V_k^\top\)</span>. Expanding the left side,</p>
+<div class="math block">
+\[\lVert X - B \rVert_F^2 = \lVert X \rVert_F^2 - 2\langle X, B\rangle + \lVert B \rVert_F^2, \qquad (3)\]
+</div>
+<p>and both inner products are controlled by the singular values. Von Neumann's
+trace inequality gives</p>
+<div class="math block">
+\[\langle X, B \rangle = \mathrm{tr}\!\left(X^\top B\right) \;\le\; \sum_i \sigma_i(X)\,\sigma_i(B) \;=\; \sum_{i \le k} \sigma_i\,\tau_i, \qquad (4)\]
+</div>
+<p>where <span class="math inline">\(\tau_i = \sigma_i(B)\)</span> and the last equality is <span class="math inline">\(\mathrm{rank}(B) \le k\)</span>.
+Also <span class="math inline">\(\lVert B \rVert_F^2 = \sum_{i\le k}\tau_i^2\)</span>. Substituting into (3),</p>
+<div class="math block">
+\[\lVert X - B \rVert_F^2 \;\ge\; \sum_i \sigma_i^2 - 2\sum_{i\le k}\sigma_i\tau_i + \sum_{i\le k}\tau_i^2 \;=\; \sum_{i>k}\sigma_i^2 + \sum_{i\le k}(\sigma_i - \tau_i)^2. \qquad (5)\]
+</div>
+<p>The right side is a sum of squares, so it is minimised by <span class="math inline">\(\tau_i = \sigma_i\)</span>
+and equals <span class="math inline">\(\sum_{i>k}\sigma_i^2\)</span> there. That is the whole theorem, and it is why
+the demo can write</p>
+<pre class="highlight"><code>    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">resid</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">tail</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="p">(</span><span class="n">resid</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">tail</span><span class="p">)</span>
+</code></pre>
+<p>rather than comparing two approximations: the residual of the truncated SVD is
+not approximately the discarded spectrum, it <em>is</em> the discarded spectrum. On the
+demo's matrix, <span class="math inline">\(7.5624^2 = 57.19\)</span>, and the 56 discarded singular values account
+for exactly that.</p>
+<p>Making &quot;best&quot; non-vacuous needs the right comparison, and the obvious one is
+wrong. A random Gaussian <span class="math inline">\(\tilde{U}\tilde{V}^\top\)</span> has a random scale, so
+beating it says nothing about the subspace; what matters is the best rank-<span class="math inline">\(k\)</span>
+approximation <em>in a random <span class="math inline">\(k\)</span>-dimensional subspace</em>. Over Haar-random <span class="math inline">\(Q\)</span>,
+<span class="math inline">\(\mathbb{E}[QQ^\top] = \frac{k}{d}I\)</span>, so a typical subspace keeps exactly
+<span class="math inline">\(k/d\)</span> of the energy and its residual is</p>
+<div class="math block">
+\[\sqrt{\left(1 - \frac{k}{d}\right)\sum_i \sigma_i^2}, \qquad (6)\]
+</div>
+<p>which is <span class="math inline">\(14.97\)</span> for the demo's <span class="math inline">\(k=4\)</span>, <span class="math inline">\(d=60\)</span>. The mean of 200 draws is <span class="math inline">\(14.96\)</span>
+and the smallest is still larger than <span class="math inline">\(7.56\)</span>. That is the theorem in the form
+worth remembering: the truncation is not slightly better than a typical
+subspace, it is better by exactly the amount the spectrum says it should be.</p>
+<p>One consequence that is easy to miss: (2) is a statement about <em>the matrix you
+passed in</em>. Change the weighting and you change the objective. The tf-idf model
+has a <strong>larger</strong> reconstruction error than raw counts (<span class="math inline">\(8.84\)</span> against <span class="math inline">\(7.56\)</span> at
+<span class="math inline">\(k=4\)</span>) and retrieves better. The SVD is optimal for its own criterion; if that
+criterion is not the one you care about, optimality is worth nothing.</p>
+<h3 id="2-tf-idf-and-what--is-doing-there">2. tf-idf, and what <span class="math inline">\(\log\)</span> is doing there <a class="header-anchor" href="#2-tf-idf-and-what--is-doing-there">#</a></h3>
+<p>Raw counts encode two things at once: what a document is about, and how long it
+is. A 2 000-word document has larger counts than a 200-word one for every term
+it shares, so its vector is longer and it wins every cosine by default. The
+term side has the mirror problem: <code>the</code> occurs in every document, so it has a
+large count everywhere and contributes a constant to every similarity.</p>
+<p>tf-idf addresses the second one. With <span class="math inline">\(\mathrm{df}_j = \lvert\{i : x_{ij} > 0\}\rvert\)</span>,</p>
+<div class="math block">
+\[w_j = \log\frac{n}{\mathrm{df}_j}, \qquad \tilde{x}_{ij} = x_{ij}\, w_j. \qquad (7)\]
+</div>
+<p>The <span class="math inline">\(\log\)</span> is not derived from anything; it is chosen so that the weight is
+<strong>bounded and zero at the useless end</strong>. Without it, <span class="math inline">\(w_j = n/\mathrm{df}_j\)</span>
+grows without bound as <span class="math inline">\(\mathrm{df}_j \to 1\)</span> and a single rare term can dominate
+a document's vector. With it, <span class="math inline">\(w_j = 0\)</span> exactly when a term is in every
+document, <span class="math inline">\(w_j = \log n\)</span> when it is in one, and the scale is the log of the
+informativeness ratio. Smoothed variants (<span class="math inline">\(\log(1 + n/\mathrm{df})\)</span>,
+<span class="math inline">\(\log((1+n)/(1+\mathrm{df})) + 1\)</span>) exist to keep <span class="math inline">\(w_j > 0\)</span>; the unsmoothed form
+is what this file uses because the zero is the feature.</p>
+<p>The important implementation point is that (7) is a <strong>corpus statistic</strong>.
+<span class="math inline">\(\mathrm{df}_j\)</span> is a property of the training set. Fit it once, store it, reuse
+it. <code>_term_weights</code> is a separate function from <code>_local_weight</code> for exactly this
+reason: one is a per-document transform, the other is a fitted parameter.</p>
+<h3 id="3-log-entropy-presence-is-not-the-whole-story">3. Log-entropy: presence is not the whole story <a class="header-anchor" href="#3-log-entropy-presence-is-not-the-whole-story">#</a></h3>
+<p>Let <span class="math inline">\(p_{ij} = x_{ij} / \sum_{i'} x_{i'j}\)</span> be the fraction of term <span class="math inline">\(j\)</span>'s
+occurrences that fall in document <span class="math inline">\(i\)</span>. Its entropy over documents,</p>
+<div class="math block">
+\[H_j = -\sum_{i=1}^{n} p_{ij}\log p_{ij} \;\in\; [0, \log n], \qquad (8)\]
+</div>
+<p>is maximal when the term is spread perfectly evenly and zero when it lives in
+one document. The global weight is the normalised complement,</p>
+<div class="math block">
+\[g_j = 1 - \frac{H_j}{\log n} \;\in\; [0, 1], \qquad (9)\]
+</div>
+<p>and the weighted matrix is <span class="math inline">\(\tilde{x}_{ij} = \log(1 + x_{ij})\, g_j\)</span>.</p>
+<p>Two design choices are bundled here, and they are independent:</p>
+<ul>
+<li>the <strong>global</strong> weight <span class="math inline">\(g_j\)</span> replaces <span class="math inline">\(\log(n/\mathrm{df}_j)\)</span>, and it is a
+strictly finer statistic: <span class="math inline">\(\mathrm{df}\)</span> is the support of <span class="math inline">\(p_{\cdot j}\)</span>, <span class="math inline">\(H_j\)</span>
+is its whole shape;</li>
+<li>the <strong>local</strong> weight is <span class="math inline">\(\log(1+\mathrm{tf})\)</span> rather than <span class="math inline">\(\mathrm{tf}\)</span>, which
+is a within-document decision and needs no corpus: the twentieth occurrence of
+a term says much less than the second.</li>
+</ul>
+<p>The difference matters on a term that appears in every document. Consider the
+demo's tiny matrix,</p>
+<div class="math block">
+\[T = \begin{pmatrix} 2 & 1 & 0 & 3\\ 1 & 1 & 2 & 3\\ 0 & 3 & 1 & 3\end{pmatrix}, \qquad (10)\]
+</div>
+<p>whose second column is <span class="math inline">\((1,1,3)\)</span> and fourth is <span class="math inline">\((3,3,3)\)</span>. Both have
+<span class="math inline">\(\mathrm{df} = n = 3\)</span>, so tf-idf gives both weight zero and deletes them. But
+the fourth is flat — it says nothing about which document you are reading —
+while the second is concentrated in document 3, which is a real signal. The demo
+measures <span class="math inline">\(g = (0.421,\,0.135,\,0.421,\,0.000)\)</span>: the fourth is deleted, the second
+is kept, and the two weightings disagree about a term both of them can see.</p>
+<p>One edge case is worth stating because it is the degenerate-corpus failure mode
+in this file. For <span class="math inline">\(n = 1\)</span>, <span class="math inline">\(\log n = 0\)</span> and (9) is <span class="math inline">\(0/0\)</span>. The guard divides by <span class="math inline">\(1\)</span>
+instead, which makes a one-document corpus have all weights zero — correct in
+the sense that there is nothing to distinguish, and a reminder that these
+weights are corpus statistics, not per-document ones.</p>
+<h3 id="4-row-normalisation-and-why-l2">4. Row normalisation, and why L2 <a class="header-anchor" href="#4-row-normalisation-and-why-l2">#</a></h3>
+<p>Cosine similarity between documents <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span> is</p>
+<div class="math block">
+\[\cos(a, b) = \frac{a^\top b}{\lVert a \rVert\, \lVert b \rVert}, \qquad (11)\]
+</div>
+<p>so if every row is scaled to unit norm, similarity <em>is</em> the dot product and the
+retrieval step is one matrix multiply. That is the only reason <code>norm=True</code>
+exists, and it is the second half of the length normalisation: tf-idf stops
+ubiquitous terms from dominating, row normalisation stops long documents from
+doing it.</p>
+<p>L2 rather than L1 because the SVD's geometry is Euclidean. (2) minimises a
+Frobenius norm, so &quot;close&quot; in the latent space means &quot;close in <span class="math inline">\(\ell_2\)</span>&quot;; if the
+rows were L1-normalised, the space in which similarity was measured and the
+space in which the approximation was optimal would not be the same one, and the
+low-rank model's guarantee would not apply to the quantity being used.</p>
+<p>With unit rows, the leading singular direction is the axis of largest scatter
+of the document cloud. When the corpus shares a background vocabulary — which
+almost every corpus does — that axis is close to the mean document direction,
+which is why the first component reads as &quot;general English&quot; and is often
+discarded. This is the uncentred analogue of PCA's first component landing on
+the mean: PCA removes the mean and does not have the problem, LSA keeps it and
+has to throw the component away instead.</p>
+<h3 id="5-the-randomized-svd-and-what-power-iteration-buys">5. The randomized SVD, and what power iteration buys <a class="header-anchor" href="#5-the-randomized-svd-and-what-power-iteration-buys">#</a></h3>
+<p>Draw <span class="math inline">\(\Omega \in \mathbb{R}^{d \times (k+p)}\)</span> with i.i.d. Gaussians and form</p>
+<div class="math block">
+\[Y = X\Omega \in \mathbb{R}^{n \times (k+p)}. \qquad (12)\]
+</div>
+<p>With probability at least <span class="math inline">\(1 - 3p^{-p}\)</span>, the range of <span class="math inline">\(Y\)</span> captures the top <span class="math inline">\(k\)</span>
+singular directions up to an error of order <span class="math inline">\(\sigma_{k+1}\)</span>. A Gaussian sketch
+is not the cheapest choice — a subsampled random Fourier transform or a sparse
+sign matrix works — but it is the one with the cleanest bound and no structural
+assumption on <span class="math inline">\(X\)</span>, which for a count matrix with a handful of very large entries
+is worth the constant.</p>
+<p>The sketch is sharpened by alternating products:</p>
+<div class="math block">
+\[Y_q = \left(XX^\top\right)^q X\Omega, \qquad (13)\]
+</div>
+<p>and in the SVD basis this multiplies the <span class="math inline">\(i\)</span>-th direction's amplitude by
+<span class="math inline">\(\sigma_i^{2q+1}\)</span>. The ratio between the last wanted and the first unwanted
+direction goes from <span class="math inline">\(\sigma_k/\sigma_{k+1}\)</span> to</p>
+<div class="math block">
+\[\left(\frac{\sigma_k}{\sigma_{k+1}}\right)^{2q+1}, \qquad (14)\]
+</div>
+<p>which is the entire reason a few iterations are enough. On the demo's spectrum
+<span class="math inline">\((\sigma_4, \sigma_5) = (4.41, 1.91)\)</span>, a ratio of <span class="math inline">\(2.3\)</span>: after eight power
+steps the gap is <span class="math inline">\(2.3^{17} \approx 1.4 \times 10^6\)</span>, and the measured subspace
+error drops from <span class="math inline">\(3 \times 10^{-1}\)</span> to <span class="math inline">\(10^{-9}\)</span>.</p>
+<p>The rest is bookkeeping. Orthonormalise the sketch, <span class="math inline">\(Y = QR\)</span>; project the data,
+<span class="math inline">\(B = Q^\top X\)</span>, which is <span class="math inline">\((k+p) \times d\)</span>; decompose <span class="math inline">\(B = U_b S V^\top\)</span>; then
+<span class="math inline">\(X \approx Q U_b S V^\top\)</span> and the factors are <span class="math inline">\((QU_b, S, V^\top)\)</span>. <code>Q @ Ub</code> is
+exactly the orthogonal factor the exact SVD would have produced in the range of
+the sketch, which is why the two agree to machine precision once the sketch is
+good.</p>
+<p>Oversampling <span class="math inline">\(p\)</span> is not cosmetic. The sketch has <span class="math inline">\(k+p\)</span> columns, so even a
+perfect rank-<span class="math inline">\((k+p)\)</span> approximation has room for <span class="math inline">\(p\)</span> directions of leakage. The
+standard bound has the shape
+<span class="math inline">\(\left[1 + c\sqrt{k+p}\,(p-1)^{-1}\sqrt{\min(n,d)}\right]^{1/(2q+1)}\)</span> for an
+absolute constant <span class="math inline">\(c\)</span> of order one, and the two appearances of <span class="math inline">\(p\)</span> pull in
+opposite directions — a wider sketch is a better
+subspace, but the concentration constant degrades as <span class="math inline">\(p\)</span> shrinks. <span class="math inline">\(p = 10\)</span> is
+the usual compromise for dense data, and it is what this file's default is.</p>
+<h3 id="6-what-the-decomposition-does-and-does-not-identify">6. What the decomposition does and does not identify <a class="header-anchor" href="#6-what-the-decomposition-does-and-does-not-identify">#</a></h3>
+<p><span class="math inline">\(X = U S V^\top\)</span> is unique when the singular values are distinct, but the pair
+of factors is not. For any diagonal <span class="math inline">\(D\)</span> with entries <span class="math inline">\(\pm 1\)</span>,</p>
+<div class="math block">
+\[(U S D)(D V)^\top = U S D D V^\top = U S V^\top, \qquad (15)\]
+</div>
+<p>so the sign of each component is arbitrary — a convention, not an estimate.
+When <span class="math inline">\(\sigma_i = \sigma_j\)</span> the ambiguity is larger: any rotation in that
+<span class="math inline">\(2 \times 2\)</span> block gives the same <span class="math inline">\(X\)</span>, which is the same non-identifiability
+factor analysis has, in a setting where it is harmless. The demo's singular
+values are distinct (<span class="math inline">\(9.1\)</span> against <span class="math inline">\(1.9\)</span> for the first discarded one), so the
+only freedom is sign.</p>
+<p>Sign is invisible to everything the model is used for. Cosine similarity is
+invariant under <span class="math inline">\(a \mapsto -a\)</span>, so retrieval does not see it; the reconstruction
+is invariant under the <em>paired</em> flip of (15), so <code>inverse_transform</code> does not see
+it either. What <em>does</em> see it is interpretation: a topic component and its
+negation have the same set of large-magnitude terms, but opposite signs, so
+&quot;topic 3 is about finance&quot; is a statement about the row's absolute values. The
+sign is the one bit of an LSA component you have to fix by convention before
+writing the row down.</p>
+<p>The split between <code>documents_</code> and <code>components_</code> is a second convention.
+<span class="math inline">\(U S\)</span> and <span class="math inline">\(V^\top\)</span> together reconstruct <span class="math inline">\(X\)</span>, but the distribution of the
+singular values between them is a choice. This file puts <span class="math inline">\(S\)</span> on the documents,
+which is the standard LSA convention and the one that makes <code>transform</code> and
+<code>documents_</code> agree: <span class="math inline">\(X_w V_k = U_k S_k\)</span>.</p>
+<h3 id="7-why-this-is-not-pca">7. Why this is not PCA <a class="header-anchor" href="#7-why-this-is-not-pca">#</a></h3>
+<p>PCA decomposes the centred matrix: <span class="math inline">\(X_c = X - \mathbf{1}\mu^\top\)</span>, then
+<span class="math inline">\(X_c = U S V^\top\)</span>. LSA decomposes <span class="math inline">\(X\)</span> itself. Three reasons, in increasing
+order of importance:</p>
+<ol>
+<li>The origin is meaningful. A row of zeros is a document with no words in it,
+not a document of average length. Centring moves that row to <span class="math inline">\(-\mu\)</span>, which is
+not a document.</li>
+<li>The mean is an artefact of corpus composition. Add a thousand documents about
+sport to a corpus of recipes and the mean moves; LSA's factors move with it
+only through the shared terms, PCA's first component moves to follow the new
+mean.</li>
+<li>Centring and weighting do not commute. tf-idf is already a nonlinear
+transform of the counts; centring after it produces negative entries, which
+is fine for PCA's algebra and wrong for the model — a negative count is not a
+count. PCA on tf-idf vectors is a legitimate technique, but it is a different
+atom, and it is not in this file.</li>
+</ol>
+<p>The demo asserts the mean is not zero (<span class="math inline">\(0.67\)</span>), which is the numerical form of
+the same statement.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p><code>LSA(n_components=100, *, variant=&quot;tfidf_lsa&quot;, seed=0, n_iter=4, oversample=10, norm=True)</code> with <code>fit</code>, <code>transform</code>, <code>fit_transform</code> and
+<code>inverse_transform</code>, and the attributes <code>components_</code> <span class="math inline">\((k, n_{\text{terms}})\)</span>,
+<code>documents_</code> <span class="math inline">\((n_{\text{docs}}, k)\)</span>, <code>singular_values_</code>, <code>weights_</code>,
+<code>explained_variance_ratio_</code> and <code>reconstruction_error_</code>.</p>
+<p>Two conventions are load-bearing and consistent with the rest of the repo.
+<code>components_</code> is <code>(k, n_terms)</code> — one row per latent dimension — so a document
+vector is <code>Xw @ components_.T</code>, and <code>documents_</code> is <code>U S</code>, not <code>U</code>, so that the
+two live in the same coordinates. <code>weights_</code> is exposed because it is the part
+of the model a reader can inspect and argue with: the topic matrix is opaque,
+the fact that <code>idf</code> gave a term weight zero is not.</p>
+<p><code>norm=True</code> is the default because raw counts plus no normalisation is the
+model that gets 55% in the table above. <code>n_iter=4</code> is the randomized solver's
+power-iteration count and is ignored by the exact one.</p>
+<h3 id="1-the-two-halves-of-a-weighting">1. The two halves of a weighting <a class="header-anchor" href="#1-the-two-halves-of-a-weighting">#</a></h3>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_local_weight</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The term-frequency part: raw counts, or `log(1 + tf)` for log-entropy.</span>
+
+<span class="sd">    The log is there to stop one term that a document happens to repeat from</span>
+<span class="sd">    dominating its vector; it is a within-document decision and needs no corpus.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"log_entropy"</span> <span class="k">else</span> <span class="n">X</span>
+</code></pre>
+<p>The split between <code>_local_weight</code> and <code>_term_weights</code> is the design decision
+that makes the atom honest. A weighting has a per-document factor and a
+per-corpus factor; convolving them into one function is how implementations end
+up recomputing the corpus statistic at query time. Here the local half takes
+only <code>X</code> and a string, and the corpus half is a separate function that returns
+a vector to be stored.</p>
+<h3 id="2-the-corpus-half-idf">2. The corpus half: idf <a class="header-anchor" href="#2-the-corpus-half-idf">#</a></h3>
+<pre class="highlight"><code>    <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"tf"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"tfidf"</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">X</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">n</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+</code></pre>
+<p>(7). <code>np.count_nonzero(X &gt; 0.0, axis=0)</code> is <span class="math inline">\(\mathrm{df}_j\)</span> and the
+<code>np.maximum(df, 1)</code> guards the all-zero column, which a term that appears in no
+document at all would produce — <code>log(n/0)</code> is <span class="math inline">\(+\infty\)</span>, and an infinite weight
+on a column of zeros is harmless in exact arithmetic and a NaN factory in
+floating point. The <code>axis=0</code> is the one that matters: documents are rows, so
+&quot;how many documents contain term <span class="math inline">\(j\)</span>&quot; is a count down a column.</p>
+<h3 id="3-the-corpus-half-entropy">3. The corpus half: entropy <a class="header-anchor" href="#3-the-corpus-half-entropy">#</a></h3>
+<pre class="highlight"><code>    <span class="n">total</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">X</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="n">EPS</span><span class="p">)</span>                    <span class="c1"># term j's mass over documents</span>
+    <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">divide</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">,</span> <span class="n">invalid</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">):</span>
+        <span class="n">plogp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">X</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">p</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">EPS</span><span class="p">)),</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">entropy</span> <span class="o">=</span> <span class="o">-</span><span class="n">plogp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>                      <span class="c1"># in nats, in [0, log n]</span>
+    <span class="c1"># a one-document corpus has entropy 0 by definition and nothing to weigh</span>
+    <span class="k">return</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">entropy</span> <span class="o">/</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">if</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span><span class="p">)</span>
+</code></pre>
+<p>(8) and (9). The axis is the same as above and the roles are swapped: <code>total</code> is
+per <strong>term</strong>, and <code>p</code> distributes each term over the documents. <code>np.where(X &gt; 0.0, ...)</code> implements the <span class="math inline">\(0\log 0 = 0\)</span> convention explicitly rather than
+relying on a masked <code>nan</code>; <code>np.errstate</code> silences the division for the zero
+entries, which would otherwise warn on every call. The <code>np.maximum(p, EPS)</code>
+<em>inside</em> the log is what stops those zero entries from taking <span class="math inline">\(\log 0 = -\infty\)</span>
+before <code>where</code> gets a chance to discard them; the resulting entropy is not
+clipped, because <span class="math inline">\(0 \log 0\)</span> is taken as zero by the <code>where</code> and <span class="math inline">\(p = 1\)</span> gives
+<span class="math inline">\(\log 1 = 0\)</span>.</p>
+<p>The single-document branch is the <span class="math inline">\(n = 1\)</span> problem from the derivation's §3, and
+it is in the code rather than in a comment because the alternative is a NaN that propagates
+into every weight and turns the whole fit into <code>nan</code>.</p>
+<h3 id="4-fitting-two-decisions-and-their-composition">4. Fitting: two decisions and their composition <a class="header-anchor" href="#4-fitting-two-decisions-and-their-composition">#</a></h3>
+<pre class="highlight"><code>        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">=</span> <span class="n">_term_weights</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weighting</span><span class="p">)</span>
+        <span class="n">Xw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weighted</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"randomized"</span><span class="p">:</span>
+            <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+            <span class="n">U</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">Vt</span> <span class="o">=</span> <span class="n">_randomized_svd</span><span class="p">(</span><span class="n">Xw</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_iter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">oversample</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">U</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">Vt</span> <span class="o">=</span> <span class="n">_svd</span><span class="p">(</span><span class="n">Xw</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">components_</span> <span class="o">=</span> <span class="n">Vt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">singular_values_</span> <span class="o">=</span> <span class="n">s</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">documents_</span> <span class="o">=</span> <span class="n">U</span> <span class="o">*</span> <span class="n">s</span>
+</code></pre>
+<p>The order is the point: weights first, then the weighted matrix, then the
+solver. <code>self.weights_</code> is stored <strong>before</strong> <code>_weighted</code> runs, so a caller can
+recover the corpus statistic even though it is no longer separable from the
+product. <code>k = min(...)</code> is a silent truncation: asking for 100 components from a
+<span class="math inline">\(240 \times 60\)</span> matrix gives 60, the smaller dimension, and <code>components_</code> is
+honest about its own shape.</p>
+<p><code>U * s</code> rather than <code>U</code> is the LSA convention and it makes the two coordinate
+systems agree: the reconstruction is <code>(U S) Vᵀ</code>, and a query is projected as
+<code>Xw Vᵀ</code>, which is the same map. The demo asserts the two agree on the training
+matrix to <span class="math inline">\(2 \times 10^{-15}\)</span>.</p>
+<h3 id="5-the-weighting-at-transform-time">5. The weighting at transform time <a class="header-anchor" href="#5-the-weighting-at-transform-time">#</a></h3>
+<pre class="highlight"><code>        <span class="n">Xw</span> <span class="o">=</span> <span class="n">_local_weight</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weighting</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">:</span>
+            <span class="c1"># rows on the same scale, which makes cosine similarity a dot product</span>
+            <span class="n">nrm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">Xw</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">Xw</span> <span class="o">=</span> <span class="n">Xw</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">nrm</span><span class="p">,</span> <span class="n">EPS</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Xw</span>
+</code></pre>
+<p><code>self.weights_</code>, not <code>_term_weights(X, ...)</code>. Two characters separate a model
+from a normalisation, and the difference is measurable: the demo's
+single-document query has norm <span class="math inline">\(0.87\)</span> with the stored weights and would have
+norm <span class="math inline">\(0\)</span> with recomputed ones. The <code>np.maximum(nrm, EPS)</code> is the empty-document
+guard; a row of zeros stays a row of zeros rather than becoming a NaN.</p>
+<h3 id="6-the-sketch-the-power-loop-and-the-small-svd">6. The sketch, the power loop, and the small SVD <a class="header-anchor" href="#6-the-sketch-the-power-loop-and-the-small-svd">#</a></h3>
+<pre class="highlight"><code>    <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">k</span> <span class="o">+</span> <span class="n">oversample</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span>
+    <span class="n">omega</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="n">d</span><span class="p">,</span> <span class="n">width</span><span class="p">))</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">X</span> <span class="o">@</span> <span class="n">omega</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_iter</span><span class="p">):</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="n">X</span> <span class="o">@</span> <span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Y</span><span class="p">)</span>
+    <span class="n">Q</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">qr</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>                            <span class="c1"># orthonormal basis of the sketch</span>
+    <span class="n">Ub</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">Vt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">Q</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span><span class="p">,</span> <span class="n">full_matrices</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">Q</span> <span class="o">@</span> <span class="n">Ub</span><span class="p">)[:,</span> <span class="p">:</span><span class="n">k</span><span class="p">],</span> <span class="n">s</span><span class="p">[:</span><span class="n">k</span><span class="p">],</span> <span class="n">Vt</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span>
+</code></pre>
+<p>(12) and (13). <code>width = min(k + oversample, min(n, d))</code> is the only line that is
+not straight from the paper: a sketch wider than the matrix cannot have full
+rank, so the extra columns are wasted work and the small SVD they produce has
+guaranteed zero singular values at the bottom. Clamping is cheaper than
+explaining them. The power loop
+is written as <code>X @ (X.T @ Y)</code> and not <code>(X @ X.T) @ Y</code> because the former is two
+matrix-vector-block products and the latter forms an <span class="math inline">\(n \times n\)</span> matrix — at
+<span class="math inline">\(n = 10^6\)</span> that is the difference between 8 GB and a few megabytes.</p>
+<p><code>Q.T @ X</code> is <span class="math inline">\((k+p) \times d\)</span>, so the second SVD is a small one; the returned
+<code>Q @ Ub</code> is the left factor the exact solver would have given, restricted to the
+sketch's range. The demo checks that this converges to the exact subspace rather
+than merely claiming it: <span class="math inline">\(3 \times 10^{-1}\)</span> with no power iteration,
+<span class="math inline">\(2 \times 10^{-3}\)</span> with two, <span class="math inline">\(10^{-9}\)</span> with eight.</p>
+<h3 id="7-eckartyoung-as-an-identity">7. Eckart–Young, as an identity <a class="header-anchor" href="#7-eckartyoung-as-an-identity">#</a></h3>
+<pre class="highlight"><code>    <span class="n">recon</span> <span class="o">=</span> <span class="n">U</span><span class="p">[:,</span> <span class="p">:</span><span class="n">k</span><span class="p">]</span> <span class="o">*</span> <span class="n">s</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span> <span class="o">@</span> <span class="n">lsa</span><span class="o">.</span><span class="n">components_</span>
+    <span class="n">tail</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">k</span><span class="p">:]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">resid</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">Xw</span> <span class="o">-</span> <span class="n">recon</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">resid</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">tail</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="p">(</span><span class="n">resid</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">tail</span><span class="p">)</span>
+</code></pre>
+<p>The demo does not compare the truncated SVD against a random matrix and declare
+victory; it checks (5)'s equality case, which is a much stronger statement. The
+random comparison is there too, but against the right thing: 200 random
+rank-4 <strong>subspaces</strong>, each projected exactly, average <span class="math inline">\(14.96\)</span> against the
+predicted <span class="math inline">\(\sqrt{(1-k/d)\sum\sigma^2} = 14.97\)</span>, and none of them reaches
+<span class="math inline">\(7.5624\)</span>. A Gaussian random matrix would have been a meaningless baseline —
+its scale is arbitrary, so beating it proves nothing.</p>
+<p><code>U[:, :k] * s[:k] @ lsa.components_</code> is <code>(U S) Vᵀ</code> written with the same
+orientation as the model, so the check is comparing the model's own
+reconstruction with the one computed from a fresh SVD. If <code>components_</code> were
+transposed, or if <code>documents_</code> were <code>U</code> instead of <code>U S</code>, this line would fail.</p>
+<h3 id="8-the-single-document-query">8. The single-document query <a class="header-anchor" href="#8-the-single-document-query">#</a></h3>
+<pre class="highlight"><code>    <span class="n">q</span> <span class="o">=</span> <span class="n">LSA</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">"tfidf_lsa"</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="mi">200</span><span class="p">])</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="mi">205</span><span class="p">:</span><span class="mi">206</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">q</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">q</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">_term_weights</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="mi">205</span><span class="p">:</span><span class="mi">206</span><span class="p">],</span> <span class="s2">"tfidf"</span><span class="p">)</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>Two assertions that are the same fact from both sides. The first says the fitted
+model embeds a one-document query with a real direction; the second says the
+<em>unfitted</em> weighting gives every term in that document weight zero, because
+<span class="math inline">\(\mathrm{df}_j = n = 1\)</span> makes <span class="math inline">\(\log(n/\mathrm{df}_j) = \log 1 = 0\)</span>. If
+<code>transform</code> called <code>_term_weights</code> instead of using <code>self.weights_</code>, the first
+assertion would be <code>0.0 &gt; 0.5</code> and the second would still pass — which is
+precisely the kind of bug that survives a test suite that only checks shapes.</p>
+<h3 id="9-the-sign-and-the-ambiguity-that-cancels">9. The sign, and the ambiguity that cancels <a class="header-anchor" href="#9-the-sign-and-the-ambiguity-that-cancels">#</a></h3>
+<pre class="highlight"><code>    <span class="n">sig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">])</span>
+    <span class="n">rec</span> <span class="o">=</span> <span class="n">first</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">first</span><span class="o">.</span><span class="n">documents_</span><span class="p">)</span>
+    <span class="n">flipped</span> <span class="o">=</span> <span class="p">(</span><span class="n">first</span><span class="o">.</span><span class="n">documents_</span> <span class="o">*</span> <span class="n">sig</span><span class="p">)</span> <span class="o">@</span> <span class="p">(</span><span class="n">first</span><span class="o">.</span><span class="n">components_</span> <span class="o">*</span> <span class="n">sig</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">flipped</span> <span class="o">-</span> <span class="n">rec</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">1e-12</span>
+</code></pre>
+<p>(15), as an experiment. <code>sig</code> is a diagonal of <span class="math inline">\(\pm 1\)</span>; multiplying the columns
+of <code>documents_</code> by it and the matching rows of <code>components_</code> by it cancels in
+the product, so the reconstruction is unchanged to <span class="math inline">\(10^{-12}\)</span> while the factors
+differ by a sign. The demo also checks the stronger statement that a negated
+component is still an <em>exact</em> eigenvector — both signs satisfy
+<span class="math inline">\(V X^\top X = \lambda V\)</span> to <span class="math inline">\(3 \times 10^{-9}\)</span> — so there is no equation in the
+model that could pick between them.</p>
+<h3 id="10-back-to-term-space-and-what-the-check-refuses">10. Back to term space, and what the check refuses <a class="header-anchor" href="#10-back-to-term-space-and-what-the-check-refuses">#</a></h3>
+<pre class="highlight"><code>        <span class="n">Z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">Z</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">components_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"expected (m, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">components_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">), got </span><span class="si">{</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Z</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">components_</span>
+</code></pre>
+<p><code>inverse_transform</code> is one product and one shape check, and it is worth having
+because it makes the model's claim testable: <code>inverse_transform(fit_transform(X))</code>
+is the rank-<span class="math inline">\(k\)</span> approximation of the weighted matrix, so the residual can be
+compared against (2). The shape check is not decoration — it catches the
+transposed-<code>components_</code> convention error at the boundary rather than three
+functions later.</p>
+<pre class="highlight"><code>        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="ow">or</span> <span class="p">(</span><span class="n">X</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"LSA needs a non-negative, complete count matrix"</span><span class="p">)</span>
+</code></pre>
+<p>The refusal is the model, not a limitation. Log weights are undefined for
+negative entries, <code>np.log1p</code> is not monotone below <span class="math inline">\(-1\)</span>, and idf's <code>df</code> is a
+count of <em>presence</em>, which a negative entry is not. A centred matrix — the
+thing PCA would happily take — is rejected here, and the error says why.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p><span class="math inline">\(n\)</span> documents, <span class="math inline">\(d\)</span> terms, <span class="math inline">\(k\)</span> components, <span class="math inline">\(p\)</span> oversampling, <span class="math inline">\(q\)</span> power
+iterations.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Operation</th>
+<th style="text-align:left">Time</th>
+<th style="text-align:left">Memory</th>
+<th style="text-align:left">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>_term_weights</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left">one pass for <code>df</code>, one for the entropy</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_weighted</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left">materialises the weighted matrix</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_svd</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd\min(n,d))\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(nd)\)</span></td>
+<td style="text-align:left">one full decomposition</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>_randomized_svd</code></td>
+<td style="text-align:left"><span class="math inline">\(O(nd(k+p)q)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(n(k+p) + nd)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(q\)</span> passes over <span class="math inline">\(X\)</span></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>transform</code></td>
+<td style="text-align:left"><span class="math inline">\(O(mdk)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(mk)\)</span></td>
+<td style="text-align:left">one product per query batch</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>inverse_transform</code></td>
+<td style="text-align:left"><span class="math inline">\(O(mdk)\)</span></td>
+<td style="text-align:left"><span class="math inline">\(O(md)\)</span></td>
+<td style="text-align:left">back to term space</td>
+</tr>
+</tbody>
+</table>
+<p>The interesting comparison is the first two rows against the third and fourth.
+Weighting is linear in the size of the data and cannot be avoided: you have to
+touch every entry once to know how often each term appears. The solver is where
+the asymptotics differ, and the randomized one wins only when <span class="math inline">\(k+p \ll
+\min(n,d)\)</span> <em>and</em> the matrix is too large for a full SVD — for <span class="math inline">\(240 \times 60\)</span>
+the exact decomposition is microseconds and the sketch is pure overhead.</p>
+<p>Memory is the harder constraint in practice. <code>_weighted</code> materialises a dense
+<span class="math inline">\(n \times d\)</span> matrix, which for a million documents and a <span class="math inline">\(10^5\)</span>-term vocabulary
+is <span class="math inline">\(8 \times 10^{11}\)</span> bytes. This file is deliberately dense; the sparse version
+of LSA is a different piece of engineering (sparse <code>df</code>, sparse matvec, Lanczos
+on the normal equations), and the algebra is unchanged.</p>
+<p>The whole five-section demo runs in <span class="math inline">\(0.08\)</span> s, most of it in the SVDs and the
+randomized fits. That is the point of a <span class="math inline">\(240 \times 60\)</span> example: the algorithms
+are not the bottleneck, the modelling choices are.</p>
+<p>One line in <code>fit</code> is worth calling out as a small piece of the same lesson.
+<code>explained_variance_ratio_</code> needs <span class="math inline">\(\lVert X_w\rVert_F^2\)</span>, and the obvious way to
+get it is a second SVD; <code>np.sum(Xw ** 2)</code> is the same number in <span class="math inline">\(O(nd)\)</span> with no
+decomposition at all. The reference implementation had the SVD, which would
+have made the randomized variant pointless at scale — it would have paid the
+full cost to measure how much it had saved.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>1. Recomputing the weights at query time silently zeroes the query.</strong> The
+demo measures <span class="math inline">\(\lVert z \rVert = 0.87\)</span> with the fitted <code>idf</code> and exactly <span class="math inline">\(0\)</span>
+with the recomputed one, because a single document has <span class="math inline">\(\mathrm{df} = n\)</span> for
+every term it contains. Nothing raises; a zero vector has an argmax, so a
+retrieval pipeline built this way returns document 1 for every query and looks
+like a bad model rather than a bug. The fix is structural: fit the weights,
+store them, apply them.</p>
+<p><strong>2. There is no natural <span class="math inline">\(k\)</span>, and the spectrum's cliff is a property of the
+data.</strong> The demo's singular values are <span class="math inline">\(9.1, 6.9, 5.8, 4.4, 1.9, 1.8, 1.7, 1.6,
+\ldots\)</span>: a factor of <span class="math inline">\(2.3\)</span> between the fourth and fifth, then ratios near <span class="math inline">\(1.06\)</span>.
+The cliff is real — the corpus was generated from four topics — but a real
+corpus has no such guarantee, and a flat tail gives no defensible <span class="math inline">\(k\)</span>. Choosing
+<span class="math inline">\(k\)</span> by explained variance is choosing it by <em>reconstruction</em>, which is not the
+task: the demo's table shows the same <span class="math inline">\(k\)</span> giving 55% and 90% under different
+weightings. Choose <span class="math inline">\(k\)</span> on a held-out retrieval or classification metric, or fix
+it at a budget.</p>
+<p><strong>3. Dense only.</strong> Every operation here is <span class="math inline">\(O(nd)\)</span> in memory. A term-document
+matrix from a real corpus is 99.9% zeros, and the dense representation is the
+wrong data structure by four orders of magnitude. This is not a tuning issue; it
+is the difference between a demo and a system.</p>
+<p><strong>4. tf-idf deletes terms that are informative.</strong> <span class="math inline">\(\mathrm{df}\)</span> is binary, so a
+term in every document gets weight zero regardless of how it is distributed. The
+<span class="math inline">\(3 \times 4\)</span> demo's second column, <span class="math inline">\((1,1,3)\)</span>, is exactly that case: tf-idf removes it,
+log-entropy keeps it, and there is no way to fix it inside tf-idf without
+switching to the entropy form. On a corpus where the distinction matters, the
+two weightings give materially different topics.</p>
+<p><strong>5. A one-document corpus is degenerate.</strong> <span class="math inline">\(\log n = 0\)</span> makes (9) undefined;
+the guard returns all-zero weights, which is the correct limit and a warning
+that entropy weighting needs a corpus. It is also the shape of a more common
+mistake: fitting on a sample of one class from each category and then applying
+the weights to the full data.</p>
+<p><strong>6. LSA is linear and bag-of-words.</strong> It cannot represent word order,
+negation, or two senses of one word. <code>bank</code> gets one vector, which is a mixture
+of the river and the finance senses, and every document containing it is pulled
+towards both. This is the limitation that dense contextual embeddings exist to
+address, and no amount of rank tuning removes it.</p>
+<p><strong>7. Randomized without power iteration is a different algorithm.</strong> With
+<code>n_iter=0</code> the subspace gap is <span class="math inline">\(3 \times 10^{-1}\)</span> and the singular values are
+wrong in the first decimal; the fit still returns a plausible-looking topic
+matrix and a plausible-looking accuracy. The iteration is not an optimisation —
+it is what makes the sketch an approximation of the <em>top</em> of the spectrum rather
+than of a random subspace.</p>
+<p><strong>8. Sign and scale are not identified.</strong> §6: a component and its negation are
+both exact solutions, and two fits can differ by one. Anything that compares
+components across fits — &quot;topic 1 in model A is topic 2 in model B&quot; — has to
+align signs first, and anything that treats a loading's sign as meaningful has
+to fix a convention. Cosine-based retrieval is immune; interpretation is not.</p>
+<p><strong>9. The reconstruction is not a document.</strong> <code>inverse_transform</code> returns real
+numbers, including negative ones, because a low-rank approximation of a
+non-negative matrix is not non-negative. Rounding it to counts is not
+&quot;denoising&quot;; it is a different model (non-negative matrix factorisation, the
+neighbouring atom).</p>
+<p><strong>10. Explained variance and retrieval quality disagree.</strong> The raw-count model
+reconstructs its own matrix better (<span class="math inline">\(7.56\)</span> against <span class="math inline">\(8.84\)</span> at <span class="math inline">\(k=4\)</span>) and retrieves
+worse (<span class="math inline">\(55\%\)</span> against <span class="math inline">\(90\%\)</span> at <span class="math inline">\(k=2\)</span>). Those are different matrices, so the
+numbers are not a like-for-like comparison — which is exactly the point: the SVD
+is optimal for whichever matrix it is given, and the matrix is a modelling
+choice. A pipeline that tunes the solver and not the weighting has optimised the
+wrong thing.</p>
+<p><strong>11. Truncating at the smaller dimension is silent.</strong> <code>n_components=100</code> on a
+<span class="math inline">\(240 \times 60\)</span> matrix yields 60, and every downstream index that assumed 100 is
+off by 40. The attribute is right; the constructor argument is not a promise.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Information retrieval.</strong> The original application (Deerwester et al. 1990):
+match a query against documents that share no query terms, by projecting both
+into the latent space. It matched lexical search on some TREC collections and
+lost on others, which is the honest summary of the evaluations; it is the
+textbook example of a retrieval method that works because of a modelling
+insight rather than a better index.</li>
+<li><strong>Cross-language retrieval.</strong> Build the term-document matrix over a
+<em>parallel</em> corpus with both languages' terms as columns; the latent dimensions
+align translations, and a query in one language retrieves documents in the
+other. The alignment is a consequence of shared context, and it is the
+cleanest demonstration that the low-rank structure is semantic rather than
+lexical.</li>
+<li><strong>Document clustering and classification.</strong> The <span class="math inline">\(k\)</span>-dimensional coordinates
+are a feature map: cheap, dense, and often as good as a bag-of-words model with
+a hundred times the dimension. Standard preprocessing before a linear
+classifier.</li>
+<li><strong>Topic segmentation and summarisation.</strong> A document's row in <span class="math inline">\(U_k S_k\)</span> is a
+point in topic space, and consecutive documents trace a trajectory through it; a change point in that trajectory is a
+section boundary. Crude, and it works.</li>
+<li><strong>Recommendation.</strong> Treat users as documents and items as terms, or the
+reverse; the SVD of a rating or interaction matrix is the same algebra, and
+the &quot;latent factors&quot; are the same latent factors. The difference from a
+proper recommender is that the missing entries are zeros here, which biases
+everything towards popular items.</li>
+<li><strong>Duplicate and near-duplicate detection.</strong> Cosine in the latent space is
+robust to paraphrase in a way that lexical overlap is not, and the sketch is
+cheap enough to run over a large corpus.</li>
+<li><strong>As the ancestor of embeddings.</strong> Levy &amp; Goldberg (2014) showed that word2vec's
+skip-gram with negative sampling is implicitly factorising a shifted
+pointwise-mutual-information matrix. LSA is the explicit version of that with a
+different matrix: the modern method learns the matrix and the factorisation
+together, and inherits the same geometry.</li>
+</ul>
+<p>Where it is a trap: tuning <span class="math inline">\(k\)</span> on reconstruction error; fitting the weighting on
+a query batch; comparing topics across two fits without aligning signs;
+reading a component's sign as meaningful; and using LSA on data that is not
+counts at all — the idf and entropy weights are statistics of a count matrix,
+and applying them to, say, tf-idf'd embeddings is a category error.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li><strong>Deerwester, Dumais, Furnas, Landauer &amp; Harshman (1990),</strong> <em>Indexing by
+latent semantic analysis</em> — the paper that named the method, the log-entropy
+weighting of §3, and the retrieval experiments that motivated all of it.</li>
+<li><strong>Landauer &amp; Dumais (1997),</strong> <em>A solution to Plato's problem: the latent
+semantic analysis theory of acquisition, induction, and representation of
+knowledge</em> — the psychological claim, and the demonstration that a
+<span class="math inline">\(300\)</span>-dimensional LSA passes synonym tests at a human level on the TOEFL
+synonym section.</li>
+<li><strong>Dumais (1991),</strong> <em>Improving the retrieval of information from external
+sources</em> — the empirical comparison of weighting schemes that made
+log-entropy the default in the LSA literature.</li>
+<li><strong>Eckart &amp; Young (1936),</strong> <em>The approximation of one matrix by another of
+lower rank</em> — the theorem of §1, in the form it is still quoted.</li>
+<li><strong>Halko, Martinsson &amp; Tropp (2011),</strong> <em>Finding structure with randomness:
+probabilistic algorithms for constructing approximate matrix decompositions</em>
+— the sketch and power-iteration scheme of §5, including the error bounds and
+the oversampling constant.</li>
+<li><strong>Berry, Dumais &amp; O'Brien (1995),</strong> <em>Using linear algebra for intelligent
+information retrieval</em> — the practical guide to the sparse implementation this
+file deliberately does not attempt.</li>
+<li><strong>Manning, Raghavan &amp; Schütze (2008),</strong> <em>Introduction to Information
+Retrieval</em>, ch. 18 — the term-document matrix, tf-idf, and the vector-space
+model, with the retrieval evaluation conventions used by the demo's accuracy
+numbers.</li>
+<li><strong>Levy &amp; Goldberg (2014),</strong> <em>Neural word embedding as implicit matrix
+factorization</em> — the result that connects this atom to the embeddings that
+replaced it.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="ica.html"><small>Previous</small><span>Independent component analysis</span></a><a class="next" href="lda_topic.html"><small>Next</small><span>Latent Dirichlet allocation</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">06 · Latent structure &amp; factorisation</p><ul class="rail-list"><li><a href="pca.html"><span class="tick">✓</span><span>PCA</span></a></li><li><a href="nmf.html"><span class="tick">✓</span><span>Non-negative matrix factorisation</span></a></li><li><a href="probabilistic_pca.html"><span class="tick">✓</span><span>Probabilistic PCA</span></a></li><li><a href="factor_analysis.html"><span class="tick">✓</span><span>Factor analysis</span></a></li><li><a href="ica.html"><span class="tick">✓</span><span>Independent component analysis</span></a></li><li><a href="lsa.html" aria-current="page"><span class="tick">✓</span><span>Latent semantic analysis</span></a></li><li><a href="lda_topic.html"><span class="tick">✓</span><span>Latent Dirichlet allocation</span></a></li><li><a href="cca.html"><span class="tick">✓</span><span>Canonical correlation</span></a></li><li><a href="sparse_coding.html"><span class="tick">✓</span><span>Sparse coding</span></a></li><li><a href="dictionary_learning.html"><span class="tick">✓</span><span>Dictionary learning</span></a></li><li><a href="tensor_decomposition.html"><span class="tick">✓</span><span>Tensor decomposition</span></a></li><li><a href="plsa.html"><span class="tick">✓</span><span>Probabilistic LSA</span></a></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../05-probabilistic/index.html"><span class="jump">← 05 · Probabilistic models</span></a></li><li><a href="../07-clustering/index.html"><span class="jump">07 · Clustering&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#1-eckartyoung-with-the-inequality-written-out">1. Eckart–Young, with the inequality written out</a></li><li class="lvl3"><a href="#2-tf-idf-and-what--is-doing-there">2. tf-idf, and what \log is doing there</a></li><li class="lvl3"><a href="#3-log-entropy-presence-is-not-the-whole-story">3. Log-entropy: presence is not the whole story</a></li><li class="lvl3"><a href="#4-row-normalisation-and-why-l2">4. Row normalisation, and why L2</a></li><li class="lvl3"><a href="#5-the-randomized-svd-and-what-power-iteration-buys">5. The randomized SVD, and what power iteration buys</a></li><li class="lvl3"><a href="#6-what-the-decomposition-does-and-does-not-identify">6. What the decomposition does and does not identify</a></li><li class="lvl3"><a href="#7-why-this-is-not-pca">7. Why this is not PCA</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#1-the-two-halves-of-a-weighting">1. The two halves of a weighting</a></li><li class="lvl3"><a href="#2-the-corpus-half-idf">2. The corpus half: idf</a></li><li class="lvl3"><a href="#3-the-corpus-half-entropy">3. The corpus half: entropy</a></li><li class="lvl3"><a href="#4-fitting-two-decisions-and-their-composition">4. Fitting: two decisions and their composition</a></li><li class="lvl3"><a href="#5-the-weighting-at-transform-time">5. The weighting at transform time</a></li><li class="lvl3"><a href="#6-the-sketch-the-power-loop-and-the-small-svd">6. The sketch, the power loop, and the small SVD</a></li><li class="lvl3"><a href="#7-eckartyoung-as-an-identity">7. Eckart–Young, as an identity</a></li><li class="lvl3"><a href="#8-the-single-document-query">8. The single-document query</a></li><li class="lvl3"><a href="#9-the-sign-and-the-ambiguity-that-cancels">9. The sign, and the ambiguity that cancels</a></li><li class="lvl3"><a href="#10-back-to-term-space-and-what-the-check-refuses">10. Back to term space, and what the check refuses</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/06-latent-factorization/lsa.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>

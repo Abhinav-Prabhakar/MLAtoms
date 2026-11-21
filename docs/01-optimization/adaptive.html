@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adaptive methods · MLAtoms</title>
+<meta name="description" content="Per-coordinate step sizes and their pathologies. Adam asked &quot;how big have this coordinate&#x27;s gradients been?&quot; and divided by the answer. Every method here is…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/adaptive.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Adaptive methods">
+<meta property="og:description" content="Per-coordinate step sizes and their pathologies. Adam asked &quot;how big have this coordinate&#x27;s gradients been?&quot; and divided by the answer. Every method here is…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/adaptive.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Adaptive methods">
+<meta name="twitter:description" content="Per-coordinate step sizes and their pathologies. Adam asked &quot;how big have this coordinate&#x27;s gradients been?&quot; and divided by the answer. Every method here is…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Adaptive methods", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/01-optimization/adaptive.html", "description": "Per-coordinate step sizes and their pathologies. Adam asked \"how big have this coordinate's gradients been?\" and divided by the answer. Every method here is\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">01 · Optimization</a><span class="page-meta__sep">/</span><span class="pill pill--t1">tier 1</span><span class="page-meta__sep">/</span><span>7 variants</span><span class="page-meta__sep">/</span><a href="adaptive.py.html">source</a></p><h1>Adaptive methods</h1>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Adam asked &quot;how big have this coordinate's gradients been?&quot; and divided by the
+answer. Every method here is a different answer to the same question, and the
+differences are not cosmetic:</p>
+<ul>
+<li><strong>How long is the memory?</strong> Adagrad never forgets; RMSProp forgets at rate <code>β</code>.</li>
+<li><strong>Mean or second moment?</strong> Centred RMSProp divides by the <em>variance</em>, not the
+raw second moment.</li>
+<li><strong>What is the increment?</strong> Yogi adds <code>(1−β₂)|g|²</code> only when <code>|g|²</code> exceeds the
+accumulator — an absolute, not relative, update.</li>
+<li><strong>Do you need a denominator at all?</strong> SignSGD says no: the sign is the whole
+normalisation.</li>
+</ul>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Denominator</th>
+<th style="text-align:left">State per parameter</th>
+<th style="text-align:left">Good at</th>
+<th style="text-align:left">Bad at</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>adagrad</code></td>
+<td style="text-align:left"><code>√(Σg²)</code></td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">sparse features, convex problems</td>
+<td style="text-align:left">long runs (LR → 0)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adadelta</code></td>
+<td style="text-align:left"><code>RMS[Δ] / RMS[g]</code></td>
+<td style="text-align:left">2</td>
+<td style="text-align:left">no LR to tune</td>
+<td style="text-align:left">slow first steps</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rmsprop</code></td>
+<td style="text-align:left"><code>√EMA[g²]</code></td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">RNNs, non-stationary data</td>
+<td style="text-align:left">no bias correction</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rmsprop_centered</code></td>
+<td style="text-align:left"><code>√(EMA[g²] − EMA[g]²)</code></td>
+<td style="text-align:left">2</td>
+<td style="text-align:left">stochastic gradients</td>
+<td style="text-align:left">constant gradients (denominator → 0)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>yogi</code></td>
+<td style="text-align:left"><code>√v</code> with an additive <code>v</code></td>
+<td style="text-align:left">2</td>
+<td style="text-align:left">avoiding LR blow-ups after a spike</td>
+<td style="text-align:left">little theory beyond the original paper</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>signsgd</code></td>
+<td style="text-align:left"><code>sign(g)</code></td>
+<td style="text-align:left">0</td>
+<td style="text-align:left">huge batches, communication-efficient training</td>
+<td style="text-align:left">fine convergence, small batches</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sm3</code></td>
+<td style="text-align:left"><code>min</code> over factorised accumulators</td>
+<td style="text-align:left"><code>Σdᵢ</code></td>
+<td style="text-align:left">giant embedding tables</td>
+<td style="text-align:left">accuracy of the denominator</td>
+</tr>
+</tbody>
+</table>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<p><strong>Adagrad is a regret bound.</strong> For a convex problem with <code>G = max‖g‖</code>, the
+AdaGrad regret is <code>O(G·√T)</code> against the best fixed point, which is optimal for
+online convex optimisation. The proof requires <code>η_t = η/√t</code>, and the accumulator
+<code>Σ g²</code> implements exactly that when gradients are stationary: after <code>t</code> steps, the
+denominator is <code>√t·σ</code>, so the step is <code>η/(σ√t)</code>. The price is that the LR decays
+monotonically even when the problem does not need it.</p>
+<p><strong>RMSProp forgets.</strong> Replace the sum with an EMA:</p>
+<div class="math block">
+\[v_t = \beta v_{t-1} + (1-\beta)g_t^2,
+\qquad \theta \leftarrow \theta - \eta\,\frac{g_t}{\sqrt{v_t}+\epsilon}\]
+</div>
+<p>which tracks a local scale. There is no bias correction, so the first steps are
+too large by <code>1/√(1−β)</code> — irrelevant in practice, because warmup covers it.</p>
+<p><strong>Centred RMSProp divides by the variance.</strong> <code>v − m²</code> estimates <code>Var[g]</code>; with
+independent noise, dividing by the <em>variance</em> rather than the second moment gives
+a step that grows as the noise shrinks. On a deterministic gradient <code>Var[g] → 0</code>,
+so the denominator collapses to <code>ε</code> and the step explodes — see the demo, where the
+centred variant travels 35× further after 100 unit steps. That is not a bug in the
+demonstration; it is the reason centred RMSProp is a niche choice.</p>
+<p><strong>Adadelta is dimensionless.</strong> The numerator is the RMS of recent <em>updates</em>, the
+denominator the RMS of recent <em>gradients</em>:</p>
+<div class="math block">
+\[\Delta_t = \frac{\sqrt{E[\Delta^2]_{t-1}+\epsilon}}{\sqrt{E[g^2]_t+\epsilon}}\,g_t\]
+</div>
+<p>Both sides carry gradient units, so their ratio is scale-free: changing the units
+of the loss does not change the trajectory. That is why <code>lr=1</code> converges in the
+demo, and why the first steps are tiny (the numerator starts at <code>√ε</code>).</p>
+<p><strong>Yogi is additive.</strong> <code>v_t = v_{t−1} + (1−β₂)\,g_t^2\,\text{sign}(g_t^2 − v_{t−1})</code>.
+When gradients are large the accumulator grows by <code>(1−β₂)g²</code>; when they are small
+it shrinks by the <em>same absolute</em> amount, so it cannot collapse geometrically the
+way Adam's can. In the demo, after one large gradient followed by 200 tiny ones,
+Adam's <code>v</code> sits at <code>10⁻⁴</code> (it has adapted to the quiet regime) while Yogi's stays
+at <code>0.098</code> — Adam's effective LR has grown 31×, Yogi's has not.</p>
+<p><strong>SignSGD.</strong> <code>θ ← θ − η·sign(g)</code> moves every coordinate by exactly <code>η</code>. For
+convex problems with bounded gradient noise it matches SGD's rate up to constants
+and is <code>O(d)</code> cheaper to communicate (1 bit per coordinate). It cannot converge to
+better than <code>O(η)</code> from the optimum, which is why it is used with large batches,
+momentum, and a decaying LR.</p>
+<p><strong>SM3.</strong> A full accumulator for an <code>m×n</code> tensor costs <code>mn</code>; SM3 keeps <code>m+n</code>, one
+per mode, and sets <code>v̂_ij = min(rowᵢ, colⱼ)</code>. Since <code>rowᵢ = Σ_j g_ij² ≥ g_ij²</code>,
+the minimum is still an upper bound — a valid, slightly conservative denominator.
+The memory saving is the whole point: a <code>10⁶ × 10³</code> embedding table goes from
+<code>10⁹</code> floats to <code>10⁶+10³</code>.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>One class, seven branches inside <code>step</code>. Nothing is shared except the parameter
+list and the optional momentum buffer, because the methods disagree about <em>what
+state</em> is needed — that is the point of the file.</p>
+<p>The simplest branch is SignSGD:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"signsgd"</span><span class="p">:</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+</code></pre>
+<p><code>d</code> is the <em>direction</em> that the rest of the method multiplies by <code>lr</code>. Every branch
+computes a <code>d</code>, and <code>p -= self.lr * d</code> at the bottom is common; keeping that shape
+makes the differences comparable line by line. Note <code>np.sign(0) = 0</code>, so a
+coordinate with a zero gradient freezes rather than dithering.</p>
+<p>Adagrad accumulates, RMSProp forgets:</p>
+<pre class="highlight"><code>            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"adagrad"</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="n">g</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+</code></pre>
+<pre class="highlight"><code>            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">variant</span> <span class="o">==</span> <span class="s2">"rmsprop"</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="n">g</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+</code></pre>
+<p>The <code>+=</code> is what makes Adagrad's rate <code>η/√t</code> under a constant gradient and what
+makes it stall eventually; the EMA is what makes RMSProp stationary. They differ by
+one operator, and the demo's <code>2√T + ζ(½)</code> check is what distinguishes them
+quantitatively rather than by eye.</p>
+<p>Adadelta's ordering is the algorithm:</p>
+<pre class="highlight"><code>                <span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span>
+                <span class="n">rms_d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delta</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+                <span class="n">rms_g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="p">(</span><span class="n">rms_d</span> <span class="o">/</span> <span class="n">rms_g</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">delta</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">delta</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho</span><span class="p">)</span> <span class="o">*</span> <span class="n">d</span> <span class="o">*</span> <span class="n">d</span>
+</code></pre>
+<p><code>rms_d</code> is read from the <em>previous</em> <code>delta</code>, before this step's <code>d</code> is known. That
+is not a bug or a lag: the method is defined with the previous update RMS, which is
+what makes it implicit and removes the learning rate. Updating <code>delta</code> before
+computing <code>d</code> (the &quot;obvious&quot; reordering) gives a different, unstable method.</p>
+<p>Centred RMSProp subtracts the squared mean and needs the clamp:</p>
+<pre class="highlight"><code>                <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">acc2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="n">g</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+</code></pre>
+<p><code>E[g²] − E[g]²</code> is non-negative in exact arithmetic but can be <code>−1e-17</code> after two
+EMAs, and <code>sqrt</code> of that is <code>nan</code>. The <code>maximum(·, 0)</code> is not defensive programming;
+it is required for the method to run at all. When the gradient is constant, <code>var → 0</code>
+and <code>d ≈ g/ε</code>, which is the 35× overshoot the doc describes — a real property, not a
+numerical artefact.</p>
+<p>Yogi's update is written in the <code>sign</code> form, which is the part people misread:</p>
+<pre class="highlight"><code>                <span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="n">g</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span>
+</code></pre>
+<p>If <code>g² &gt; v</code>, this adds <code>(1−β)g²</code>; if <code>g² &lt; v</code>, it <em>subtracts</em> <code>(1−β)g²</code>. It is not
+<code>(1−β)(g² − v)</code> — that would be an EMA and would decay geometrically. The additive
+form is what keeps <code>v</code> near the largest recent scale instead of collapsing to the
+latest quiet one. The first moment is a separate EMA and <em>is</em> bias-corrected:</p>
+<pre class="highlight"><code>                <span class="n">mhat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">acc2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">**</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)</span>
+                <span class="n">vhat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta2</span> <span class="o">**</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="n">mhat</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vhat</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+</code></pre>
+<p><code>acc2</code> is reused from the centred-RMSProp branch; the two variants are mutually
+exclusive, so one buffer serves both.</p>
+<p>SM3 is the only branch that does not have a full-size accumulator:</p>
+<pre class="highlight"><code>        <span class="n">accs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sm3</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">acc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">accs</span><span class="p">):</span>
+            <span class="n">axes</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">ax</span> <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span> <span class="k">if</span> <span class="n">ax</span> <span class="o">!=</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">acc</span> <span class="o">+=</span> <span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="n">axes</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">acc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">accs</span><span class="p">):</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">g</span><span class="o">.</span><span class="n">ndim</span>
+            <span class="n">shape</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">shaped</span> <span class="o">=</span> <span class="n">acc</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">shaped</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">shaped</span><span class="p">)</span>
+</code></pre>
+<p>For a matrix, mode 0 accumulates over rows into a <code>(cols,)</code> vector and mode 1 into a
+<code>(rows,)</code> vector. Reducing over <code>ax != k</code> is the non-obvious indexing: it keeps the
+<code>k</code>-th dimension and sums everything else, so <code>acc</code> has length <code>g.shape[k]</code>. The
+broadcast then reshapes <code>acc</code> to <code>(1, cols)</code> or <code>(rows, 1)</code> and takes the elementwise
+minimum. Since <code>row_i = Σ_j g_ij² ≥ g_ij²</code>, the min is still an upper bound on the
+true second moment — conservative, never optimistic. The memory is <code>Σ dᵢ</code> instead of
+<code>Π dᵢ</code>, which is the entire reason the method exists; for a <code>2×3</code> tensor the demo
+checks <code>5 &lt; 6</code>, and the ratio improves with every added dimension.</p>
+<p>Finally, momentum acts on the <em>normalised</em> direction, not on the raw gradient:</p>
+<pre class="highlight"><code>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">d</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">p</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">d</span>
+</code></pre>
+<p>For Adam-family methods this is the correct place (momentum of the adaptive update),
+and moving it above the branch — <code>v ← μv + g</code> — changes the method to one with two
+coupled scales. The demo does not use momentum, so this line is only exercised by a
+reader who passes the flag; it is still the one that decides whether &quot;Adam with
+momentum&quot; means what they think.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Variant</th>
+<th style="text-align:left">Extra memory</th>
+<th style="text-align:left">Time per step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>adagrad</code>, <code>rmsprop</code></td>
+<td style="text-align:left"><code>P</code></td>
+<td style="text-align:left"><code>O(P)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>adadelta</code>, <code>rmsprop_centered</code>, <code>yogi</code></td>
+<td style="text-align:left"><code>2P</code></td>
+<td style="text-align:left"><code>O(P)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>signsgd</code></td>
+<td style="text-align:left"><code>0</code> (or <code>P</code> with momentum)</td>
+<td style="text-align:left"><code>O(P)</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sm3</code></td>
+<td style="text-align:left"><code>Σ dᵢ</code></td>
+<td style="text-align:left"><code>O(P)</code> for the min and the update</td>
+</tr>
+</tbody>
+</table>
+<p>All are elementwise, so the cost is memory bandwidth. The memory column, not the
+time column, is what decides whether a model fits.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<ol>
+<li><strong>Adagrad stalls.</strong> After <code>10⁵</code> steps the accumulated denominator is huge and
+the LR is effectively zero. It is a convex/online method; for deep nets use
+Adagrad only with a schedule that resets the accumulator, or switch to RMSProp.</li>
+<li><strong>Centred RMSProp on clean gradients.</strong> The variance goes to zero and the step
+explodes. Keep a floor on the denominator, or use plain RMSProp.</li>
+<li><strong>SignSGD with small batches.</strong> The sign of a noisy gradient is not a descent
+direction; the theory needs large batches or variance reduction. With batch
+size 8 it often oscillates instead of descending.</li>
+<li><strong>SM3 on dense, correlated gradients.</strong> <code>min(row, col)</code> overestimates the
+per-coordinate second moment when the gradient matrix is dense, so the
+effective LR is smaller than intended.</li>
+<li><strong>Mixing <code>ε</code> conventions.</strong> <code>√(v+ε)</code> vs <code>√v+ε</code> changes behaviour by orders of
+magnitude when <code>v</code> is tiny; pick one and keep it consistent with the optimizer
+state you load.</li>
+</ol>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li><strong>Adagrad:</strong> sparse bag-of-words, CTR models, any problem where most features
+appear rarely — the per-feature LR is exactly what you want and the total step
+count is modest.</li>
+<li><strong>RMSProp:</strong> RNNs, RL (where the value loss is non-stationary), and as the
+denominator inside RMSProp-style optimisers in JAX/Optax.</li>
+<li><strong>Adadelta:</strong> quickly trying a model without tuning the LR; it is a reasonable
+default when you have no time for a sweep.</li>
+<li><strong>SignSGD:</strong> federated learning and distributed training where upload bandwidth
+dominates, combined with error feedback to recover accuracy.</li>
+<li><strong>SM3:</strong> recommendation models with vocabulary in the millions, where a full
+Adam state would dominate memory.</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Duchi, Hazan &amp; Singer, <em>Adaptive Subgradient Methods</em> (Adagrad), 2011. JMLR.</li>
+<li>Zeiler, <em>ADADELTA: An Adaptive Learning Rate Method</em>, 2012. arXiv:1212.5701</li>
+<li>Tieleman &amp; Hinton, <em>Lecture 6.5 — RMSProp</em>, Coursera course notes, 2012.</li>
+<li>Zaheer et al., <em>Adaptive Methods for Nonconvex Optimization</em> (Yogi), NeurIPS 2018.</li>
+<li>Bernstein et al., <em>signSGD: Compressed Optimisation for Non-Convex Problems</em>, ICML 2018.</li>
+<li>Anil, Gupta, Koren &amp; Singer, <em>Memory-Efficient Adaptive Optimization</em> (SM3), NeurIPS 2019. arXiv:1901.11150</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="adam.html"><small>Previous</small><span>Adam / AdamW</span></a><a class="next" href="schedules.html"><small>Next</small><span>Schedules</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">01 · Optimization</p><ul class="rail-list"><li><a href="sgd.html"><span class="tick">✓</span><span>SGD</span></a></li><li><a href="adam.html"><span class="tick">✓</span><span>Adam / AdamW</span></a></li><li><a href="adaptive.html" aria-current="page"><span class="tick">✓</span><span>Adaptive methods</span></a></li><li><a href="schedules.html"><span class="tick">✓</span><span>Schedules</span></a></li><li><a href="em.html"><span class="tick">✓</span><span>EM / MM</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Second-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Proximal methods</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Weight averaging</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lion</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>LAMB</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Muon</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SOAP</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Natural gradient</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>SAM</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Zeroth-order</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Lookahead</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../00-primitives/index.html"><span class="jump">← 00 · Primitives</span></a></li><li><a href="../02-linear-models/index.html"><span class="jump">02 · Linear models&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/01-optimization/adaptive.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>
