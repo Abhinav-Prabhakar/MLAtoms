@@ -5,7 +5,7 @@
 A transformer is six of these files stacked. Each block is written forward and backward, so you can see exactly where the parameters, the FLOPs and the inductive bias sit.
 
 <!-- catalog:begin -->
-**14 atoms · 95 variants · 7 implemented**
+**14 atoms · 95 variants · 8 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -16,7 +16,7 @@ A transformer is six of these files stacked. Each block is written forward and b
 | ✓ Transformer block | [`transformer.py`](transformer.py) | 1 | 8 | Encoder/decoder blocks with pre-LN and gated feed-forward. |
 | ✓ Positional encoding | [`positional.py`](positional.py) | 2 | 8 | How a set of tokens learns about order. |
 | ✓ Mixture of experts | [`moe.py`](moe.py) | 2 | 8 | Sparse capacity without sparse gradients. |
-| · Dropout family | [`dropout.py`](dropout.py) | 2 | 8 | Noise as regularisation, and the variants that fixed its bugs. |
+| ✓ Dropout family | [`dropout.py`](dropout.py) | 2 | 8 | Noise as regularisation, and the variants that fixed its bugs. |
 | · Embedding layers | [`embedding_layers.py`](embedding_layers.py) | 2 | 7 | Token, position and type tables, plus weight tying. |
 | · Graph neural blocks | [`gnn_blocks.py`](gnn_blocks.py) | 2 | 8 | The four GNN layers worth memorising. |
 | · MLP-Mixer | [`mixer.py`](mixer.py) | 3 | 4 | Token-mixing and channel-mixing without attention or convolution. |
