@@ -5,7 +5,7 @@
 A transformer is six of these files stacked. Each block is written forward and backward, so you can see exactly where the parameters, the FLOPs and the inductive bias sit.
 
 <!-- catalog:begin -->
-**14 atoms · 95 variants · 9 implemented**
+**14 atoms · 95 variants · 10 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -18,7 +18,7 @@ A transformer is six of these files stacked. Each block is written forward and b
 | ✓ Mixture of experts | [`moe.py`](moe.py) | 2 | 8 | Sparse capacity without sparse gradients. |
 | ✓ Dropout family | [`dropout.py`](dropout.py) | 2 | 8 | Noise as regularisation, and the variants that fixed its bugs. |
 | ✓ Embedding layers | [`embedding_layers.py`](embedding_layers.py) | 2 | 7 | Token, position and type tables, plus weight tying. |
-| · Graph neural blocks | [`gnn_blocks.py`](gnn_blocks.py) | 2 | 8 | The four GNN layers worth memorising. |
+| ✓ Graph neural blocks | [`gnn_blocks.py`](gnn_blocks.py) | 2 | 8 | The four GNN layers worth memorising. |
 | · MLP-Mixer | [`mixer.py`](mixer.py) | 3 | 4 | Token-mixing and channel-mixing without attention or convolution. |
 | · Perceiver | [`perceiver.py`](perceiver.py) | 3 | 4 | Cross-attention bottlenecks and set transformers. |
 | · ConvNeXt | [`convnext.py`](convnext.py) | 3 | 4 | Modern pure-conv block: large depthwise kernels, LN, GELU. |
