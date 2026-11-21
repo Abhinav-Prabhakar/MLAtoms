@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wasserstein GAN · MLAtoms</title>
+<meta name="description" content="Wasserstein distance, Lipschitz constraints and gradient penalty. A GAN&#x27;s discriminator is a classifier, and a classifier&#x27;s gradient is only useful while it…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/wgan.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Wasserstein GAN">
+<meta property="og:description" content="Wasserstein distance, Lipschitz constraints and gradient penalty. A GAN&#x27;s discriminator is a classifier, and a classifier&#x27;s gradient is only useful while it…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/wgan.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Wasserstein GAN">
+<meta name="twitter:description" content="Wasserstein distance, Lipschitz constraints and gradient penalty. A GAN&#x27;s discriminator is a classifier, and a classifier&#x27;s gradient is only useful while it…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Wasserstein GAN", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/14-generative/wgan.html", "description": "Wasserstein distance, Lipschitz constraints and gradient penalty. A GAN's discriminator is a classifier, and a classifier's gradient is only useful while it\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">14 · Generative models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>4 variants</span><span class="page-meta__sep">/</span><a href="wgan.py.html">source</a></p><h1>Wasserstein GAN — the earth-mover distance and four Lipschitz constraints</h1>
+<p>A GAN's discriminator is a classifier, and a classifier's gradient is only
+useful while it is uncertain. When the model distribution and the data are far
+apart, a perfect discriminator separates them with probability one, its output
+saturates, and the generator receives a gradient of zero. The Wasserstein GAN
+replaces the classifier with a <em>critic</em>: a function trained to measure how much
+mass has to move to turn one distribution into the other. That quantity has a
+gradient everywhere, including when the distributions do not overlap — which is
+the situation at the start of every training run. The price is a constraint the
+critic must satisfy: it has to be 1-Lipschitz. This file compares the four ways
+of imposing that constraint that are in common use, on eight Gaussians, with the
+critic's shape measured rather than assumed.</p>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>The Wasserstein-1 distance between two distributions is the cheapest way to
+transport one onto the other when moving a unit of mass a unit of distance costs
+one:</p>
+<pre class="mermaid-source"><code class="language-mermaid">flowchart LR
+    P[&quot;p: real&quot;] --&gt;|&quot;move mass, cost = distance&quot;| Q[&quot;q: model&quot;]
+    P --&gt; D[&quot;critic f (1-Lipschitz)&quot;]
+    Q --&gt; D
+    D --&gt;|&quot;E_p f - E_q f&quot;| V[&quot;W1 estimate&quot;]
+</code></pre>
+<p>You cannot compute the infimum over transport plans directly. The
+Kantorovich-Rubinstein duality turns it into a supremum over functions: the best
+1-Lipschitz <span class="math inline">\(f\)</span> gives <span class="math inline">\(W_1\)</span> as the difference of its expectations. So the critic
+is not asked &quot;is this real?&quot; — it is asked &quot;how high can you score the real data
+relative to the fake data, without ever rising faster than slope one?&quot; The
+answer is a number whose units are distance, not a probability.</p>
+<p>That change of question fixes the vanishing gradient. Two disjoint point masses
+at distance <span class="math inline">\(d\)</span> have <span class="math inline">\(W_1=d\)</span> and a critic with slope one between them, so the
+generator's gradient is proportional to <span class="math inline">\(d\)</span> from the first step. With a
+classifier the same configuration has a constant loss and no gradient at all.</p>
+<p>It also moves the difficulty. A classifier can be arbitrarily sharp; a critic
+may not. Every variant in this file is a different answer to one question: how
+do you keep a neural network 1-Lipschitz?</p>
+<ul>
+<li><strong>Clip the weights.</strong> The original answer. After each critic step, clamp every
+weight to <span class="math inline">\([-c,c]\)</span>. Simple, and it works, but the clamp is a blunt instrument:
+it also crushes the critic's overall scale, so the signal the generator needs
+shrinks with it.</li>
+<li><strong>Penalise the slope, two-sided.</strong> Add <span class="math inline">\(\lambda(\lVert\nabla f\rVert-1)^2\)</span> at
+points interpolated between real and fake. This is WGAN-GP, and it is the
+default in most code you will read.</li>
+<li><strong>Penalise the slope, one-sided.</strong> Same term, but only where the slope exceeds
+one. WGAN-LP. The extra freedom matters exactly where a critic wants to be
+flat: at a maximum.</li>
+<li><strong>Normalise the weights spectrally.</strong> Divide each matrix by its top singular
+value after each step, so the product of layer norms is one.</li>
+</ul>
+<p>The last two sentences are the whole result of this file. On data with eight
+separated modes, the optimal critic is a potential that peaks at each mode and
+slopes down between them. A <em>peak</em> has zero gradient. A two-sided penalty
+forbids zero, so it forbids peaks, so the critic cannot separate the modes; the
+one-sided penalty allows plateaus and recovers the shape. The demo measures the
+critic's value and slope at a mode centre and halfway between two modes, and the
+table below is that measurement, not an opinion.</p>
+<p>There is a second, quieter theme: the Wasserstein estimate itself. It is a
+difference of two sample means, and with a powerful critic on a finite batch it
+is biased upward — the critic can separate the batch even when it cannot
+separate the distributions. A negative estimate after training is normal and is
+not a bug (the two-sided variant here ends at <span class="math inline">\(-0.071\)</span>).</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:left">constraint</th>
+<th style="text-align:right">modes</th>
+<th style="text-align:right">share</th>
+<th style="text-align:right">distance</th>
+<th style="text-align:right"><span class="math inline">\(\hat W\)</span></th>
+<th style="text-align:right"><span class="math inline">\(\lVert\nabla D\rVert\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>wgan</code></td>
+<td style="text-align:left">clip <span class="math inline">\(c=0.01\)</span></td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.15</td>
+<td style="text-align:right">0.237</td>
+<td style="text-align:right">+0.000</td>
+<td style="text-align:right">0.000</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>wgan_gp</code></td>
+<td style="text-align:left">two-sided, <span class="math inline">\(\lambda=10\)</span></td>
+<td style="text-align:right">5/8</td>
+<td style="text-align:right">0.31</td>
+<td style="text-align:right">0.425</td>
+<td style="text-align:right">−0.071</td>
+<td style="text-align:right">0.993</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>wgan_lp</code></td>
+<td style="text-align:left">one-sided, <span class="math inline">\(\lambda=10\)</span></td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.14</td>
+<td style="text-align:right">0.100</td>
+<td style="text-align:right">+0.015</td>
+<td style="text-align:right">0.457</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>spectral_norm</code></td>
+<td style="text-align:left">power iteration</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.19</td>
+<td style="text-align:right">0.262</td>
+<td style="text-align:right">+0.019</td>
+<td style="text-align:right">0.165</td>
+</tr>
+</tbody>
+</table>
+<p>All four share the data, the architecture, the optimiser and the budget: 2048
+points from eight Gaussians of radius 0.8 and spread 0.07; a critic
+<span class="math inline">\(2\to64\to64\to1\)</span> with leaky ReLU (4417 parameters); a generator
+<span class="math inline">\(2\to64\to64\to2\)</span> with ReLU and a tanh output (4482 parameters); 3000 steps of
+Adam at <span class="math inline">\(10^{-4}\)</span> with <span class="math inline">\(\beta_1=0.5\)</span>; four critic updates per generator update;
+batches of 128. The metrics are computed on 1024 fresh samples: modes won, the
+largest mode's share, the mean distance to the nearest centre, the Wasserstein
+estimate on fresh data, and the mean critic slope at the test points.</p>
+<p><strong><code>wgan</code></strong> — the original (Arjovsky, Chintala &amp; Bottou 2017). Weight clipping
+is the cheapest constraint to implement and the most destructive: after
+clipping, the critic's slope is bounded by the product of its layers' Frobenius
+norms, about <span class="math inline">\(0.0058\)</span> for these dimensions at <span class="math inline">\(c=0.01\)</span>, and the measured value
+is <span class="math inline">\(2.0\times10^{-4}\)</span>: across the whole test set the critic's value moves by
+<span class="math inline">\(4\times10^{-4}\)</span>. The critic is effectively constant, so the generator is
+from almost nothing — yet it covers all eight modes at distance 0.237, because
+the critic was informative for the first few hundred steps, before the clamp
+wore it down. Coverage alone would call this row a success.</p>
+<p><strong><code>wgan_gp</code></strong> — the gradient penalty (Gulrajani et al. 2017), two-sided with the
+paper's <span class="math inline">\(\lambda=10\)</span>. It reaches five modes. The penalty is
+satisfied — the slope at a mode centre is 0.983 and between modes 1.072 — and
+that is exactly the problem: the critic is forced to climb at unit rate through
+the point where a separating critic needs to turn over. Its value across a mode
+and its neighbouring gap differs by less than 0.1, so it cannot tell them apart.
+The demo repeats the run at <span class="math inline">\(\lambda=1\)</span> and gets all eight modes at distance
+0.146, with slopes 0.736 and 0.843: the same penalty, relaxed enough to allow a
+rounded peak. This is the file's main finding.</p>
+<p><strong><code>wgan_lp</code></strong> — the one-sided penalty (Petzka, Fischer &amp; Lukovnicov 2017). The
+threshold at one leaves the critic free below it, and it uses that freedom
+exactly as theory says it should: slope 0.127 at the mode centres and 0.474
+between them, with the critic's value <span class="math inline">\(+0.12\)</span> on the modes and <span class="math inline">\(-0.08\)</span> in the
+gaps. Flat plateaus on the data, steep valleys between — a critic that measures
+transport cost. Best sample distance of the four (0.100).</p>
+<p><strong><code>spectral_norm</code></strong> — normalise each weight matrix by its top singular value
+(Miyato et al. 2018), one power iteration per step, carrying the vectors
+between steps. No penalty, no clipping, and the Lipschitz constant of the whole
+critic is at most one by construction. All eight modes at 0.262. The critic is
+flatter than the one-sided penalty's (0.166 in both places), so the generator's
+signal is weaker and the samples are looser; the advantage is that the
+constraint never has to be tuned.</p>
+<p>The <span class="math inline">\(\lambda=1\)</span> diagnostic — all eight modes with a rounded peak — is the shape
+to look for. The two-sided row at <span class="math inline">\(\lambda=10\)</span> is the shape to be suspicious of.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-distance-and-its-dual">The distance and its dual <a class="header-anchor" href="#the-distance-and-its-dual">#</a></h3>
+<p>Let <span class="math inline">\(\Pi(p,q)\)</span> be the set of couplings: joint distributions with marginals <span class="math inline">\(p\)</span>
+and <span class="math inline">\(q\)</span>. The Wasserstein-1 distance is</p>
+<div class="math block">
+\[W_1(p,q)=\inf_{\gamma\in\Pi(p,q)}
+\mathbb E_{(x,y)\sim\gamma}\bigl[\lVert x-y\rVert\bigr].
+\qquad (1)\]
+</div>
+<p>The infimum is over an infinite-dimensional set of plans, which is not something
+to optimise with a neural network. Kantorovich duality exchanges it for a
+supremum over functions:</p>
+<div class="math block">
+\[W_1(p,q)=\sup_{\lVert f\rVert_L\le 1}
+\Bigl(\mathbb E_{x\sim p}f(x)-\mathbb E_{y\sim q}f(y)\Bigr),
+\qquad (2)\]
+</div>
+<p>where <span class="math inline">\(\lVert f\rVert_L\)</span> is the Lipschitz constant of <span class="math inline">\(f\)</span>. Two facts make the
+dual useful. First, the supremum is attained by <span class="math inline">\(f(x)=\mathrm{dist}(x,A)\)</span> when
+<span class="math inline">\(p\)</span> is supported on a set <span class="math inline">\(A\)</span> and <span class="math inline">\(q\)</span> elsewhere — a distance function, not a
+classifier. Second, the bound is sharp: if you can find any 1-Lipschitz <span class="math inline">\(f\)</span>, its
+objective is a lower bound on <span class="math inline">\(W_1\)</span>, so maximising it is a well-posed problem
+even when you cannot solve it exactly.</p>
+<h3 id="the-game">The game <a class="header-anchor" href="#the-game">#</a></h3>
+<p>Write the critic <span class="math inline">\(f_\theta\)</span> and the generator <span class="math inline">\(G_\phi\)</span>. The WGAN objective is</p>
+<div class="math block">
+\[\max_{\theta}\;\mathbb E_{x\sim p}f_\theta(x)
+-\mathbb E_{z}f_\theta(G_\phi(z)),
+\qquad
+\min_{\phi}\;-\mathbb E_{z}f_\theta(G_\phi(z)),
+\qquad (3)\]
+</div>
+<p>under a constraint on <span class="math inline">\(\lVert f_\theta\rVert_L\)</span> that the four variants implement
+differently. Note what is absent: a sigmoid, a log, a ratio. Both expectations
+are of the critic's raw output, and the generator's loss is the negative of its
+own expectation. The critic is <em>not</em> trained to output one for real data and
+zero for fake; only the difference matters, and the scale is set by the
+constraint.</p>
+<p>The gradients follow directly:</p>
+<div class="math block">
+\[\nabla_\theta\Bigl(\mathbb E_p f_\theta-\mathbb E_q f_\theta\Bigr)
+=\mathbb E_p\nabla_\theta f_\theta-\mathbb E_q\nabla_\theta f_\theta,
+\qquad (4)\]
+</div>
+<p>which is two backward passes with opposite signs. Getting that sign wrong —
+descending on the objective instead of ascending — trains the critic to prefer
+fakes, and the generator follows it into a single blob. This is not a
+hypothetical: it is the first bug this file hit.</p>
+<p>The generator's gradient is the critic's slope at the generated points,
+propagated through <span class="math inline">\(G\)</span>:</p>
+<div class="math block">
+\[\nabla_\phi\,\mathbb E_z f_\theta(G_\phi(z))
+=\mathbb E_z\Bigl[\Bigl(\frac{\partial G_\phi(z)}{\partial\phi}\Bigr)^{\mathsf T}
+\nabla_x f_\theta(G_\phi(z))\Bigr].
+\qquad (5)\]
+</div>
+<p>Equation (5) is where the Lipschitz constraint pays off. The signal is
+<span class="math inline">\(\nabla_x f\)</span>, whose norm is bounded below by the constraint only indirectly —
+but unlike a classifier's sigmoid derivative, it does not vanish when the two
+distributions are far apart: a 1-Lipschitz critic that separates distant modes
+<em>must</em> have slope near one somewhere between them.</p>
+<h3 id="clipping">Clipping <a class="header-anchor" href="#clipping">#</a></h3>
+<p>With every weight in <span class="math inline">\([-c,c]\)</span>, each layer's spectral norm is at most its
+Frobenius norm, so</p>
+<div class="math block">
+\[\lVert f_\theta\rVert_L\le\prod_{\ell=1}^{3}c\sqrt{m_\ell n_\ell}
+=0.01\sqrt{2\cdot 64}\;\cdot\;0.01\sqrt{64\cdot 64}\;\cdot\;
+0.01\sqrt{64}\approx0.0058 .
+\qquad (6)\]
+</div>
+<p>The bound is loose but the message is exact: clipping does not merely bound the
+slope, it bounds the whole function's scale, and with three layers the bound
+compounds. The measured slope is <span class="math inline">\(0.0004\)</span> — three orders of magnitude below the
+unit slope the dual would like, and below the resolution of the demo's table.
+The weights are also clipped after <em>every</em> critic step, so the effective step
+size shrinks as the weights pile up against the box.</p>
+<h3 id="the-two-sided-penalty">The two-sided penalty <a class="header-anchor" href="#the-two-sided-penalty">#</a></h3>
+<p>WGAN-GP drops the hard constraint for a soft one. Sample a point on the segment
+between a real and a generated point and penalise deviation of the slope from
+one:</p>
+<div class="math block">
+\[\mathcal L_{\mathrm{GP}}=\mathbb E_{\hat x}
+\bigl(\lVert\nabla_{\hat x}f_\theta(\hat x)\rVert-1\bigr)^2,
+\qquad
+\hat x=\epsilon x+(1-\epsilon)\tilde x,
+\quad\epsilon\sim U(0,1).
+\qquad (7)\]
+</div>
+<p>The segment is the important part. The critic only needs unit slope where it is
+being asked to separate, which is between the two distributions; penalising
+everywhere would be wasteful and would fight the data's own geometry. The
+penalty enters the critic's loss as <span class="math inline">\(\lambda\mathcal L_{\mathrm{GP}}\)</span>, and
+<span class="math inline">\(\lambda=10\)</span> is the paper's default.</p>
+<p>Computing (7) requires differentiating the critic's gradient — a double backward
+pass. For the three-layer critic, with masks <span class="math inline">\(m_1,m_2\in\{1,\text{slope}\}\)</span> at
+the two hidden layers and <span class="math inline">\(w_3\)</span> the last weight column,</p>
+<div class="math block">
+\[\nabla_x f=W_1^{\mathsf T}\,\mathrm{diag}(m_1)\,W_2^{\mathsf T}\,
+\mathrm{diag}(m_2)\,w_3 .
+\qquad (8)\]
+</div>
+<p>The critic is piecewise linear, so its second derivative is zero almost
+everywhere and the masks can be treated as constants. Writing
+<span class="math inline">\(v=m_2\odot w_3\)</span>, <span class="math inline">\(t=m_1\odot(W_2^{\mathsf T}v)\)</span>, <span class="math inline">\(n=\lVert W_1^{\mathsf T}t\rVert\)</span>,
+<span class="math inline">\(c=2(n-1)\)</span> and <span class="math inline">\(\hat g=W_1^{\mathsf T}t/n\)</span> per sample, the parameter gradients
+are three matrix products:</p>
+<div class="math block">
+\[\frac{\partial\mathcal L}{\partial W_1}=\frac1N\sum_n c_n\,\hat g_n\,t_n^{\mathsf T},
+\qquad
+\frac{\partial\mathcal L}{\partial W_2}=\frac1N\sum_n c_n\,
+\bigl(m_1\odot(W_1\hat g_n)\bigr)v_n^{\mathsf T},
+\qquad (9)\]
+</div>
+<div class="math block">
+\[\frac{\partial\mathcal L}{\partial w_3}=\frac1N\sum_n c_n\,
+m_2\odot\bigl(W_2\,(m_1\odot(W_1\hat g_n))\bigr).
+\qquad (10)\]
+</div>
+<p>Two details in (9)–(10) are easy to get wrong and are worth checking numerically.
+The <span class="math inline">\(1/N\)</span> is there because the penalty is a mean; without it the penalty is <span class="math inline">\(N\)</span>
+times too strong. And <span class="math inline">\(c_n\)</span> already contains the <span class="math inline">\(1/n\)</span> from differentiating
+<span class="math inline">\(\lVert\cdot\rVert\)</span>, so <span class="math inline">\(\hat g_n\)</span> must be divided by <span class="math inline">\(n\)</span> exactly once. The demo
+checks the whole gradient against central differences and gets a maximum error
+of <span class="math inline">\(2.7\times10^{-10}\)</span>.</p>
+<h3 id="the-one-sided-penalty">The one-sided penalty <a class="header-anchor" href="#the-one-sided-penalty">#</a></h3>
+<p>The relaxation is one line:</p>
+<div class="math block">
+\[\mathcal L_{\mathrm{LP}}=\mathbb E_{\hat x}
+\bigl(\max(0,\lVert\nabla_{\hat x}f_\theta(\hat x)\rVert-1)\bigr)^2 .
+\qquad (11)\]
+</div>
+<p>Slopes below one cost nothing, so the critic may be flat. That sounds like a
+weaker guarantee — and it is, in the sense that the critic is no longer forced
+to be exactly 1-Lipschitz — but the inequality <span class="math inline">\(\lVert f\rVert_L\le 1\)</span> is all
+the dual needs, and flat regions are consistent with it. What (11) buys is the
+freedom to have a maximum.</p>
+<p>Why a maximum is non-negotiable here: a separating critic on eight point masses
+is essentially <span class="math inline">\(\min_k\lVert x-c_k\rVert\)</span>-like, which has a <em>cusp</em> at each mode
+and slope one on the Voronoi boundaries. A cusp is not differentiable, so in
+practice the critic approximates it with a rounded peak, whose slope at the top
+is below one. The two-sided penalty charges for that rounding; the one-sided
+penalty does not. The measurements are the signature: <code>wgan_lp</code> has slope 0.127
+at the centres and 0.474 between them, while <code>wgan_gp</code> has 0.983 and 1.072 —
+unit slope straight through the peak.</p>
+<h3 id="spectral-normalisation">Spectral normalisation <a class="header-anchor" href="#spectral-normalisation">#</a></h3>
+<p>Take the largest singular value of each weight matrix and divide:</p>
+<div class="math block">
+\[v\leftarrow\frac{W^{\mathsf T}u}{\lVert W^{\mathsf T}u\rVert},
+\quad
+u\leftarrow\frac{Wv}{\lVert Wv\rVert},
+\quad
+W\leftarrow\frac{W}{\sigma_1(W)},
+\quad
+\sigma_1(W)\approx\lVert Wv\rVert.
+\qquad (12)\]
+</div>
+<p>The power iteration estimates <span class="math inline">\(\sigma_1\)</span> from a pair of vectors carried between
+steps; one iteration per training step is enough because <span class="math inline">\(W\)</span> changes slowly.
+Since the spectral norm is sub-multiplicative, normalising every layer bounds
+the critic by one:</p>
+<div class="math block">
+\[\lVert f\rVert_L\le\prod_{\ell}\sigma_1(W_\ell)=1 .
+\qquad (13)\]
+</div>
+<p>Unlike clipping, this does not shrink the function's scale: a matrix with all
+its singular values equal to one is an isometry, which can move mass as far as
+the data requires. The constraint is enforced by direction rather than by
+magnitude, and there is nothing to tune.</p>
+<h3 id="the-estimate">The estimate <a class="header-anchor" href="#the-estimate">#</a></h3>
+<p>For reporting, the dual is evaluated on samples:</p>
+<div class="math block">
+\[\hat W=\frac1m\sum_{i=1}^m f(x_i)-\frac1m\sum_{j=1}^m f(G(z_j)).
+\qquad (14)\]
+</div>
+<p><span class="math inline">\(\hat W\)</span> is a lower bound on <span class="math inline">\(W_1\)</span> <em>for a fixed critic</em>, and it is maximised
+over the critic, so it inherits the critic's overfitting to the batch. On 1024
+points it is noisy, and after the generator has adapted to the critic it can go
+negative: that means the critic scores this batch of fakes above this batch of
+reals, which is a statement about the two samples, not about the distributions.
+The table reports it because it is the quantity the critic is trained on, not
+because it ranks the variants.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The critic's input gradient is the whole of the gradient penalty's inner
+computation, and it is also the diagnostic the demo uses. It is written as the
+product of the layer matrices with the activation masks taken at <code>x</code>:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_input_grad</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The critic's gradient with respect to its input, (n, DIM).</span>
+
+<span class="sd">    The critic is piecewise linear, so the gradient is a product of the</span>
+<span class="sd">    layer matrices with the activation masks taken at `x`.</span>
+<span class="sd">    """</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">cache</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">,</span> <span class="s2">"linear"</span><span class="p">)</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">"W"</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)))</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">pre</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">(</span><span class="n">d</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">pre</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">))</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">"W"</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">return</span> <span class="n">d</span>
+</code></pre>
+<p>The penalty reuses that product but keeps the intermediate vectors, because
+differentiating through it needs them. The masks come from the same forward
+pass:</p>
+<pre class="highlight"><code>    <span class="n">_</span><span class="p">,</span> <span class="n">cache</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">xh</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">,</span> <span class="s2">"linear"</span><span class="p">)</span>
+    <span class="n">m1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">)</span>
+    <span class="n">m2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">)</span>
+    <span class="n">w1</span><span class="p">,</span> <span class="n">w2</span><span class="p">,</span> <span class="n">w3</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">"W"</span><span class="p">],</span> <span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">"W"</span><span class="p">],</span> <span class="n">params</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="s2">"W"</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">m2</span> <span class="o">*</span> <span class="n">w3</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">m1</span> <span class="o">*</span> <span class="p">(</span><span class="n">v</span> <span class="o">@</span> <span class="n">w2</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">t</span> <span class="o">@</span> <span class="n">w1</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">coef</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">one_sided</span><span class="p">:</span>
+        <span class="n">coef</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">coef</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">coef</span> <span class="o">=</span> <span class="n">coef</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">xh</span><span class="p">)</span>
+    <span class="n">ghat</span> <span class="o">=</span> <span class="n">g</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre>
+<p><code>coef</code> is <span class="math inline">\(c_n/N\)</span> and <code>ghat</code> is <span class="math inline">\(\hat g_n\)</span> from (9)–(10). The three parameter
+gradients are then three <code>einsum</code>s, each one a sum over the batch of an outer
+product:</p>
+<pre class="highlight"><code>    <span class="n">gw1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"n,nd,nh-&gt;dh"</span><span class="p">,</span> <span class="n">coef</span><span class="p">,</span> <span class="n">ghat</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+    <span class="n">w1g</span> <span class="o">=</span> <span class="n">ghat</span> <span class="o">@</span> <span class="n">w1</span>
+    <span class="n">gw2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"n,nh,nk-&gt;hk"</span><span class="p">,</span> <span class="n">coef</span><span class="p">,</span> <span class="n">w1g</span> <span class="o">*</span> <span class="n">m1</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="p">(</span><span class="n">m1</span> <span class="o">*</span> <span class="n">w1g</span><span class="p">)</span> <span class="o">@</span> <span class="n">w2</span>
+    <span class="n">gw3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"n,nh-&gt;h"</span><span class="p">,</span> <span class="n">coef</span><span class="p">,</span> <span class="n">m2</span> <span class="o">*</span> <span class="n">p</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">n</span><span class="p">)),</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">"W"</span><span class="p">:</span> <span class="n">gw1</span><span class="p">,</span> <span class="s2">"b"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">"b"</span><span class="p">])},</span>
+        <span class="p">{</span><span class="s2">"W"</span><span class="p">:</span> <span class="n">gw2</span><span class="p">,</span> <span class="s2">"b"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">"b"</span><span class="p">])},</span>
+        <span class="p">{</span><span class="s2">"W"</span><span class="p">:</span> <span class="n">gw3</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="s2">"b"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="s2">"b"</span><span class="p">])},</span>
+    <span class="p">]</span>
+</code></pre>
+<p>Biases do not appear in the penalty at all: adding a constant to the critic
+changes its value but not its slope, so the gradient with respect to every bias
+is exactly zero, and the code returns zeros rather than omitting the keys.</p>
+<p>The spectral update divides by the estimate from the carried vectors. After the
+division the ratio measured with the <em>same</em> vector is one exactly, which is why
+the demo can assert it to <span class="math inline">\(10^{-5}\)</span>:</p>
+<pre class="highlight"><code>    <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">u</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">us</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">layer</span><span class="p">[</span><span class="s2">"W"</span><span class="p">]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">u</span>
+        <span class="n">v</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-12</span>
+        <span class="n">u</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">w</span> <span class="o">@</span> <span class="n">v</span>
+        <span class="n">u</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-12</span>
+        <span class="n">layer</span><span class="p">[</span><span class="s2">"W"</span><span class="p">]</span> <span class="o">=</span> <span class="n">w</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">w</span> <span class="o">@</span> <span class="n">v</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)</span>
+</code></pre>
+<p>The critic step is two backward passes with opposite signs — equation (4) —
+followed by whichever constraint the variant selects. The schema is the same for
+all four, and only the tail differs:</p>
+<pre class="highlight"><code>                <span class="n">gr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="n">d_params</span><span class="p">,</span> <span class="n">cr</span><span class="p">,</span>
+                                  <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">),</span>
+                                  <span class="n">LEAK</span><span class="p">,</span> <span class="s2">"linear"</span><span class="p">)</span>
+                <span class="n">gf</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="n">d_params</span><span class="p">,</span> <span class="n">cf</span><span class="p">,</span>
+                                  <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">),</span>
+                                  <span class="n">LEAK</span><span class="p">,</span> <span class="s2">"linear"</span><span class="p">)</span>
+                <span class="n">grads</span> <span class="o">=</span> <span class="p">[{</span><span class="n">key</span><span class="p">:</span> <span class="n">gr</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">+</span> <span class="n">gf</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">gr</span><span class="p">[</span><span class="n">i</span><span class="p">]}</span>
+                         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">d_params</span><span class="p">))]</span>
+</code></pre>
+<p>The penalty branch interpolates a real point and a fake one, calls <code>_penalty</code>,
+and adds <span class="math inline">\(\lambda\)</span> times its gradient. The other two branches clamp or
+normalise after the update:</p>
+<pre class="highlight"><code>                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">constraint</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"two_sided"</span><span class="p">,</span> <span class="s2">"one_sided"</span><span class="p">):</span>
+                    <span class="n">eps</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                    <span class="n">xh</span> <span class="o">=</span> <span class="n">eps</span> <span class="o">*</span> <span class="n">xr</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">eps</span><span class="p">)</span> <span class="o">*</span> <span class="n">fake</span>
+                    <span class="n">_</span><span class="p">,</span> <span class="n">pg</span> <span class="o">=</span> <span class="n">_penalty</span><span class="p">(</span><span class="n">d_params</span><span class="p">,</span> <span class="n">xh</span><span class="p">,</span>
+                                     <span class="bp">self</span><span class="o">.</span><span class="n">constraint</span> <span class="o">==</span> <span class="s2">"one_sided"</span><span class="p">)</span>
+                    <span class="n">grads</span> <span class="o">=</span> <span class="p">[{</span><span class="n">key</span><span class="p">:</span> <span class="n">grads</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam</span> <span class="o">*</span> <span class="n">pg</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">key</span><span class="p">]</span>
+                              <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">grads</span><span class="p">[</span><span class="n">i</span><span class="p">]}</span>
+                             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">d_params</span><span class="p">))]</span>
+                <span class="n">opt_d</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">d_params</span><span class="p">,</span> <span class="n">grads</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">constraint</span> <span class="o">==</span> <span class="s2">"clip"</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">L</span> <span class="ow">in</span> <span class="n">d_params</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">L</span><span class="p">:</span>
+                            <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">L</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">clip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">clip</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">L</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">constraint</span> <span class="o">==</span> <span class="s2">"spectral"</span><span class="p">:</span>
+                    <span class="n">_spectral</span><span class="p">(</span><span class="n">d_params</span><span class="p">,</span> <span class="n">us</span><span class="p">)</span>
+</code></pre>
+<p>The generator step goes through the critic once more: one forward pass at the
+current fakes, one backward pass to get <span class="math inline">\(\nabla_x f\)</span>, and one backward pass
+through <span class="math inline">\(G\)</span> with that as the upstream gradient. This is equation (5) in code,
+and it is the only place where the generator sees the critic:</p>
+<pre class="highlight"><code>            <span class="n">z</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="n">LATENT</span><span class="p">))</span>
+            <span class="n">fake</span><span class="p">,</span> <span class="n">cg</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="n">g_params</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">"tanh"</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">cf</span> <span class="o">=</span> <span class="n">_forward</span><span class="p">(</span><span class="n">d_params</span><span class="p">,</span> <span class="n">fake</span><span class="p">,</span> <span class="n">LEAK</span><span class="p">,</span> <span class="s2">"linear"</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">dx</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="n">d_params</span><span class="p">,</span> <span class="n">cf</span><span class="p">,</span>
+                              <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">),</span>
+                              <span class="n">LEAK</span><span class="p">,</span> <span class="s2">"linear"</span><span class="p">)</span>
+            <span class="n">gg</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_backward</span><span class="p">(</span><span class="n">g_params</span><span class="p">,</span> <span class="n">cg</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">"tanh"</span><span class="p">)</span>
+            <span class="n">opt_g</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">g_params</span><span class="p">,</span> <span class="n">gg</span><span class="p">)</span>
+</code></pre>
+<p>One implementation note that the earlier atoms share: <code>_backward</code> always
+propagates through the first matrix, so its second return value is the gradient
+with respect to the <em>input</em>, not to the first hidden activation. The critic
+hands that value straight to the generator. A version that stops after the
+first layer returns a vector in the wrong space, and the shapes fail loudly —
+which is how the bug was found here.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>The critic has 4417 parameters and the generator 4482: two hidden layers of 64,
+so almost all of the weight is in the <span class="math inline">\(64\times64\)</span> matrices. A forward pass on a
+batch of 128 is therefore about 0.57M multiply-adds, and a backward pass about
+twice that.</p>
+<p>A step runs four critic updates and one generator update. Without a penalty that
+is <span class="math inline">\(4\times\)</span> (two forwards plus two backwards) plus (one forward through <span class="math inline">\(G\)</span>,
+one through <span class="math inline">\(D\)</span>, and two backwards), roughly 17M multiply-adds. The gradient
+penalty adds one forward and one double backward per critic update — the double
+backward is two more matrix products — about 1.7M each, for roughly 24M per step
+with a penalty. Over 3000 steps that is about 70G multiply-adds.</p>
+<p>The comparison with a plain GAN is instructive: there the discriminator does one
+forward and one backward, and the ratio of critic to generator work is one to
+one. WGAN spends four to five times more on the critic, because the dual
+requires an approximately optimal critic for the generator's gradient to mean
+anything. That is the real cost of the Wasserstein objective, and it is the
+reason WGAN was displaced in practice by objectives that need less inner
+optimisation.</p>
+<p>Sampling is a single forward pass through <span class="math inline">\(G\)</span> — 4482 multiply-adds per point,
+independent of the number of training steps. Nothing here is sequential, unlike
+diffusion.</p>
+<p>Memory is dominated by Adam's two moments per parameter: 3× the parameter count
+per network, plus the activations of one batch per layer (128×64 numbers per
+hidden layer). The double backward needs the critic's cached activations, not a
+second graph, because the masks are all it uses from the forward pass.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A critic crushed by clipping.</strong> The bound in (6) compounds over layers, and
+three layers at <span class="math inline">\(c=0.01\)</span> leave a slope of <span class="math inline">\(2\times10^{-4}\)</span> — the critic is
+constant, the
+generator's signal is gone, and the samples are inherited from the first few
+hundred steps. A larger clip (<span class="math inline">\(0.05\)</span>, <span class="math inline">\(0.1\)</span>) restores the slope, but now the
+constraint is looser and the whole point of the method is diluted. Weight
+clipping is a constraint you set by hand, and the useful range is narrow.</p>
+<p><strong>A two-sided penalty that forbids the optimum.</strong> This is the file's headline.
+The penalty is satisfied to 0.02 and the critic still cannot separate five of
+the eight modes, because a separating critic needs a maximum at each mode and a
+maximum needs a zero slope. <span class="math inline">\(\lambda=10\)</span> is strong enough that the critic spends
+its capacity satisfying the constraint rather than separating; at <span class="math inline">\(\lambda=1\)</span>
+the same code finds all eight modes. The lesson is not &quot;GP is broken&quot; — it is
+that the penalty constant is a real modelling choice, and that a satisfied
+penalty is not evidence of a good critic.</p>
+<p><strong>Reading <span class="math inline">\(\hat W\)</span> as a score.</strong> The estimate is a difference of sample means
+with an optimised critic, and it goes negative after the generator has adapted
+(<code>wgan_gp</code> ends at −0.071 while covering five modes). Its scale is not
+comparable across variants with different constraints, because the constraints
+set different function scales. It is a training diagnostic — is the critic
+separating this batch? — not a metric.</p>
+<p><strong>A penalty that is not a mean.</strong> Omitting the <span class="math inline">\(1/N\)</span>, or dividing by
+<span class="math inline">\(\lVert g\rVert\)</span> twice, changes the effective <span class="math inline">\(\lambda\)</span> by a factor of the batch
+size or of the slope, and the symptom is a critic that either ignores the
+penalty or is frozen by it. The numerical gradient check in the demo is three
+lines of central differences and catches both; it is the cheapest test in the
+file and the one that found the actual bug.</p>
+<p><strong>One power iteration per step.</strong> Spectral normalisation assumes the top
+singular vector changes slowly. It does here, but a large learning rate or a
+rapidly changing critic makes the estimate lag, and the true top singular value
+drifts above one — the constraint is then violated by an amount the code cannot
+see. The demo measures the true value with an SVD after training and finds it
+within <span class="math inline">\(2.4\times10^{-7}\)</span> of one; a production model with a larger learning rate
+would want two or three iterations.</p>
+<p><strong>Mode coverage without quality.</strong> <code>wgan</code> covers all eight modes and has the
+second-worst distance, because coverage counts which centre wins each sample,
+not how tightly the samples cluster. <code>wgan_lp</code> wins on distance with the same
+coverage. A single number is never enough: the demo reports coverage, share,
+distance, slope and critic shape for this reason.</p>
+<p><strong>A critic that is too strong or too weak.</strong> Four critic updates per generator
+update is a compromise. Fewer and the dual is not estimated; more and the critic
+overfits the batch, <span class="math inline">\(\hat W\)</span> inflates, and the generator chases a critic that no
+longer reflects the data. The WGAN paper's advice — keep the critic near its
+optimum without letting it memorise — has no closed form, which is the honest
+summary of GAN tuning.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Image generation, 2017–2019.</strong> WGAN-GP was the standard recipe for
+high-resolution image synthesis before style-based generators, and the
+one-sided variant and spectral normalisation are still used as regularisers in
+modern discriminators. BigGAN's discriminator is spectrally normalised, and the
+constraint is applied per layer exactly as in (12).</p>
+<p><strong>Generative models with a meaningful loss.</strong> Because <span class="math inline">\(\hat W\)</span> approximates a
+distance, it can be monitored during training in a way that a classifier's
+accuracy cannot. That is useful for debugging and for model selection when the
+downstream metric is expensive.</p>
+<p><strong>Optimal transport and domain adaptation.</strong> The dual in (2) is the same object
+used to learn transport maps between domains, to match distributions in
+representation learning, and to define Wasserstein autoencoders. The critic is
+the Kantorovich potential, and its gradient is the transport direction.</p>
+<p><strong>Inverse problems and physics.</strong> A Wasserstein critic is a loss for matching
+distributions of fields, particles or spectra where per-sample losses are
+meaningless — for example matching the distribution of simulated turbulence to
+measurements. The Lipschitz constraint is what makes the loss a metric rather
+than a classifier's confidence.</p>
+<p><strong>Evaluating and compressing generators.</strong> Distances between generated and real
+feature distributions (FID and its relatives) are Wasserstein-2-like quantities
+computed in a fixed feature space; WGAN-style critics are the trainable version
+of the same idea. GAN compression and distillation use a critic as the teacher's
+signal for the same reason.</p>
+<p><strong>Anywhere a classifier saturates.</strong> Setting up a GAN on a new modality is
+easier when the loss is a distance: the failure mode is &quot;the critic is not
+Lipschitz enough&quot;, which has a diagnostic (the slope), rather than &quot;the
+discriminator is too good&quot;, which has none. That is the practical argument for
+the Wasserstein objective even when a plain GAN would train.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Arjovsky, Chintala &amp; Bottou (2017). <em>Wasserstein GAN.</em> arXiv:1701.07875.</li>
+<li>Arjovsky &amp; Bottou (2017). <em>Towards Principled Methods for Training Generative
+Adversarial Networks.</em> ICLR.</li>
+<li>Gulrajani, Ahmed, Arjovsky, Dumoulin &amp; Courville (2017). <em>Improved Training of
+Wasserstein GANs.</em> NeurIPS.</li>
+<li>Petzka, Fischer &amp; Lukovnicov (2017). <em>On the Regularization of Wasserstein
+GANs.</em> arXiv:1712.01026.</li>
+<li>Miyato, Kataoka, Koyama &amp; Yoshida (2018). <em>Spectral Normalization for
+Generative Adversarial Networks.</em> ICLR.</li>
+<li>Brock, Donahue &amp; Simonyan (2019). <em>Large Scale GAN Training for High Fidelity
+Natural Image Synthesis.</em> ICLR.</li>
+<li>Tolstikhin, Bousquet, Gelly &amp; Schölkopf (2018). <em>Wasserstein Auto-Encoders.</em>
+ICLR.</li>
+<li>Mescheder, Geiger &amp; Nowozin (2018). <em>Which Training Methods for GANs do
+actually Converge?</em> ICML.</li>
+<li>Villani (2009). <em>Optimal Transport: Old and New.</em> Springer.</li>
+<li>Salimans, Goodfellow, Zaremba, Cheung, Radford &amp; Chen (2016). <em>Improved
+Techniques for Training GANs.</em> NeurIPS.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="diffusion.html"><small>Previous</small><span>Diffusion (DDPM)</span></a><a class="next" href="../15-graphs/index.html"><small>Next</small><span>15 · Graphs</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">14 · Generative models</p><ul class="rail-list"><li><a href="vae.html"><span class="tick">✓</span><span>Variational autoencoder</span></a></li><li><a href="gan.html"><span class="tick">✓</span><span>GAN</span></a></li><li><a href="diffusion.html"><span class="tick">✓</span><span>Diffusion (DDPM)</span></a></li><li><a href="wgan.html" aria-current="page"><span class="tick">✓</span><span>Wasserstein GAN</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>DDIM</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Guidance</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Normalising flows</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>VQ-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Beta-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Score-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Autoregressive generation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Energy-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Flow matching</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../13-training/index.html"><span class="jump">← 13 · Training</span></a></li><li><a href="../15-graphs/index.html"><span class="jump">15 · Graphs&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-distance-and-its-dual">The distance and its dual</a></li><li class="lvl3"><a href="#the-game">The game</a></li><li class="lvl3"><a href="#clipping">Clipping</a></li><li class="lvl3"><a href="#the-two-sided-penalty">The two-sided penalty</a></li><li class="lvl3"><a href="#the-one-sided-penalty">The one-sided penalty</a></li><li class="lvl3"><a href="#spectral-normalisation">Spectral normalisation</a></li><li class="lvl3"><a href="#the-estimate">The estimate</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/14-generative/wgan.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>
