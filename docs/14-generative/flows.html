@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Normalising flows · MLAtoms</title>
+<meta name="description" content="Exact likelihoods through invertible transformations. A normalising flow is a diffeomorphism f trained to push a standard normal through itself onto the…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/flows.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="Normalising flows">
+<meta property="og:description" content="Exact likelihoods through invertible transformations. A normalising flow is a diffeomorphism f trained to push a standard normal through itself onto the…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/flows.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Normalising flows">
+<meta name="twitter:description" content="Exact likelihoods through invertible transformations. A normalising flow is a diffeomorphism f trained to push a standard normal through itself onto the…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "Normalising flows", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/14-generative/flows.html", "description": "Exact likelihoods through invertible transformations. A normalising flow is a diffeomorphism f trained to push a standard normal through itself onto the\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">14 · Generative models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="flows.py.html">source</a></p><h1>Normalising flows — one invertible map, one exact likelihood</h1>
+<p>A normalising flow is a diffeomorphism <span class="math inline">\(f\)</span> trained to push a standard normal
+through itself onto the data. Because <span class="math inline">\(f\)</span> is invertible and its Jacobian
+determinant is cheap to compute, the model has a <em>closed-form</em> density at every
+point, not just a sampler. That single property separates this atom from the
+rest of the chapter: the generator in <code>gan.py</code> can be judged only by the
+statistics of what it emits, while here the loss itself is the quantity of
+interest, and the gap between the fitted density and the true one is a number
+you can print.</p>
+<p>The six variants are six answers to &quot;which invertible map&quot;. They share the
+same data, the same optimiser and the same budget, so the table in the demo is
+a comparison of <em>architectures at fixed compute</em>, and the spread is large: the
+best variant is 0.42 nats closer to the truth than the worst while using less
+than half the parameters of the most expensive one.</p>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Picture the data as eight tight blobs arranged on a circle of radius 0.8. A flow
+does not draw new blobs; it learns to <em>unbend</em> the plane so that those blobs
+become the eight mild bumps of a standard normal, then samples the normal and
+replays the bend backwards.</p>
+<pre class="mermaid-source"><code class="language-mermaid">flowchart LR
+    X[&quot;x, eight blobs&quot;] --&gt; B1[&quot;actnorm&quot;]
+    B1 --&gt; B2[&quot;1x1 mix&quot;]
+    B2 --&gt; B3[&quot;affine coupling&quot;]
+    B3 --&gt; B4[&quot;... repeated&quot;]
+    B4 --&gt; Z[&quot;z, one bump&quot;]
+    Z -.-&gt;|&quot;inverse&quot;| X
+</code></pre>
+<p>Every block must be invertible, and every block must report the volume change
+it caused, because the density transforms by that volume. The whole design
+problem is: what invertible map has a <em>cheap</em> Jacobian determinant? A general
+matrix costs <span class="math inline">\(O(d^3)\)</span> to invert and does not adapt. A coupling layer restricts
+the map so that one coordinate is copied and the other is an affine function of
+the copy — and then the Jacobian is triangular, with one diagonal entry equal
+to 1 and the other equal to a learned scale. That is the trick everything else
+builds on.</p>
+<pre class="highlight"><code>      x1 ────────────────► y1 = x1
+       │
+       ├─ s(x1) ─┐
+       └─ t(x1) ─┴────────► y2 = (x2 - t(x1)) · e^{-s(x1)}
+</code></pre>
+<p>Two things follow, and both are visible in the numbers.</p>
+<p>The first is that <strong>a coupling layer is only half a transform</strong>. Coordinate 1
+passes through untouched, so a single layer cannot move the data in both
+directions; it can only shear. Stacking layers with the roles alternated is
+what buys a real map, and the depth sweep makes this quantitative: one layer
+reaches 1.785 nats, two 0.568, three 0.341, six 0.171. More than half of the
+total improvement comes from the <em>second</em> layer, because that is the first one
+that can move both coordinates.</p>
+<p>The second is that <strong>the likelihood is a volume bookkeeping exercise</strong>. Nothing
+in the loss asks the map to place the blobs anywhere in particular; the density
+term <span class="math inline">\(-\log|\det J|\)</span> is what forces the map to expand exactly where the data is
+dense. A model that expands too much gets a high likelihood everywhere and is
+punished on the test set; one that expands too little leaves the blobs tight
+and pays a large negative log-likelihood. That tension is present in every
+variant, and it is why the exact mixture's <span class="math inline">\(-0.395\)</span> nats is a floor and not a
+target.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:right">nll</th>
+<th style="text-align:right">gap</th>
+<th style="text-align:right">params</th>
+<th style="text-align:right">modes</th>
+<th style="text-align:right">share</th>
+<th style="text-align:right">dist</th>
+<th style="text-align:right">radius</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>glow</code></td>
+<td style="text-align:right">0.080</td>
+<td style="text-align:right">0.475</td>
+<td style="text-align:right">5965</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.163</td>
+<td style="text-align:right">0.140</td>
+<td style="text-align:right">0.785</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>coupling</code></td>
+<td style="text-align:right">0.171</td>
+<td style="text-align:right">0.566</td>
+<td style="text-align:right">7116</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.150</td>
+<td style="text-align:right">0.150</td>
+<td style="text-align:right">0.783</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>realnvp</code></td>
+<td style="text-align:right">0.376</td>
+<td style="text-align:right">0.771</td>
+<td style="text-align:right">14256</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.171</td>
+<td style="text-align:right">0.157</td>
+<td style="text-align:right">0.785</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>continuous_flow</code></td>
+<td style="text-align:right">0.390</td>
+<td style="text-align:right">0.786</td>
+<td style="text-align:right">1250</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.140</td>
+<td style="text-align:right">0.179</td>
+<td style="text-align:right">0.809</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>autoregressive_flow</code></td>
+<td style="text-align:right">0.442</td>
+<td style="text-align:right">0.837</td>
+<td style="text-align:right">2376</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.188</td>
+<td style="text-align:right">0.199</td>
+<td style="text-align:right">0.786</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>spline_flow</code></td>
+<td style="text-align:right">0.500</td>
+<td style="text-align:right">0.895</td>
+<td style="text-align:right">5536</td>
+<td style="text-align:right">8/8</td>
+<td style="text-align:right">0.179</td>
+<td style="text-align:right">0.204</td>
+<td style="text-align:right">0.793</td>
+</tr>
+</tbody>
+</table>
+<p>Every variant is trained on the same 2048 points — eight Gaussians of radius
+0.8 and spread 0.07 at angles <span class="math inline">\(22.5^\circ + 45^\circ k\)</span> — for 3000 Adam steps
+on batches of 256, with two hidden layers of 32 SiLU units per conditioner.
+<code>nll</code> and <code>gap</code> are nats per sample on a held-out 2048; the exact mixture scores
+<span class="math inline">\(-0.395\)</span> and a standard normal 2.161. <code>dist</code> is the mean distance to the nearest
+mode centre, against a floor of 0.088 — the mean distance from a sample of the
+true mixture to its own centre.</p>
+<p><strong><code>coupling</code></strong> — six affine coupling layers with the split reversed on alternate
+layers. This is the reference: 1186 parameters per layer, one conditioner
+evaluation per direction, and a Jacobian that is triangular by construction.
+It reaches 0.171 nats and every sample lands near a mode.</p>
+<p><strong><code>realnvp</code></strong> — the same stack with an activation normalisation in front of each
+coupling layer and with <strong>two</strong> conditioners per layer, one for the scale and
+one for the shift, as in the original paper. The extra network doubles the
+parameter count to 14256 and makes the fit <em>worse</em> (0.376 against 0.171). On
+two dimensions the shared trunk was acting as a regulariser: forcing <span class="math inline">\(s\)</span> and <span class="math inline">\(t\)</span>
+to be linear functions of a common hidden layer is a constraint that this data
+likes. RealNVP's other contribution, the multi-scale factoring with squeeze
+operations, needs four or more dimensions to be meaningful and has no analogue
+here.</p>
+<p><strong><code>glow</code></strong> — actnorm, a <span class="math inline">\(1\times1\)</span> convolution and a coupling layer, five times.
+The convolution is the cheapest possible way to mix the two coordinates: a
+lower-triangular <span class="math inline">\(2\times2\)</span> matrix with positive diagonal, stored as three
+numbers, whose determinant is the product of the diagonal. It beats the plain
+coupling stack (0.080 against 0.171) with <em>fewer</em> parameters (5965 against
+7116), because it lets every layer mix without spending a whole extra layer on
+the alternating split.</p>
+<p><strong><code>autoregressive_flow</code></strong> — a masked autoregressive flow: two layers, each
+transforming both coordinates with parameters that depend on the coordinate
+already fixed. The Jacobian is triangular by <em>causality</em> rather than by
+copies, so a single layer is a full transform. It is the smallest of the
+discrete models (2376 parameters) and reaches 0.442. The catch is sampling: the
+inverse needs coordinate 1 before it can compute coordinate 2, so generating
+<span class="math inline">\(d\)</span> coordinates costs <span class="math inline">\(d\)</span> sequential conditioner passes. In two dimensions that
+is two passes; for an image with 3072 pixels it is 3072, which is why
+autoregressive flows are used for density estimation of small vectors and not
+for image generation.</p>
+<p><strong><code>spline_flow</code></strong> — four coupling layers where the affine map is replaced by a
+monotone piecewise-linear spline with 8 bins. The bin widths come from a
+softmax, so they are positive and sum to a fixed total range; the derivative is
+piecewise constant, so the Jacobian costs one lookup. It is the most expressive
+map per layer and it finishes last (0.500), because a piecewise-constant
+derivative means the fitted density is piecewise-constant in the same way: eight
+bins per dimension quantise the shape of each blob, and no amount of depth
+removes that floor. The learned widths are far from uniform — the demo prints
+per-block ratios from 5.15 to 14.15 — so the spline is using its capacity, just
+not on the thing that matters here.</p>
+<p><strong><code>continuous_flow</code></strong> — a continuous normalising flow: an ODE
+<span class="math inline">\(\dot x = v_\theta(x,t)\)</span> trained by flow matching, integrated with RK4 in 20
+steps. It has no invertibility constraint at all (the velocity field is an
+arbitrary MLP), 1250 parameters, and reaches 0.390. It is simultaneously the
+smallest model in the table and the third best, and its two costs are visible:
+the round trip is only accurate to <span class="math inline">\(3.4\times10^{-6}\)</span> because RK4 is a
+discretisation, and its density needs a divergence integral rather than a sum
+of log-determinants.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="change-of-variables">Change of variables <a class="header-anchor" href="#change-of-variables">#</a></h3>
+<p>For a diffeomorphism <span class="math inline">\(f:\mathbb R^d \to \mathbb R^d\)</span> with inverse <span class="math inline">\(g\)</span>, and a
+base density <span class="math inline">\(p_Z\)</span>,</p>
+<div class="math block">
+\[\log p_X(x) = \log p_Z\bigl(f(x)\bigr)
++ \log\left|\det \frac{\partial f}{\partial x}(x)\right| .
+\qquad (1)\]
+</div>
+<p>With <span class="math inline">\(p_Z = \mathcal N(0,I)\)</span> the training objective is the mean negative
+log-likelihood</p>
+<div class="math block">
+\[\mathcal L = \frac1N\sum_{i=1}^{N}\left[
+\frac12\lVert f(x_i)\rVert^2 + \frac d2\log 2\pi
+- \log\left|\det J_{f}(x_i)\right| \right].
+\qquad (2)\]
+</div>
+<p>Only the last term is hard, and every variant below is a different way to make
+it cheap while keeping <span class="math inline">\(f\)</span> expressive.</p>
+<h3 id="coupling">Coupling <a class="header-anchor" href="#coupling">#</a></h3>
+<p>Split the input into two parts, here one coordinate each. Define</p>
+<div class="math block">
+\[y_1 = x_1, \qquad y_2 = \bigl(x_2 - t(x_1)\bigr)\,e^{-s(x_1)} .
+\qquad (3)\]
+</div>
+<p>The Jacobian is triangular with diagonal <span class="math inline">\((1, e^{-s})\)</span>, so</p>
+<div class="math block">
+\[\log\left|\det J\right| = -s(x_1),
+\qquad
+x_2 = y_2\,e^{s(x_1)} + t(x_1) .
+\qquad (4)\]
+</div>
+<p>The inverse needs no series expansion and no iterative solve: it recomputes the
+same conditioner and undoes the affine map. That is the whole attraction.
+Reversing the roles on alternate layers gives the map access to both
+coordinates, and the log-determinants add because determinants multiply along a
+composition:</p>
+<div class="math block">
+\[\log\left|\det J_{f_N\circ\cdots\circ f_1}\right|
+= \sum_{k=1}^{N}\log\left|\det J_{f_k}\right| .
+\qquad (5)\]
+</div>
+<p>The scale is bounded, <span class="math inline">\(s = r\tanh(u/2)\)</span> with <span class="math inline">\(r=2\)</span>, which keeps
+<span class="math inline">\(e^{-s}\in[e^{-2},e^{2}]\)</span> and stops a single layer from collapsing or exploding
+the volume. Without a bound the network can drive <span class="math inline">\(s\to\infty\)</span> on a region with
+no data and buy an unbounded likelihood there.</p>
+<h3 id="actnorm-and-mixing">Actnorm and mixing <a class="header-anchor" href="#actnorm-and-mixing">#</a></h3>
+<p>Activation normalisation is an affine map with two <span class="math inline">\(d\)</span>-vectors:</p>
+<div class="math block">
+\[y = (x - \mu)\odot e^{-\sigma},
+\qquad
+\log\left|\det J\right| = -\sum_{k}\sigma_k .
+\qquad (6)\]
+</div>
+<p>It is initialised from the first batch so that its output has zero mean and unit
+variance, <span class="math inline">\(\mu_k = \bar x_k\)</span> and <span class="math inline">\(\sigma_k = \log(\mathrm{sd}_k x + 10^{-6})\)</span>;
+after that it trains like any other parameter. The point of the data-dependent
+init is that the first update is not spent undoing a scale mismatch.</p>
+<p>The <span class="math inline">\(1\times1\)</span> convolution is a general linear map with a cheap determinant.
+Parameterising it as lower-triangular with positive diagonal,</p>
+<div class="math block">
+\[W = \begin{pmatrix} e^{a} & 0 \\ b & e^{d}\end{pmatrix},
+\qquad
+\log\left|\det W\right| = a + d ,
+\qquad
+y = Wx .
+\qquad (7)\]
+</div>
+<p>Two of the three parameters are log-scales, so <span class="math inline">\(W\)</span> is invertible by
+construction, and mixing costs one matrix-vector product with no
+decomposition.</p>
+<h3 id="autoregressive">Autoregressive <a class="header-anchor" href="#autoregressive">#</a></h3>
+<p>An autoregressive flow conditions each coordinate on the ones before it:</p>
+<div class="math block">
+\[y_i = \bigl(x_i - t_i(x_{<i})\bigr)\,e^{-s_i(x_{<i})},
+\qquad
+\log\left|\det J\right| = -\sum_{i=1}^{d} s_i(x_{<i}) .
+\qquad (8)\]
+</div>
+<p>The Jacobian is triangular because <span class="math inline">\(y_i\)</span> does not depend on <span class="math inline">\(x_{>i}\)</span>, so again
+the determinant is the product of the diagonal. Generation is the mirror image
+and is sequential: recovering <span class="math inline">\(x_i\)</span> needs <span class="math inline">\(x_{<i}\)</span>, so the <span class="math inline">\(d\)</span> coordinates come
+out one at a time. In two dimensions the file implements (8) with a single
+conditioner per layer that emits <span class="math inline">\(s_2, t_2\)</span> from <span class="math inline">\(x_1\)</span> and a pair of scalars
+<span class="math inline">\(\mu, \sigma\)</span> for <span class="math inline">\(x_1\)</span> itself; the alternating split makes the two layers cover
+both directions.</p>
+<h3 id="splines">Splines <a class="header-anchor" href="#splines">#</a></h3>
+<p>On <span class="math inline">\([-B,B]\)</span> with <span class="math inline">\(K\)</span> bins, let <span class="math inline">\(w = \mathrm{softmax}(u)\)</span> sum to one. The knots
+are offsets inside a fixed total span,</p>
+<div class="math block">
+\[k_b = -B + 2B\sum_{j<b} w_j ,
+\qquad
+\text{slope}_b = \frac{2B w_b}{2B/K} = K w_b ,
+\qquad (9)\]
+</div>
+<p>and the map and its log-determinant are</p>
+<div class="math block">
+\[y = k_b + K w_b\,(x + B - b\,\delta),
+\qquad
+\log\left|\det J\right| =
+\begin{cases}
+\log (K w_b), & x\in(-B,B),\\
+0, & \text{otherwise},
+\end{cases}
+\qquad (10)\]
+</div>
+<p>with <span class="math inline">\(\delta = 2B/K\)</span>. Outside the range the map is the identity, so the model
+assigns exactly standard-normal density there — a real limitation, discussed
+below. Because the input partition is uniform and the output partition is
+learned, the forward direction finds its bin by arithmetic while the inverse has
+to search the knots:</p>
+<div class="math block">
+\[b = \#\{j : k_j < y\}, \qquad
+x = -B + b\delta + \frac{y - k_b}{K w_b} .
+\qquad (11)\]
+</div>
+<p>Differentiating through the softmax uses its Jacobian
+<span class="math inline">\(\partial w_j/\partial u_i = w_j(\delta_{ij}-w_i)\)</span>, which collapses to</p>
+<div class="math block">
+\[\frac{\partial \mathcal L}{\partial u}
+= w \odot \left(g - (g\cdot w)\right),
+\qquad g = \frac{\partial \mathcal L}{\partial w} .
+\qquad (12)\]
+</div>
+<h3 id="continuous-flows">Continuous flows <a class="header-anchor" href="#continuous-flows">#</a></h3>
+<p>A continuous flow replaces the stack with an ODE. For <span class="math inline">\(\dot x_t = v_\theta(x_t,t)\)</span>
+the density obeys the instantaneous change of variables</p>
+<div class="math block">
+\[\frac{d}{dt}\log p_t(x_t) = -\nabla\cdot v_\theta(x_t,t),
+\qquad
+\log p_1(x) = \log p_0(z) + \int_{1}^{0}\nabla\cdot v_\theta(x_t,t)\,dt ,
+\qquad (13)\]
+</div>
+<p>where <span class="math inline">\(z\)</span> is the solution at <span class="math inline">\(t=0\)</span> of the backward integration from <span class="math inline">\(x\)</span> at
+<span class="math inline">\(t=1\)</span>. The divergence is the trace of the Jacobian, and for the two-layer MLP
+used here it is an explicit product of three matrices:</p>
+<div class="math block">
+\[\nabla\cdot v = \mathrm{tr}\left(
+\mathrm{diag}(\sigma'(h_1))W_1\,
+\mathrm{diag}(\sigma'(h_2))W_2\,W_3
+\right),
+\qquad (14)\]
+</div>
+<p>with <span class="math inline">\(W_1\)</span> the <span class="math inline">\(3\times 32\)</span> input layer, whose first two rows are the spatial
+coordinates and whose third is time — so the trace runs over those two rows.
+Training does not need the density at all: flow matching regresses the
+velocity field on straight-line interpolants,</p>
+<div class="math block">
+\[x_t = (1-t)x_0 + t x_1,
+\qquad
+\mathcal L = \mathbb E\left\lVert v_\theta(x_t,t) - (x_1-x_0)\right\rVert^2 ,
+\qquad (15)\]
+</div>
+<p>which is a plain regression and needs no ODE solve and no divergence. The
+density is only computed when someone asks for it.</p>
+<h3 id="what-the-gap-means">What the gap means <a class="header-anchor" href="#what-the-gap-means">#</a></h3>
+<p>The gap column is not noise. For the true density <span class="math inline">\(p\)</span> and a model <span class="math inline">\(q\)</span>,</p>
+<div class="math block">
+\[\mathbb E_p[-\log q] - \mathbb E_p[-\log p]
+= \mathrm{KL}(p\Vert q) \ge 0 ,
+\qquad (16)\]
+</div>
+<p>so no flow can beat <span class="math inline">\(-0.395\)</span> in expectation, and the observed gap is the test
+estimate of the KL divergence. A gap of 0.475 nats is a fit that has placed the
+mass almost right; 0.895 nats is a fit that has the shape wrong somewhere. The
+ordering of the six variants is therefore a statement about <em>densities</em>, which
+is something the adversarial atoms of this chapter cannot produce.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<p>The conditioner is the only learned object in a coupling layer, and the only
+subtlety is the bounded scale. <code>raw_s</code> is the network's first output; passing it
+through <span class="math inline">\(r\tanh(u/2)\)</span> keeps the log-scale in <span class="math inline">\([-r,r]\)</span> and is invertible as a
+function of <span class="math inline">\(u\)</span>, which matters because the same expression is differentiated on
+the way back:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_cond</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">block</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Conditioner: x1 -&gt; (bounded log-scale, shift) plus its cache."""</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">block</span><span class="p">[</span><span class="s2">"p"</span><span class="p">]</span>
+    <span class="n">outs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span> <span class="k">if</span> <span class="n">block</span><span class="p">[</span><span class="s2">"split"</span><span class="p">]</span> <span class="k">else</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">sub</span> <span class="o">=</span> <span class="p">[</span><span class="n">params</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">q</span><span class="p">[</span><span class="mi">6</span> <span class="o">*</span> <span class="n">k</span><span class="p">:</span><span class="mi">6</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">6</span><span class="p">]]</span>
+        <span class="n">outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_mlp_forward</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">x1</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]))</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">raw_s</span><span class="p">,</span> <span class="n">raw_t</span> <span class="o">=</span> <span class="n">outs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">outs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">raw_s</span><span class="p">,</span> <span class="n">raw_t</span> <span class="o">=</span> <span class="n">outs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">outs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">block</span><span class="p">[</span><span class="s2">"scale_range"</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">raw_s</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">s</span><span class="p">,</span> <span class="n">raw_t</span><span class="p">,</span> <span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="n">raw_s</span><span class="p">)</span>
+</code></pre>
+<p>The <code>split</code> flag is the difference between the two conditioner styles: two
+networks of 1186 parameters each instead of one. <code>realnvp</code> stacks those behind
+an actnorm and finishes 0.2 nats worse than <code>coupling</code> (0.376 against 0.171). The
+block parameter indices are a flat slice of the module's parameter list, so a
+block never holds weights directly and the optimiser sees one flat vector.</p>
+<p>Forward is (3) and (4). The flip is applied to the input and then to the
+output, so every layer sees the coordinates in the same order and only the
+conditioner's <em>meaning</em> alternates:</p>
+<pre class="highlight"><code>    <span class="n">x1</span><span class="p">,</span> <span class="n">x2</span> <span class="o">=</span> <span class="n">x</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">s</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">cache</span> <span class="o">=</span> <span class="n">_cond</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">block</span><span class="p">,</span> <span class="n">x1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">block</span><span class="p">[</span><span class="s2">"scale_first"</span><span class="p">]:</span>
+        <span class="n">mu</span><span class="p">,</span> <span class="n">log_s</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="n">block</span><span class="p">[</span><span class="s2">"p"</span><span class="p">][</span><span class="mi">6</span><span class="p">]],</span> <span class="n">params</span><span class="p">[</span><span class="n">block</span><span class="p">[</span><span class="s2">"p"</span><span class="p">][</span><span class="mi">7</span><span class="p">]]</span>
+        <span class="n">y1</span> <span class="o">=</span> <span class="p">(</span><span class="n">x1</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">log_s</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">y1</span><span class="p">,</span> <span class="n">log_s</span> <span class="o">=</span> <span class="n">x1</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="n">y2</span> <span class="o">=</span> <span class="p">(</span><span class="n">x2</span> <span class="o">-</span> <span class="n">t</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ld</span> <span class="o">=</span> <span class="o">-</span><span class="n">s</span> <span class="o">-</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">log_s</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">log_s</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>The <code>1.0</code> in the backward pass is the log-determinant. It looks like a stray
+constant and it is not: the loss contains <span class="math inline">\(-ld = +s\)</span>, so every sample
+contributes <span class="math inline">\(+1\)</span> to <span class="math inline">\(\partial \mathcal L/\partial s\)</span> regardless of where it
+sits. Drop it and the scale still trains — the fit degrades quietly, which is
+the worst kind of bug:</p>
+<pre class="highlight"><code>    <span class="n">e</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">dx2</span> <span class="o">=</span> <span class="n">d2</span> <span class="o">*</span> <span class="n">e</span>
+    <span class="n">ds</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">d2</span> <span class="o">*</span> <span class="p">(</span><span class="n">x2</span> <span class="o">-</span> <span class="n">t</span><span class="p">)</span> <span class="o">*</span> <span class="n">e</span>
+    <span class="n">dt</span> <span class="o">=</span> <span class="o">-</span><span class="n">d2</span> <span class="o">*</span> <span class="n">e</span>
+</code></pre>
+<p><code>d</code> is a summed gradient throughout the file; the optimiser divides by the batch
+size once, at the step. That convention is what makes the <code>1.0</code> literal, and
+mixing the two conventions is the easiest way to train a flow that never
+converges — the demo's <code>lr 2e-2</code> row is the mild version of that mistake.</p>
+<p>Actnorm's initialisation runs a forward pass through the blocks built so far,
+because each actnorm normalises the <em>output of its predecessors</em>, not the raw
+data. This is why it cannot be done in the constructor:</p>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_init_actnorm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Data-dependent init: the first batch maps to zero mean unit var."""</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">x</span>
+        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">blocks</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">block</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"actnorm"</span><span class="p">:</span>
+                <span class="n">shift</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">block</span><span class="p">[</span><span class="s2">"p"</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="n">log_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">block</span><span class="p">[</span><span class="s2">"p"</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span>
+                <span class="n">shift</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">h</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">log_scale</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">h</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-6</span><span class="p">)</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_block_forward</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="n">h</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</code></pre>
+<p>Glow's mixing layer is three scalars and one matrix product. The lower-triangular
+form is what makes the determinant free and the inverse trivial:</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_mix_matrix</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">block</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Lower-triangular 1x1 convolution: [[e^a, 0], [b, e^d]]."""</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">block</span><span class="p">[</span><span class="s2">"p"</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="n">b</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">d</span><span class="p">)]])</span>
+</code></pre>
+<p>The spline is (9)–(11) in three lines of array arithmetic. Note the two
+different bin searches: <code>floor</code> on the input here, and a comparison count on
+the output in <code>_spline_inverse</code>:</p>
+<pre class="highlight"><code>    <span class="n">w</span> <span class="o">=</span> <span class="n">_spline_weights</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">knots</span> <span class="o">=</span> <span class="n">_spline_knots</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+    <span class="n">slope</span> <span class="o">=</span> <span class="n">SPLINE_BINS</span> <span class="o">*</span> <span class="n">w</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">SPLINE_RANGE</span> <span class="o">/</span> <span class="n">SPLINE_BINS</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">x2</span> <span class="o">+</span> <span class="n">SPLINE_RANGE</span><span class="p">)</span> <span class="o">/</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span>
+                <span class="mi">0</span><span class="p">,</span> <span class="n">SPLINE_BINS</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">inside</span> <span class="o">=</span> <span class="p">(</span><span class="n">x2</span> <span class="o">&gt;</span> <span class="o">-</span><span class="n">SPLINE_RANGE</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">x2</span> <span class="o">&lt;</span> <span class="n">SPLINE_RANGE</span><span class="p">)</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x2</span><span class="p">))</span>
+    <span class="n">y2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">inside</span><span class="p">,</span> <span class="n">knots</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">b</span><span class="p">]</span> <span class="o">+</span> <span class="n">slope</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">b</span><span class="p">]</span>
+                  <span class="o">*</span> <span class="p">(</span><span class="n">x2</span> <span class="o">+</span> <span class="n">SPLINE_RANGE</span> <span class="o">-</span> <span class="n">b</span> <span class="o">*</span> <span class="n">width</span><span class="p">),</span> <span class="n">x2</span><span class="p">)</span>
+    <span class="n">ld</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">inside</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">slope</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">b</span><span class="p">]),</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre>
+<p>Its gradient is the softmax Jacobian (12) plus the two ways a knot position
+affects the loss: through the bin's starting height, which depends on all
+widths below it, and through the slope itself. The <code>below</code> mask is the first of
+those; the <code>g[rows, b] +=</code> line adds the second and the log-determinant term:</p>
+<pre class="highlight"><code>    <span class="n">below</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">SPLINE_BINS</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">&lt;</span> <span class="n">b</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">inside</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">SPLINE_RANGE</span> <span class="o">*</span> <span class="p">(</span><span class="n">d2</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">below</span><span class="p">)</span>
+    <span class="n">g</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">b</span><span class="p">]</span> <span class="o">+=</span> <span class="n">inside</span> <span class="o">*</span> <span class="p">(</span><span class="n">SPLINE_BINS</span> <span class="o">*</span> <span class="p">(</span><span class="n">x2</span> <span class="o">+</span> <span class="n">SPLINE_RANGE</span> <span class="o">-</span> <span class="n">b</span> <span class="o">*</span> <span class="n">width</span><span class="p">)</span> <span class="o">*</span> <span class="n">d2</span>
+                            <span class="o">-</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">b</span><span class="p">],</span> <span class="mf">1e-9</span><span class="p">))</span>
+    <span class="n">du</span> <span class="o">=</span> <span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="n">g</span> <span class="o">-</span> <span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="n">w</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+</code></pre>
+<p>For the continuous flow, the divergence is a single einsum over the
+three-matrix product in (14). Building the two diagonal Jacobians as
+<code>(n, in, out)</code> arrays and chaining them gives the trace in one pass, with no
+loop over dimensions and no finite differences:</p>
+<pre class="highlight"><code>        <span class="n">A</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">_dsilu</span><span class="p">(</span><span class="n">h1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">_dsilu</span><span class="p">(</span><span class="n">h2</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">J</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"nij,njk,kl-&gt;nil"</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">P</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">v</span><span class="p">,</span> <span class="n">J</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">J</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+</code></pre>
+<p>The demo checks that expression against central differences and gets
+<span class="math inline">\(1.4\times10^{-9}\)</span>. The integrator then accumulates the trace along the path.
+RK4 evaluates the velocity four times per step, and in the density case each
+evaluation also carries its divergence, so a 20-step solve costs 80 network
+calls forward plus 80 divergence traces:</p>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">RK4_STEPS</span><span class="p">):</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">t0</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">h</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">want_div</span><span class="p">:</span>
+                <span class="n">k1</span><span class="p">,</span> <span class="n">d1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_velocity_div</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+                <span class="n">k2</span><span class="p">,</span> <span class="n">d2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_velocity_div</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">h</span> <span class="o">*</span> <span class="n">k1</span><span class="p">,</span> <span class="n">t</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">h</span><span class="p">)</span>
+                <span class="n">k3</span><span class="p">,</span> <span class="n">d3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_velocity_div</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">h</span> <span class="o">*</span> <span class="n">k2</span><span class="p">,</span> <span class="n">t</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">h</span><span class="p">)</span>
+                <span class="n">k4</span><span class="p">,</span> <span class="n">d4</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_velocity_div</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">h</span> <span class="o">*</span> <span class="n">k3</span><span class="p">,</span> <span class="n">t</span> <span class="o">+</span> <span class="n">h</span><span class="p">)</span>
+                <span class="n">acc</span> <span class="o">=</span> <span class="n">acc</span> <span class="o">+</span> <span class="n">h</span> <span class="o">/</span> <span class="mf">6.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">d1</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">d2</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">d3</span> <span class="o">+</span> <span class="n">d4</span><span class="p">)</span>
+</code></pre>
+<p>The sign convention is (13) with the integral running from 1 down to 0, which
+is why <code>log_prob</code> returns <code>base + acc</code> and not <code>base - acc</code>. Getting that wrong
+produces a plausible-looking density that integrates to something other than
+one; the demo's <code>learned density integrates to 0.9998</code> is the check that
+catches it.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Let <span class="math inline">\(d\)</span> be the dimension, <span class="math inline">\(n\)</span> the batch, <span class="math inline">\(h\)</span> the hidden width and <span class="math inline">\(N\)</span> the number
+of layers. Every coupling layer costs one conditioner forward and one backward,
+so training is <span class="math inline">\(O(nNdh^2)\)</span> per step and the constant is the same for all the
+discrete variants.</p>
+<p>In this atom <span class="math inline">\(d=2\)</span>, <span class="math inline">\(h=32\)</span> and a conditioner is 1186 multiply-adds per sample,
+so a six-layer forward pass over 2048 test points is 14.6M multiply-adds. The
+whole demo is dominated by training: 3000 steps of batch 256 through 7116
+parameters, forward and backward, is roughly 16G multiply-adds for <code>coupling</code>,
+and the six fits plus the depth sweep and the learning-rate row come to about
+a minute.</p>
+<p>The costs that differ are in <em>sampling</em> and in <em>density</em>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">variant</th>
+<th style="text-align:right">parameters</th>
+<th style="text-align:left">per-sample sampling work</th>
+<th style="text-align:left">per-sample density work</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>coupling</code></td>
+<td style="text-align:right">7116</td>
+<td style="text-align:left">6 conditioners</td>
+<td style="text-align:left">6 conditioners</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>realnvp</code></td>
+<td style="text-align:right">14256</td>
+<td style="text-align:left">12 conditioners</td>
+<td style="text-align:left">12 conditioners</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>glow</code></td>
+<td style="text-align:right">5965</td>
+<td style="text-align:left">5 conditioners, 5 mixes</td>
+<td style="text-align:left">same</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>autoregressive_flow</code></td>
+<td style="text-align:right">2376</td>
+<td style="text-align:left">2 sequential conditioners</td>
+<td style="text-align:left">2 conditioners</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>spline_flow</code></td>
+<td style="text-align:right">5536</td>
+<td style="text-align:left">4 conditioners, 4 knot scans</td>
+<td style="text-align:left">same</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>continuous_flow</code></td>
+<td style="text-align:right">1250</td>
+<td style="text-align:left">80 velocity calls</td>
+<td style="text-align:left">80 calls plus 80 traces</td>
+</tr>
+</tbody>
+</table>
+<p>The continuous flow's column is the honest one: it uses a sixth of the
+parameters of <code>coupling</code> and pays thirteen times its sampling cost. That trade
+is why CNFs are used where the density or the velocity field is the product —
+likelihood-based inference, importance sampling, ODE-based editing — and
+coupling stacks are used where sampling speed dominates.</p>
+<p>Memory is the batch of activations plus the caches. Each block caches the
+conditioner's hidden layers, so a six-layer flow holds twelve hidden arrays per
+sample; this is the usual backpropagation cost and it is why flows are trained
+with smaller batches than GANs of comparable size.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>A learning rate written for the wrong convention.</strong> The file averages
+gradients over the batch and divides once. A reader who copies a per-sample
+scale of <span class="math inline">\(2\times10^{-3}\)</span> from a summed-gradient implementation and uses it here
+gets a step 256 times too small, and the result is worse than doing nothing:
+3.002 nats after the same 3000 steps, against 2.161 for the standard normal it
+never left. The map has drifted just enough to distort the base density without
+learning the blobs — seven modes covered, mean radius 1.219. The other
+direction is milder but still costly: ten times the correct step reaches 0.894
+against 0.171. Adam is scale-free only asymptotically; the first thousand steps
+are not.</p>
+<p><strong>An unbounded scale.</strong> Without the <span class="math inline">\(\tanh\)</span> in (3), the network finds that
+driving <span class="math inline">\(s\to\infty\)</span> on an empty region of the plane gives an unbounded
+likelihood there. The training loss falls while the samples collapse. Bounding
+the scale to <span class="math inline">\([-2,2]\)</span> is not a detail; it is the constraint that keeps the map
+a diffeomorphism onto a sensible region.</p>
+<p><strong>A coupling layer that cannot rotate.</strong> One layer leaves <span class="math inline">\(x_1\)</span> untouched, so a
+dataset rotated by <span class="math inline">\(45^\circ\)</span> relative to the axes cannot be captured — the map
+can shear but not turn. The depth sweep is the measurement: 1.785 at one layer,
+0.568 at two. If a single-layer flow fits well, the data was already aligned
+with the split; if it plateaus, add layers or add Glow's mixing.</p>
+<p><strong>Splines and their support.</strong> Outside <span class="math inline">\([-B,B]\)</span> the spline map is the identity
+and the density is exactly standard normal, so a mode placed at radius 4 or an
+outlier at radius 10 is modelled as noise. Inside, the piecewise-constant
+derivative quantises the density, which is why <code>spline_flow</code> lands at 0.500 with
+8 bins. The fix is more bins or a rational-quadratic spline with continuous
+derivatives; both cost per-bin work in the inverse.</p>
+<p><strong>Autoregressive sampling is sequential.</strong> The inverse of (8) needs coordinate
+1 before coordinate 2. In two dimensions that is two passes; for a 3072-pixel
+image it is 3072, each of which is a full network evaluation. The usual escape
+is to make the <em>forward</em> direction (training) sequential and the inverse cheap
+— which is exactly the trade an inverse autoregressive flow makes, at the cost
+of losing the exact likelihood.</p>
+<p><strong>A density that integrates to the wrong number.</strong> The continuous flow's sign
+convention in (13) is easy to flip, and the resulting density looks reasonable
+pointwise while integrating to 2 or 0.5. The check that catches it costs one
+grid evaluation: <code>learned density integrates to 0.9998</code>. The same check on a
+discrete flow is exact by construction (1.0000 here) and therefore says nothing
+about the fit — only that the Jacobian bookkeeping is right.</p>
+<p><strong>Silent gradient errors.</strong> The input gradient of the conditioner is used only
+by the block <em>behind</em> it, so a missing <code>@ W.T</code> in the first layer's backward
+pass leaves the last block's gradients exact and corrupts everything below it.
+Building this file, the check reported <span class="math inline">\(4.3\times10^{-1}\)</span> on the first block
+and <span class="math inline">\(7\times10^{-10}\)</span> on the last, which located the missing transpose in a
+minute. Check every block, not the one you happen to look at.</p>
+<p><strong>A regime that is too easy.</strong> With eight blobs of spread 0.07 on a circle of
+radius 0.8, adjacent centres are 0.61 apart — nearly nine standard deviations.
+All six variants cover 8/8 and none merges neighbours, so the table above
+separates the architectures by how well they <em>shape</em> each blob, not by whether
+they can find them. Bring the radius down or widen the blobs and the ordering
+would change: at three or four standard deviations apart the coupling stack has
+to spend depth on separating modes instead of sharpening them, and the spline's
+8-bin quantisation stops being the limiting factor.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<p><strong>Density estimation and anomaly detection.</strong> The exact likelihood is the
+product: score a new point, threshold it, and you have a detector whose
+calibration is a real likelihood rather than a discriminator score. This is the
+main use of flows in tabular and scientific settings, where <span class="math inline">\(d\)</span> is small enough
+for the sequential-inverse cost of autoregressive variants not to matter.</p>
+<p><strong>Variational inference.</strong> A flow is the standard way to make a variational
+posterior flexible while keeping the ELBO a single expectation: the change of
+variables term is analytic, so the objective stays low-variance. Planar and
+radial flows were introduced for exactly this, and every modern normalising-flow
+posterior inherits the construction.</p>
+<p><strong>Image and audio generation.</strong> Glow generates images at 256×256 with a coupling
+stack, and WaveGlow does the same for raw audio. Both rely on actnorm and the
+<span class="math inline">\(1\times1\)</span> convolution from this file; the multi-scale factoring that makes them
+practical needs 3-D tensors and is the part that does not appear here.</p>
+<p><strong>Boltzmann generators and lattice field theory.</strong> Sampling a Boltzmann
+distribution at a fixed temperature is a density-modelling problem with a known
+unnormalised target, and a flow trained by maximum likelihood on samples is the
+standard tool. The exactness of the likelihood is what makes the acceptance
+ratio computable.</p>
+<p><strong>Continuous flows in diffusion.</strong> The probability-flow ODE of a diffusion model
+is a continuous normalising flow whose velocity is the score, so <code>score_sde</code> and
+this atom are two views of one object. Sampling from the ODE is deterministic
+and invertible, which is what makes image editing by inversion possible — the
+<code>ddim_inversion</code> variant in <code>ddim.py</code> is the discrete cousin.</p>
+<p><strong>Importance sampling and resampling.</strong> A flow trained on a proposal distribution
+gives exact importance weights, because both the proposal and the target
+densities are available in closed form. This is used to correct a cheap model's
+samples into an expensive model's distribution without retraining the sampler.</p>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>Tabak &amp; Turner (2013). <em>A Family of Nonparametric Density Estimation
+Algorithms.</em> Communications on Pure and Applied Mathematics.</li>
+<li>Rezende &amp; Mohamed (2015). <em>Variational Inference with Normalizing Flows.</em>
+ICML.</li>
+<li>Dinh, Krueger &amp; Bengio (2015). <em>NICE: Non-linear Independent Components
+Estimation.</em> ICLR Workshop.</li>
+<li>Dinh, Sohl-Dickstein &amp; Bengio (2017). <em>Density Estimation using Real NVP.</em>
+ICLR.</li>
+<li>Kingma &amp; Dhariwal (2018). <em>Glow: Generative Flow with Invertible 1×1
+Convolutions.</em> NeurIPS.</li>
+<li>Papamakarios, Pavlakou &amp; Murray (2017). <em>Masked Autoregressive Flow for
+Density Estimation.</em> NeurIPS.</li>
+<li>Durkan, Bekasov, Murray &amp; Papamakarios (2019). <em>Neural Spline Flows.</em>
+NeurIPS.</li>
+<li>Chen, Rubanova, Bettencourt &amp; Duvenaud (2018). <em>Neural Ordinary Differential
+Equations.</em> NeurIPS.</li>
+<li>Grathwohl, Chen, Bettencourt, Sutskever &amp; Duvenaud (2019). <em>FFJORD: Free-form
+Continuous Dynamics for Scalable Reversible Generative Models.</em> ICLR.</li>
+<li>Lipman, Chen, Ben-Hamu, Nickel &amp; Le (2023). <em>Flow Matching for Generative
+Modeling.</em> ICLR.</li>
+<li>Albergo &amp; Vanden-Eijnden (2023). <em>Building Normalizing Flows with Stochastic
+Interpolants.</em> ICLR.</li>
+<li>Papamakarios, Nalisnick, Rezende, Mohamed &amp; Lakshminarayanan (2021).
+<em>Normalizing Flows for Probabilistic Modeling and Inference.</em> JMLR.</li>
+<li>Kobyzev, Prince &amp; Brubaker (2021). <em>Normalizing Flows: An Introduction and
+Review of Current Methods.</em> IEEE TPAMI.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="guidance.html"><small>Previous</small><span>Guidance</span></a><a class="next" href="../15-graphs/index.html"><small>Next</small><span>15 · Graphs</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">14 · Generative models</p><ul class="rail-list"><li><a href="vae.html"><span class="tick">✓</span><span>Variational autoencoder</span></a></li><li><a href="gan.html"><span class="tick">✓</span><span>GAN</span></a></li><li><a href="diffusion.html"><span class="tick">✓</span><span>Diffusion (DDPM)</span></a></li><li><a href="wgan.html"><span class="tick">✓</span><span>Wasserstein GAN</span></a></li><li><a href="ddim.html"><span class="tick">✓</span><span>DDIM</span></a></li><li><a href="guidance.html"><span class="tick">✓</span><span>Guidance</span></a></li><li><a href="flows.html" aria-current="page"><span class="tick">✓</span><span>Normalising flows</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>VQ-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Beta-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Score-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Autoregressive generation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Energy-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Flow matching</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../13-training/index.html"><span class="jump">← 13 · Training</span></a></li><li><a href="../15-graphs/index.html"><span class="jump">15 · Graphs&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#change-of-variables">Change of variables</a></li><li class="lvl3"><a href="#coupling">Coupling</a></li><li class="lvl3"><a href="#actnorm-and-mixing">Actnorm and mixing</a></li><li class="lvl3"><a href="#autoregressive">Autoregressive</a></li><li class="lvl3"><a href="#splines">Splines</a></li><li class="lvl3"><a href="#continuous-flows">Continuous flows</a></li><li class="lvl3"><a href="#what-the-gap-means">What the gap means</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/14-generative/flows.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>
