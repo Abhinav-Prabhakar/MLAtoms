@@ -5,7 +5,7 @@
 Kernel methods turn inner products into hypothesis spaces, and instance-based methods turn the training set into the model. Together they explain why deep learning works (neural tangent kernels) and give you baselines that are hard to beat on small data.
 
 <!-- catalog:begin -->
-**13 atoms · 74 variants · 8 implemented**
+**13 atoms · 74 variants · 9 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -17,7 +17,7 @@ Kernel methods turn inner products into hypothesis spaces, and instance-based me
 | ✓ Random features | [`random_features.py`](random_features.py) | 2 | 6 | Random kitchen sinks: Monte Carlo kernel approximation at scale. |
 | ✓ One-class models | [`one_class.py`](one_class.py) | 2 | 4 | One-class SVM and SVDD: a boundary around normal data. |
 | ✓ Nearest centroid | [`nearest_centroid.py`](nearest_centroid.py) | 2 | 4 | Shrunken centroids and prototypes as a strong, fast baseline. |
-| · Nystrom approximation | [`nystrom.py`](nystrom.py) | 3 | 4 | Low-rank kernel approximation from a landmark subset. |
+| ✓ Nystrom approximation | [`nystrom.py`](nystrom.py) | 3 | 4 | Low-rank kernel approximation from a landmark subset. |
 | · Metric learning | [`metric_learning.py`](metric_learning.py) | 3 | 5 | Learn the distance instead of assuming it. |
 | · Multiple kernel learning | [`multiple_kernel.py`](multiple_kernel.py) | 3 | 4 | Combine kernels and learn the weights. |
 | · MMD & HSIC | [`mmd.py`](mmd.py) | 3 | 5 | Kernel two-sample and independence tests with permutation calibration. |
