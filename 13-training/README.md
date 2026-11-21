@@ -5,7 +5,7 @@
 Between a model definition and a working product sits training. These files are the procedures rather than the models: autodiff, distillation, adapters, pruning, quantisation, active learning, imbalance handling.
 
 <!-- catalog:begin -->
-**18 atoms · 126 variants · 7 implemented**
+**18 atoms · 126 variants · 8 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -16,7 +16,7 @@ Between a model definition and a working product sits training. These files are 
 | ✓ Augmentation | [`augmentation.py`](augmentation.py) | 2 | 8 | Mixup, CutMix, random erasing and RandAugment. |
 | ✓ LoRA & PEFT | [`lora.py`](lora.py) | 2 | 9 | Low-rank adapters, QLoRA and the variants that improved them. |
 | ✓ Pruning | [`pruning.py`](pruning.py) | 2 | 8 | Magnitude, structured and movement pruning; lottery tickets. |
-| · Quantisation | [`quantization.py`](quantization.py) | 2 | 10 | Fewer bits, mostly without losing accuracy. |
+| ✓ Quantisation | [`quantization.py`](quantization.py) | 2 | 10 | Fewer bits, mostly without losing accuracy. |
 | · Hyperparameter search | [`hyperparameter_search.py`](hyperparameter_search.py) | 2 | 8 | Random, TPE, BOHB and successive halving. |
 | · Active learning | [`active_learning.py`](active_learning.py) | 2 | 8 | Label the points that teach the most. |
 | · Semi-supervised learning | [`semi_supervised.py`](semi_supervised.py) | 2 | 7 | Self-training, pseudo-labels and consistency regularisation. |
