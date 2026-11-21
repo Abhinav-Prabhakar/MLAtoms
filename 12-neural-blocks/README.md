@@ -5,14 +5,14 @@
 A transformer is six of these files stacked. Each block is written forward and backward, so you can see exactly where the parameters, the FLOPs and the inductive bias sit.
 
 <!-- catalog:begin -->
-**14 atoms · 95 variants · 3 implemented**
+**14 atoms · 95 variants · 4 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
 | ✓ MLP | [`mlp.py`](mlp.py) | 1 | 6 | Dense layers, activations and the universal approximation argument. |
 | ✓ Convolution | [`conv.py`](conv.py) | 1 | 10 | Sliding dot products in every shape they come in. |
 | ✓ Pooling | [`pooling.py`](pooling.py) | 1 | 9 | Max, average, global, adaptive, attention and GeM pooling. |
-| · Residual blocks | [`residual.py`](residual.py) | 1 | 7 | Why depth works: identity paths and their descendants. |
+| ✓ Residual blocks | [`residual.py`](residual.py) | 1 | 7 | Why depth works: identity paths and their descendants. |
 | · Transformer block | [`transformer.py`](transformer.py) | 1 | 8 | Encoder/decoder blocks with pre-LN and gated feed-forward. |
 | · Positional encoding | [`positional.py`](positional.py) | 2 | 8 | How a set of tokens learns about order. |
 | · Mixture of experts | [`moe.py`](moe.py) | 2 | 8 | Sparse capacity without sparse gradients. |
