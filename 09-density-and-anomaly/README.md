@@ -5,7 +5,7 @@
 Anomaly detection is density estimation with a threshold. This folder gives you the estimators (KDE, copulas, extreme-value tails) and the practical scorers (LOF, isolation forest, Mahalanobis, reconstruction error) that industry actually deploys.
 
 <!-- catalog:begin -->
-**11 atoms · 49 variants · 9 implemented**
+**11 atoms · 49 variants · 11 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -18,8 +18,8 @@ Anomaly detection is density estimation with a threshold. This folder gives you 
 | ✓ Autoencoder anomaly | [`autoencoder_anomaly.py`](autoencoder_anomaly.py) | 2 | 5 | Reconstruction error as a novelty score, with thresholding. |
 | ✓ Change-point detection | [`change_point.py`](change_point.py) | 2 | 5 | Finding where the process changed, not just that it is unusual. |
 | ✓ Elliptic envelope | [`elliptic_envelope.py`](elliptic_envelope.py) | 2 | 4 | Robust covariance ellipsoids as a novelty boundary. |
-| · COPOD | [`copod.py`](copod.py) | 3 | 3 | Empirical copula tail probabilities: parameter-free outlier scoring. |
-| · Extreme value theory | [`extreme_value.py`](extreme_value.py) | 3 | 5 | Peaks-over-threshold and generalised Pareto tail modelling. |
+| ✓ COPOD | [`copod.py`](copod.py) | 3 | 3 | Empirical copula tail probabilities: parameter-free outlier scoring. |
+| ✓ Extreme value theory | [`extreme_value.py`](extreme_value.py) | 3 | 5 | Peaks-over-threshold and generalised Pareto tail modelling. |
 
 **Variant map** — every variant below is implemented in its atom's file and derived in its companion `.md`.
 

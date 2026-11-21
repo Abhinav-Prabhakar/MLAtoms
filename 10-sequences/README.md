@@ -5,14 +5,14 @@
 Everything that reads left to right lives here: the classical probabilistic machinery (Markov chains, HMMs, CRFs, CTC), the distance notion for time series (DTW) and the neural sequence blocks (RNN, TCN, attention, SSMs).
 
 <!-- catalog:begin -->
-**12 atoms · 78 variants · 0 implemented**
+**12 atoms · 78 variants · 4 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
-| · Markov chains | [`markov_chain.py`](markov_chain.py) | 1 | 5 | Transition estimation, stationary distributions and mixing. |
-| · Hidden Markov models | [`hmm.py`](hmm.py) | 1 | 7 | Forward-backward, Viterbi and Baum-Welch in one file. |
-| · Dynamic time warping | [`dtw.py`](dtw.py) | 1 | 7 | Aligning sequences that move at different speeds. |
-| · Recurrent networks | [`rnn.py`](rnn.py) | 1 | 7 | Vanilla recurrence, backprop through time and clipping. |
+| ✓ Markov chains | [`markov_chain.py`](markov_chain.py) | 1 | 5 | Transition estimation, stationary distributions and mixing. |
+| ✓ Hidden Markov models | [`hmm.py`](hmm.py) | 1 | 7 | Forward-backward, Viterbi and Baum-Welch in one file. |
+| ✓ Dynamic time warping | [`dtw.py`](dtw.py) | 1 | 7 | Aligning sequences that move at different speeds. |
+| ✓ Recurrent networks | [`rnn.py`](rnn.py) | 1 | 7 | Vanilla recurrence, backprop through time and clipping. |
 | · LSTM & GRU | [`lstm_gru.py`](lstm_gru.py) | 1 | 6 | Gated memory cells and why they fix vanishing gradients. |
 | · Attention | [`attention.py`](attention.py) | 1 | 10 | The one operation that replaced recurrence. |
 | · Conditional random fields | [`crf.py`](crf.py) | 2 | 6 | Linear-chain CRFs with forward-backward inference and training. |
