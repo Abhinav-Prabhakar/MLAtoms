@@ -5,7 +5,7 @@
 A transformer is six of these files stacked. Each block is written forward and backward, so you can see exactly where the parameters, the FLOPs and the inductive bias sit.
 
 <!-- catalog:begin -->
-**14 atoms · 95 variants · 12 implemented**
+**14 atoms · 95 variants · 13 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -21,7 +21,7 @@ A transformer is six of these files stacked. Each block is written forward and b
 | ✓ Graph neural blocks | [`gnn_blocks.py`](gnn_blocks.py) | 2 | 8 | The four GNN layers worth memorising. |
 | ✓ MLP-Mixer | [`mixer.py`](mixer.py) | 3 | 4 | Token-mixing and channel-mixing without attention or convolution. |
 | ✓ Perceiver | [`perceiver.py`](perceiver.py) | 3 | 4 | Cross-attention bottlenecks and set transformers. |
-| · ConvNeXt | [`convnext.py`](convnext.py) | 3 | 4 | Modern pure-conv block: large depthwise kernels, LN, GELU. |
+| ✓ ConvNeXt | [`convnext.py`](convnext.py) | 3 | 4 | Modern pure-conv block: large depthwise kernels, LN, GELU. |
 | · Hypernetworks | [`hypernetwork.py`](hypernetwork.py) | 3 | 4 | Generating weights, including LoRA as a hypernetwork. |
 
 **Variant map** — every variant below is implemented in its atom's file and derived in its companion `.md`.
