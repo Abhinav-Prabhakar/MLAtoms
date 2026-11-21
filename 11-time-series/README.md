@@ -5,12 +5,12 @@
 Forecasting is a separate discipline because the data breaks i.i.d. assumptions. This folder spans the classical state-space methods, the decomposition toolbox, and the modern neural forecasters — each with the baseline it must beat.
 
 <!-- catalog:begin -->
-**16 atoms · 77 variants · 1 implemented**
+**16 atoms · 77 variants · 2 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
 | ✓ Naive baselines | [`baselines.py`](baselines.py) | 1 | 6 | The forecasts your model has to beat. |
-| · ETS / Holt-Winters | [`ets.py`](ets.py) | 1 | 7 | Error-trend-seasonal state-space exponential smoothing. |
+| ✓ ETS / Holt-Winters | [`ets.py`](ets.py) | 1 | 7 | Error-trend-seasonal state-space exponential smoothing. |
 | · ARIMA | [`arima.py`](arima.py) | 1 | 7 | AR, MA, differencing, SARIMA and ACF/PACF identification. |
 | · Vector autoregression | [`var.py`](var.py) | 2 | 6 | Multivariate autoregression and Granger causality. |
 | · GARCH | [`garch.py`](garch.py) | 2 | 6 | Volatility clustering and variance forecasts. |
