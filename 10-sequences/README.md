@@ -5,7 +5,7 @@
 Everything that reads left to right lives here: the classical probabilistic machinery (Markov chains, HMMs, CRFs, CTC), the distance notion for time series (DTW) and the neural sequence blocks (RNN, TCN, attention, SSMs).
 
 <!-- catalog:begin -->
-**12 atoms · 78 variants · 4 implemented**
+**12 atoms · 78 variants · 5 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -13,7 +13,7 @@ Everything that reads left to right lives here: the classical probabilistic mach
 | ✓ Hidden Markov models | [`hmm.py`](hmm.py) | 1 | 7 | Forward-backward, Viterbi and Baum-Welch in one file. |
 | ✓ Dynamic time warping | [`dtw.py`](dtw.py) | 1 | 7 | Aligning sequences that move at different speeds. |
 | ✓ Recurrent networks | [`rnn.py`](rnn.py) | 1 | 7 | Vanilla recurrence, backprop through time and clipping. |
-| · LSTM & GRU | [`lstm_gru.py`](lstm_gru.py) | 1 | 6 | Gated memory cells and why they fix vanishing gradients. |
+| ✓ LSTM & GRU | [`lstm_gru.py`](lstm_gru.py) | 1 | 6 | Gated memory cells and why they fix vanishing gradients. |
 | · Attention | [`attention.py`](attention.py) | 1 | 10 | The one operation that replaced recurrence. |
 | · Conditional random fields | [`crf.py`](crf.py) | 2 | 6 | Linear-chain CRFs with forward-backward inference and training. |
 | · Connectionist temporal classification | [`ctc.py`](ctc.py) | 2 | 4 | Marginalising over alignments for unsegmented labels. |
