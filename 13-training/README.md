@@ -5,7 +5,7 @@
 Between a model definition and a working product sits training. These files are the procedures rather than the models: autodiff, distillation, adapters, pruning, quantisation, active learning, imbalance handling.
 
 <!-- catalog:begin -->
-**18 atoms · 126 variants · 17 implemented**
+**18 atoms · 126 variants · 18 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -26,7 +26,7 @@ Between a model definition and a working product sits training. These files are 
 | ✓ Continual learning | [`continual_learning.py`](continual_learning.py) | 3 | 8 | New tasks without forgetting the old ones. |
 | ✓ Label smoothing | [`label_smoothing.py`](label_smoothing.py) | 3 | 4 | Soft targets, regularisation and calibration effects. |
 | ✓ Early stopping | [`early_stopping.py`](early_stopping.py) | 3 | 4 | Patience, restoration and the generalisation gap. |
-| · Federated averaging | [`federated.py`](federated.py) | 3 | 6 | Training across clients without moving their data. |
+| ✓ Federated averaging | [`federated.py`](federated.py) | 3 | 6 | Training across clients without moving their data. |
 
 **Variant map** — every variant below is implemented in its atom's file and derived in its companion `.md`.
 
