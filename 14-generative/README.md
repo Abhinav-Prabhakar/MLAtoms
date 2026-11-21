@@ -5,13 +5,13 @@
 Four families, one question: how do you represent and sample a distribution? Latent-variable models give you a decoder, GANs give you sharpness, flows give you exact likelihood, diffusion gives you both quality and control.
 
 <!-- catalog:begin -->
-**13 atoms · 64 variants · 2 implemented**
+**13 atoms · 64 variants · 3 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
 | ✓ Variational autoencoder | [`vae.py`](vae.py) | 1 | 5 | ELBO, reparameterisation and posterior collapse. |
 | ✓ GAN | [`gan.py`](gan.py) | 1 | 7 | Minimax training, loss variants and mode collapse. |
-| · Diffusion (DDPM) | [`diffusion.py`](diffusion.py) | 1 | 6 | Forward/reverse processes, noise schedules and the ELBO. |
+| ✓ Diffusion (DDPM) | [`diffusion.py`](diffusion.py) | 1 | 6 | Forward/reverse processes, noise schedules and the ELBO. |
 | · Wasserstein GAN | [`wgan.py`](wgan.py) | 2 | 4 | Wasserstein distance, Lipschitz constraints and gradient penalty. |
 | · DDIM | [`ddim.py`](ddim.py) | 2 | 4 | Deterministic, fast sampling and the eta knob. |
 | · Guidance | [`guidance.py`](guidance.py) | 2 | 4 | Trading diversity for fidelity at sampling time. |
