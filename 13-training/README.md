@@ -5,11 +5,11 @@
 Between a model definition and a working product sits training. These files are the procedures rather than the models: autodiff, distillation, adapters, pruning, quantisation, active learning, imbalance handling.
 
 <!-- catalog:begin -->
-**18 atoms · 126 variants · 0 implemented**
+**18 atoms · 126 variants · 1 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
-| · Backpropagation | [`backprop.py`](backprop.py) | 1 | 6 | Reverse-mode autodiff on a tiny scalar engine, then vectorised. |
+| ✓ Backpropagation | [`backprop.py`](backprop.py) | 1 | 6 | Reverse-mode autodiff on a tiny scalar engine, then vectorised. |
 | · Knowledge distillation | [`distillation.py`](distillation.py) | 1 | 8 | Response, feature and relation distillation with temperature. |
 | · Gradient checkpointing | [`checkpointing.py`](checkpointing.py) | 2 | 5 | Recompute activations to trade compute for memory. |
 | · Mixed precision | [`mixed_precision.py`](mixed_precision.py) | 2 | 6 | FP16/BF16, loss scaling and master weights. |
