@@ -5,7 +5,7 @@
 Everything that reads left to right lives here: the classical probabilistic machinery (Markov chains, HMMs, CRFs, CTC), the distance notion for time series (DTW) and the neural sequence blocks (RNN, TCN, attention, SSMs).
 
 <!-- catalog:begin -->
-**12 atoms · 78 variants · 7 implemented**
+**12 atoms · 78 variants · 8 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -16,7 +16,7 @@ Everything that reads left to right lives here: the classical probabilistic mach
 | ✓ LSTM & GRU | [`lstm_gru.py`](lstm_gru.py) | 1 | 6 | Gated memory cells and why they fix vanishing gradients. |
 | ✓ Attention | [`attention.py`](attention.py) | 1 | 10 | The one operation that replaced recurrence. |
 | ✓ Conditional random fields | [`crf.py`](crf.py) | 2 | 6 | Linear-chain CRFs with forward-backward inference and training. |
-| · Connectionist temporal classification | [`ctc.py`](ctc.py) | 2 | 4 | Marginalising over alignments for unsegmented labels. |
+| ✓ Connectionist temporal classification | [`ctc.py`](ctc.py) | 2 | 4 | Marginalising over alignments for unsegmented labels. |
 | · Temporal convnets | [`tcn.py`](tcn.py) | 2 | 4 | Dilated causal convolutions and receptive-field arithmetic. |
 | · Beam search | [`beam_search.py`](beam_search.py) | 2 | 7 | Beam, greedy, top-k and nucleus decoding. |
 | · N-gram language models | [`ngram_lm.py`](ngram_lm.py) | 2 | 8 | Counting, smoothing and the curse of dimensionality. |
