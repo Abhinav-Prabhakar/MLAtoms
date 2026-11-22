@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VQ-VAE · MLAtoms</title>
+<meta name="description" content="Discrete codebooks, straight-through gradients, codebook collapse. A VAE puts a continuous Gaussian behind every input. VQ-VAE puts a dictionary there…">
+<meta name="author" content="Abhinav Prabhakar">
+<meta name="generator" content="tools/site.py">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/vq_vae.html">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="../site.webmanifest">
+<link rel="sitemap" href="../sitemap.xml" type="application/xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MLAtoms">
+<meta property="og:title" content="VQ-VAE">
+<meta property="og:description" content="Discrete codebooks, straight-through gradients, codebook collapse. A VAE puts a continuous Gaussian behind every input. VQ-VAE puts a dictionary there…">
+<meta property="og:url" content="https://abhinav-prabhakar.github.io/MLAtoms/14-generative/vq_vae.html">
+<meta property="og:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MLAtoms — the periodic table of machine learning">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="VQ-VAE">
+<meta name="twitter:description" content="Discrete codebooks, straight-through gradients, codebook collapse. A VAE puts a continuous Gaussian behind every input. VQ-VAE puts a dictionary there…">
+<meta name="twitter:image" content="https://abhinav-prabhakar.github.io/MLAtoms/assets/og.png">
+<meta name="twitter:image:alt" content="The MLAtoms wordmark and tagline">
+<script type="application/ld+json">{"@type": "TechArticle", "headline": "VQ-VAE", "@context": "https://schema.org", "url": "https://abhinav-prabhakar.github.io/MLAtoms/14-generative/vq_vae.html", "description": "Discrete codebooks, straight-through gradients, codebook collapse. A VAE puts a continuous Gaussian behind every input. VQ-VAE puts a dictionary there\u2026", "license": "https://github.com/Abhinav-Prabhakar/MLAtoms/blob/main/LICENSE"}</script>
+<link rel="stylesheet" href="../assets/style.css?v=c30b083d">
+<script>
+  try {
+    var t = localStorage.getItem("mlatoms-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]] ,tags:"none",processEscapes:true},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]},svg:{fontCache:"global"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head>
+<body data-root="../">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../index.html">
+      <img src="../assets/favicon.svg" alt="" width="22" height="22">
+      <span>MLAtoms</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="../index.html#contents" aria-current="page">Chapters</a><a href="../docs/index.html">Docs</a><a href="https://github.com/Abhinav-Prabhakar/MLAtoms">GitHub</a></nav>
+    <button class="icon-btn" type="button" data-search-open aria-label="Search">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg></span>
+      <span class="icon-btn__label">Search</span>
+      <kbd class="search-key">/</kbd>
+    </button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg></span>
+    </button>
+  </div>
+</header>
+<dialog class="search" aria-label="Search MLAtoms">
+  <form class="search__form" method="dialog" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.2 4.2"/></svg>
+    <input type="search" name="q" placeholder="Search atoms, variants, chapters…" autocomplete="off" spellcheck="false" aria-label="Search query">
+    <kbd class="search-key">esc</kbd>
+  </form>
+  <ul class="search__results"></ul>
+  <p class="search__status search__hint">Type to search atoms, variants, chapters and docs.</p>
+</dialog>
+<main id="main" class="shell">
+<div class="layout"><div><div class="prose"><p class="page-meta"><a href="index.html">14 · Generative models</a><span class="page-meta__sep">/</span><span class="pill pill--t2">tier 2</span><span class="page-meta__sep">/</span><span>6 variants</span><span class="page-meta__sep">/</span><a href="vq_vae.py.html">source</a></p><h1>VQ-VAE — a codebook instead of a Gaussian</h1>
+<p>A VAE puts a continuous Gaussian behind every input. VQ-VAE puts a <em>dictionary</em>
+there instead: the encoder's output is snapped to the nearest of <span class="math inline">\(K\)</span> learned
+vectors, and only that vector reaches the decoder. The latent is an integer.</p>
+<p>That one change buys three things a Gaussian VAE cannot offer. The posterior
+can be a point mass, so the decoder never averages two explanations into a blur.
+The latent costs <span class="math inline">\(\log_2 K\)</span> bits instead of a float vector. And an integer is a
+token, so a second model — a transformer, a PixelCNN — can learn the
+distribution over tokens and generate by sampling them.</p>
+<p>The price is a derivative that does not exist. Nearest-neighbour is piecewise
+constant, so <span class="math inline">\(\partial z_q/\partial z_e = 0\)</span> almost everywhere and the encoder
+receives no gradient at all. Every variant below is an answer to that one
+problem, and every failure below is a consequence of it.</p>
+<h2 id="intuition">Intuition <a class="header-anchor" href="#intuition">#</a></h2>
+<p>Consider the eight blobs this chapter keeps returning to. The trouble with a
+Gaussian latent is not that the posterior is unimodal but that the <em>prior</em> is:
+<span class="math inline">\(\mathcal{N}(0, I)\)</span> puts density everywhere on the plane, including in the gaps
+between blobs. The model must explain that density somehow, and the cheapest
+explanation a smooth decoder can offer is to put mass between the modes. The
+standard normal also pulls the aggregate posterior toward a single blob, so the
+gaps fill in and samples drift off the ring.</p>
+<p>The fix is to stop asking the decoder to interpolate. Give it a <em>symbol</em> that
+means &quot;the third blob&quot;, and it can answer with a distribution centred there and
+nowhere else. Interpolation is impossible because there is nothing between
+symbol 3 and symbol 4 — the latent space is a finite set, and the prior lives on
+those points only.</p>
+<pre class="highlight"><code>   VAE                          VQ-VAE
+   z ~ N(mu, sigma)             z in {e_1, ..., e_K}
+   continuous, ordered          discrete, no neighbours
+   decoder must hedge           decoder commits to a cell
+</code></pre>
+<p>The dictionary is tiny: <span class="math inline">\(K\)</span> vectors of dimension <span class="math inline">\(D\)</span> describe the whole latent
+space, here <span class="math inline">\(16\times 8 = 128\)</span> numbers. Compare that with the 4866 parameters of
+the decoder next to it. The model does not store the data in the codebook; it
+stores the <em>vocabulary</em> the decoder speaks, and the decoder stores the meaning.</p>
+<p>The awkward part is training. Write the forward pass as</p>
+<pre class="highlight"><code>   x ──► encoder ──► z_e ──► argmin_j ‖z_e - e_j‖ ──► e_k ──► decoder ──► x̂
+</code></pre>
+<p>and ask what <span class="math inline">\(\partial \hat{x}/\partial z_e\)</span> is. The argmin returns an index.
+Perturb <span class="math inline">\(z_e\)</span> by a hair and the index does not change, so the derivative is
+exactly zero; perturb it enough to cross a boundary and the output jumps. The
+map has no usable derivative anywhere, which is why the encoder would never
+train by ordinary backpropagation.</p>
+<p>VQ-VAE's answer is to lie about the derivative in a controlled way and to fix up
+the lie with two extra loss terms. The reconstruction gradient is copied from
+<span class="math inline">\(z_q\)</span> to <span class="math inline">\(z_e\)</span> as if the quantiser were the identity (the <em>straight-through</em>
+estimator). The codebook is moved toward the encoder's outputs by a second term,
+and the encoder is pulled toward the codebook by a third. The three terms
+together are the whole algorithm.</p>
+<h2 id="variants">Variants <a class="header-anchor" href="#variants">#</a></h2>
+<p><strong><code>vq_vae</code></strong> — the original. One codebook of 16 vectors in 8 dimensions, trained
+with Adam on the codebook loss, <span class="math inline">\(\beta = 0.25\)</span>, straight-through gradients. This
+is the paper's recipe with the paper's hyperparameters, and on this data it is
+the weakest model in the table: 0.0225 reconstruction error, 2.3 times the floor,
+with only 12 of its 16 codes carrying any mass.</p>
+<p><strong><code>vq_vae2</code></strong> — the VQ-VAE-2 recipe applied to the same single-level model: if a
+code has not won an assignment for 25 consecutive steps, teleport it onto a
+random encoder output from the current batch. This is not the full VQ-VAE-2
+architecture (which adds a coarse level and a PixelCNN prior over codes); it is
+the codebook <em>maintenance</em> half, which is the part that fixes collapse. Here it
+recovers all 16 codes with 48 re-seeds and cuts the error to 0.0105, a hair above
+the floor.</p>
+<p><strong><code>ema_codebook</code></strong> — replace the codebook's optimizer with an exponential moving
+average of the assignments, as in VQ-VAE-2. There is no learning rate, no Adam
+state, and no possibility of the dictionary overshooting; each entry is dragged
+directly toward the mean of the vectors that chose it. It reaches 0.0118 with 11
+of 16 codes alive, and — the interesting part — its entries sit 0.059 of a latent
+norm from the mean of their own cell, against 0.388 for the gradient-trained
+<code>vq_vae</code>.</p>
+<p><strong><code>commitment_loss</code></strong> — the same architecture with <span class="math inline">\(\beta = 4\)</span> instead of
+<span class="math inline">\(0.25\)</span>. One number, and the best reconstruction in the discrete half of the
+table: 0.0079, below the data's own variance, because the decoder has learned to
+denoise. It is also the variant whose codebook actually converges, for a reason
+the derivation makes precise: <span class="math inline">\(\beta\)</span> is the coefficient on the term that stops
+the encoder from running away from the codes.</p>
+<p><strong><code>straight_through</code></strong> — replaces the identity surrogate with the exact gradient
+of a temperature-relaxed quantiser, evaluated at the hard assignment. No lie:
+the relaxed map <span class="math inline">\(z_q = \sum_k w_k(z)e_k\)</span> is differentiable, and its Jacobian turns
+out to be a covariance matrix. Here <span class="math inline">\(\tau = 1\)</span> relative to the codebook's own
+spread, and the relaxed gradient has cosine <span class="math inline">\(+0.53\)</span> with the straight-through
+one — same direction on average, very different per coordinate.</p>
+<p><strong><code>residual_vq</code></strong> — two codebooks, the second quantising the first one's
+residual. The vocabulary becomes <span class="math inline">\(K^2 = 256\)</span> nominal pairs, the latent becomes a
+sum of two codes, and the error falls to 0.0026, 3.7 times below the floor. This
+is the construction behind SoundStream, EnCodec and DAC: a stack of codebooks,
+each fixing what the previous one missed, traded off against bitrate.</p>
+<h2 id="derivation">Derivation <a class="header-anchor" href="#derivation">#</a></h2>
+<h3 id="the-three-terms">The three terms <a class="header-anchor" href="#the-three-terms">#</a></h3>
+<p>Let <span class="math inline">\(z_e(x)\)</span> be the encoder output and <span class="math inline">\(e_1,\dots,e_K\)</span> the codebook. The
+quantiser is a hard nearest-neighbour lookup:</p>
+<div class="math block">
+\[z_q(x) = e_k, \qquad k = \arg\min_j \lVert z_e(x) - e_j \rVert^2 .
+\qquad (1)\]
+</div>
+<p>The objective has three pieces, and the placement of the stop-gradient operator
+<span class="math inline">\(\mathrm{sg}\)</span> is the whole design:</p>
+<div class="math block">
+\[\mathcal{L} = \log p(x \mid z_q(x))
+ + \lVert \mathrm{sg}[z_e(x)] - e \rVert^2
+ + \beta \lVert z_e(x) - \mathrm{sg}[e] \rVert^2 .
+\qquad (2)\]
+</div>
+<p>The first term trains the encoder and decoder through the surrogate derivative.
+The second trains only the codebook: <span class="math inline">\(\mathrm{sg}\)</span> freezes <span class="math inline">\(z_e\)</span>, so
+<span class="math inline">\(\nabla_{e}\mathcal{L} = 2(e - z_e)\)</span>. The third trains only the encoder:
+<span class="math inline">\(\mathrm{sg}\)</span> freezes <span class="math inline">\(e\)</span>, so the gradient reaches <span class="math inline">\(z_e\)</span> and stops. Read the
+second and third terms as a leash: the codebook chases the encoder, the encoder
+is held near the codebook, and the two meet in the middle.</p>
+<p>The reconstruction term is a fixed-variance Gaussian,
+<span class="math inline">\(\log p(x\mid z_q) = -\lVert x - \hat{x}\rVert^2/(2\sigma^2) + \mathrm{const}\)</span>,
+with <span class="math inline">\(\sigma\)</span> set to the data's own spread rather than learned. That is why the
+demo's <code>/floor</code> column is the reconstruction error divided by <span class="math inline">\(2\sigma^2\)</span>: a
+perfect model scores 1.0, and the number is the excess negative log-likelihood up
+to a constant every row shares.</p>
+<h3 id="why-the-codebook-term-is-k-means">Why the codebook term is k-means <a class="header-anchor" href="#why-the-codebook-term-is-k-means">#</a></h3>
+<p>Sum the second term over a batch and drop the stop-gradient, which does not
+affect the minimiser:</p>
+<div class="math block">
+\[\sum_i \lVert z_{e,i} - e_{k_i} \rVert^2 .\]
+</div>
+<p>Differentiate with respect to one entry <span class="math inline">\(e_j\)</span> and set to zero:</p>
+<div class="math block">
+\[\frac{\partial}{\partial e_j} \sum_i \lVert z_{e,i} - e_{k_i} \rVert^2
+ = -2 \sum_{i \,:\, k_i = j} (z_{e,i} - e_j) = 0
+\;\Rightarrow\;
+e_j = \frac{1}{n_j} \sum_{i \,:\, k_i = j} z_{e,i} .
+\qquad (3)\]
+</div>
+<p>That is the M-step of Lloyd's algorithm. Equation (1) is the E-step. So the
+latent half of VQ-VAE is running k-means on the encoder's outputs, jointly with
+representation learning — the encoder reshapes the point cloud and k-means tiles
+it. The demo checks the fixed point directly: a converged code sits 0.038 to
+0.059 of a latent norm from the mean of its own cell, while <code>vq_vae</code> at
+<span class="math inline">\(\beta = 0.25\)</span> sits 0.388 away because its encoder never stops moving.</p>
+<p>This also explains the collapse. If no point chooses <span class="math inline">\(e_j\)</span>, then <span class="math inline">\(n_j = 0\)</span>, the
+sum in (3) is empty, and</p>
+<div class="math block">
+\[n_j = 0 \;\Rightarrow\; \nabla_{e_j}\mathcal{L} = 0 ,
+\qquad (4)\]
+</div>
+<p>so the dead entry is never updated and never will be. Collapse is an absorbing
+state, not a slow drift. Fixing it needs an intervention — a re-seed or an EMA
+that carries a prior count — not more training.</p>
+<h3 id="the-straight-through-surrogate">The straight-through surrogate <a class="header-anchor" href="#the-straight-through-surrogate">#</a></h3>
+<p>The estimator is one line:</p>
+<div class="math block">
+\[\frac{\partial \mathcal{L}}{\partial z_e}
+ := \frac{\partial \mathcal{L}}{\partial z_q} .
+\qquad (5)\]
+</div>
+<p>Forward, <span class="math inline">\(z_q = e\)</span>; backward, pretend <span class="math inline">\(z_q = z_e\)</span>. It is biased, and the bias is
+easy to state: it ignores the change in <em>which</em> code is selected. If a step
+moves <span class="math inline">\(z_e\)</span> across a Voronoi boundary, the true loss jumps and the surrogate
+does not see it. In practice the direction is right often enough to train, which
+is why a one-line lie has survived nearly a decade of production codecs.</p>
+<h3 id="the-relaxed-quantiser-and-its-covariance">The relaxed quantiser and its covariance <a class="header-anchor" href="#the-relaxed-quantiser-and-its-covariance">#</a></h3>
+<p>There is a smooth alternative. Replace the argmin with a softmax over negative
+squared distances,</p>
+<div class="math block">
+\[w_k(z) = \frac{\exp(-d_k(z)/\tau s)}{\sum_j \exp(-d_j(z)/\tau s)},
+\qquad d_k = \lVert z - e_k \rVert^2 ,
+\qquad (6)\]
+</div>
+<p>and form <span class="math inline">\(z_q = \sum_k w_k e_k\)</span>. Write <span class="math inline">\(\bar{e}_w = \sum_k w_k e_k\)</span> for that
+same weighted mean. Differentiating <span class="math inline">\(w_k\)</span> with respect to <span class="math inline">\(z\)</span> gives
+<span class="math inline">\(\partial w_k/\partial z = (2/\tau s)\,w_k(e_k - \bar{e}_w)\)</span>, so</p>
+<div class="math block">
+\[\frac{\partial z_q}{\partial z}
+ = \frac{2}{\tau s} \sum_k w_k (e_k - \bar{e}_w)(e_k - \bar{e}_w)^\top
+ = \frac{2}{\tau s}\,\mathrm{Cov}_w(e),
+\qquad (7)\]
+</div>
+<p>the weighted covariance of the codes under the soft assignment. The Jacobian is
+symmetric and positive semidefinite, and the chain rule gives</p>
+<div class="math block">
+\[\frac{\partial \mathcal{L}}{\partial z}
+ = \frac{2}{\tau s}\,\mathrm{Cov}_w(e)\,
+   \frac{\partial \mathcal{L}}{\partial z_q} .
+\qquad (8)\]
+</div>
+<p>Two consequences follow immediately. As <span class="math inline">\(\tau \to 0\)</span> the weights become one-hot,
+<span class="math inline">\(\mathrm{Cov}_w(e) \to 0\)</span>, and the gradient vanishes <em>exponentially</em> while the
+prefactor <span class="math inline">\(1/\tau\)</span> grows only polynomially — the relaxed gradient is not a
+low-temperature limit of anything useful. And the scale <span class="math inline">\(s\)</span> is the codebook's
+own spread, so <span class="math inline">\(\tau\)</span> is dimensionless: the same <span class="math inline">\(\tau\)</span> means the same
+relaxation whether the latent norm is 1 or 20.</p>
+<p>The file computes (8) without ever forming the matrix, because only the product
+with <span class="math inline">\(\partial \mathcal{L}/\partial z_q\)</span> is needed:</p>
+<div class="math block">
+\[\frac{\partial \mathcal{L}}{\partial z}
+ = \frac{2}{\tau s}\Bigl[\sum_k w_k (e_k \cdot g)\, e_k
+   - (\bar{e}_w \cdot g)\,\bar{e}_w\Bigr],
+\qquad g = \frac{\partial \mathcal{L}}{\partial z_q} .
+\qquad (9)\]
+</div>
+<p>The demo checks this against central differences to <span class="math inline">\(5\times 10^{-9}\)</span>, and
+builds the covariance matrix of (7) and checks it against a finite-difference
+Jacobian to <span class="math inline">\(4.8\times 10^{-10}\)</span>.</p>
+<h3 id="exponential-moving-average">Exponential moving average <a class="header-anchor" href="#exponential-moving-average">#</a></h3>
+<p>The VQ-VAE-2 codebook update keeps two running sums per entry, a count and a
+vector sum, and divides:</p>
+<div class="math block">
+\[N_j \leftarrow \gamma N_j + (1-\gamma) n_j, \qquad
+m_j \leftarrow \gamma m_j + (1-\gamma) \sum_{i \in j} z_i, \qquad
+e_j \leftarrow \frac{m_j}{N_j} .
+\qquad (10)\]
+</div>
+<p>In the limit <span class="math inline">\(\gamma \to 0\)</span> this is the batch mean; at <span class="math inline">\(\gamma = 0.99\)</span> it is an
+exponential average of batch means with effective window <span class="math inline">\(1/(1-\gamma) = 100\)</span>
+steps. Dividing by the decayed count rather than a constant is what makes it a
+mean instead of a scaled sum. The paper also adds a small constant to <span class="math inline">\(N_j\)</span>
+before the division, so an entry with very few assignments is not divided by
+nearly zero and flung across the latent space by one unlucky batch.</p>
+<p>The point is that (10) has (3) as its fixed point, so it solves the same problem
+as the optimizer without a learning rate, an Adam state, or a step size to tune.
+The measured gap is 0.059 of a latent norm, the third tightest in the table.</p>
+<h3 id="residual-stacks">Residual stacks <a class="header-anchor" href="#residual-stacks">#</a></h3>
+<p>One codebook has a ceiling: the error left over after quantisation is bounded
+below by the cell radius, and 16 codes in 8 dimensions cannot tile the encoder's
+output finely. Residual VQ spends a second codebook on that leftover:</p>
+<div class="math block">
+\[r_0 = z_e, \qquad
+r_l = r_{l-1} - e_{l,k_l}(r_{l-1}), \qquad
+z_q = \sum_{l=1}^{L} e_{l,k_l} .
+\qquad (11)\]
+</div>
+<p>Each level's code is chosen to minimise the residual it sees, so the levels are
+greedy and the reconstruction error is the residual left after the last one. The
+demo's two levels take the error from 0.0098 to 0.0026, a factor of 3.7; more
+levels keep helping until the residual is pure noise. The cost is a vocabulary
+that is nominally <span class="math inline">\(K^L\)</span> — and actually much smaller, because only the pairs the
+data visits are reachable.</p>
+<h3 id="the-elbo-reading">The ELBO reading <a class="header-anchor" href="#the-elbo-reading">#</a></h3>
+<p>It is worth seeing why no KL term appears in (2). Take the posterior to be a
+point mass on the chosen code and the prior to be uniform over <span class="math inline">\(K\)</span> codes. Then</p>
+<div class="math block">
+\[\log p(x) \ge \mathbb{E}_{q}[\log p(x \mid z)]
+ - \mathrm{KL}(q \Vert p)
+ = \mathbb{E}_{q}[\log p(x\mid z)] - \log K ,
+\qquad (12)\]
+</div>
+<p>and <span class="math inline">\(\log K\)</span> is the same for every input, so it contributes no gradient. VQ-VAE
+is a VAE with a degenerate posterior and a uniform prior, and the whole
+interesting part of the ELBO has moved into the reconstruction term. Posteriors
+cannot collapse toward the prior here, because the KL <em>is</em> the prior's entropy
+and never moves; the failure mode that replaces it is collapse of the
+<em>dictionary</em> — dead codes — which is what the rest of this file is about.</p>
+<h3 id="reading-the-table">Reading the table <a class="header-anchor" href="#reading-the-table">#</a></h3>
+<p>Every model is trained for 3000 steps of batch 256 on the same 2048 points.</p>
+<table>
+<thead>
+<tr>
+<th>variant</th>
+<th>mse</th>
+<th>/floor</th>
+<th>used</th>
+<th>ppl</th>
+<th>to cell</th>
+<th>q. err</th>
+<th>params</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vq_vae</code></td>
+<td>0.02247</td>
+<td>2.29</td>
+<td>12/16</td>
+<td>10.41</td>
+<td>0.388</td>
+<td>0.300</td>
+<td>9866</td>
+</tr>
+<tr>
+<td><code>vq_vae2</code></td>
+<td>0.01047</td>
+<td>1.07</td>
+<td>16/16</td>
+<td>12.67</td>
+<td>0.319</td>
+<td>0.062</td>
+<td>9866</td>
+</tr>
+<tr>
+<td><code>ema_codebook</code></td>
+<td>0.01180</td>
+<td>1.20</td>
+<td>11/16</td>
+<td>9.42</td>
+<td>0.059</td>
+<td>0.055</td>
+<td>9866</td>
+</tr>
+<tr>
+<td><code>commitment_loss</code></td>
+<td>0.00789</td>
+<td>0.80</td>
+<td>14/16</td>
+<td>13.32</td>
+<td>0.047</td>
+<td>0.033</td>
+<td>9866</td>
+</tr>
+<tr>
+<td><code>straight_through</code></td>
+<td>0.01022</td>
+<td>1.04</td>
+<td>16/16</td>
+<td>14.64</td>
+<td>0.038</td>
+<td>0.037</td>
+<td>9866</td>
+</tr>
+<tr>
+<td><code>residual_vq</code></td>
+<td>0.00263</td>
+<td>0.27</td>
+<td>69/256</td>
+<td>60.72</td>
+<td>—</td>
+<td>—</td>
+<td>9994</td>
+</tr>
+</tbody>
+</table>
+<p><code>/floor</code> is the reconstruction error in units of the data's own variance, so 1.0
+is the best a model can do without denoising. <code>used</code> counts codes that win at
+least 0.1% of the test set; <code>ppl</code> is the perplexity of that distribution, which
+is 16.0 for a perfectly uniform codebook. <code>to cell</code> is the distance from each
+code to the mean of the vectors that chose it, divided by the mean latent norm —
+the direct measure of whether (3) has been reached. <code>q. err</code> is the squared
+quantisation error divided by the latent energy.</p>
+<p>Three things stand out. The paper's <span class="math inline">\(\beta = 0.25\)</span> is the <em>worst</em> setting here,
+not a good default: it leaves the encoder free to inflate the latent until the
+codebook cannot follow, and both <code>to cell</code> and <code>q. err</code> are an order of magnitude
+worse than everything else. Coverage and convergence are not the same axis —
+<code>vq_vae2</code> has all 16 codes at 0.0105, but its <code>to cell</code> is 0.319 because
+re-seeding keeps teleporting entries and they never settle, while
+<code>commitment_loss</code> has 14 codes at 0.0079 and a <code>to cell</code> of 0.047. &quot;No dead
+codes&quot; is necessary but not sufficient. And <code>residual_vq</code> is a different regime,
+not a better version of the others: two levels buy a 4x lower error and a 256-way
+vocabulary, at which point the code distribution is no longer nearly uniform and
+an empirical histogram is no longer a plausible prior.</p>
+<h2 id="code-walkthrough">Code walkthrough <a class="header-anchor" href="#code-walkthrough">#</a></h2>
+<h3 id="the-quantiser">The quantiser <a class="header-anchor" href="#the-quantiser">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_quantise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ze</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Replace each row by its nearest code; returns (quantised, picks)."""</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">ze</span>
+        <span class="n">zq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">ze</span><span class="p">)</span>
+        <span class="n">picks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">levels</span><span class="p">):</span>
+            <span class="n">d2</span> <span class="o">=</span> <span class="p">((</span><span class="n">resid</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="kc">None</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">zq</span> <span class="o">=</span> <span class="n">zq</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">resid</span> <span class="o">=</span> <span class="n">resid</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">picks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">zq</span><span class="p">,</span> <span class="n">picks</span>
+</code></pre>
+<p><code>resid[:, None, :] - self.E[level][None]</code> is the <span class="math inline">\((n, K, D)\)</span> table of
+differences, and the
+sum over the last axis turns it into <span class="math inline">\((n, K)\)</span> distances. One level is a lookup;
+more levels repeat the lookup on the leftover, which is (11) in four lines. The
+same loop is written out twice more — in <code>reconstruct</code> (with a stopping level)
+and in <code>distances</code> — because each needs a different output, and a shared helper
+would return a tuple nobody fully uses.</p>
+<h3 id="the-relaxed-gradient">The relaxed gradient <a class="header-anchor" href="#the-relaxed-gradient">#</a></h3>
+<pre class="highlight"><code>        <span class="n">w</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_soft_weights</span><span class="p">(</span><span class="n">ze</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">tau</span><span class="p">)</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(((</span><span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+                      <span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">+</span> <span class="mf">1e-9</span>
+        <span class="n">bar</span> <span class="o">=</span> <span class="n">w</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">proj</span> <span class="o">=</span> <span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">dq</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tau</span> <span class="o">*</span> <span class="n">scale</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span>
+            <span class="n">proj</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">proj</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">*</span> <span class="n">bar</span><span class="p">)</span>
+</code></pre>
+<p><code>proj</code> is <span class="math inline">\(w_k (e_k \cdot g)\)</span> for every <span class="math inline">\(k\)</span> and every row, so <code>proj @ E</code> is the
+first sum in (9) and <code>proj.sum(axis=1, keepdims=True) * bar</code> is
+<span class="math inline">\((\bar{e}_w\cdot g)\bar{e}_w\)</span>. The <code>1e-9</code> keeps the scale finite when the
+codebook has not spread yet, which happens on step 0.</p>
+<p>The scale is recomputed rather than cached because the codebook moves every
+step, and the value that matters is the one at the point where the gradient is
+taken. It is the same expression <code>_soft_weights</code> uses internally, so the forward
+and backward passes cannot drift apart.</p>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">_soft_weights</span><span class="p">(</span><span class="n">ze</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">E</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">tau</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Softmax over negative squared distances, plus those distances.</span>
+
+<span class="sd">    `tau` is relative to the codebook's own spread, so the relaxation means the</span>
+<span class="sd">    same thing wherever the encoder happens to place the latent.</span>
+<span class="sd">    """</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(((</span><span class="n">E</span> <span class="o">-</span> <span class="n">E</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">+</span> <span class="mf">1e-9</span>
+    <span class="n">d2</span> <span class="o">=</span> <span class="p">((</span><span class="n">ze</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">E</span><span class="p">[</span><span class="kc">None</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">d2</span> <span class="o">-</span> <span class="n">d2</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">z</span> <span class="o">/</span> <span class="p">(</span><span class="n">tau</span> <span class="o">*</span> <span class="n">scale</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">w</span> <span class="o">/</span> <span class="n">w</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">d2</span>
+</code></pre>
+<p>Subtracting the row minimum before the exponential guarantees that the largest
+weight is <span class="math inline">\(e^0 = 1\)</span>, so the denominator can never be zero and the division is
+always defined. It leaves the ratio unchanged and makes the result independent
+of where the encoder puts the origin. It does <em>not</em> protect the other weights:
+when the spread of distances dwarfs <span class="math inline">\(\tau s\)</span> they underflow to zero and the
+softmax becomes exactly one-hot, which is the failure described further down.</p>
+<h3 id="the-training-step">The training step <a class="header-anchor" href="#the-training-step">#</a></h3>
+<pre class="highlight"><code>        <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_steps</span><span class="p">):</span>
+            <span class="n">xb</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">)]</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">xb</span><span class="p">)</span>
+            <span class="n">ze</span><span class="p">,</span> <span class="n">cache_e</span> <span class="o">=</span> <span class="n">_mlp_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enc</span><span class="p">,</span> <span class="n">xb</span><span class="p">)</span>
+            <span class="n">zq</span><span class="p">,</span> <span class="n">picks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_quantise</span><span class="p">(</span><span class="n">ze</span><span class="p">)</span>
+            <span class="n">xh</span><span class="p">,</span> <span class="n">cache_d</span> <span class="o">=</span> <span class="n">_mlp_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dec</span><span class="p">,</span> <span class="n">zq</span><span class="p">)</span>
+
+            <span class="n">recon</span> <span class="o">=</span> <span class="p">((</span><span class="n">xb</span> <span class="o">-</span> <span class="n">xh</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">SPREAD</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">dq</span><span class="p">,</span> <span class="n">gd</span> <span class="o">=</span> <span class="n">_mlp_backward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dec</span><span class="p">,</span> <span class="n">cache_d</span><span class="p">,</span>
+                                   <span class="p">(</span><span class="n">xh</span> <span class="o">-</span> <span class="n">xb</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">SPREAD</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+            <span class="n">g_ze</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">soft_gradient</span><span class="p">(</span><span class="n">ze</span><span class="p">,</span> <span class="n">dq</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad</span> <span class="o">==</span> <span class="s2">"soft"</span>
+                    <span class="k">else</span> <span class="n">dq</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+            <span class="n">g_E</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">]</span>
+            <span class="n">resid</span><span class="p">,</span> <span class="n">gap</span> <span class="o">=</span> <span class="n">ze</span><span class="p">,</span> <span class="mf">0.0</span>
+            <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">levels</span><span class="p">):</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="n">picks</span><span class="p">[</span><span class="n">level</span><span class="p">]</span>
+                <span class="n">eq</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">gap</span> <span class="o">=</span> <span class="n">gap</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(((</span><span class="n">resid</span> <span class="o">-</span> <span class="n">eq</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">ema</span><span class="p">:</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">g_E</span><span class="p">[</span><span class="n">level</span><span class="p">],</span> <span class="n">k</span><span class="p">,</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">eq</span> <span class="o">-</span> <span class="n">resid</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
+                <span class="n">g_ze</span> <span class="o">=</span> <span class="n">g_ze</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">*</span> <span class="p">(</span><span class="n">resid</span> <span class="o">-</span> <span class="n">eq</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+                <span class="n">resid</span> <span class="o">=</span> <span class="n">resid</span> <span class="o">-</span> <span class="n">eq</span>
+</code></pre>
+<p>Read the three gradient streams separately. <code>dq</code> is
+<span class="math inline">\(\partial \mathcal{L}/\partial z_q\)</span> from the decoder; under straight-through it
+<em>is</em> the encoder's gradient, which is <code>dq.copy()</code>. <code>g_E</code> is the codebook's
+gradient, scattered with <code>np.add.at</code> because several rows can choose the same
+code and a plain fancy-index assignment would keep only the last. <code>g_ze</code> then
+gathers one commitment gradient per level.</p>
+<p>That last part deserves a note for the residual model. The decoder sees
+<span class="math inline">\(z_q = \sum_l e_{l,k_l}\)</span> and hands back one gradient with respect to the sum.
+Since <span class="math inline">\(\partial z_q/\partial r_l = 1\)</span> for every level's residual, a single
+<code>g_ze = dq</code> is already correct at every level; the loop adds only the commitment
+gradients, one per level. For one level the loop does one iteration and the code
+is the textbook version.</p>
+<p><code>np.add.at</code> is the slow, correct tool. <code>g_E[level][k] += 2*(eq - resid)</code> would
+silently drop all but the last contribution of each duplicate index, and the
+error is invisible in the loss — the codebook just learns a biased mean.</p>
+<h3 id="the-ema-update">The EMA update <a class="header-anchor" href="#the-ema-update">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_ema_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ze</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">picks</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">counts</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Smoothed exponential moving average, as in VQ-VAE-2."""</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">ze</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">levels</span><span class="p">):</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">picks</span><span class="p">[</span><span class="n">level</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">):</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">k</span> <span class="o">==</span> <span class="n">j</span>
+                <span class="n">nj</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+                <span class="k">if</span> <span class="n">nj</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">nk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decay</span> <span class="o">*</span> <span class="n">counts</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">decay</span><span class="p">)</span> <span class="o">*</span> <span class="n">nj</span>
+                <span class="n">tot</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">decay</span> <span class="o">*</span> <span class="n">counts</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">j</span><span class="p">]</span>
+                       <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">decay</span><span class="p">)</span> <span class="o">*</span> <span class="n">ze</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">tot</span> <span class="o">/</span> <span class="n">nk</span>
+                <span class="n">counts</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">nk</span>
+            <span class="n">resid</span> <span class="o">=</span> <span class="n">resid</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+</code></pre>
+<p>This is (10) verbatim, with <code>counts</code> playing <span class="math inline">\(N_j\)</span> and <code>tot</code> playing <span class="math inline">\(m_j\)</span>. The
+<code>continue</code> on <code>nj == 0</code> is not an optimisation: with <span class="math inline">\(n_j = 0\)</span> the numerator is
+<span class="math inline">\(\gamma m_j\)</span> and the denominator <span class="math inline">\(\gamma N_j\)</span>, so the entry would be unchanged
+anyway, but the early exit makes the equality explicit.</p>
+<p>A vectorised version would group by <code>k</code> with <code>np.bincount</code> and a matrix product.
+It is faster and it is easier to get subtly wrong, because the decayed count has
+to be updated for the dead codes too (by the decay alone) and a sparse grouping
+naturally skips them.</p>
+<h3 id="re-seeding">Re-seeding <a class="header-anchor" href="#re-seeding">#</a></h3>
+<pre class="highlight"><code>    <span class="k">def</span><span class="w"> </span><span class="nf">_restart</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ze</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">picks</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">idle</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+                 <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Re-seed a code after it has gone a while without an assignment."""</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">levels</span><span class="p">):</span>
+            <span class="n">hit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="n">hit</span><span class="p">[</span><span class="n">picks</span><span class="p">[</span><span class="n">level</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">idle</span><span class="p">[</span><span class="n">level</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">hit</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">idle</span><span class="p">[</span><span class="n">level</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">idle</span><span class="p">[</span><span class="n">level</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">IDLE</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">ze</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ze</span><span class="p">))]</span>
+                <span class="n">idle</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">reseeds</span> <span class="o">+=</span> <span class="mi">1</span>
+</code></pre>
+<p>The patience counter is what makes this safe. Re-seeding every dead code every
+step would churn the dictionary, because on any single batch of 256 points some
+of 16 codes legitimately win nothing. Requiring 25 consecutive empty batches
+means a code has to be unwanted by <em>every</em> draw before it moves. In the demo
+this fires 48 times over 3000 steps — sixteen codes, three resurrections each on
+average — and ends with complete coverage.</p>
+<p>The new location is a single encoder output, not a mean of anything. That is the
+point: a dead code should land where the data actually is, and one sample is
+enough to put it inside a cell that will then pull it toward that cell's mean.</p>
+<h3 id="reconstruction-and-sampling">Reconstruction and sampling <a class="header-anchor" href="#reconstruction-and-sampling">#</a></h3>
+<pre class="highlight"><code>        <span class="n">ze</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_mlp_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enc</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">ze</span>
+        <span class="n">zq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">ze</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">upto</span><span class="p">):</span>
+            <span class="n">d2</span> <span class="o">=</span> <span class="p">((</span><span class="n">resid</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="kc">None</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">zq</span> <span class="o">=</span> <span class="n">zq</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">resid</span> <span class="o">=</span> <span class="n">resid</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">_mlp_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dec</span><span class="p">,</span> <span class="n">zq</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</code></pre>
+<p>The <code>upto</code> argument is what lets the demo report &quot;level 1 alone scores 0.0098,
+two levels score 0.0026&quot; from one trained model, which is the cleanest statement
+of what a residual level is worth: the same encoder, the same decoder, one fewer
+codebook.</p>
+<pre class="highlight"><code>        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+        <span class="n">joint</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="p">)</span>
+        <span class="n">zq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">latent</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">levels</span><span class="p">)):</span>
+            <span class="n">zq</span> <span class="o">=</span> <span class="n">zq</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">joint</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">]</span>
+            <span class="n">joint</span> <span class="o">=</span> <span class="n">joint</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span>
+        <span class="k">return</span> <span class="n">_mlp_forward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dec</span><span class="p">,</span> <span class="n">zq</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</code></pre>
+<p>Sampling needs a prior over codes, and this one is the empirical histogram of the
+training set — a lookup table, not a model. <code>_joint</code> packs the levels as digits,
+<span class="math inline">\(k_1 K^{L-1} + \cdots + k_L\)</span>, so decoding walks the levels from the last to the
+first with <code>% K</code> and <code>// K</code>. <code>reversed</code> is doing real work: the levels are stored
+most-significant first, and iterating forward would assign each code to the wrong
+slot and still produce eight plausible blobs, which is exactly the kind of bug
+that survives a visual check.</p>
+<h3 id="the-k-means-reference">The k-means reference <a class="header-anchor" href="#the-k-means-reference">#</a></h3>
+<pre class="highlight"><code><span class="k">def</span><span class="w"> </span><span class="nf">kmeans</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">iters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Lloyd's algorithm; returns (distortion, centres)."""</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">iters</span><span class="p">):</span>
+        <span class="n">lab</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(((</span><span class="n">x</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">c</span><span class="p">[</span><span class="kc">None</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">new</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="n">lab</span> <span class="o">==</span> <span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">lab</span> <span class="o">==</span> <span class="n">j</span><span class="p">)</span> <span class="k">else</span> <span class="n">c</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)])</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">new</span><span class="p">,</span> <span class="n">c</span><span class="p">):</span>
+            <span class="k">break</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">new</span>
+    <span class="n">lab</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(((</span><span class="n">x</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">c</span><span class="p">[</span><span class="kc">None</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(((</span><span class="n">x</span> <span class="o">-</span> <span class="n">c</span><span class="p">[</span><span class="n">lab</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()),</span> <span class="n">c</span>
+</code></pre>
+<p>This exists to be a baseline, not a component. Running Lloyd's algorithm on the
+<em>trained encoder's</em> outputs gives the best distortion any codebook of this size
+can achieve for that point cloud, so dividing the learned distortion by it says
+how far the joint optimisation has drifted from the alternating solution. The
+demo prints the ratio for every variant: 1.14 for <code>straight_through</code>, 1.33 for
+<code>commitment_loss</code>, 3.95 for <code>vq_vae</code>. That is the <code>to cell</code> story measured a
+different way. Where the encoder has settled, the codebook is within 15% of the
+best tiling of the representation it is given; where the encoder is still
+moving, no codebook can be optimal for a target that runs away, and the ratio
+stays near 4. The remaining error lives in the representation, not the tiling.</p>
+<h2 id="complexity">Complexity <a class="header-anchor" href="#complexity">#</a></h2>
+<p>Per point, the encoder and decoder cost <span class="math inline">\(O(dH + H^2)\)</span> each, with <span class="math inline">\(d = 2\)</span> the data
+dimension, <span class="math inline">\(D = 8\)</span> the latent and <span class="math inline">\(H = 64\)</span> the width. The quantiser costs
+<span class="math inline">\(O(KDL)\)</span> for <span class="math inline">\(L\)</span> levels, which is 128 multiply-adds at these sizes and 33k at
+image scale (<span class="math inline">\(K = 512\)</span>, <span class="math inline">\(D = 64\)</span>, <span class="math inline">\(L = 1\)</span>). One training step is
+<span class="math inline">\(O(B(KDL + dH + H^2))\)</span> with <span class="math inline">\(B = 256\)</span>.</p>
+<p>The demo trains eleven models — six variants and five commitment settings — for
+3000 steps each, so about 8.4 million point-steps through the encoder and
+decoder. At the codebook sizes used here the lookup is under 3% of the
+arithmetic; the networks dominate, which is the opposite of the situation at
+image resolution.</p>
+<p>Memory is the codebook's <span class="math inline">\(O(KDL)\)</span> floats plus the two networks: 9866 parameters
+in total, of which the codebook is 128. Sampling stores the histogram, which is
+dense and therefore
+<span class="math inline">\(O(K^L)\)</span>: fine at <span class="math inline">\(16^2 = 256\)</span>, impossible at <span class="math inline">\(512^4 = 6.9\times 10^{10}\)</span>. That
+dense histogram is the atom's one genuinely non-scalable choice, and every
+production system replaces it with an autoregressive or masked prior.</p>
+<p>Comparison against the Gaussian VAE is a wash on arithmetic and a real win on
+latent size: 4 bits instead of 256, which is 64x less to model with a second
+network. That ratio is the reason discrete latents won.</p>
+<h2 id="failure-modes">Failure modes <a class="header-anchor" href="#failure-modes">#</a></h2>
+<p><strong>Codebook collapse.</strong> The headline failure, and the one the demo exists to show.
+<code>vq_vae</code> leaves 4 of 16 codes unassigned; by (4) those codes have exactly zero
+gradient and cannot recover. Re-seeding recovers all 16 in 48 interventions.
+EMA recovers only 11, and the reason is structural: with <span class="math inline">\(n_j = 0\)</span> the update
+in (10) is a no-op, so a dead entry stays exactly where it is and stays
+unwanted forever. EMA buys convergence for the entries that live, not coverage
+for the ones that do not. Neither fix is free: re-seeding takes coverage from 12
+to 16 but the error only falls from 2.29 to 1.07 floors, and
+<code>commitment_loss</code> beats both with 14 codes. Coverage is a necessary condition
+for a good codebook, not a sufficient one.</p>
+<p><strong>A commitment weight tuned for images.</strong> <span class="math inline">\(\beta = 0.25\)</span> is the original paper's
+value, and on this data it is the worst of the five settings tried. The sweep is
+unambiguous: <span class="math inline">\(\beta = 0\)</span> lets the latent norm reach <span class="math inline">\(9.5\times10^4\)</span> and the error
+sit at 10 floors, because the encoder is free to expand and the codebook can
+never catch up; <span class="math inline">\(\beta = 0.25\)</span> still leaves the quantisation error at 30% of the
+latent energy; <span class="math inline">\(\beta = 4\)</span> reaches 0.80 floors with a latent norm of 2.65. The
+paper's <span class="math inline">\(\beta\)</span> was chosen for 256×256 images with 64-dimensional latents and a
+much larger decoder, where the encoder cannot easily inflate the latent; this
+data is two-dimensional with an eight-dimensional latent, and the same constant
+does not transfer. The number is a prior, not a law.</p>
+<p><strong>Pushing <span class="math inline">\(\beta\)</span> too far.</strong> At <span class="math inline">\(\beta = 64\)</span> the error is 0.0072, marginally the
+best, but the latent norm has fallen to 1.11 — close to the data's own radius of
+0.8. The encoder has stopped expanding, so 16 codes must cover a ball about the
+size of the data cloud and the decoder is doing the work of separating the modes
+from a 4-bit index. The model is close to a plain 16-way vector quantiser with
+the representation learning removed. The limit is instructive: as
+<span class="math inline">\(\beta \to \infty\)</span> the encoder maps every input to one point, all codes chase
+that point, and the codebook collapses to a single entry.</p>
+<p><strong>An absolute temperature.</strong> The first version of the soft quantiser used
+<span class="math inline">\(\tau = 0.05\)</span> as a raw squared distance. With the encoder placing the latent at
+norm 8, squared distances ran to a hundred or so, and after subtracting the row
+minimum every other weight underflowed to zero: the softmax was <em>exactly</em>
+one-hot, so <span class="math inline">\(\mathrm{Cov}_w = 0\)</span> and by (7) the encoder gradient was exactly
+zero. Training ran, the loss fell, and the encoder never moved — 0.40 error, 2 of
+8 modes covered, worse than doing nothing. Normalising <span class="math inline">\(\tau\)</span> by the codebook's
+own spread fixed it in one line and made the parameter dimensionless.</p>
+<p><strong>A temperature that trains is not a temperature that helps.</strong> Sweeping the
+normalised <span class="math inline">\(\tau\)</span> from 0.02 to 3 gives final errors between 0.0077 and 0.0388
+with no monotone trend; at one seed each most of that spread is noise, and Adam
+divides out the gradient's <em>scale</em>, so the only fatal setting is a gradient that
+is exactly zero. What <span class="math inline">\(\tau\)</span> changes is the direction — large <span class="math inline">\(\tau\)</span> mixes
+neighbouring codes into <span class="math inline">\(z_q\)</span>, small <span class="math inline">\(\tau\)</span> approaches the hard lookup. The
+measured cosine at <span class="math inline">\(\tau = 1\)</span> is <span class="math inline">\(+0.53\)</span>: the relaxed and straight-through
+surrogates agree on the average direction and disagree coordinate by coordinate.
+Neither is the true derivative, and the loss curve cannot tell you which one to
+use — only samples can.</p>
+<p><strong>A vocabulary that is nominally larger than it is.</strong> <code>residual_vq</code> reports
+69 of 256 pairs reachable. Any model trained on the nominal vocabulary would
+spend <span class="math inline">\(1 - 69/256 = 73\%\)</span> of its probability on pairs the encoder never produces,
+and sampling from it would decode codes the decoder never saw. In production this
+is handled by learning the prior on the <em>observed</em> codes — the entropy coding in
+SoundStream is built on exactly this — but it is worth knowing that &quot;<span class="math inline">\(K^L\)</span> codes&quot;
+is an upper bound on capacity, not a description of it.</p>
+<p><strong>Reconstruction error below the data floor is not a bug.</strong> <code>commitment_loss</code>
+scores 0.80 floors and the reconstruction's mean distance to a mode centre
+(0.045) is <em>below</em> the data's own (0.088). The decoder outputs conditional means,
+so it removes the within-blob noise as well as the quantisation error. This means
+that a low MSE can mean either &quot;good model&quot; or &quot;outputs the mode centres&quot;, and
+the two are indistinguishable by MSE alone. The floor of exactly 1.0 for a
+centre-emitting decoder is why the demo prints the ratio rather than the raw
+number: 1.0 is the target, not 0.</p>
+<p><strong>Confusing quantisation error with reconstruction error.</strong> They are different
+quantities and they move in opposite directions as <span class="math inline">\(\beta\)</span> grows. <code>q. err</code> is how
+far the latent sits from its code, 0.033 for <code>commitment_loss</code>; the mse is how
+far the output sits from the data, 0.0079. A model with a large <span class="math inline">\(\beta\)</span> can have
+a tiny quantisation error and a poor decoder, and one with a small <span class="math inline">\(\beta\)</span> can
+have the reverse. The demo keeps the two columns apart because the most common
+debugging mistake in this family is to watch the codebook loss fall and conclude
+that the model is learning.</p>
+<h2 id="applications">Applications <a class="header-anchor" href="#applications">#</a></h2>
+<ul>
+<li>
+<p><strong>Neural audio codecs.</strong> SoundStream, EnCodec and DAC all use residual vector
+quantisation over a learned encoder, with the codebooks trained exactly as
+here and entropy-coded for transmission. A 3 kbps speech codec is a VQ-VAE with
+a stack of codebooks and a language model over the codes.</p>
+</li>
+<li>
+<p><strong>Image tokenisation for transformers.</strong> VQ-VAE-2, VQGAN and ViT-VQGAN turn an
+image into a grid of code indices, which a transformer can then model with a
+categorical cross-entropy — the same loss it uses for text. DALL·E's dVAE,
+MaskGIT, Muse and Parti all sit downstream of this idea.</p>
+</li>
+<li>
+<p><strong>Audio and video generation.</strong> Jukebox generates music in a VQ-VAE's discrete
+code space; video models (CogVideo, Phenaki) tokenise frames the same way.</p>
+</li>
+<li>
+<p><strong>Self-supervised speech representations.</strong> wav2vec 2.0 and HuBERT quantise
+continuous features into a codebook to form targets for masked prediction. The
+quantiser is the same nearest-neighbour lookup; the training objective is
+different.</p>
+</li>
+<li>
+<p><strong>Compression with a learned prior.</strong> A VQ-VAE plus an autoregressive model over
+codes is a lossy compressor whose rate is the code entropy, and whose decoder is
+a neural network. This is the architecture of every neural codec shipped since
+2021.</p>
+</li>
+<li>
+<p><strong>Anomaly detection and retrieval.</strong> Because the codebook is a finite
+vocabulary, the reconstruction error of an input that maps to a distant code is
+a natural outlier score, and the code indices themselves are a hash for
+nearest-neighbour search.</p>
+</li>
+</ul>
+<h2 id="references">References <a class="header-anchor" href="#references">#</a></h2>
+<ul>
+<li>van den Oord, Vinyals, Kavukcuoglu (2017). <em>Neural Discrete Representation
+Learning.</em> The VQ-VAE paper: the three-term loss, the straight-through
+estimator, and the claim that discrete latents avoid posterior collapse.</li>
+<li>Razavi, van den Oord, Vinyals (2019). <em>Generating Diverse High-Fidelity Images
+with VQ-VAE-2.</em> The hierarchical model, the EMA codebook, and the re-seeding
+of unused codes.</li>
+<li>Bengio, Léonard, Courville (2013). <em>Estimating or Propagating Gradients Through
+Stochastic Neurons for Conditional Computation.</em> The straight-through
+estimator, stated and analysed before it was fashionable.</li>
+<li>Jang, Gu, Poole (2017). <em>Categorical Reparameterization with Gumbel-Softmax.</em>
+The other relaxation of a discrete choice; compare its gradient with (8).</li>
+<li>Zeghidour, Luebs, Omran, Skoglund, Tagliasacchi (2021). <em>SoundStream: An
+End-to-End Neural Audio Codec.</em> Residual VQ in production, with the bitrate
+ladder.</li>
+<li>Défossez, Copet, Synnaeve, Adi (2022). <em>High Fidelity Neural Audio
+Compression.</em> EnCodec: residual VQ, entropy coding, and the numbers that made
+it the default.</li>
+<li>Esser, Rombach, Ommer (2021). <em>Taming Transformers for High-Resolution Image
+Synthesis.</em> VQGAN: a perceptual and adversarial reconstruction loss on top of
+the VQ-VAE, which is what makes the codebook usable at image resolution.</li>
+<li>Chang, Yan, Liu, Li, Hu, Metzler (2022). <em>MaskGIT: Masked Generative Image
+Transformer.</em> Parallel decoding over VQ tokens, and the reason the token
+ordering matters less than it looks.</li>
+<li>Baevski, Zhou, Mohamed, Auli (2020). <em>wav2vec 2.0.</em> Quantised targets for
+self-supervised speech, with a codebook trained by a contrastive objective
+rather than a reconstruction one.</li>
+</ul>
+</div><nav class="pager" aria-label="Pagination"><a class="prev" href="flows.html"><small>Previous</small><span>Normalising flows</span></a><a class="next" href="../15-graphs/index.html"><small>Next</small><span>15 · Graphs</span></a></nav></div><aside class="layout__rail" aria-label="Section"><div class="rail-inner"><p class="rail-title">14 · Generative models</p><ul class="rail-list"><li><a href="vae.html"><span class="tick">✓</span><span>Variational autoencoder</span></a></li><li><a href="gan.html"><span class="tick">✓</span><span>GAN</span></a></li><li><a href="diffusion.html"><span class="tick">✓</span><span>Diffusion (DDPM)</span></a></li><li><a href="wgan.html"><span class="tick">✓</span><span>Wasserstein GAN</span></a></li><li><a href="ddim.html"><span class="tick">✓</span><span>DDIM</span></a></li><li><a href="guidance.html"><span class="tick">✓</span><span>Guidance</span></a></li><li><a href="flows.html"><span class="tick">✓</span><span>Normalising flows</span></a></li><li><a href="vq_vae.html" aria-current="page"><span class="tick">✓</span><span>VQ-VAE</span></a></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Beta-VAE</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Score-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Autoregressive generation</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Energy-based models</span></span></li><li><span class="muted" style="display:flex;gap:.4rem;padding:.22rem 0;font-size:.875rem;opacity:.72"><span class="dot">·</span><span>Flow matching</span></span></li></ul><div class="rail-sub"><p class="rail-title">Chapters</p><ul class="rail-list"><li><a href="../13-training/index.html"><span class="jump">← 13 · Training</span></a></li><li><a href="../15-graphs/index.html"><span class="jump">15 · Graphs&nbsp;→</span></a></li></ul></div><div class="rail-sub rail-toc"><p class="rail-title">On this page</p><ul class="rail-list"><li class="lvl2"><a href="#intuition">Intuition</a></li><li class="lvl2"><a href="#variants">Variants</a></li><li class="lvl2"><a href="#derivation">Derivation</a></li><li class="lvl3"><a href="#the-three-terms">The three terms</a></li><li class="lvl3"><a href="#why-the-codebook-term-is-k-means">Why the codebook term is k-means</a></li><li class="lvl3"><a href="#the-straight-through-surrogate">The straight-through surrogate</a></li><li class="lvl3"><a href="#the-relaxed-quantiser-and-its-covariance">The relaxed quantiser and its covariance</a></li><li class="lvl3"><a href="#exponential-moving-average">Exponential moving average</a></li><li class="lvl3"><a href="#residual-stacks">Residual stacks</a></li><li class="lvl3"><a href="#the-elbo-reading">The ELBO reading</a></li><li class="lvl3"><a href="#reading-the-table">Reading the table</a></li><li class="lvl2"><a href="#code-walkthrough">Code walkthrough</a></li><li class="lvl3"><a href="#the-quantiser">The quantiser</a></li><li class="lvl3"><a href="#the-relaxed-gradient">The relaxed gradient</a></li><li class="lvl3"><a href="#the-training-step">The training step</a></li><li class="lvl3"><a href="#the-ema-update">The EMA update</a></li><li class="lvl3"><a href="#re-seeding">Re-seeding</a></li><li class="lvl3"><a href="#reconstruction-and-sampling">Reconstruction and sampling</a></li><li class="lvl3"><a href="#the-k-means-reference">The k-means reference</a></li><li class="lvl2"><a href="#complexity">Complexity</a></li><li class="lvl2"><a href="#failure-modes">Failure modes</a></li><li class="lvl2"><a href="#applications">Applications</a></li><li class="lvl2"><a href="#references">References</a></li></ul></div></div></aside></div>
+</main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>MLAtoms · MIT · built from Markdown</span>
+    <nav aria-label="Footer"><a href="https://github.com/Abhinav-Prabhakar/MLAtoms/edit/main/14-generative/vq_vae.md">Edit this page</a><a href="../docs/index.html">Docs</a><a href="../index.html">Home</a></nav>
+  </div>
+</footer>
+<script src="../assets/site.js?v=c30b083d" defer></script>
+</body>
+</html>
