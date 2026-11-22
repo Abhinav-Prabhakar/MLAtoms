@@ -5,7 +5,7 @@
 Four families, one question: how do you represent and sample a distribution? Latent-variable models give you a decoder, GANs give you sharpness, flows give you exact likelihood, diffusion gives you both quality and control.
 
 <!-- catalog:begin -->
-**13 atoms · 64 variants · 7 implemented**
+**13 atoms · 64 variants · 8 implemented**
 
 | Atom | File | Tier | Variants | What it does |
 |:--|:--|:--:|--:|:--|
@@ -16,7 +16,7 @@ Four families, one question: how do you represent and sample a distribution? Lat
 | ✓ DDIM | [`ddim.py`](ddim.py) | 2 | 4 | Deterministic, fast sampling and the eta knob. |
 | ✓ Guidance | [`guidance.py`](guidance.py) | 2 | 4 | Trading diversity for fidelity at sampling time. |
 | ✓ Normalising flows | [`flows.py`](flows.py) | 2 | 6 | Exact likelihoods through invertible transformations. |
-| · VQ-VAE | [`vq_vae.py`](vq_vae.py) | 2 | 6 | Discrete codebooks, straight-through gradients, codebook collapse. |
+| ✓ VQ-VAE | [`vq_vae.py`](vq_vae.py) | 2 | 6 | Discrete codebooks, straight-through gradients, codebook collapse. |
 | · Beta-VAE | [`beta_vae.py`](beta_vae.py) | 3 | 4 | Disentanglement pressure and its decomposition. |
 | · Score-based models | [`score_sde.py`](score_sde.py) | 3 | 5 | Score matching, probability-flow ODEs, predictors and correctors. |
 | · Autoregressive generation | [`autoregressive_gen.py`](autoregressive_gen.py) | 3 | 4 | PixelCNN-style masked likelihoods. |
